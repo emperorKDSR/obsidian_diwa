@@ -101,12 +101,12 @@ Success Indicators:
 
 ## DIWA-Specific Desktop Context
 
-**Desktop Hub** (`DesktopHubView.ts`) is a standalone `ItemView` (does NOT extend `BaseTab`) that opens in a new window leaf (`getLeaf('window')`). It uses an entirely separate CSS namespace — `.mina-dh-*` — and should never share or bleed styles with the main plugin view (`.mina-*`).
+**Desktop Hub** (`DesktopHubView.ts`) is a standalone `ItemView` (does NOT extend `BaseTab`) that opens in a new window leaf (`getLeaf('window')`). It uses an entirely separate CSS namespace — `.diwa-dh-*` — and should never share or bleed styles with the main plugin view (`.diwa-*`).
 
 Key guards and patterns used in DIWA:
 - `Platform.isDesktop` gates the Desktop Hub ribbon icon and command
-- The Hub is split into panels: left (branding + navigation), center (command palette + Tactical Core), right (quick-capture + feed)
+- The Hub is split into panels: left (branding + navigation), center (capture + feed), right (metrics + intelligence)
 - High-density layout: information is packed vertically with minimal whitespace — this is intentional
-- Dark glass surface (`rgba(255,255,255,0.03)` panels) — do not use Obsidian's default backgrounds inside `.mina-dh-*`
+- Dark glass surface (`rgba(255,255,255,0.03)` panels) — do not use Obsidian's default backgrounds inside `.diwa-dh-*`
 
-When auditing Desktop Hub changes, evaluate against the `.mina-dh-*` CSS namespace specifically, not the shared `styles.css` component library.
+When auditing Desktop Hub changes, evaluate against the `.diwa-dh-*` CSS namespace specifically, not the shared `styles.css` component library.

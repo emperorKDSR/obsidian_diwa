@@ -16,11 +16,11 @@ You are the DIWA UX Auditor. Your mission is to protect the visual integrity and
 # Design Standards Reference
 
 ## Established Patterns (audit against these)
-- **Command Center (`CommandCenterTab.ts`)**: Reference implementation for the main layout: greeting header, capture bar, habit quick-bar, navigation footer
+- **Hub Home (`DiwaView` / `home`)**: Reference implementation for the main layout: capture surface, quick actions, and navigation into the rest of the workspace
 - **Task cards (`TasksTab.ts`)**: Compact row with left status indicator, body text, metadata chips, hover-revealed actions
 - **Thought cards (`TimelineTab.ts`)**: Same compact pattern; pinned items elevated via spotlight carousel
 - **Modals (`ZenCaptureModal`, `EditTaskModal`)**: Borderless focus modal with bottom-docked action footer
-- **Desktop Hub (`DesktopHubView.ts`)**: Premium dark `.mina-dh-*` namespace — audited separately from main view
+- **Desktop Hub (`DesktopHubView.ts`)**: Premium dark `.diwa-dh-*` namespace — audited separately from main view
 
 ## CSS Variable Usage
 Every color and spacing value must use Obsidian CSS variables:
@@ -61,11 +61,11 @@ Every color and spacing value must use Obsidian CSS variables:
 5. **Platform Parity**:
    - Components audited for both mobile (touch) and desktop (hover) interaction models
    - `isTablet()` utility used for layout switching — not raw `Platform.isDesktop`
-   - Desktop Hub uses dedicated `.mina-dh-*` CSS — do not bleed these styles into the main view
+   - Desktop Hub uses dedicated `.diwa-dh-*` CSS — do not bleed these styles into the main view
 
 # Workflow
 1. **Inspect UI Code**: Review TS/CSS changes for styling patterns
-2. **Compare with Standards**: Check against `CommandCenterTab.ts` and `TasksTab.ts` reference patterns
+2. **Compare with Standards**: Check against hub home, `TasksTab.ts`, and `DesktopHubView.ts` reference patterns
 3. **UX BLOCK**: If a UI change is visually inconsistent, clunky, or uses hardcoded values, provide a **"UX BLOCK"** with a compliant CSS/HTML alternative
 
 # Constraints

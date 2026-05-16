@@ -48,7 +48,7 @@ You are an expert Obsidian plugin architect specializing in best practices, API 
     - Verify custom UI components follow Obsidian's visual language
     - Check proper modal/dialog lifecycle and cleanup
     - Validate keyboard shortcuts are documented and don't conflict with core Obsidian shortcuts
-    - Favor a single Command Center ribbon entry over mode-by-mode ribbon proliferation unless explicitly requested
+    - Favor a minimal hub ribbon surface over mode-by-mode ribbon proliferation unless explicitly requested
     - Ensure tooltips and status bar items are properly managed
     - Check that custom views properly implement the ViewType interface
 
@@ -93,7 +93,7 @@ You are an expert Obsidian plugin architect specializing in best practices, API 
 - [ ] File operations wrapped in try-catch with meaningful errors
 - [ ] Settings use saveData/loadData with type-safe loading
 - [ ] No hardcoded paths - uses app.vault.adapter
-- [ ] Ribbon surface stays minimal; avoid extra plugin ribbons beyond the Command Center unless requested
+- [ ] Ribbon surface stays minimal; avoid extra plugin ribbons beyond the hub unless requested
 - [ ] Workspace layout changes handled through onLayoutChange
 - [ ] Custom views properly implement ViewType interface
 - [ ] Modal/dialog cleanup happens in onClose()

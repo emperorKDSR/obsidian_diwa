@@ -1,15 +1,12 @@
 # DIWA — Personal OS for Obsidian
 
-**DIWA** is a professional-grade Personal Operating System plugin for [Obsidian](https://obsidian.md). It transforms your vault into a unified command centre for thoughts, tasks, habits, projects, finance, and AI-powered synthesis — across mobile, tablet, and desktop.
+**DIWA** is a professional-grade Personal Operating System plugin for [Obsidian](https://obsidian.md). It transforms your vault into a unified hub for thoughts, tasks, habits, projects, finance, and AI-powered synthesis — across mobile, tablet, and desktop.
 
-Current release: **v2.0.0** · See [CHANGELOG.md](./CHANGELOG.md) for full history.
+Current release: **v3.0.0** · See [CHANGELOG.md](./CHANGELOG.md) for full history.
 
 ---
 
 ## Features
-
-### 🏠 Command Center
-The primary entry point for all DIWA workflows. Features a context-aware greeting, an inline capture bar with natural-language date parsing, a habit quick-bar, Zen Mode (🎯 collapses nav bars for distraction-free focus), and a navigation footer linking to all modes.
 
 ### 🖥 Desktop Hub
 A dedicated popout window (`VIEW_TYPE_DESKTOP_HUB`) for desktop users only. Renders a premium 3-column cockpit:
@@ -18,6 +15,9 @@ A dedicated popout window (`VIEW_TYPE_DESKTOP_HUB`) for desktop users only. Rend
 - **RIGHT**: 5-stat reactive grid (Open Tasks, Overdue, Unsynth Thoughts, Total Dues, Habits ratio) + AI Intelligence briefing
 
 Opens via the ribbon icon or `DIWA: Open Desktop Hub` command. Mobile shows a notice instead.
+
+### 📱 Mobile Hub / Tablet Hub
+Responsive hub surfaces for smaller screens. Mobile uses a single-column layout; tablet uses a denser split view. Both reuse the same capture, feed, and context workflows while keeping touch targets and spacing platform-appropriate.
 
 ### 🧠 Quick Capture
 Capture thoughts and tasks instantly with datetime-stamped YAML notes. Supports inline context tagging (`⌘K`), `@`-mention triggers for people notes, `/`-trigger for people suggestions, and media paste (images saved to the attachments folder).
@@ -77,8 +77,8 @@ Record audio directly in the vault with one tap. Auto-transcription via Gemini w
 ### 🔍 Global Search
 Spotlight-style cross-domain search across all DIWA data types (Thoughts, Tasks, Dues, Projects, Habits). Keyboard-navigable, zero-latency (reads from in-memory indices). Hotkey: `Mod+Shift+F`.
 
-### 📅 Daily Workspace (Command Center)
-Configurable daily dashboard surfaced from the Command Center. Toggleable sections:
+### 📅 Daily Workspace
+Configurable daily dashboard surfaced from the hub. Toggleable sections:
 - Daily checklist (from the capture file)
 - Tasks due today
 - Financial dues
@@ -103,16 +103,29 @@ Export thoughts and tasks to various formats for external use.
 ## Architecture
 
 ```
-DiwaPlugin (main.ts)
-  ├── AiService       — Gemini model routing, chat, transcription, weekly reports, week plans
-  ├── VaultService    — Sole authority for all file I/O and YAML frontmatter operations
-  └── IndexService    — In-memory O(1) indices: thoughts, tasks, dues, habits, projects, checklist
+Shared Kernel
+  ├── src/types.ts
+  └── src/constants.ts
 
-DiwaView (view.ts)    — Reactive ItemView; routes to the active tab on vault change
-  └── BaseTab         — Shared base class for all 21 tab components
+Presentation
+  ├── src/view.ts
+  ├── src/views/*.ts
+  ├── src/tabs/*.ts
+  └── src/modals/*.ts
 
-DesktopHubView        — Standalone ItemView for the desktop cockpit (no BaseTab dependency)
-SearchView            — Standalone ItemView for global search
+Application
+  ├── src/application/RefreshCoordinator.ts
+  ├── src/utils/task*.ts
+  └── UI orchestration / use-case layers
+
+Infrastructure
+  ├── src/services/VaultService.ts
+  ├── src/services/IndexService.ts
+  ├── src/services/AiService.ts
+  ├── src/services/TaskLinkService.ts
+  └── src/services/TaskReflectionService.ts
+
+DiwaPlugin (main.ts) acts as the composition root that wires the layers together.
 ```
 
 ### Data Model
@@ -128,8 +141,9 @@ day: "[[2025-01-15]]"
 area: DIWA
 context:
   - work
+topic: Meeting
 tags:
-  - work
+  - work/Meeting
 pinned: false
 ---
 ```
@@ -153,7 +167,7 @@ recurrence: weekly
 ```
 
 ### Reactive Nerve System
-Vault events (`create`, `modify`, `delete`, `rename`) and `metadataCache.changed` (for cloud sync reliability) trigger selective re-indexing of the affected file only. A 400 ms debounce on `notifyRefresh()` batches burst updates. Optimistic UI flags (`_taskTogglePending`, `_capturePending`, etc.) suppress re-renders while the user is mid-interaction.
+Vault events (`create`, `modify`, `delete`, `rename`) and `metadataCache.changed` (for cloud sync reliability) trigger selective re-indexing of the affected file only. `RefreshCoordinator` owns the 400 ms refresh debounce and file-path cooldown, while optimistic UI flags (`_taskTogglePending`, `_capturePending`, etc.) suppress re-renders during interaction.
 
 ### State Persistence
 UI state that must survive `renderView()` is stored on `DiwaView` fields:
@@ -209,7 +223,7 @@ Copy `main.js`, `manifest.json`, and `styles.css` to your vault's plugin folder:
 
 | Tab | File | Description |
 |-----|------|-------------|
-| Command Center | `CommandCenterTab.ts` | Primary hub — capture, habits, navigation |
+| Hub Home | `view.ts` / `home` | Primary hub surface — capture, habits, navigation |
 | Tasks | `TasksTab.ts` | Tactical Task Ledger with status filters |
 | Timeline | `TimelineTab.ts` | Infinite-scroll thought feed |
 | Synthesis | `SynthesisTab.ts` | Zero-Inbox context-routing workspace |
@@ -220,13 +234,11 @@ Copy `main.js`, `manifest.json`, and `styles.css` to your vault's plugin folder:
 | Projects | `ProjectsTab.ts` | Project lifecycle management |
 | Habits | `HabitsTab.ts` | Daily habit tracker |
 | Journal | `JournalTab.ts` | Keyword-filtered journal feed |
-| Focus | `FocusTab.ts` | ~~Removed in v2.5.0~~ |
 | Weekly Review | `ReviewTab.ts` | AI weekly brief + habit matrix |
 | Monthly Review | `MonthlyReviewTab.ts` | Monthly retrospective |
 | Compass | `CompassTab.ts` | North Star goals (quarterly) |
 | Calendar | `CalendarTab.ts` | Month/week calendar view |
 | Timeline (legacy) | `TimelineTab.ts` | Date-based thought navigation |
-| Memento Mori | `MementoMoriTab.ts` | ~~Removed in v2.5.0~~ |
 | Export | `ExportTab.ts` | Data export |
 | Manual | `ManualTab.ts` | In-app help (mirrors HelpModal) |
 | Settings | `SettingsTab.ts` | Settings tab |
@@ -236,4 +248,3 @@ Copy `main.js`, `manifest.json`, and `styles.css` to your vault's plugin folder:
 ## Versioning
 
 Follows `MAJOR.MINOR.PATCH`. See [CHANGELOG.md](./CHANGELOG.md) for full history.
-
