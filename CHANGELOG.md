@@ -1,3 +1,12 @@
+## [3.0.0] — Explicit 3-Layer Refactor
+
+### Added
+- **RefreshCoordinator** moved refresh/reindex orchestration out of `main.ts` into an application-layer coordinator.
+- **Explicit 3-layer plan** now documented in the session plan: Presentation, Application, Infrastructure.
+
+### Removed
+- Safe obsolete artifacts removed from the repo: `classes_used.txt`, `.copilot 2/devops-log.txt`, `fix_ai_methods.js`, `move_ai_logic.js`, and `tibbixel-dot-com-4883-svg.svg`.
+
 ## [2.7.0] — Inline Topic Input with Autocomplete
 
 ### Added
@@ -1382,7 +1391,6 @@ Deleted 5 tab files that had no entry point in the Command Center and were unrea
 - **VaultService** — unified file I/O with YAML injection-safe frontmatter builders
 - **AiService** — Gemini integration with chunked base64, injection boundary markers, model allowlist, and API key header security
 - **17 tabs, 17 modals** — full Personal OS feature set
-
 
 
 

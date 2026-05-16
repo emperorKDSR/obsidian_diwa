@@ -115,7 +115,10 @@ export class InlineTopicInput {
 
         const confirm = async (val: string) => {
             const safe = val.replace(/[^a-zA-Z0-9 _-]/g, '').trim();
-            if (safe) await this.onSave(this.resolvedContexts, safe);
+            if (safe) {
+                this.plugin.refreshCoordinator?.suppressNotifyRefresh(1200);
+                await this.onSave(this.resolvedContexts, safe);
+            }
             this.remove();
         };
 

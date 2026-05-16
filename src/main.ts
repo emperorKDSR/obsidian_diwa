@@ -14,6 +14,7 @@ import { VaultService } from './services/VaultService';
 import { IndexService } from './services/IndexService';
 import { TaskLinkService } from './services/TaskLinkService';
 import { TaskReflectionService } from './services/TaskReflectionService';
+import { RefreshCoordinator } from './application/RefreshCoordinator';
 import { SearchModal } from './modals/SearchModal';
 
 export default class DiwaPlugin extends Plugin {
@@ -27,9 +28,7 @@ export default class DiwaPlugin extends Plugin {
     index: IndexService;
     taskLink: TaskLinkService;
     taskReflection: TaskReflectionService;
-
-    private _indexDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-    private _reindexCooldown: Map<string, number> = new Map();
+    refreshCoordinator: RefreshCoordinator;
 
 	async onload() {
 		await this.loadSettings();
@@ -40,6 +39,7 @@ export default class DiwaPlugin extends Plugin {
         this.index = new IndexService(this.app, this.settings);
         this.taskLink = new TaskLinkService(this.app, this.settings, this.index);
         this.taskReflection = new TaskReflectionService(this.app, this.settings, this.index);
+        this.refreshCoordinator = new RefreshCoordinator(this.app, this.settings, this.index);
 
         this.app.workspace.onLayoutReady(async () => {
             await this.index.buildIndices();
@@ -61,7 +61,7 @@ export default class DiwaPlugin extends Plugin {
             }));
             
             this.registerEvent(this.app.vault.on('modify', async (f) => { 
-                await this._reindexFile(f as TFile);
+                await this.refreshCoordinator.reindexFile(f as TFile);
                 this.notifyRefresh();
             }));
 
@@ -83,7 +83,7 @@ export default class DiwaPlugin extends Plugin {
             // metadataCache.changed: authoritative trigger for cloud-synced files
             // (OneDrive/iCloud sync may not fire vault 'modify'/'create' reliably)
             this.registerEvent(this.app.metadataCache.on('changed', async (file) => {
-                await this._reindexFile(file);
+                await this.refreshCoordinator.reindexFile(file);
                 this.notifyRefresh();
             }));
         });
@@ -133,12 +133,7 @@ export default class DiwaPlugin extends Plugin {
 	}
 
     async onunload() {
-        // leak-01: Clear pending debounce timer to prevent firing on torn-down plugin state
-        if (this._indexDebounceTimer) {
-            clearTimeout(this._indexDebounceTimer);
-            this._indexDebounceTimer = null;
-        }
-        this._reindexCooldown.clear();
+        this.refreshCoordinator?.onunload();
     }
 
     async migrateLegacyTableData() {
@@ -285,56 +280,17 @@ export default class DiwaPlugin extends Plugin {
 	async saveSettings() {
 	    if (!this.settingsInitialized) return;
 	    await this.saveData(this.settings);
-        if (this.ai) this.ai.updateSettings(this.settings);
-        if (this.vault) this.vault.updateSettings(this.settings);
-        if (this.index) this.index.updateSettings(this.settings);
-        if (this.taskLink) this.taskLink.updateSettings(this.settings);
-        if (this.taskReflection) this.taskReflection.updateSettings(this.settings);
+	    if (this.ai) this.ai.updateSettings(this.settings);
+	    if (this.vault) this.vault.updateSettings(this.settings);
+	    if (this.index) this.index.updateSettings(this.settings);
+	    if (this.taskLink) this.taskLink.updateSettings(this.settings);
+	    if (this.taskReflection) this.taskReflection.updateSettings(this.settings);
+	    if (this.refreshCoordinator) this.refreshCoordinator.updateSettings(this.settings);
 	}
 
-    /** Re-indexes a single file based on its type. Called by both vault and metadataCache events. */
-    private async _reindexFile(file: TFile): Promise<void> {
-        // CRIT-01: Deduplicate concurrent calls from vault 'modify' + metadataCache 'changed'.
-        // Both events fire on every local save; a 300ms cooldown window collapses them into one.
-        const now = Date.now();
-        const last = this._reindexCooldown.get(file.path) ?? 0;
-        if (now - last < 300) return;
-        this._reindexCooldown.set(file.path, now);
-
-        const habitsFolder = (this.settings.habitsFolder || '000 Bin/DIWA Habits').replace(/\\/g, '/');
-        const capPath = `${this.settings.captureFolder.trim() || '000 Bin/DIWA'}/${this.settings.captureFilePath.trim() || 'Daily Capture.md'}`;
-
-        if (this.index.isThoughtFile(file.path)) await this.index.indexThoughtFile(file);
-        else if (this.index.isTaskFile(file.path)) await this.index.indexTaskFile(file);
-        else if (this.index.isDueFile(file.path)) await this.index.buildDueIndex();
-
-        if (file.path.startsWith(habitsFolder)) await this.index.refreshHabitIndex();
-        else if (file.path === capPath) await this.index.buildChecklistIndex();
-    }
-
-    notifyRefresh(): void {
-        if (this._indexDebounceTimer) clearTimeout(this._indexDebounceTimer);
-        this._indexDebounceTimer = setTimeout(() => {
-            const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DIWA);
-            for (const leaf of leaves) {
-                const view = leaf.view as DiwaView;
-                if (view && typeof view.renderView === 'function') {
-                    // Don't re-render while the user is mid-toggle — let optimistic UI stand
-                    if (view._taskTogglePending > 0 || view._habitTogglePending > 0 || view._checklistTogglePending > 0 || view._capturePending > 0 || view._synthesisCaptPending > 0 || view._mergePending > 0) continue;
-                    view.renderView();
-                }
-            }
-            // Refresh any open Desktop Hub leaves
-            const hubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB);
-            for (const leaf of hubLeaves) {
-                const view = leaf.view as DesktopHubView;
-                if (view && typeof view.renderView === 'function') {
-                    if (view._capturePending > 0 || view._taskPending > 0) continue;
-                    view.renderView();
-                }
-            }
-        }, 400); // 400ms: handles cloud-sync bursts and gives async indexing headroom
-    }
+	notifyRefresh(): void {
+	    this.refreshCoordinator.notifyRefresh();
+	}
 
     getProjects(): string[] {
         return this.index ? this.index.getProjects() : [];
@@ -377,5 +333,4 @@ export default class DiwaPlugin extends Plugin {
         }
     }
 }
-
 
