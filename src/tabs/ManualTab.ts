@@ -63,6 +63,7 @@ const SECTIONS: HelpSection[] = [
         items: [
             { label: 'Timeline View', desc: 'All thoughts listed newest-first. Use the date carousel to jump to a specific day.' },
             { label: 'Search', desc: 'Type in the search bar to filter thoughts by content, title, or context tag.' },
+            { label: 'Convert to Task', desc: 'Tap the checklist icon on any thought card to turn it into a task. Pick a title and optional due date — the new task keeps the source thought link.' },
             { label: 'Edit & Reply', desc: 'Tap a thought card to edit its content, add a reply thread, or delete it.' },
             { label: 'Pin a Thought', desc: 'Pin important thoughts to keep them anchored at the top of the timeline.' },
             { label: 'Project Link', desc: 'Thoughts can be linked to a project using the folder icon in the edit modal.' },
@@ -438,6 +439,5 @@ export class ManualTab extends BaseTab {
         if (!hasResults) container.createEl('div', { cls: 'diwa-help-empty', text: 'No results found. Try a different search term.' });
     }
 }
-
 
 

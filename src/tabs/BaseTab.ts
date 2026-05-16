@@ -211,6 +211,34 @@ export class BaseTab {
             }).open();
         });
 
+        this.renderActionButton(actions, ICON_CHECKLIST, 'Convert to Task', () => {
+            new ConvertToTaskModal(this.app, entry.body, entry.context, async (title, dueDate) => {
+                if (!title) {
+                    new Notice('Task title is required.');
+                    return;
+                }
+
+                const taskLink = this.plugin.taskLink;
+                if (!taskLink) {
+                    new Notice('Task support is not ready.');
+                    return;
+                }
+
+                const task = await taskLink.createTaskFromThought(entry.filePath, title);
+                if (!task.filePath) {
+                    new Notice('Could not create task.');
+                    return;
+                }
+
+                if (dueDate) {
+                    await this.plugin.vault.setTaskDue(task.filePath, dueDate);
+                }
+
+                await taskLink.linkTaskToThought(task.filePath, entry.filePath);
+                this.refreshCurrentList();
+            }).open();
+        });
+
         this.renderActionButton(actions, ICON_REPLY, 'Reply', () => { 
             new CommentModal(this.app, this.plugin, entry.filePath, entry.body, async (text) => {
                 const success = await this.vault.appendComment(entry.filePath, text);
@@ -243,4 +271,3 @@ export class BaseTab {
 
     render(container: HTMLElement, ...args: any[]): void {}
 }
-

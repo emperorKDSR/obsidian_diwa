@@ -8,10 +8,11 @@ import {
 import { attachInlineTriggers, attachMediaPasteHandler, createThoughtCaptureWidget } from '../utils';
 import type { ThoughtEntry, TaskEntry } from '../types';
 import { InlineTopicInput } from '../utils/InlineTopicInput';
+import { ConvertToTaskModal } from '../modals/ConvertToTaskModal';
 
 export class DesktopHubView extends ItemView {
     plugin: DiwaPlugin;
-    isFocusMode: boolean = false;
+    isFocusMode: boolean = true;
 
     // Suppress re-renders while user is mid-capture (thought or task)
     _capturePending: number = 0;
@@ -394,6 +395,39 @@ export class DesktopHubView extends ItemView {
                 });
             });
 
+            const convertBtn = actions.createEl('button', {
+                cls: 'diwa-dh-feed-edit-btn',
+                attr: { title: 'Convert to task', 'aria-label': 'Convert to task' }
+            });
+            setIcon(convertBtn, 'lucide-check-square');
+            convertBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                new ConvertToTaskModal(this.app, t.body || t.title || '', t.context, async (title, dueDate) => {
+                    if (!title) {
+                        new Notice('Task title is required.');
+                        return;
+                    }
+
+                    const taskLink = this.plugin.taskLink;
+                    if (!taskLink) {
+                        new Notice('Task support is not ready.');
+                        return;
+                    }
+
+                    const task = await taskLink.createTaskFromThought(t.filePath, title);
+                    if (!task.filePath) {
+                        new Notice('Could not create task.');
+                        return;
+                    }
+
+                    if (dueDate) {
+                        await this.plugin.vault.setTaskDue(task.filePath, dueDate);
+                    }
+
+                    await taskLink.linkTaskToThought(task.filePath, t.filePath);
+                }).open();
+            });
+
             const editBtn = actions.createEl('button', { cls: 'diwa-dh-feed-edit-btn', attr: { title: 'Edit thought', 'aria-label': 'Edit thought' } });
             setIcon(editBtn, 'lucide-pencil');
             editBtn.addEventListener('click', (e) => {
@@ -744,6 +778,4 @@ export class DesktopHubView extends ItemView {
         });
     }
 }
-
-
 

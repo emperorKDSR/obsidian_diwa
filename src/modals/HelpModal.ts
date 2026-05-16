@@ -185,8 +185,19 @@ const SECTIONS: HelpSection[] = [
             { label: "Today's Feed", desc: 'All thoughts captured today are shown in the center panel, newest first. Each entry shows timestamp, body text, and context chips.' },
             { label: 'Stats Panel', desc: 'Right panel shows 5 live stats: Open Tasks, Overdue (red when >0), Unsynth Thoughts, Total Dues ($), and Habits ratio. Updates reactively with every vault change.' },
             { label: 'AI Intelligence', desc: 'Hit "SYNTHESIZE BRIEFING" in the right panel to get a Gemini strategy summary based on your current thoughts, tasks, and context.', tip: 'Requires a Gemini API key in Settings → AI.' },
-            { label: 'Focus Mode 🎯', desc: 'Click the 🎯 button in the top bar to collapse the sidebar and right panel — center capture goes full-width for distraction-free input. Click again to restore.', tip: 'Focus Mode state is saved per-window and survives Obsidian restarts.' },
+            { label: 'Focus Mode 🎯', desc: 'Desktop Hub opens in Focus Mode by default. Click the 🎯 button in the top bar to collapse the sidebar and right panel — center capture goes full-width for distraction-free input. Click again to restore.', tip: 'Focus Mode state is saved per-window and survives Obsidian restarts.' },
             { label: 'Navigation Sidebar', desc: 'Hover the left sidebar to expand it. Four groups: ACTION (Capture, Synthesis, Timeline, Habits, Journal), MANAGE (Tasks, Finance, Projects, Calendar, Monthly, Compass), FEATURES (AI Chat, Voice, Memento, Export), SYSTEM (Settings, Manual).' },
+        ]
+    },
+    {
+        id: 'thoughts', icon: 'lucide-brain', title: 'Thoughts & Timeline', subtitle: 'Browse and search your captured ideas',
+        items: [
+            { label: 'Timeline View', desc: 'All thoughts listed newest-first. Use the date carousel to jump to a specific day.' },
+            { label: 'Convert to Task', desc: 'Tap the checklist icon on any thought card to turn it into a task. Pick a task title and optional due date — DIWA keeps the source thought link on the new task.' },
+            { label: 'Search', desc: 'Type in the search bar to filter thoughts by content, title, or context tag.' },
+            { label: 'Edit & Reply', desc: 'Tap a thought card to edit its content, add a reply thread, or delete it.' },
+            { label: 'Pin a Thought', desc: 'Pin important thoughts to keep them anchored at the top of the timeline.' },
+            { label: 'Project Link', desc: 'Thoughts can be linked to a project using the folder icon in the edit modal.' },
         ]
     },
 ];
@@ -401,5 +412,4 @@ export class HelpModal extends Modal {
         }
     }
 }
-
 

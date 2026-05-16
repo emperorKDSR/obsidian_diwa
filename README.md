@@ -13,6 +13,7 @@ A dedicated popout window (`VIEW_TYPE_DESKTOP_HUB`) for desktop users only. Rend
 - **LEFT**: Icon-only nav sidebar that hover-expands to 180 px with group labels
 - **CENTER**: Thought capture textarea + live Today's Feed (newest-first)
 - **RIGHT**: 5-stat reactive grid (Open Tasks, Overdue, Unsynth Thoughts, Total Dues, Habits ratio) + AI Intelligence briefing
+- Opens in Focus Mode by default so the capture pane starts distraction-free
 
 Opens via the ribbon icon or `DIWA: Open Desktop Hub` command. Mobile shows a notice instead.
 
@@ -33,6 +34,8 @@ High-performance **Tactical Task Ledger** with segmented status filtering (`open
 
 ### 💡 Timeline
 Infinite-scroll thought feed with full-body note rendering. Spotlight carousel for pinned and recent items. Date-based navigation. Each entry supports inline editing, pinning, context assignment, and comment threads.
+
+Thought cards also include a **Convert to Task** action that opens a task-title/due-date picker and keeps the source thought link on the new task.
 
 ### 🗂 Synthesis
 Thought-routing workspace with Zero-Inbox logic.

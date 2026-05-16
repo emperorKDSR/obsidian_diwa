@@ -45,7 +45,7 @@ export class TaskLinkService {
             sourceThoughtIds: [],
             status: 'planned',
         });
-        await this._writeTaskFile(task);
+        task.filePath = await this._writeTaskFile(task);
         return task;
     }
 
@@ -66,7 +66,7 @@ export class TaskLinkService {
             sourceThoughtIds: [thoughtId],
             status: 'planned',
         });
-        await this._writeTaskFile(task);
+        task.filePath = await this._writeTaskFile(task);
         return task;
     }
 
@@ -266,7 +266,7 @@ export class TaskLinkService {
     }
 
     /** Creates the physical task file from a normalised Task object. */
-    private async _writeTaskFile(task: Task): Promise<void> {
+    private async _writeTaskFile(task: Task): Promise<string> {
         const folder = (this.settings.tasksFolder || '000 Bin/DIWA Tasks').trim();
         const now = new Date();
         // Stamp timestamps on creation if not already set
@@ -285,6 +285,7 @@ export class TaskLinkService {
 
         try {
             await this.app.vault.create(path, frontmatter + task.title + '\n');
+            return path;
         } catch (e) {
             console.error('[DIWA TaskLinkService] _writeTaskFile:', e);
             new Notice('Could not create task file.');

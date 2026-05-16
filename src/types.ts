@@ -155,6 +155,7 @@ export type RecurrenceRule = 'daily' | 'weekly' | 'biweekly' | 'monthly';
  */
 export interface Task {
     id: string;
+    filePath?: string;
     title: string;
     origin: 'thought' | 'direct';
     sourceThoughtIds: string[];
