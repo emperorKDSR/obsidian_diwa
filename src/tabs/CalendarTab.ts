@@ -224,9 +224,9 @@ export class CalendarTab extends BaseTab {
         const tasks: TaskEntry[] = [];
         this.index.taskIndex.forEach(t => { if (t.due === dateStr) tasks.push(t); });
 
-        // Tasks section — always render (with + button)
+        // Gawa section — always render (with + button)
         const taskHeader = detail.createEl('div', { cls: 'diwa-cal-detail-section-title diwa-cal-detail-section-title--action' });
-        taskHeader.createEl('span', { text: `Tasks · ${tasks.length}` });
+        taskHeader.createEl('span', { text: `Gawa · ${tasks.length}` });
         const addBtn = taskHeader.createEl('button', { cls: 'diwa-cal-detail-add-btn', attr: { title: 'Add task for this day' } });
         setIcon(addBtn, 'plus');
 
@@ -345,6 +345,5 @@ export class CalendarTab extends BaseTab {
         } catch { /* no review for this week */ }
     }
 }
-
 
 

@@ -290,7 +290,7 @@ export class SearchModal extends Modal {
                     if (results.filter(r => r.type === 'task').length < 5) {
                         results.push({
                             type: 'task', title: t.title, preview: t.project || t.context.join(', '),
-                            meta: t.due ? `Due: ${t.due}` : this.relativeDate(t.created), tabId: 'review-tasks', id: t.filePath
+                            meta: t.due ? `Due: ${t.due}` : this.relativeDate(t.created), tabId: 'review-gawa', id: t.filePath
                         });
                     }
                 }
@@ -481,5 +481,4 @@ export class SearchModal extends Modal {
         return dateStr.split(' ')[0];
     }
 }
-
 

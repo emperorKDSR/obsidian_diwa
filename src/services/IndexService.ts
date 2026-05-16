@@ -319,12 +319,12 @@ export class IndexService {
     isThoughtFile(path: string): boolean {
         const folder = (this.settings.thoughtsFolder || '000 Bin/DIWA').trim();
         // Use folder + '/' to prevent prefix collision with sibling folders
-        // e.g. '000 Bin/DIWA' must NOT match '000 Bin/DIWA Tasks/...'
+        // e.g. '000 Bin/DIWA' must NOT match '000 Bin/DIWA Gawa/...'
         return path.startsWith(folder + '/') && path.endsWith('.md') && !path.includes('/trash/');
     }
 
     isTaskFile(path: string): boolean {
-        const folder = (this.settings.tasksFolder || '000 Bin/DIWA Tasks').trim();
+        const folder = (this.settings.tasksFolder || '000 Bin/DIWA Gawa').trim();
         return path.startsWith(folder + '/') && path.endsWith('.md') && !path.includes('/trash/');
     }
 
@@ -346,5 +346,3 @@ export class IndexService {
         return Array.from(c);
     }
 }
-
-

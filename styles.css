@@ -4879,7 +4879,7 @@ body.is-mobile .diwa-syn-float-bar{position:fixed}.modal.diwa-zen-capture .modal
 .diwa-sv-quickjump-icon svg { width: 16px; height: 16px; }
 
 .diwa-sv-quickjump-btn[data-tab="timeline"]     .diwa-sv-quickjump-icon { background: rgba(59,130,246,0.12);  color: var(--sv-color-thought, #3b82f6); }
-.diwa-sv-quickjump-btn[data-tab="review-tasks"] .diwa-sv-quickjump-icon { background: rgba(16,185,129,0.12);  color: var(--sv-color-task,    #10b981); }
+.diwa-sv-quickjump-btn[data-tab="review-gawa"] .diwa-sv-quickjump-icon { background: rgba(16,185,129,0.12);  color: var(--sv-color-task,    #10b981); }
 .diwa-sv-quickjump-btn[data-tab="dues"]         .diwa-sv-quickjump-icon { background: rgba(245,158,11,0.12);  color: var(--sv-color-due,     #f59e0b); }
 .diwa-sv-quickjump-btn[data-tab="projects"]     .diwa-sv-quickjump-icon { background: rgba(139,92,246,0.12);  color: var(--sv-color-project, #8b5cf6); }
 .diwa-sv-quickjump-btn[data-tab="habits"]       .diwa-sv-quickjump-icon { background: rgba(239,68,68,0.12);   color: var(--sv-color-habit,   #ef4444); }

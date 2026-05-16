@@ -39,7 +39,7 @@ export class ConvertToTaskModal extends Modal {
 
         const btnRow = contentEl.createEl('div', { attr: { style: 'display: flex; justify-content: flex-end; gap: 10px;' } });
         const cancelBtn = btnRow.createEl('button', { text: 'Cancel', attr: { style: 'padding: 5px 16px; border-radius: 4px;' } });
-        const convertBtn = btnRow.createEl('button', { text: '📋 Convert', attr: { style: 'padding: 5px 16px; border-radius: 4px; background: var(--interactive-accent); color: var(--text-on-accent); font-weight: 600;' } });
+        const convertBtn = btnRow.createEl('button', { text: '↗ Convert', attr: { style: 'padding: 5px 16px; border-radius: 4px; background: var(--interactive-accent); color: var(--text-on-accent); font-weight: 600;' } });
 
         cancelBtn.addEventListener('click', () => this.close());
         convertBtn.addEventListener('click', () => {

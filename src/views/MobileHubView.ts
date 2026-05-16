@@ -290,7 +290,7 @@ export class MobileHubView extends ItemView {
             });
 
             const convertBtn = feedActions.createEl('button', { cls: 'diwa-mh-feed-edit-btn', attr: { title: 'Convert to task', 'aria-label': 'Convert to task' } });
-            setIcon(convertBtn, 'lucide-check-square');
+            setIcon(convertBtn, 'arrow-right');
             convertBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 new ConvertToTaskModal(this.app, t.body || t.title || '', t.context, async (title, dueDate) => {

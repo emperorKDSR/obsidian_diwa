@@ -138,7 +138,7 @@ export class DesktopHubView extends ItemView {
             {
                 title: 'MANAGE',
                 items: [
-                    { label: 'Tasks', icon: 'lucide-check-square-2', tab: 'review-tasks' },
+                    { label: 'Gawa', icon: 'lucide-check-square-2', tab: 'review-gawa' },
                     { label: 'Finance', icon: PF_ICON_ID, tab: 'dues' },
                     { label: 'Projects', icon: 'lucide-briefcase', tab: 'projects' },
                     { label: 'Calendar', icon: 'lucide-calendar', tab: 'calendar' },
@@ -399,7 +399,7 @@ export class DesktopHubView extends ItemView {
                 cls: 'diwa-dh-feed-edit-btn',
                 attr: { title: 'Convert to task', 'aria-label': 'Convert to task' }
             });
-            setIcon(convertBtn, 'lucide-check-square');
+            setIcon(convertBtn, 'arrow-right');
             convertBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 new ConvertToTaskModal(this.app, t.body || t.title || '', t.context, async (title, dueDate) => {
@@ -650,7 +650,7 @@ export class DesktopHubView extends ItemView {
             section.createEl('div', {
                 text: this._taskFilter === 'upcoming'
                     ? 'No tasks in the next 2 days.'
-                    : 'All clear — no open tasks.',
+                    : 'All clear — no open gawa.',
                 cls: 'diwa-dh-task-empty'
             });
             return;
@@ -778,4 +778,3 @@ export class DesktopHubView extends ItemView {
         });
     }
 }
-

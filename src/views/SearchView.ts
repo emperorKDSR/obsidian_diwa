@@ -177,7 +177,7 @@ export class SearchView extends ItemView {
             });
         });
 
-        // Tasks
+        // Gawa
         this.plugin.index.taskIndex.forEach(t => {
             const tR = fuzzy(t.title);
             const bR = simple(t.body || '');
@@ -189,7 +189,7 @@ export class SearchView extends ItemView {
                 body: t.body || '', bodyMatches: bR?.matches ?? null,
                 score: (tR ? tR.score * 2 : 0) + (bR ? bR.score : 0),
                 meta: t.due ? `Due ${t.due}` : this.relativeDate(t.created),
-                filePath: t.filePath, tabId: 'review-tasks', id: t.filePath,
+                filePath: t.filePath, tabId: 'review-gawa', id: t.filePath,
             });
         });
 
@@ -398,5 +398,3 @@ export class SearchView extends ItemView {
         return dateStr.slice(0, 10);
     }
 }
-
-

@@ -12,7 +12,7 @@ Current release: **v3.0.0** · See [CHANGELOG.md](./CHANGELOG.md) for full histo
 A dedicated popout window (`VIEW_TYPE_DESKTOP_HUB`) for desktop users only. Renders a premium 3-column cockpit:
 - **LEFT**: Icon-only nav sidebar that hover-expands to 180 px with group labels
 - **CENTER**: Thought capture textarea + live Today's Feed (newest-first)
-- **RIGHT**: 5-stat reactive grid (Open Tasks, Overdue, Unsynth Thoughts, Total Dues, Habits ratio) + AI Intelligence briefing
+- **RIGHT**: 5-stat reactive grid (Open Gawa, Overdue, Unsynth Thoughts, Total Dues, Habits ratio) + AI Intelligence briefing
 - Opens in Focus Mode by default so the capture pane starts distraction-free
 
 Opens via the ribbon icon or `DIWA: Open Desktop Hub` command. Mobile shows a notice instead.
@@ -21,10 +21,10 @@ Opens via the ribbon icon or `DIWA: Open Desktop Hub` command. Mobile shows a no
 Responsive hub surfaces for smaller screens. Mobile uses a single-column layout; tablet uses a denser split view. Both reuse the same capture, feed, and context workflows while keeping touch targets and spacing platform-appropriate.
 
 ### 🧠 Quick Capture
-Capture thoughts and tasks instantly with datetime-stamped YAML notes. Supports inline context tagging (`⌘K`), `@`-mention triggers for people notes, `/`-trigger for people suggestions, and media paste (images saved to the attachments folder).
+Capture thoughts and gawa instantly with datetime-stamped YAML notes. Supports inline context tagging (`⌘K`), `@`-mention triggers for people notes, `/`-trigger for people suggestions, and media paste (images saved to the attachments folder).
 
-### ✅ Tasks
-High-performance **Tactical Task Ledger** with segmented status filtering (`open` / `done` / `waiting` / `someday`). Each task is a standalone YAML file with support for:
+### ✅ Gawa
+High-performance **Tactical Gawa Ledger** with segmented status filtering (`open` / `done` / `waiting` / `someday`). Each gawa item is a standalone YAML file with support for:
 - Priority (`high` / `medium` / `low`)
 - Energy level (`high` / `medium` / `low`)
 - Due dates (wikilink-formatted `[[YYYY-MM-DD]]`)
@@ -78,19 +78,19 @@ Full chat interface powered by Gemini (configurable model). Features:
 Record audio directly in the vault with one tap. Auto-transcription via Gemini with configurable target language. Transcripts routed to the standard capture flow.
 
 ### 🔍 Global Search
-Spotlight-style cross-domain search across all DIWA data types (Thoughts, Tasks, Dues, Projects, Habits). Keyboard-navigable, zero-latency (reads from in-memory indices). Hotkey: `Mod+Shift+F`.
+Spotlight-style cross-domain search across all DIWA data types (Thoughts, Gawa, Dues, Projects, Habits). Keyboard-navigable, zero-latency (reads from in-memory indices). Hotkey: `Mod+Shift+F`.
 
 ### 📅 Daily Workspace
 Configurable daily dashboard surfaced from the hub. Toggleable sections:
 - Daily checklist (from the capture file)
-- Tasks due today
+- Gawa due today
 - Financial dues
 - Recent thoughts
 - Pinned thoughts
 - AI summary
 
 ### 📁 Projects
-Full project lifecycle management. Each project is a YAML-fronted markdown file with fields: `id`, `name`, `status`, `goal`, `due`, `created`, `color`. Supports milestones and linked thought threads. Project filter available in Timeline and Tasks.
+Full project lifecycle management. Each project is a YAML-fronted markdown file with fields: `id`, `name`, `status`, `goal`, `due`, `created`, `color`. Supports milestones and linked thought threads. Project filter available in Timeline and Gawa.
 
 ### 🌿 Habits
 Daily habit tracker backed by date-keyed YAML files. Configurable habit list with icons. Hourly reminders (quiet hours: 8 AM – 10 PM). Habit completion history feeds into the Weekly Review.
@@ -201,7 +201,7 @@ Copy `main.js`, `manifest.json`, and `styles.css` to your vault's plugin folder:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `thoughtsFolder` | `string` | `000 Bin/DIWA` | Folder for thought files |
-| `tasksFolder` | `string` | `000 Bin/DIWA Tasks` | Folder for task files |
+| `tasksFolder` | `string` | `000 Bin/DIWA Gawa` | Folder for gawa files |
 | `pfFolder` | `string` | `000 Bin/DIWA PF` | Folder for finance/dues files |
 | `habitsFolder` | `string` | `000 Bin/DIWA Habits` | Folder for daily habit logs |
 | `projectsFolder` | `string` | `Projects` | Folder for project files |
@@ -227,7 +227,7 @@ Copy `main.js`, `manifest.json`, and `styles.css` to your vault's plugin folder:
 | Tab | File | Description |
 |-----|------|-------------|
 | Hub Home | `view.ts` / `home` | Primary hub surface — capture, habits, navigation |
-| Tasks | `TasksTab.ts` | Tactical Task Ledger with status filters |
+| Gawa | `GawaTab.ts` | Tactical Gawa Ledger with status filters |
 | Timeline | `TimelineTab.ts` | Infinite-scroll thought feed |
 | Synthesis | `SynthesisTab.ts` | Zero-Inbox context-routing workspace |
 | AI Chat | `AiTab.ts` | Gemini chat with vault grounding |

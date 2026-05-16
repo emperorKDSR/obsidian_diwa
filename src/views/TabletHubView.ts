@@ -66,7 +66,7 @@ export class TabletHubView extends ItemView {
         await this.renderMain(cols);
     }
 
-    // ── Sidebar (Tasks) ────────────────────────────────────────────────────────
+    // ── Sidebar (Gawa) ────────────────────────────────────────────────────────
 
     private renderSidebar(parent: HTMLElement) {
         const sidebar = parent.createEl('div', { cls: 'diwa-th-sidebar' });
@@ -400,7 +400,7 @@ export class TabletHubView extends ItemView {
             });
 
             const convertBtn = feedActions.createEl('button', { cls: 'diwa-th-feed-edit-btn', attr: { title: 'Convert to task', 'aria-label': 'Convert to task' } });
-            setIcon(convertBtn, 'lucide-check-square');
+            setIcon(convertBtn, 'arrow-right');
             convertBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 new ConvertToTaskModal(this.app, t.body || t.title || '', t.context, async (title, dueDate) => {

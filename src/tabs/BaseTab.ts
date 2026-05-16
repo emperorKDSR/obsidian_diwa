@@ -1,7 +1,7 @@
 import { Platform, MarkdownRenderer, Notice, TFile, moment, setIcon } from 'obsidian';
 import type { DiwaView } from '../view';
 import type { ThoughtEntry, TaskEntry, ReplyEntry } from '../types';
-import { NINJA_AVATAR_SVG, ICON_PIN, ICON_EDIT, ICON_TRASH, ICON_REPLY, ICON_LINK, ICON_EYE, ICON_EYE_OFF, ICON_CHECKLIST, ICON_MESSAGE_SQUARE } from '../constants';
+import { NINJA_AVATAR_SVG, ICON_PIN, ICON_EDIT, ICON_TRASH, ICON_REPLY, ICON_LINK, ICON_EYE, ICON_EYE_OFF, ICON_ARROW_RIGHT, ICON_MESSAGE_SQUARE } from '../constants';
 import { EditEntryModal } from '../modals/EditEntryModal';
 import { ConfirmModal } from '../modals/ConfirmModal';
 import { ConvertToTaskModal } from '../modals/ConvertToTaskModal';
@@ -211,7 +211,7 @@ export class BaseTab {
             }).open();
         });
 
-        this.renderActionButton(actions, ICON_CHECKLIST, 'Convert to Task', () => {
+        this.renderActionButton(actions, ICON_ARROW_RIGHT, 'Convert to Task', () => {
             new ConvertToTaskModal(this.app, entry.body, entry.context, async (title, dueDate) => {
                 if (!title) {
                     new Notice('Task title is required.');

@@ -138,7 +138,7 @@ export class VaultService {
     async createTaskFile(text: string, contexts: string[], dueDate?: string, project?: string, opts?: { priority?: string; energy?: string; status?: string; recurrence?: string; recurrenceParentId?: string }): Promise<TFile> {
         // arch-08: Normalize <br> → newline at service boundary
         text = text.replace(/<br>/g, '\n');
-        const folder = this.settings.tasksFolder.trim() || '000 Bin/DIWA Tasks';
+        const folder = this.settings.tasksFolder.trim() || '000 Bin/DIWA Gawa';
         const now = new Date();
         const created = this.formatDateTime(now);
         const dayStr = this.formatDate(now);
@@ -757,6 +757,5 @@ export class VaultService {
         }
     }
 }
-
 
 

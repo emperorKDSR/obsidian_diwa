@@ -42,9 +42,9 @@ export class MonthlyReviewTab extends BaseTab {
             if (sub) card.createEl('div', { text: sub, cls: 'diwa-monthly-stat-sub', attr: { style: subColor ? `color: ${subColor}` : '' } });
         };
 
-        statCard('Tasks Done', doneTasks.length, `${completionRate}% this month`);
+        statCard('Gawa Done', doneTasks.length, `${completionRate}% this month`);
         statCard('Thoughts', monthThoughts.length, `${processedThoughts.length} processed`);
-        statCard('Open Tasks', allOpen.length, 'remaining');
+        statCard('Open Gawa', allOpen.length, 'remaining');
 
         // 3. Habit Adherence — scan all daily files in the current month (QW-01)
         const habitsSection = wrap.createEl('div', { cls: 'diwa-monthly-section' });
@@ -137,6 +137,5 @@ export class MonthlyReviewTab extends BaseTab {
         }
     }
 }
-
 
 

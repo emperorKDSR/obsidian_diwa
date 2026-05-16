@@ -246,7 +246,7 @@ export class AiTab extends BaseTab {
 
         const suggestions = welcome.createEl('div', { cls: 'diwa-ai-suggestions' });
         const prompts = [
-            'What are my open tasks this week?',
+            'What are my open gawa this week?',
             'Summarize my recent thoughts',
             'What should I focus on today?',
             'Help me plan my next project'
@@ -264,6 +264,5 @@ export class AiTab extends BaseTab {
         });
     }
 }
-
 
 

@@ -267,7 +267,7 @@ export class TaskLinkService {
 
     /** Creates the physical task file from a normalised Task object. */
     private async _writeTaskFile(task: Task): Promise<string> {
-        const folder = (this.settings.tasksFolder || '000 Bin/DIWA Tasks').trim();
+        const folder = (this.settings.tasksFolder || '000 Bin/DIWA Gawa').trim();
         const now = new Date();
         // Stamp timestamps on creation if not already set
         const ts = isoNow();

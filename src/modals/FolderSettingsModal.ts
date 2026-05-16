@@ -35,10 +35,10 @@ export class FolderSettingsModal extends Modal {
         const body = contentEl.createEl('div', { attr: { style: 'padding: 20px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; max-height: 70vh;' } });
 
         new Setting(body)
-            .setName('Tasks Folder')
-            .setDesc('Where task files are stored.')
+            .setName('Gawa Folder')
+            .setDesc('Where gawa files are stored.')
             .addText(text => text
-                .setPlaceholder('000 Bin/DIWA Tasks')
+                .setPlaceholder('000 Bin/DIWA Gawa')
                 .setValue(this.plugin.settings.tasksFolder)
                 .onChange(async (value) => {
                     this.plugin.settings.tasksFolder = value;
@@ -141,6 +141,5 @@ export class FolderSettingsModal extends Modal {
         this.contentEl.empty();
     }
 }
-
 
 

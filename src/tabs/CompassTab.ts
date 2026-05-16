@@ -91,7 +91,7 @@ export class CompassTab extends BaseTab {
         };
 
         statCard('Projects', projectCount.toString(), 'Active Objectives');
-        statCard('Velocity', tasksCompleted.toString(), 'Total Tasks Done');
+        statCard('Velocity', tasksCompleted.toString(), 'Total Gawa Done');
 
         // 4. Mission Statement — editable, backed by MD file + settings.lifeMission
         const missionWrap = wrap.createEl('div', {
@@ -115,4 +115,3 @@ export class CompassTab extends BaseTab {
         });
     }
 }
-

@@ -12,10 +12,10 @@ const SECTIONS: HelpSection[] = [
         items: [
             { label: 'Greeting & Date', desc: 'Shows today\'s date, your greeting, and your North Star vision at the top.' },
             { label: 'Zen Mode 🎯', desc: 'Tap the target icon to collapse all navigation and enter deep focus. Tap again to exit.', tip: 'Best used when you only want to see your intelligence card and capture bar.' },
-            { label: 'Intelligence Card', desc: 'Live snapshot: open tasks, habits completed, unprocessed thoughts, and total dues. Hit "SYNTHESIZE BRIEFING" to get an AI strategy summary.', tip: 'Requires a Gemini API key configured in Settings → AI.' },
-            { label: 'Navigation Clusters', desc: 'Four grouped rows: ACTION (Habits, Journal, Synthesis, Timeline), MANAGEMENT (Tasks, Finance, Projects, Calendar, Weekly, Monthly, Compass), FEATURES (AI Chat, Voice, Compasee), and SYSTEM (Settings, Manual, Export). Each cluster wraps to the next row automatically on narrow screens.', tip: 'Tap any icon to jump directly to that tab.' },
+            { label: 'Intelligence Card', desc: 'Live snapshot: open gawa, habits completed, unprocessed thoughts, and total dues. Hit "SYNTHESIZE BRIEFING" to get an AI strategy summary.', tip: 'Requires a Gemini API key configured in Settings → AI.' },
+            { label: 'Navigation Clusters', desc: 'Four grouped rows: ACTION (Habits, Journal, Synthesis, Timeline), MANAGEMENT (Gawa, Finance, Projects, Calendar, Weekly, Monthly, Compass), FEATURES (AI Chat, Voice, Compasee), and SYSTEM (Settings, Manual, Export). Each cluster wraps to the next row automatically on narrow screens.', tip: 'Tap any icon to jump directly to that tab.' },
             { label: 'Tablet Experience', desc: 'On tablets (iPad, etc.), DIWA automatically upgrades to a desktop-like layout: inline capture bar, horizontal habit bar, expanded navigation, and hover effects.', tip: 'Tablet is detected when the device short-edge is ≥768px.' },
-            { label: 'Global Search 🔍', desc: 'Tap the search icon in the header or press Mod+Shift+F to open Global Search. Instantly find anything across Thoughts, Tasks, Dues, Projects, and Habits.', tip: 'Also available via Obsidian command palette: "MINA: Global Search".' },
+            { label: 'Global Search 🔍', desc: 'Tap the search icon in the header or press Mod+Shift+F to open Global Search. Instantly find anything across Thoughts, Gawa, Dues, Projects, and Habits.', tip: 'Also available via Obsidian command palette: "MINA: Global Search".' },
         ]
     },
     {
@@ -25,14 +25,14 @@ const SECTIONS: HelpSection[] = [
             { label: 'Search Pill (Phone)', desc: 'On phone, a tappable search pill sits in the Command Center between the greeting and the capture bar. Tapping it opens the full-screen search overlay directly.', tip: 'The pill only appears on phone-sized screens — on tablet/desktop use the header icon.' },
             { label: 'Mobile Full-Screen Mode', desc: 'On phone, search opens as a full-screen iOS Spotlight-style takeover: 16px input (prevents iOS zoom), results scroll above the keyboard automatically, and safe-area insets are respected for notched phones.' },
             { label: 'Swipe to Dismiss', desc: 'On phone, swipe down on the search overlay or tap the ← back button to close.', tip: 'The back button appears in the top-left corner of the full-screen overlay.' },
-            { label: 'Scope Filters', desc: 'Use the pill buttons (All / Thoughts / Tasks / Dues / Projects / Habits) to narrow results to a specific type. Counts update live as you type.' },
+            { label: 'Scope Filters', desc: 'Use the pill buttons (All / Thoughts / Gawa / Dues / Projects / Habits) to narrow results to a specific type. Counts update live as you type.' },
             { label: 'Keyboard Navigation', desc: '↑↓ arrow keys move through results. Enter opens the focused item. Escape closes the overlay.', tip: 'Typing always returns focus to the input — you never lose your place.' },
             { label: 'Quick Jump', desc: 'When search is empty, a Quick Jump grid lets you instantly navigate to any tab. Displays as 2 columns on phone, 3 columns on tablet/desktop.' },
             { label: 'Match Highlighting', desc: 'Your query is highlighted wherever it matches result titles, making it easy to confirm relevance at a glance.' },
         ]
     },
     {
-        id: 'capture', icon: 'lucide-plus-circle', title: 'Quick Capture', subtitle: 'Capture thoughts and tasks instantly',
+        id: 'capture', icon: 'lucide-plus-circle', title: 'Quick Capture', subtitle: 'Capture thoughts and gawa instantly',
         items: [
             { label: 'Capture a Thought', desc: 'Click the capture bar on Home or press ⌘K / Ctrl+K. The modal opens with THOUGHT mode selected by default — just type and save.' },
             { label: 'Capture a Task', desc: 'Tap the TASK button at the top of the capture modal to switch modes. The right panel expands showing due date, recurrence, and properties.', tip: 'Task mode uses a 2-column layout on wider screens — metadata stays visible alongside the text.' },
@@ -47,14 +47,14 @@ const SECTIONS: HelpSection[] = [
         ]
     },
     {
-        id: 'tasks', icon: 'lucide-check-square-2', title: 'Tasks', subtitle: 'Your tactical task ledger',
+        id: 'gawa', icon: 'lucide-check-square-2', title: 'Gawa', subtitle: 'Your tactical gawa ledger',
         items: [
             { label: 'Status Filters', desc: 'Filter by Open, Done, Waiting, or Someday using the segment bar at the top.' },
             { label: 'Complete a Task', desc: 'Tap the checkbox to mark a task done. It moves to the Done filter.' },
             { label: 'Edit a Task', desc: 'Tap a task card to open the edit modal. Change title, due date, contexts, priority, or energy.' },
-            { label: 'Full Title Display', desc: 'Task titles display in full — no truncation regardless of length. Long tasks wrap naturally across multiple lines.' },
+            { label: 'Full Title Display', desc: 'Gawa titles display in full — no truncation regardless of length. Long gawa items wrap naturally across multiple lines.' },
             { label: 'Priority & Energy', desc: 'High/Medium/Low priority and energy tags help you pick the right task for your current state.', tip: 'Ask yourself: "What\'s my energy right now?" and filter accordingly.' },
-            { label: 'Recurring Tasks', desc: 'Tasks can repeat daily, weekly, biweekly, or monthly. Set recurrence in the edit modal.' },
+            { label: 'Recurring Gawa', desc: 'Gawa can repeat daily, weekly, biweekly, or monthly. Set recurrence in the edit modal.' },
             { label: 'Comments', desc: 'Tap the comment icon on a task to add notes or replies beneath it.' },
         ]
     },
@@ -104,14 +104,14 @@ const SECTIONS: HelpSection[] = [
     {
         id: 'review', icon: 'lucide-calendar-check', title: 'Weekly Review', subtitle: 'Reflect and plan every week',
         items: [
-            { label: 'Week at a Glance ⚡', desc: 'Auto-generated panel showing tasks completed, habit progress, active projects, and finance paid/overdue.', tip: 'Tap ↻ to refresh. Tap ⌄ to collapse.' },
-            { label: 'AI Weekly Brief 🤖', desc: 'Tap "✨ Generate AI Brief" at the bottom of the review to get a Gemini-powered 5-section brief: Week Assessment, Top Win, Key Insight, Next Week Priority, and North Star Pulse.', tip: 'Requires a Gemini API key. The brief is generated from your actual vault data — tasks, habits, thoughts, projects, and goals.' },
+            { label: 'Week at a Glance ⚡', desc: 'Auto-generated panel showing gawa completed, habit progress, active projects, and finance paid/overdue.', tip: 'Tap ↻ to refresh. Tap ⌄ to collapse.' },
+            { label: 'AI Weekly Brief 🤖', desc: 'Tap "✨ Generate AI Brief" at the bottom of the review to get a Gemini-powered 5-section brief: Week Assessment, Top Win, Key Insight, Next Week Priority, and North Star Pulse.', tip: 'Requires a Gemini API key. The brief is generated from your actual vault data — gawa, habits, thoughts, projects, and goals.' },
             { label: 'Wins', desc: 'Write what went well this week — celebrate progress, big and small.' },
             { label: 'Lessons Learned', desc: 'Capture what you\'d do differently. Turns mistakes into growth.' },
             { label: 'Next Week\'s Focus', desc: 'Set 1–3 priorities for the coming week. These appear on your Home screen.' },
             { label: 'Habit Highlight', desc: 'Your best-performing habit is shown automatically.' },
-            { label: '📅 Next Week Plan', desc: 'Plan your coming week day by day. Each day has an intention input ("Theme for this day") and shows tasks due that day. Use "+ Assign Task" to route unscheduled tasks to specific days.', tip: 'Toggle "This Week / Next Week" to plan the current or upcoming week. On tablet, day cards display in a 7-column grid.' },
-            { label: 'Task Assignment', desc: 'Tap "+ Assign Task" on any day card to open an inline picker of unscheduled open tasks, sorted by priority. Tap a task to set its due date to that day — it appears in Focus tab automatically.' },
+            { label: '📅 Next Week Plan', desc: 'Plan your coming week day by day. Each day has an intention input ("Theme for this day") and shows gawa due that day. Use "+ Assign Task" to route unscheduled gawa to specific days.', tip: 'Toggle "This Week / Next Week" to plan the current or upcoming week. On tablet, day cards display in a 7-column grid.' },
+            { label: 'Gawa Assignment', desc: 'Tap "+ Assign Task" on any day card to open an inline picker of unscheduled open gawa, sorted by priority. Tap a gawa item to set its due date to that day — it appears in Focus tab automatically.' },
             { label: 'Save', desc: 'Press "Save Review" or ⌘↵ to save. Stored as Markdown in your Reviews/Weekly/ folder.', tip: 'The folder is configurable in Folder Config → Reviews Folder.' },
         ]
     },
@@ -119,7 +119,7 @@ const SECTIONS: HelpSection[] = [
         id: 'monthly-review', icon: 'lucide-calendar-range', title: 'Monthly Review', subtitle: 'Set and track monthly goals',
         items: [
             { label: 'Navigation', desc: 'Access from the MANAGEMENT cluster in Command Center, or from the monthly goals "Edit" button.' },
-            { label: 'Monthly Stats', desc: 'Auto-calculated tasks done, thoughts captured, and open tasks for the current month.' },
+            { label: 'Monthly Stats', desc: 'Auto-calculated gawa done, thoughts captured, and open gawa for the current month.' },
             { label: 'Habit Adherence', desc: 'Shows completion rate per habit across the month with percentage color coding.' },
             { label: 'Project Progress', desc: 'Visual progress bars for each project showing done/total ratio.' },
             { label: 'Next Month\'s Focus', desc: 'Set up to 3 goals for the coming month. Saved to Reviews/Monthly/ folder.', tip: 'Persisted as Markdown so it survives plugin reinstalls.' },
@@ -131,7 +131,7 @@ const SECTIONS: HelpSection[] = [
             { label: 'Access', desc: 'Open from the MANAGEMENT cluster in Command Center. Shows your Quarterly North Star Goals and Life Mission.' },
             { label: 'North Star Goals', desc: 'Set 3 quarterly goals that define your 90-day strategic priorities. Displayed daily on the Home screen.' },
             { label: 'Life Mission', desc: 'Write your personal "why" — the reason behind all your goals and actions.' },
-            { label: 'Quarterly Audit', desc: 'Auto-generated stats showing tasks done, habits completed, and dues paid for the quarter.' },
+            { label: 'Quarterly Audit', desc: 'Auto-generated stats showing gawa done, habits completed, and dues paid for the quarter.' },
             { label: 'Persistence', desc: 'Compass data saves to Reviews/Compass/YYYY-Qx.md — one file per quarter.', tip: 'Configurable via Folder Config → Reviews Folder.' },
         ]
     },
@@ -179,7 +179,7 @@ const SECTIONS: HelpSection[] = [
     {
         id: 'timeline', icon: 'lucide-clock', title: 'Timeline', subtitle: 'Chronological history of all activity',
         items: [
-            { label: 'All Entries', desc: 'Thoughts, tasks, and notes shown in date order. Scroll to explore your history.' },
+            { label: 'All Entries', desc: 'Thoughts, gawa, and notes shown in date order. Scroll to explore your history.' },
             { label: 'Date Jump', desc: 'Use the date carousel at the top to navigate to a specific day.' },
         ]
     },
@@ -188,8 +188,8 @@ const SECTIONS: HelpSection[] = [
         items: [
             { label: 'Access', desc: 'Open from the MANAGEMENT cluster in Command Center (Calendar icon).' },
             { label: 'Month / Week Toggle', desc: 'Switch between a full month grid and a focused 7-day week view using the toggle in the top-right.', tip: 'Week view shows mini task lists inside each day cell.' },
-            { label: 'Event Dots', desc: 'Each day cell shows coloured dots: accent = tasks due, orange = financial dues, green = habits completed. A count badge appears when there are multiple.', tip: 'Green dot glows when you\'ve completed all habits for the day.' },
-            { label: 'Day Detail Panel', desc: 'Tap any day cell to see its full detail panel below the grid: tasks with priority badges, dues with amounts, and habits with completion status.' },
+            { label: 'Event Dots', desc: 'Each day cell shows coloured dots: accent = gawa due, orange = financial dues, green = habits completed. A count badge appears when there are multiple.', tip: 'Green dot glows when you\'ve completed all habits for the day.' },
+            { label: 'Day Detail Panel', desc: 'Tap any day cell to see its full detail panel below the grid: gawa with priority badges, dues with amounts, and habits with completion status.' },
             { label: 'Navigation', desc: 'Use ◀ ▶ to move between months or weeks. "Today" snaps back to the current date instantly.' },
             { label: 'State Persistence', desc: 'Your selected date, view mode, and current month are remembered even when the tab re-renders after vault changes.' },
         ]
@@ -199,8 +199,8 @@ const SECTIONS: HelpSection[] = [
         items: [
             { label: 'Access', desc: 'Open from the SYSTEM cluster in Command Center (Export button).', tip: 'Run a backup before major vault reorganisations.' },
             { label: 'Export Thoughts (CSV)', desc: 'Exports all thoughts as a CSV file (title, created date, day, contexts, body). Saved to your Thoughts folder.', tip: 'Open in Excel, Numbers, or any spreadsheet app.' },
-            { label: 'Export Tasks (CSV)', desc: 'Exports all tasks as a CSV file (title, status, due date, priority, energy, contexts). Saved to your Tasks folder.' },
-            { label: 'Full JSON Backup', desc: 'Creates a single JSON snapshot of thoughts, tasks, projects, dues, and plugin settings. API keys are intentionally excluded for security.', tip: 'Saved to your vault root as DIWA-backup-YYYY-MM-DD.json.' },
+            { label: 'Export Gawa (CSV)', desc: 'Exports all gawa items as a CSV file (title, status, due date, priority, energy, contexts). Saved to your Gawa folder.' },
+            { label: 'Full JSON Backup', desc: 'Creates a single JSON snapshot of thoughts, gawa, projects, dues, and plugin settings. API keys are intentionally excluded for security.', tip: 'Saved to your vault root as DIWA-backup-YYYY-MM-DD.json.' },
             { label: 'Count Badges', desc: 'Each export card shows a live count of how many items will be exported before you click.' },
         ]
     },
@@ -218,21 +218,21 @@ const SECTIONS: HelpSection[] = [
     {
         id: 'settings', icon: 'lucide-settings', title: 'Settings', subtitle: 'configure DIWA to your workflow',
         items: [
-            { label: 'Folders', desc: 'Set where thoughts, tasks, habits, voice memos, and reviews are stored in your vault. Use Folder Config for a quick modal.' },
+            { label: 'Folders', desc: 'Set where thoughts, gawa, habits, voice memos, and reviews are stored in your vault. Use Folder Config for a quick modal.' },
             { label: 'Reviews Folder', desc: 'Root folder for Weekly, Monthly, and Compass review files. Sub-folders Weekly/, Monthly/, Compass/ are auto-created.', tip: 'Default: 000 Bin/DIWA Reviews. Configurable in Folder Config.' },
             { label: 'Attachments Folder', desc: 'Folder where pasted or drag-dropped images and files are saved. Used by the image paste feature in capture inputs.', tip: 'Default: 000 Bin/DIWA Attachments. The folder is auto-created on first paste.' },
             { label: 'Contexts', desc: 'Manage your global context tags (#work, #personal, etc.).' },
             { label: 'AI Key', desc: 'Enter your Gemini API key to enable AI Chat and Intelligence features.' },
             { label: 'Habits', desc: 'Add, edit, and archive habits from the ⚙ icon on the Home screen.' },
-            { label: 'Reminders', desc: 'Toggle habit reminders and task reminders independently. Both respect quiet hours (8 AM – 10 PM) and fire on mobile app resume.' },
+            { label: 'Reminders', desc: 'Toggle habit reminders and gawa reminders independently. Both respect quiet hours (8 AM – 10 PM) and fire on mobile app resume.' },
             { label: 'Monthly Income', desc: 'Set your monthly income (number) to unlock the cashflow overview in Finance Analytics.' },
         ]
     },
     {
-        id: 'reminders', icon: 'lucide-bell', title: 'Reminders ⏰', subtitle: 'Hourly nudges for habits and tasks',
+        id: 'reminders', icon: 'lucide-bell', title: 'Reminders ⏰', subtitle: 'Hourly nudges for habits and gawa',
         items: [
             { label: 'Habit Reminders', desc: 'When enabled, DIWA checks every hour if you have pending habits for today and shows a toast notification.' },
-            { label: 'Task Reminders', desc: 'When enabled, DIWA checks every hour for tasks due today that are not yet marked done.' },
+            { label: 'Gawa Reminders', desc: 'When enabled, DIWA checks every hour for gawa due today that are not yet marked done.' },
             { label: 'Quiet Hours', desc: 'Reminders only fire between 8 AM and 10 PM — never in the middle of the night.', tip: 'Quiet hours are based on your local device time.' },
             { label: 'Mobile-Aware', desc: 'On mobile, reminders also fire when you switch back to Obsidian (app resume via visibilitychange event).' },
             { label: 'Configuration', desc: 'Enable or disable each reminder type independently under Settings → Reminders.' },
@@ -439,5 +439,3 @@ export class ManualTab extends BaseTab {
         if (!hasResults) container.createEl('div', { cls: 'diwa-help-empty', text: 'No results found. Try a different search term.' });
     }
 }
-
-

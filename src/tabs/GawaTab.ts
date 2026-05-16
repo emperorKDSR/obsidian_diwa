@@ -18,7 +18,7 @@ import { parseContextString } from '../utils';
 
 type SecondaryMode = 'inbox' | 'overdue' | 'done';
 
-// ── TasksTab ───────────────────────────────────────────────────────────────
+// ── GawaTab ───────────────────────────────────────────────────────────────
 
 /**
  * Redesigned task experience: focus-first, minimal cognitive load.
@@ -30,7 +30,7 @@ type SecondaryMode = 'inbox' | 'overdue' | 'done';
  * All state (focus snapshot, detail path, secondary mode) lives on DiwaView
  * so it survives the tab being re-instantiated on vault events.
  */
-export class TasksTab extends BaseTab {
+export class GawaTab extends BaseTab {
     private _container: HTMLElement | null = null;
 
     // ── Accessors — state stored on view for persistence across re-renders ──
@@ -201,7 +201,7 @@ export class TasksTab extends BaseTab {
 
         if (task.status === 'planned') {
             const startBtn = actions.createEl('button', { cls: 'diwa-focus-action-btn', attr: { title: 'Start task' } });
-            setIcon(startBtn, 'play');
+            setIcon(startBtn, 'arrow-right');
             startBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this._doLifecycle(() => this.plugin.taskLink?.markTaskActive(entry.filePath));
@@ -259,7 +259,7 @@ export class TasksTab extends BaseTab {
 
         if (task.status !== 'active') {
             const b = btnRow.createEl('button', { cls: 'diwa-detail-btn', attr: { title: 'Set active' } });
-            setIcon(b.createEl('span', { cls: 'diwa-btn-icon' }), 'play');
+            setIcon(b.createEl('span', { cls: 'diwa-btn-icon' }), 'arrow-right');
             b.createSpan({ text: 'Start' });
             b.addEventListener('click', () =>
                 this._doLifecycle(() => this.plugin.taskLink?.markTaskActive(entry.filePath))
@@ -540,4 +540,3 @@ export class TasksTab extends BaseTab {
         if (this._container) this.render(this._container);
     }
 }
-

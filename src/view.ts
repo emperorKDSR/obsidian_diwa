@@ -42,9 +42,9 @@ export class DiwaView extends ItemView {
     synthesisActiveCtxFilter: string | null = null;
     _mergePending: number = 0;
 
-    // Tasks state — persists across re-renders (viewMode survives vault events)
+    // Gawa state — persists across re-renders (viewMode survives vault events)
     tasksViewMode: string = 'open';
-    // Focus engine state — persists across TasksTab re-instantiations
+    // Focus engine state — persists across GawaTab re-instantiations
     tasksFocusSnapshot: Task[] = [];
     tasksDetailPath: string | null = null;
     tasksSecondaryMode: 'inbox' | 'overdue' | 'done' | null = null;
@@ -100,7 +100,7 @@ export class DiwaView extends ItemView {
     getModeTitle(): string {
         switch (this.activeTab) {
             case 'review-thoughts': return "Thoughts";
-            case 'review-tasks': return "Tasks";
+            case 'review-gawa': return "Gawa";
             case 'diwa-ai': return "AI Chat";
             case 'dues': return "Dues";
             case 'projects': return "Projects";
@@ -174,7 +174,7 @@ export class DiwaView extends ItemView {
         };
 
         const tab = this.activeTab;
-        if (tab === 'review-tasks') instantiate(import('./tabs/TasksTab'), 'TasksTab');
+        if (tab === 'review-gawa') instantiate(import('./tabs/GawaTab'), 'GawaTab');
         else if (tab === 'diwa-ai') instantiate(import('./tabs/AiTab'), 'AiTab');
         else if (tab === 'dues') instantiate(import('./tabs/DuesTab'), 'DuesTab');
         else if (tab === 'projects') instantiate(import('./tabs/ProjectsTab'), 'ProjectsTab');
@@ -209,5 +209,3 @@ export class DiwaView extends ItemView {
         return tokens.every(token => combined.includes(token));
     }
 }
-
-

@@ -17,7 +17,7 @@ export class DiwaSettingTab extends PluginSettingTab {
         containerEl.createEl('h3', { text: 'Storage & Capture' });
 		new Setting(containerEl).setName('Capture Folder').setDesc('Folder for daily capture logs (tables).').addText(text => text.setPlaceholder('000 Bin/DIWA').setValue(this.plugin.settings.captureFolder).onChange(async (value) => { this.plugin.settings.captureFolder = value; await this.plugin.saveSettings(); }));
 		new Setting(containerEl).setName('Thoughts Folder').setDesc('Folder for individual thought files (YAML).').addText(text => text.setPlaceholder('000 Bin/DIWA').setValue(this.plugin.settings.thoughtsFolder).onChange(async (value) => { this.plugin.settings.thoughtsFolder = value; await this.plugin.saveSettings(); }));
-		new Setting(containerEl).setName('Tasks Folder').setDesc('Folder for individual task files (YAML).').addText(text => text.setPlaceholder('000 Bin/DIWA Tasks').setValue(this.plugin.settings.tasksFolder).onChange(async (value) => { this.plugin.settings.tasksFolder = value; await this.plugin.saveSettings(); }));
+		new Setting(containerEl).setName('Gawa Folder').setDesc('Folder for individual gawa files (YAML).').addText(text => text.setPlaceholder('000 Bin/DIWA Gawa').setValue(this.plugin.settings.tasksFolder).onChange(async (value) => { this.plugin.settings.tasksFolder = value; await this.plugin.saveSettings(); }));
 		new Setting(containerEl).setName('Finance Folder').setDesc('Folder for personal finance (PF) dues.').addText(text => text.setPlaceholder('000 Bin/DIWA PF').setValue(this.plugin.settings.pfFolder).onChange(async (value) => { this.plugin.settings.pfFolder = value; await this.plugin.saveSettings(); }));
         new Setting(containerEl).setName('People Folder').setDesc('Folder where new people notes are created when using the / trigger.').addText(text => text.setPlaceholder('000 Bin/DIWA People').setValue(this.plugin.settings.peopleFolder ?? '000 Bin/DIWA People').onChange(async (value) => { this.plugin.settings.peopleFolder = value; await this.plugin.saveSettings(); }));
         new Setting(containerEl).setName('Voice Memo Folder').setDesc('Folder for voice recording clips.').addText(text => text.setPlaceholder('000 Bin/DIWA Voice').setValue(this.plugin.settings.voiceMemoFolder).onChange(async (value) => { this.plugin.settings.voiceMemoFolder = value; await this.plugin.saveSettings(); }));
@@ -57,8 +57,6 @@ export class DiwaSettingTab extends PluginSettingTab {
 
         containerEl.createEl('h3', { text: 'Reminders' });
         new Setting(containerEl).setName('Habit Reminders').setDesc('Hourly nudge for pending habits (quiet hours: 8 AM – 10 PM).').addToggle(toggle => toggle.setValue(this.plugin.settings.reminderHabitsEnabled ?? true).onChange(async (value) => { this.plugin.settings.reminderHabitsEnabled = value; await this.plugin.saveSettings(); }));
-        new Setting(containerEl).setName('Task Reminders').setDesc('Hourly nudge for tasks due today (quiet hours: 8 AM – 10 PM).').addToggle(toggle => toggle.setValue(this.plugin.settings.reminderTasksEnabled ?? true).onChange(async (value) => { this.plugin.settings.reminderTasksEnabled = value; await this.plugin.saveSettings(); }));
+        new Setting(containerEl).setName('Gawa Reminders').setDesc('Hourly nudge for gawa due today (quiet hours: 8 AM – 10 PM).').addToggle(toggle => toggle.setValue(this.plugin.settings.reminderTasksEnabled ?? true).onChange(async (value) => { this.plugin.settings.reminderTasksEnabled = value; await this.plugin.saveSettings(); }));
 	}
 }
-
-

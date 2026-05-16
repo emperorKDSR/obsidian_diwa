@@ -118,6 +118,7 @@ export const ICON_EDIT = '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2
 export const ICON_TRASH = '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
 export const ICON_PLUS = '<line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>';
 export const ICON_REPLY = '<polyline points="9 17 4 12 9 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 18v-2a4 4 0 0 0-4-4H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+export const ICON_ARROW_RIGHT = '<path d="M5 12h14"/><path d="M13 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
 export const ICON_MESSAGE_SQUARE = '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
 export const ICON_LINK = '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
 export const ICON_EYE = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
@@ -129,7 +130,7 @@ export const ICON_CHECKLIST = '<polyline points="9 11 12 14 22 4" stroke="curren
 export const SEARCH_SCOPES = [
     { id: 'all',     label: 'All' },
     { id: 'thought', label: 'Thoughts' },
-    { id: 'task',    label: 'Tasks' },
+    { id: 'task',    label: 'Gawa' },
     { id: 'due',     label: 'Dues' },
     { id: 'project', label: 'Projects' },
     { id: 'habit',   label: 'Habits' },
@@ -145,7 +146,7 @@ export const SEARCH_TYPE_ICONS: Record<string, string> = {
 
 export const SEARCH_QUICKJUMP_TABS = [
     { id: 'timeline',     label: 'Timeline', icon: 'lucide-message-circle' },
-    { id: 'review-tasks', label: 'Tasks',    icon: 'lucide-check-square-2' },
+    { id: 'review-gawa',  label: 'Gawa',     icon: 'lucide-check-square-2' },
     { id: 'dues',         label: 'Finance',  icon: 'lucide-wallet' },
     { id: 'projects',     label: 'Projects', icon: 'lucide-folder-kanban' },
     { id: 'habits',       label: 'Habits',   icon: 'lucide-flame' },
@@ -157,7 +158,7 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
 	captureFilePath: 'diwa.md',
     tasksFilePath: 'diwa_tasks.md',
     thoughtsFolder: '000 Bin/DIWA',
-    tasksFolder: '000 Bin/DIWA Tasks',
+    tasksFolder: '000 Bin/DIWA Gawa',
     pfFolder: '000 Bin/DIWA PF',
 	dateFormat: 'YYYY-MM-DD',
     timeFormat: 'HH:mm',
@@ -205,4 +206,3 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
     peopleFolder: '000 Bin/DIWA People',
     legacyMigrated: false,
 }
-

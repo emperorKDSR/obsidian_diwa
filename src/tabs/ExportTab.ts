@@ -30,9 +30,9 @@ export class ExportTab extends BaseTab {
         const thoughtBtn = thoughtCard.createEl('button', { text: 'Export as CSV', cls: 'diwa-export-btn' });
         thoughtBtn.addEventListener('click', () => this._exportThoughts(thoughtBtn));
 
-        // ── Tasks Export ──────────────────────────────────────────────────
+        // ── Gawa Export ──────────────────────────────────────────────────
         const taskCard = wrap.createEl('div', { cls: 'diwa-export-card' });
-        taskCard.createEl('div', { text: '✅ Tasks Export', cls: 'diwa-export-card-title' });
+        taskCard.createEl('div', { text: '✅ Gawa Export', cls: 'diwa-export-card-title' });
         taskCard.createEl('span', { text: `${taskCount} tasks`, cls: 'diwa-export-count-badge' });
         taskCard.createEl('div', { text: 'Exports all tasks as a CSV file into your tasks folder.', cls: 'diwa-export-card-desc' });
         const taskBtn = taskCard.createEl('button', { text: 'Export as CSV', cls: 'diwa-export-btn' });
@@ -92,7 +92,7 @@ export class ExportTab extends BaseTab {
                 ].map(csvField).join(','))
             ];
             const content = rows.join('\n');
-            const folder = (this.settings.tasksFolder || '000 Bin/DIWA Tasks').replace(/\\/g, '/');
+            const folder = (this.settings.tasksFolder || '000 Bin/DIWA Gawa').replace(/\\/g, '/');
             const path = `${folder}/DIWA_Export_Tasks.csv`;
             await this._writeFile(path, content);
             new Notice(`Exported ${tasks.length} tasks to tasks folder ✓`);
@@ -147,6 +147,4 @@ export class ExportTab extends BaseTab {
         }
     }
 }
-
-
 
