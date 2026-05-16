@@ -1,5 +1,5 @@
 import { Plugin, TFile, Notice, WorkspaceLeaf, Platform, moment, addIcon } from 'obsidian';
-import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, AI_CHAT_ICON_ID, AI_CHAT_ICON_SVG, TIMELINE_ICON_ID, TIMELINE_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, VOICE_ICON_ID, VOICE_ICON_SVG, HOME_ICON_ID, HOME_ICON_SVG, PROJECT_ICON_ID, PROJECT_ICON_SVG, SYNTHESIS_ICON_ID, SYNTHESIS_ICON_SVG, COMPASS_ICON_ID, COMPASS_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_SEARCH, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB } from './constants';
+import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, AI_CHAT_ICON_ID, AI_CHAT_ICON_SVG, TIMELINE_ICON_ID, TIMELINE_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, VOICE_ICON_ID, VOICE_ICON_SVG, PROJECT_ICON_ID, PROJECT_ICON_SVG, SYNTHESIS_ICON_ID, SYNTHESIS_ICON_SVG, COMPASS_ICON_ID, COMPASS_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_SEARCH, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB } from './constants';
 import { DiwaSettings } from './types';
 import { isTablet } from './utils';
 import { DiwaView } from './view';
@@ -12,6 +12,8 @@ import { DiwaSettingTab } from './settings';
 import { AiService } from './services/AiService';
 import { VaultService } from './services/VaultService';
 import { IndexService } from './services/IndexService';
+import { TaskLinkService } from './services/TaskLinkService';
+import { TaskReflectionService } from './services/TaskReflectionService';
 import { SearchModal } from './modals/SearchModal';
 
 export default class DiwaPlugin extends Plugin {
@@ -23,6 +25,8 @@ export default class DiwaPlugin extends Plugin {
     ai: AiService;
     vault: VaultService;
     index: IndexService;
+    taskLink: TaskLinkService;
+    taskReflection: TaskReflectionService;
 
     private _indexDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private _reindexCooldown: Map<string, number> = new Map();
@@ -34,6 +38,8 @@ export default class DiwaPlugin extends Plugin {
         this.ai = new AiService(this.app, this.settings);
         this.vault = new VaultService(this.app, this.settings);
         this.index = new IndexService(this.app, this.settings);
+        this.taskLink = new TaskLinkService(this.app, this.settings, this.index);
+        this.taskReflection = new TaskReflectionService(this.app, this.settings, this.index);
 
         this.app.workspace.onLayoutReady(async () => {
             await this.index.buildIndices();
@@ -107,17 +113,14 @@ export default class DiwaPlugin extends Plugin {
 		addIcon(COMPASS_ICON_ID, COMPASS_ICON_SVG);
 		addIcon(REVIEW_ICON_ID, REVIEW_ICON_SVG);
 		addIcon(SETTINGS_ICON_ID, SETTINGS_ICON_SVG);
-        addIcon(HOME_ICON_ID, HOME_ICON_SVG);
         addIcon(DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG);
 
-		this.addRibbonIcon(HOME_ICON_ID, 'DIWA Hub', () => { this.activateView('home', true); });
         this.addRibbonIcon(DESKTOP_HUB_ICON_ID, 'DIWA Hub', () => {
             if (isTablet()) this.activateTabletHub();
             else if (Platform.isMobile) this.activateMobileHub();
             else this.activateDesktopHub();
         });
 
-        this.addCommand({ id: 'open-diwa-home-mode', name: 'DIWA: Open Command Center', icon: HOME_ICON_ID, callback: () => { this.activateView('home', true); } });
         this.addCommand({ id: 'open-diwa-desktop-hub', name: 'DIWA: Open Desktop Hub', icon: DESKTOP_HUB_ICON_ID, callback: () => { this.activateDesktopHub(); } });
         this.addCommand({ id: 'open-diwa-mobile-hub',  name: 'DIWA: Open Mobile Hub',  icon: 'smartphone', callback: () => { this.activateMobileHub(); } });
         this.addCommand({ id: 'open-diwa-tablet-hub',  name: 'DIWA: Open Tablet Hub',  icon: 'tablet',     callback: () => { this.activateTabletHub(); } });
@@ -285,6 +288,8 @@ export default class DiwaPlugin extends Plugin {
         if (this.ai) this.ai.updateSettings(this.settings);
         if (this.vault) this.vault.updateSettings(this.settings);
         if (this.index) this.index.updateSettings(this.settings);
+        if (this.taskLink) this.taskLink.updateSettings(this.settings);
+        if (this.taskReflection) this.taskReflection.updateSettings(this.settings);
 	}
 
     /** Re-indexes a single file based on its type. Called by both vault and metadataCache events. */

@@ -26,6 +26,15 @@ export class IndexService {
         return arr.map(v => String(v).replace(/^#+/, '').trim()).filter(Boolean);
     }
 
+    /** Normalize a raw frontmatter string-array field (e.g. sourceThoughtIds).
+     *  Handles: YAML list, comma-separated string scalar, missing/null. */
+    static normalizeStringArray(raw: unknown): string[] {
+        if (!raw) return [];
+        if (Array.isArray(raw)) return raw.map(v => String(v).trim()).filter(Boolean);
+        // single string — may be comma-separated
+        return String(raw).split(',').map(s => s.trim()).filter(Boolean);
+    }
+
     /** Returns all unique non-empty topic strings across the thought index. */
     getExistingTopics(): string[] {
         const seen = new Set<string>();
@@ -292,6 +301,17 @@ export class IndexService {
             energy: fm.energy || undefined,
             recurrence: fm.recurrence || undefined,
             recurrenceParentId: fm.recurrenceParentId || undefined,
+            // Unified task model fields — gracefully absent on legacy tasks
+            taskId: fm.taskId ? String(fm.taskId) : undefined,
+            origin: fm.origin === 'thought' ? 'thought' : (fm.origin === 'direct' ? 'direct' : undefined),
+            sourceThoughtIds: IndexService.normalizeStringArray(fm.sourceThoughtIds),
+            // Lifecycle fields — gracefully absent on legacy tasks
+            lifecycleStatus: (['planned', 'active', 'done'].includes(fm.lifecycleStatus))
+                ? fm.lifecycleStatus as 'planned' | 'active' | 'done'
+                : undefined,
+            createdAt:   fm.createdAt   ? String(fm.createdAt)   : undefined,
+            updatedAt:   fm.updatedAt   ? String(fm.updatedAt)   : undefined,
+            completedAt: fm.completedAt ? String(fm.completedAt) : undefined,
         });
         if (!skipRebuild) this.rebuildCalculatedState();
     }

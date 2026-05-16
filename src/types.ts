@@ -133,9 +133,41 @@ export interface TaskEntry {
     energy?: 'high' | 'medium' | 'low';
     recurrence?: RecurrenceRule;
     recurrenceParentId?: string;
+    // Unified task model fields — absent on legacy tasks; treat as defaults below
+    taskId?: string;                        // stable ID stored in frontmatter
+    origin?: 'thought' | 'direct';         // how the task was created
+    sourceThoughtIds?: string[];            // thought file paths that originated this task
+    // Lifecycle fields — absent on legacy tasks; safe to default
+    lifecycleStatus?: 'planned' | 'active' | 'done';
+    createdAt?: string;                     // ISO-8601 timestamp
+    updatedAt?: string;                     // ISO-8601 timestamp, updated on every state change
+    completedAt?: string;                   // ISO-8601 timestamp, set when lifecycleStatus = done
+    reflectionThoughtId?: string;           // vault path of the reflection note for this task
 }
 
 export type RecurrenceRule = 'daily' | 'weekly' | 'biweekly' | 'monthly';
+
+/**
+ * Unified task object — represents both tasks created from thoughts and
+ * tasks created directly. Separate from TaskEntry (which is file-per-task
+ * with YAML frontmatter); Task is a lightweight inline model used for
+ * checklist-embedded tasks that carry optional structured metadata.
+ */
+export interface Task {
+    id: string;
+    title: string;
+    origin: 'thought' | 'direct';
+    sourceThoughtIds: string[];
+    status: 'planned' | 'active' | 'done';
+    due?: string;
+    context?: string;
+    // Lifecycle timestamps — optional; absent on tasks parsed from legacy lines
+    createdAt?: string;    // ISO-8601
+    updatedAt?: string;    // ISO-8601
+    completedAt?: string;  // ISO-8601, present only when status = done
+    rescheduleCount?: number; // incremented each time auto-scheduling moves this task
+    reflectionThoughtId?: string; // vault path of the reflection note for this task
+}
 
 export interface DueEntry { 
     title: string; 

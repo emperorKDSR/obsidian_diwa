@@ -1,303 +1,543 @@
 import { moment, setIcon, Notice } from 'obsidian';
 import type { DiwaView } from '../view';
-import { BaseTab } from "./BaseTab";
-import { EditEntryModal } from "../modals/EditEntryModal";
-import { EditTaskModal } from "../modals/EditTaskModal";
-import { ConfirmModal } from "../modals/ConfirmModal";
-import type { TaskEntry, RecurrenceRule } from '../types';
-import { parseContextString, computeNextDue } from '../utils';
+import { BaseTab } from './BaseTab';
+import { EditEntryModal } from '../modals/EditEntryModal';
+import { EditTaskModal } from '../modals/EditTaskModal';
+import { ConfirmModal } from '../modals/ConfirmModal';
+import { NotePickerModal } from '../modals/NotePickerModal';
+import type { TaskEntry } from '../types';
+import { taskEntryToTask } from '../utils/taskAdapter';
+import {
+    getFocusTasks,
+    getTaskUrgencyTier,
+    explainTaskPriority,
+    maintainFocusStability,
+} from '../utils/focusEngine';
+import type { Task } from '../types';
+import { parseContextString } from '../utils';
 
-type TaskViewMode = 'open' | 'not-due' | 'done' | 'waiting' | 'someday' | 'recurring';
+type SecondaryMode = 'inbox' | 'overdue' | 'done';
 
-const MODES: { mode: TaskViewMode; label: string }[] = [
-    { mode: 'open',      label: 'Open' },
-    { mode: 'not-due',   label: 'No Date' },
-    { mode: 'waiting',   label: 'Waiting' },
-    { mode: 'someday',   label: 'Someday' },
-    { mode: 'recurring', label: '↻ Recurring' },
-    { mode: 'done',      label: 'Done' },
-];
+// ── TasksTab ───────────────────────────────────────────────────────────────
 
+/**
+ * Redesigned task experience: focus-first, minimal cognitive load.
+ *
+ * Primary:   Focus View  — top 3–5 tasks from getFocusTasks(), each as an
+ *                          expandable card with urgency indicator + explanation.
+ * Secondary: Inbox/Overdue/Done — compact list, opt-in via toggle.
+ *
+ * All state (focus snapshot, detail path, secondary mode) lives on DiwaView
+ * so it survives the tab being re-instantiated on vault events.
+ */
 export class TasksTab extends BaseTab {
-    private viewMode: TaskViewMode = 'open';
-    private listContainer: HTMLElement | null = null;
+    private _container: HTMLElement | null = null;
+
+    // ── Accessors — state stored on view for persistence across re-renders ──
+
+    private get _focusSnapshot(): Task[] { return this.view.tasksFocusSnapshot; }
+    private set _focusSnapshot(v: Task[]) { this.view.tasksFocusSnapshot = v; }
+
+    private get _detailPath(): string | null { return this.view.tasksDetailPath; }
+    private set _detailPath(v: string | null) { this.view.tasksDetailPath = v; }
+
+    private get _secondaryMode(): SecondaryMode | null {
+        return this.view.tasksSecondaryMode as SecondaryMode | null;
+    }
+    private set _secondaryMode(v: SecondaryMode | null) {
+        this.view.tasksSecondaryMode = v;
+    }
 
     constructor(view: DiwaView) {
         super(view);
-        this.viewMode = this.view.tasksViewMode === 'inbox' ? 'open' : ((this.view.tasksViewMode as TaskViewMode) || 'open');
     }
+
+    // ── Render entry point ─────────────────────────────────────────────────
 
     render(container: HTMLElement) {
-        this.renderTaskOverview(container);
-    }
-
-    private setMode(mode: TaskViewMode) {
-        this.viewMode = mode;
-        this.view.tasksViewMode = mode;
-    }
-
-    async renderTaskOverview(container: HTMLElement) {
+        this._container = container;
         container.empty();
+
         const wrap = container.createEl('div', { cls: 'diwa-tab-wrap' });
+        this._renderHeader(wrap);
+        this._renderFocusSection(wrap);
 
-        // ── Header row ──
-        const header = wrap.createEl('div', { cls: 'diwa-tasks-header' });
-        const navAndTitle = header.createEl('div', { cls: 'diwa-tasks-title-row' });
-        this.renderHomeIcon(navAndTitle);
-        navAndTitle.createEl('h2', { text: 'Tasks', cls: 'diwa-tab-title' });
+        if (this._secondaryMode !== null) {
+            this._renderSecondarySection(wrap);
+        }
+    }
 
-        const addBtn = header.createEl('button', { cls: 'diwa-tasks-add-btn' });
-        const addIcon = addBtn.createEl('span'); setIcon(addIcon, 'plus');
+    // ── Header ─────────────────────────────────────────────────────────────
+
+    private _renderHeader(parent: HTMLElement) {
+        const header = parent.createEl('div', { cls: 'diwa-tasks-header' });
+
+        const titleRow = header.createEl('div', { cls: 'diwa-tasks-title-row' });
+        this.renderHomeIcon(titleRow);
+        titleRow.createEl('h2', { text: 'Focus', cls: 'diwa-tab-title' });
+
+        const btnGroup = header.createEl('div', { cls: 'diwa-tasks-header-actions' });
+
+        // Add task button
+        const addBtn = btnGroup.createEl('button', { cls: 'diwa-tasks-add-btn' });
+        setIcon(addBtn.createEl('span'), 'plus');
         addBtn.createSpan({ text: 'New' });
         addBtn.addEventListener('click', () => {
-            new EditEntryModal(this.app, this.plugin, '', '', moment().format('YYYY-MM-DD'), true, async (text, ctxs, due, _proj, recur, priority, energy, status) => {
-                if (!text.trim()) return;
-                await this.vault.createTaskFile(text, parseContextString(ctxs), due || undefined, undefined, {
-                    recurrence: recur ?? undefined,
-                    priority: priority ?? undefined,
-                    energy: energy ?? undefined,
-                    status: status !== 'open' ? status : undefined,
-                });
-                this.renderTaskOverview(container);
-            }, 'New Task').open();
+            new EditEntryModal(
+                this.app, this.plugin, '', '',
+                moment().format('YYYY-MM-DD'), true,
+                async (text, ctxs, due, _proj, recur, priority, energy, status) => {
+                    if (!text.trim()) return;
+                    await this.vault.createTaskFile(
+                        text, parseContextString(ctxs), due || undefined, undefined,
+                        { recurrence: recur ?? undefined, priority: priority ?? undefined, energy: energy ?? undefined, status: status !== 'open' ? status : undefined }
+                    );
+                    this._focusSnapshot = []; // reset stability so new task surfaces
+                    this._rerender();
+                }, 'New Task'
+            ).open();
         });
 
-        // ── Search ──
-        const searchInp = wrap.createEl('input', {
-            type: 'text',
-            cls: 'diwa-tasks-search',
-            attr: { placeholder: 'Search tasks…' }
+        // Secondary toggle
+        const secBtn = btnGroup.createEl('button', {
+            cls: `diwa-tasks-sec-btn${this._secondaryMode !== null ? ' is-active' : ''}`,
+            attr: { title: 'All tasks' }
         });
-        if (this.view.searchQuery) searchInp.value = this.view.searchQuery;
-        searchInp.addEventListener('input', () => { this.view.searchQuery = searchInp.value; this.renderList(); });
-
-        // ── Segmented control ──
-        const allTasks = Array.from(this.index.taskIndex.values());
-        const counts: Record<TaskViewMode, number> = { open: 0, 'not-due': 0, waiting: 0, someday: 0, recurring: 0, done: 0 };
-        for (const t of allTasks) {
-            if (t.recurrence) counts.recurring++;
-            switch (t.status) {
-                case 'open':    counts.open++; if (!t.due || !t.due.trim()) counts['not-due']++; break;
-                case 'waiting': counts.waiting++; break;
-                case 'someday': counts.someday++; break;
-                case 'done':    counts.done++; break;
-            }
-        }
-        const segBar = wrap.createEl('div', { cls: 'diwa-seg-bar' });
-        MODES.forEach(({ mode, label }) => {
-            const btn = segBar.createEl('button', { cls: `diwa-seg-btn${this.viewMode === mode ? ' is-active' : ''}`, attr: { 'data-mode': mode } });
-            btn.createSpan({ text: label });
-            if (counts[mode] > 0) btn.createEl('span', { text: String(counts[mode]), cls: 'diwa-seg-count' });
-            btn.addEventListener('click', () => { this.setMode(mode); this.renderTaskOverview(container); });
+        setIcon(secBtn, 'layout-list');
+        secBtn.addEventListener('click', () => {
+            this._secondaryMode = this._secondaryMode !== null ? null : 'inbox';
+            this._rerender();
         });
-
-        // ── List shell ──
-        this.listContainer = wrap.createEl('div', { cls: 'diwa-task-list' });
-        this.renderList();
     }
 
-    private renderList() {
-        if (!this.listContainer) return;
-        this.listContainer.empty();
+    // ── Focus section ──────────────────────────────────────────────────────
 
-        let tasks = Array.from(this.index.taskIndex.values());
-        if (this.viewMode === 'open') {
-            tasks = tasks.filter(t => t.status === 'open');
-            tasks.sort((a, b) => {
-                const aHasDue = !!(a.due && a.due.trim() !== '');
-                const bHasDue = !!(b.due && b.due.trim() !== '');
-                if (aHasDue && !bHasDue) return -1;
-                if (!aHasDue && bHasDue) return 1;
-                if (aHasDue && bHasDue) return moment(a.due).valueOf() - moment(b.due).valueOf();
-                return b.lastUpdate - a.lastUpdate;
+    private _renderFocusSection(parent: HTMLElement) {
+        const section = parent.createEl('div', { cls: 'diwa-focus-section' });
+
+        const allEntries = Array.from(this.index.taskIndex.values());
+        const adapted    = allEntries.map(taskEntryToTask);
+        const newFocus   = getFocusTasks(adapted, 5);
+
+        // Apply stability: preserve user's mental model across re-renders
+        const stable = this._focusSnapshot.length > 0
+            ? maintainFocusStability(this._focusSnapshot, newFocus)
+            : newFocus;
+        this._focusSnapshot = stable;
+
+        if (stable.length === 0) {
+            const empty = section.createEl('div', { cls: 'diwa-focus-empty' });
+            setIcon(empty.createEl('span', { cls: 'diwa-focus-empty-icon' }), 'check-circle');
+            empty.createEl('p', {
+                text: 'All clear — nothing needs focus right now.',
+                cls: 'diwa-focus-empty-text'
             });
-        } else if (this.viewMode === 'not-due') {
-            tasks = tasks.filter(t => t.status === 'open' && (!t.due || t.due.trim() === ""));
-            tasks.sort((a, b) => b.lastUpdate - a.lastUpdate);
-        } else if (this.viewMode === 'waiting') {
-            tasks = tasks.filter(t => t.status === 'waiting');
-            tasks.sort((a, b) => b.lastUpdate - a.lastUpdate);
-        } else if (this.viewMode === 'someday') {
-            tasks = tasks.filter(t => t.status === 'someday');
-            tasks.sort((a, b) => b.lastUpdate - a.lastUpdate);
-        } else if (this.viewMode === 'recurring') {
-            tasks = tasks.filter(t => !!t.recurrence);
-            tasks.sort((a, b) => b.lastUpdate - a.lastUpdate);
-        } else {
-            tasks = tasks.filter(t => t.status === 'done');
-            tasks.sort((a, b) => b.lastUpdate - a.lastUpdate);
-        }
-        if (this.view.searchQuery) {
-            tasks = tasks.filter(t => this.view.matchesSearch(this.view.searchQuery, [t.title, t.body]));
-        }
-
-        if (tasks.length === 0) {
-            const emptyMsgs: Record<TaskViewMode, string> = {
-                open: 'All clear ✓', 'not-due': 'No undated tasks.',
-                waiting: 'Nothing waiting.', someday: 'No someday items.',
-                recurring: 'No recurring tasks. Set recurrence when creating a task.',
-                done: 'No completed tasks.'
-            };
-            this.renderEmptyState(this.listContainer, emptyMsgs[this.viewMode]);
             return;
         }
 
-        // ── Group the merged open queue by time horizon ─────────────────────
-        if (this.viewMode === 'open') {
-            const today = moment().startOf('day');
-            const parsed = tasks.map(t => ({ task: t, m: moment(t.due, 'YYYY-MM-DD') }));
-            const overdue  = parsed.filter(({m}) => m.isValid() && m.isBefore(today, 'day')).map(x => x.task);
-            const dueToday = parsed.filter(({m}) => m.isValid() && m.isSame(today, 'day')).map(x => x.task);
-            const upcoming = parsed.filter(({m}) => m.isValid() && m.isAfter(today, 'day')).map(x => x.task);
-            const noDate = parsed.filter(({task, m}) => !task.due || task.due.trim() === '' || !m.isValid()).map(x => x.task);
-            if (overdue.length)  this.renderGroup('Overdue', overdue, true);
-            if (dueToday.length) this.renderGroup('Today', dueToday, false);
-            if (upcoming.length) this.renderGroup('Upcoming', upcoming, false);
-            if (noDate.length)   this.renderGroup('No Date', noDate, false);
-        } else if (this.viewMode === 'recurring') {
-            const order: RecurrenceRule[] = ['daily', 'weekly', 'biweekly', 'monthly'];
-            for (const rule of order) {
-                const group = tasks.filter(t => t.recurrence === rule);
-                if (group.length === 0) continue;
-                const label = rule.charAt(0).toUpperCase() + rule.slice(1);
-                this.renderGroup(`↻ ${label}`, group, false, 'recurring');
-            }
-        } else {
-            for (const task of tasks) this.renderRow(task, this.listContainer!);
+        section.createEl('p', {
+            text: 'What needs your attention right now',
+            cls: 'diwa-focus-label'
+        });
+
+        // Build lookup: adapted task ID → original TaskEntry
+        const entryById = new Map<string, TaskEntry>();
+        for (const entry of allEntries) {
+            entryById.set(taskEntryToTask(entry).id, entry);
+        }
+
+        for (const task of stable) {
+            const entry = entryById.get(task.id);
+            if (!entry) continue;
+            this._renderFocusCard(section, task, entry);
         }
     }
 
-    private renderGroup(label: string, tasks: TaskEntry[], danger: boolean, modifier?: string) {
-        if (!this.listContainer) return;
-        const group = this.listContainer.createEl('div', { cls: `diwa-task-group${modifier ? ' diwa-task-group--' + modifier : ''}` });
-        group.createEl('div', {
-            text: label,
-            cls: `diwa-task-group-label${danger ? ' is-danger' : ''}`
-        });
-        for (const task of tasks) this.renderRow(task, group);
-    }
+    private _renderFocusCard(parent: HTMLElement, task: Task, entry: TaskEntry) {
+        const tier   = getTaskUrgencyTier(task);
+        const isOpen = this._detailPath === entry.filePath;
 
-    private renderRow(task: TaskEntry, parent: HTMLElement) {
-        const isDone = task.status === 'done';
-        const dueM = task.due ? moment(task.due, 'YYYY-MM-DD', true) : null;
-        const isOverdue = !isDone && dueM?.isValid() && dueM.isBefore(moment(), 'day');
-        const isToday = !isDone && dueM?.isValid() && dueM.isSame(moment(), 'day');
-
-        const row = parent.createEl('div', { cls: `diwa-task-row${isDone ? ' is-done' : ''}` });
-
-        // ── Circle checkbox ──
-        const cb = row.createEl('div', { cls: `diwa-task-cb${isDone ? ' is-done' : ''}` });
-        if (isDone) { const ck = cb.createEl('span'); setIcon(ck, 'check'); }
-
-        cb.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            const nextDone = !isDone;
-            cb.empty();
-            if (nextDone) {
-                cb.addClass('is-done');
-                const ck = cb.createEl('span'); setIcon(ck, 'check');
-                titleEl.addClass('is-done');
-            } else {
-                cb.removeClass('is-done');
-                titleEl.removeClass('is-done');
-            }
-            this.view._taskTogglePending++;
-            await this.vault.toggleTask(task.filePath, nextDone);
-
-            // rm-7: Recurrence spawn — create next instance when recurring task is completed
-            if (nextDone && task.recurrence && task.due) {
-                const nextDue = computeNextDue(task.due, task.recurrence);
-                await this.vault.createTaskFile(
-                    task.title,
-                    task.context,
-                    nextDue,
-                    task.project,
-                    {
-                        recurrence: task.recurrence,
-                        recurrenceParentId: task.filePath,
-                        priority: task.priority,
-                        energy: task.energy,
-                    }
-                );
-                new Notice(`↻ Next ${task.recurrence} task → ${nextDue}`, 3000);
-            }
-
-            // Animate out
-            const h = row.offsetHeight;
-            row.style.overflow = 'hidden';
-            row.style.maxHeight = h + 'px';
-            row.style.transition = 'max-height 0.32s ease, opacity 0.22s ease, padding 0.32s ease';
-            await new Promise(r => setTimeout(r, 180));
-            row.style.maxHeight = '0';
-            row.style.opacity = '0';
-            row.style.paddingTop = '0';
-            row.style.paddingBottom = '0';
-            setTimeout(() => {
-                row.remove();
-                this.view._taskTogglePending = Math.max(0, this.view._taskTogglePending - 1);
-                if (this.listContainer && this.listContainer.querySelectorAll('.diwa-task-row').length === 0) {
-                    this.renderEmptyState(this.listContainer, 'Queue is clear ✓');
-                }
-            }, 340);
+        const card = parent.createEl('div', {
+            cls: `diwa-focus-card diwa-focus-card--${tier}${isOpen ? ' is-open' : ''}`
         });
 
-        // ── Content ──
-        const content = row.createEl('div', { cls: 'diwa-task-content' });
-        const titleEl = content.createEl('span', {
-            text: task.title,
-            cls: `diwa-task-title${isDone ? ' is-done' : ''}`
+        // ── Urgency dot ────────────────────────────────────────────────────
+        card.createEl('div', { cls: `diwa-urgency-dot diwa-urgency-dot--${tier}` });
+
+        // ── Body ───────────────────────────────────────────────────────────
+        const body = card.createEl('div', { cls: 'diwa-focus-card-body' });
+        body.createEl('div', { text: task.title, cls: 'diwa-focus-card-title' });
+        body.createEl('div', {
+            text: `→ ${explainTaskPriority(task)}`,
+            cls: 'diwa-focus-explanation'
         });
 
-        // Meta row
-        const hasMeta = (task.due && dueM?.isValid()) || task.priority || task.context.length > 0 || !!task.recurrence;
-        if (hasMeta) {
-            const meta = content.createEl('div', { cls: 'diwa-task-meta' });
-            if (task.due && dueM?.isValid()) {
-                const dateText = isToday ? 'Today' : isOverdue ? dueM.format('MMM D') : dueM.format('MMM D');
+        // Meta chips
+        const meta = body.createEl('div', { cls: 'diwa-focus-meta' });
+        if (task.due) {
+            const m = moment(task.due, 'YYYY-MM-DD', true);
+            if (m.isValid()) {
+                const overdue = task.status !== 'done' && m.isBefore(moment(), 'day');
+                const today   = m.isSame(moment(), 'day');
                 meta.createEl('span', {
-                    text: dateText,
-                    cls: `diwa-chip diwa-chip--date${isOverdue ? ' is-overdue' : isToday ? ' is-today' : ''}`
+                    text: today ? 'Today' : overdue ? `Overdue · ${m.format('MMM D')}` : m.format('MMM D'),
+                    cls: `diwa-chip diwa-chip--date${overdue ? ' is-overdue' : today ? ' is-today' : ''}`
                 });
             }
-            if (task.recurrence) {
-                meta.createEl('span', {
-                    text: `↻ ${task.recurrence}`,
-                    cls: 'diwa-chip diwa-chip--recur',
-                    attr: { 'aria-label': `Repeats ${task.recurrence}`, title: `Repeats ${task.recurrence}` }
-                });
-            }
-            if (task.priority) {
-                const pMap: Record<string, string> = { high: 'high', medium: 'med', low: 'low' };
-                meta.createEl('span', {
-                    text: pMap[task.priority] || task.priority,
-                    cls: `diwa-chip diwa-chip--pri-${task.priority}`
-                });
-            }
-            task.context.slice(0, 2).forEach(ctx => {
-                meta.createEl('span', { text: `#${ctx}`, cls: 'diwa-chip diwa-chip--ctx' });
+        }
+        if (task.status === 'active') {
+            meta.createEl('span', { text: 'Active', cls: 'diwa-chip diwa-chip--active' });
+        }
+        const thoughtCount = (task.sourceThoughtIds ?? []).length;
+        if (thoughtCount > 0) {
+            meta.createEl('span', {
+                text: `${thoughtCount} thought${thoughtCount > 1 ? 's' : ''}`,
+                cls: 'diwa-chip diwa-chip--thoughts'
             });
         }
 
-        // ── Actions (reveal on hover) ──
-        const actions = row.createEl('div', { cls: 'diwa-task-actions' });
-        const mkBtn = (icon: string, fn: () => void, danger = false) => {
-            const btn = actions.createEl('button', { cls: `diwa-task-action-btn${danger ? ' is-danger' : ''}` });
-            setIcon(btn, icon);
-            btn.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
-        };
-        mkBtn('pencil', () => {
-            new EditTaskModal(this.app, task, this.vault, this.index, () => this.renderList()).open();
+        // ── Quick actions ──────────────────────────────────────────────────
+        const actions = card.createEl('div', { cls: 'diwa-focus-card-actions' });
+
+        if (task.status === 'planned') {
+            const startBtn = actions.createEl('button', { cls: 'diwa-focus-action-btn', attr: { title: 'Start task' } });
+            setIcon(startBtn, 'play');
+            startBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._doLifecycle(() => this.plugin.taskLink?.markTaskActive(entry.filePath));
+            });
+        }
+
+        if (task.status === 'active') {
+            const doneBtn = actions.createEl('button', {
+                cls: 'diwa-focus-action-btn diwa-focus-action-btn--done',
+                attr: { title: 'Mark done' }
+            });
+            setIcon(doneBtn, 'check');
+            doneBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._doLifecycle(
+                    () => this.plugin.taskLink?.markTaskDone(entry.filePath),
+                    () => this._offerReflection(task, entry.filePath)
+                );
+            });
+        }
+
+        // Expand / collapse
+        const chevron = actions.createEl('button', {
+            cls: 'diwa-focus-chevron',
+            attr: { title: 'Task details' }
         });
-        mkBtn('trash-2', () => {
+        setIcon(chevron, isOpen ? 'chevron-up' : 'chevron-down');
+
+        const toggle = () => {
+            this._detailPath = isOpen ? null : entry.filePath;
+            this._rerender();
+        };
+        body.addEventListener('click', toggle);
+        chevron.addEventListener('click', (e) => { e.stopPropagation(); toggle(); });
+
+        // ── Inline detail panel ────────────────────────────────────────────
+        if (isOpen) {
+            this._renderDetailPanel(parent, task, entry);
+        }
+    }
+
+    // ── Detail panel ───────────────────────────────────────────────────────
+
+    private _renderDetailPanel(parent: HTMLElement, task: Task, entry: TaskEntry) {
+        const panel = parent.createEl('div', { cls: 'diwa-focus-detail' });
+
+        // Status + lifecycle buttons
+        const topRow = panel.createEl('div', { cls: 'diwa-detail-action-row' });
+        topRow.createEl('span', {
+            text: task.status.charAt(0).toUpperCase() + task.status.slice(1),
+            cls: `diwa-status-badge diwa-status-badge--${task.status}`
+        });
+
+        const btnRow = topRow.createEl('div', { cls: 'diwa-detail-btns' });
+
+        if (task.status !== 'active') {
+            const b = btnRow.createEl('button', { cls: 'diwa-detail-btn', attr: { title: 'Set active' } });
+            setIcon(b.createEl('span', { cls: 'diwa-btn-icon' }), 'play');
+            b.createSpan({ text: 'Start' });
+            b.addEventListener('click', () =>
+                this._doLifecycle(() => this.plugin.taskLink?.markTaskActive(entry.filePath))
+            );
+        }
+
+        if (task.status !== 'done') {
+            const b = btnRow.createEl('button', { cls: 'diwa-detail-btn diwa-detail-btn--primary', attr: { title: 'Mark done' } });
+            setIcon(b.createEl('span', { cls: 'diwa-btn-icon' }), 'check');
+            b.createSpan({ text: 'Done' });
+            b.addEventListener('click', () =>
+                this._doLifecycle(
+                    () => this.plugin.taskLink?.markTaskDone(entry.filePath),
+                    () => this._offerReflection(task, entry.filePath)
+                )
+            );
+        }
+
+        if (task.status === 'done') {
+            const b = btnRow.createEl('button', { cls: 'diwa-detail-btn', attr: { title: 'Reopen' } });
+            setIcon(b.createEl('span', { cls: 'diwa-btn-icon' }), 'rotate-ccw');
+            b.createSpan({ text: 'Reopen' });
+            b.addEventListener('click', () =>
+                this._doLifecycle(() => this.plugin.taskLink?.reopenTask(entry.filePath))
+            );
+        }
+
+        // Timestamps
+        if (task.createdAt || task.updatedAt || task.completedAt) {
+            const times = panel.createEl('div', { cls: 'diwa-detail-times' });
+            if (task.createdAt)  this._timeRow(times, 'Created',   task.createdAt);
+            if (task.updatedAt)  this._timeRow(times, 'Updated',   task.updatedAt);
+            if (task.completedAt) this._timeRow(times, 'Completed', task.completedAt);
+        }
+
+        // Linked thoughts
+        const thoughtIds = task.sourceThoughtIds ?? [];
+        if (thoughtIds.length > 0) {
+            const sec = panel.createEl('div', { cls: 'diwa-detail-thoughts' });
+            sec.createEl('div', { text: 'Linked thoughts', cls: 'diwa-detail-section-label' });
+            for (const tPath of thoughtIds) {
+                const tEntry = this.index.thoughtIndex.get(tPath);
+                const label  = tEntry?.title ?? tPath.split('/').pop()?.replace('.md', '') ?? tPath;
+                const link   = sec.createEl('div', { cls: 'diwa-detail-thought-link' });
+                setIcon(link.createEl('span', { cls: 'diwa-detail-thought-icon' }), 'message-circle');
+                link.createEl('span', { text: label, cls: 'diwa-detail-thought-title' });
+                link.addEventListener('click', () => {
+                    this.app.workspace.openLinkText(tPath, tPath);
+                });
+            }
+        }
+
+        // ── Utility actions ────────────────────────────────────────────────
+        const utils = panel.createEl('div', { cls: 'diwa-detail-utils' });
+
+        this._utilBtn(utils, 'pencil', 'Edit', () => {
+            new EditTaskModal(this.app, entry, this.vault, this.index, () => this._rerender()).open();
+        });
+
+        this._utilBtn(utils, 'link', 'Link thought', () => {
+            new NotePickerModal(this.app, async (file) => {
+                await this.plugin.taskLink?.addThoughtToExistingTask(entry.filePath, file.path);
+                await this.plugin.taskLink?.linkTaskToThought(entry.filePath, file.path);
+                this._rerender();
+            }).open();
+        });
+
+        if (this.plugin.ai) {
+            this._utilBtn(utils, 'sparkles', 'Improve', async () => {
+                const { TaskAiAdvisor } = await import('../services/TaskAiAdvisor');
+                const advisor  = new TaskAiAdvisor(this.plugin.ai);
+                const improved = await advisor.improveTaskTitle(entry.title);
+                if (improved !== entry.title) {
+                    new ConfirmModal(
+                        this.app,
+                        `Suggested: "${improved}"\n\nApply this title?`,
+                        async () => {
+                            await this.vault.editTask(entry.filePath, improved, entry.context, entry.due || undefined);
+                            this._rerender();
+                        }
+                    ).open();
+                } else {
+                    new Notice('Title already looks specific.');
+                }
+            });
+        }
+
+        this._utilBtn(utils, 'trash-2', 'Delete', () => {
             new ConfirmModal(this.app, 'Move this task to trash?', async () => {
-                row.style.transition = 'opacity 0.2s';
-                row.style.opacity = '0';
-                setTimeout(() => row.remove(), 220);
-                await this.vault.deleteFile(task.filePath, 'tasks');
+                this._detailPath = null;
+                await this.vault.deleteFile(entry.filePath, 'tasks');
             }).open();
         }, true);
     }
+
+    private _timeRow(parent: HTMLElement, label: string, iso: string) {
+        const row = parent.createEl('div', { cls: 'diwa-detail-time-row' });
+        row.createEl('span', { text: label, cls: 'diwa-detail-time-label' });
+        const fmt = moment(iso).isValid() ? moment(iso).format('MMM D, YYYY · HH:mm') : iso;
+        row.createEl('span', { text: fmt, cls: 'diwa-detail-time-value' });
+    }
+
+    private _utilBtn(
+        parent: HTMLElement,
+        icon: string,
+        label: string,
+        fn: () => void,
+        danger = false
+    ) {
+        const btn = parent.createEl('button', {
+            cls: `diwa-detail-util-btn${danger ? ' diwa-detail-util-btn--danger' : ''}`
+        });
+        setIcon(btn, icon);
+        btn.createSpan({ text: label });
+        btn.addEventListener('click', fn);
+    }
+
+    // ── Secondary section ──────────────────────────────────────────────────
+
+    private _renderSecondarySection(parent: HTMLElement) {
+        const section = parent.createEl('div', { cls: 'diwa-secondary-section' });
+
+        // Tab bar
+        const tabBar = section.createEl('div', { cls: 'diwa-secondary-tabs' });
+        const TABS: { mode: SecondaryMode; label: string }[] = [
+            { mode: 'inbox',   label: 'Inbox'   },
+            { mode: 'overdue', label: 'Overdue' },
+            { mode: 'done',    label: 'Done'    },
+        ];
+        for (const { mode, label } of TABS) {
+            const btn = tabBar.createEl('button', {
+                text: label,
+                cls: `diwa-secondary-tab${this._secondaryMode === mode ? ' is-active' : ''}`
+            });
+            btn.addEventListener('click', () => { this._secondaryMode = mode; this._rerender(); });
+        }
+
+        // List
+        const list = section.createEl('div', { cls: 'diwa-secondary-list' });
+        const today = moment().startOf('day');
+        let rows = Array.from(this.index.taskIndex.values());
+
+        if (this._secondaryMode === 'done') {
+            rows = rows.filter(t => t.status === 'done').sort((a, b) => b.lastUpdate - a.lastUpdate);
+        } else if (this._secondaryMode === 'overdue') {
+            rows = rows.filter(t => {
+                if (t.status === 'done') return false;
+                const m = moment(t.due, 'YYYY-MM-DD', true);
+                return m.isValid() && m.isBefore(today, 'day');
+            }).sort((a, b) => moment(a.due).valueOf() - moment(b.due).valueOf());
+        } else {
+            // inbox — all non-done
+            rows = rows
+                .filter(t => t.status !== 'done')
+                .sort((a, b) => {
+                    const ad = !!(a.due?.trim()), bd = !!(b.due?.trim());
+                    if (ad && !bd) return -1;
+                    if (!ad && bd) return 1;
+                    if (ad && bd) return moment(a.due).valueOf() - moment(b.due).valueOf();
+                    return b.lastUpdate - a.lastUpdate;
+                });
+        }
+
+        if (rows.length === 0) {
+            const msgs: Record<SecondaryMode, string> = {
+                done:    'No completed tasks.',
+                overdue: 'Nothing overdue ✓',
+                inbox:   'Inbox is empty.',
+            };
+            this.renderEmptyState(list, msgs[this._secondaryMode ?? 'inbox']);
+            return;
+        }
+
+        for (const entry of rows) this._renderSecondaryRow(list, entry);
+    }
+
+    private _renderSecondaryRow(parent: HTMLElement, entry: TaskEntry) {
+        const task    = taskEntryToTask(entry);
+        const tier    = getTaskUrgencyTier(task);
+        const isDone  = entry.status === 'done';
+        const dueM    = entry.due ? moment(entry.due, 'YYYY-MM-DD', true) : null;
+        const overdue = !isDone && dueM?.isValid() && dueM.isBefore(moment(), 'day');
+        const today   = !isDone && dueM?.isValid() && dueM.isSame(moment(), 'day');
+
+        const row = parent.createEl('div', {
+            cls: `diwa-secondary-row diwa-secondary-row--${tier}${isDone ? ' is-done' : ''}`
+        });
+
+        row.createEl('div', { cls: `diwa-urgency-dot diwa-urgency-dot--${tier}` });
+
+        const content = row.createEl('div', { cls: 'diwa-secondary-content' });
+        content.createEl('span', { text: entry.title, cls: `diwa-secondary-title${isDone ? ' is-done' : ''}` });
+        if (dueM?.isValid()) {
+            content.createEl('span', {
+                text: today ? 'Today' : overdue ? dueM.format('MMM D') : dueM.format('MMM D'),
+                cls: `diwa-chip diwa-chip--date${overdue ? ' is-overdue' : today ? ' is-today' : ''}`
+            });
+        }
+
+        const actions = row.createEl('div', { cls: 'diwa-secondary-actions' });
+
+        // Checkbox toggle
+        const cb = actions.createEl('div', { cls: `diwa-task-cb${isDone ? ' is-done' : ''}` });
+        if (isDone) setIcon(cb.createEl('span'), 'check');
+        cb.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            this.view._taskTogglePending++;
+            await this.vault.toggleTask(entry.filePath, !isDone);
+            this.view._taskTogglePending = Math.max(0, this.view._taskTogglePending - 1);
+        });
+
+        // Edit
+        const editBtn = actions.createEl('button', { cls: 'diwa-secondary-action-btn' });
+        setIcon(editBtn, 'pencil');
+        editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            new EditTaskModal(this.app, entry, this.vault, this.index, () => this._rerender()).open();
+        });
+
+        // Delete
+        const delBtn = actions.createEl('button', { cls: 'diwa-secondary-action-btn is-danger' });
+        setIcon(delBtn, 'trash-2');
+        delBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            new ConfirmModal(this.app, 'Move this task to trash?', async () => {
+                await this.vault.deleteFile(entry.filePath, 'tasks');
+            }).open();
+        });
+    }
+
+    // ── Lifecycle helpers ──────────────────────────────────────────────────
+
+    /**
+     * Runs a lifecycle action, increments the pending counter so vault events
+     * don't race with the re-render, then re-renders after completion.
+     * An optional `afterFn` is called after successful completion (e.g. to
+     * offer a reflection prompt after marking done).
+     */
+    private async _doLifecycle(
+        fn: () => Promise<void> | undefined,
+        afterFn?: () => void
+    ) {
+        if (!this.plugin.taskLink) {
+            new Notice('Task lifecycle service not available — check plugin setup.');
+            return;
+        }
+        this.view._taskTogglePending++;
+        try {
+            const result = fn();
+            if (result) await result;
+            afterFn?.();
+        } finally {
+            this.view._taskTogglePending = Math.max(0, this.view._taskTogglePending - 1);
+        }
+        this._rerender();
+    }
+
+    /**
+     * After a task is marked done, optionally offer to create a reflection note.
+     * Strictly opt-in — the user must confirm before anything is written.
+     */
+    private _offerReflection(task: Task, filePath: string) {
+        if (!this.plugin.taskReflection) return;
+        new ConfirmModal(
+            this.app,
+            `"${task.title}" marked as done.\n\nCreate a reflection note?`,
+            async () => {
+                const file = await this.plugin.taskReflection.generateTaskReflection(task, filePath);
+                if (file) {
+                    this.app.workspace.openLinkText(file.path, file.path);
+                }
+            }
+        ).open();
+    }
+
+    /** Re-renders the tab into the stored container. */
+    private _rerender() {
+        if (this._container) this.render(this._container);
+    }
 }
-
-
 

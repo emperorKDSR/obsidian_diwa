@@ -2,7 +2,7 @@ import { ItemView, WorkspaceLeaf, moment, TFile, Platform, ViewStateResult } fro
 import { VIEW_TYPE_DIWA, KATANA_ICON_ID } from './constants';
 import type DiwaPlugin from './main';
 import { BaseTab } from './tabs/BaseTab';
-import type { ChatMessage } from './types';
+import type { ChatMessage, Task } from './types';
 
 interface DiwaViewState extends Record<string, unknown> {
     activeTab?: string;
@@ -27,7 +27,6 @@ export class DiwaView extends ItemView {
     activeSynthesisContexts: string[] = [];
     synthesisFeedFilter: 'no-context' | 'with-context' | 'processed' = 'no-context';
     synthesisShowHidden: boolean = false;
-    isZenMode: boolean = false;
 
     searchQuery: string = '';
 
@@ -45,6 +44,10 @@ export class DiwaView extends ItemView {
 
     // Tasks state — persists across re-renders (viewMode survives vault events)
     tasksViewMode: string = 'open';
+    // Focus engine state — persists across TasksTab re-instantiations
+    tasksFocusSnapshot: Task[] = [];
+    tasksDetailPath: string | null = null;
+    tasksSecondaryMode: 'inbox' | 'overdue' | 'done' | null = null;
     _taskTogglePending: number = 0;       // > 0 = suppress vault-event re-renders
     _habitTogglePending: number = 0;      // > 0 = suppress vault-event re-renders (CommandCenter habits)
     _checklistTogglePending: number = 0;  // > 0 = suppress vault-event re-renders
@@ -96,8 +99,6 @@ export class DiwaView extends ItemView {
 
     getModeTitle(): string {
         switch (this.activeTab) {
-            case 'home': return "DIWA Hub";
-            case 'daily': return "Daily";
             case 'review-thoughts': return "Thoughts";
             case 'review-tasks': return "Tasks";
             case 'diwa-ai': return "AI Chat";
@@ -112,7 +113,6 @@ export class DiwaView extends ItemView {
             case 'settings': return "Settings";
             case 'timeline': return "Timeline";
             case 'journal': return "Journal";
-            case 'daily-workspace': return "Home";
             case 'manual': return "Manual";
             case 'calendar': return "Calendar";
             case 'export': return "Export";
@@ -174,8 +174,7 @@ export class DiwaView extends ItemView {
         };
 
         const tab = this.activeTab;
-        if (tab === 'home' || tab === 'daily') instantiate(import('./tabs/CommandCenterTab'), 'CommandCenterTab');
-        else if (tab === 'review-tasks') instantiate(import('./tabs/TasksTab'), 'TasksTab');
+        if (tab === 'review-tasks') instantiate(import('./tabs/TasksTab'), 'TasksTab');
         else if (tab === 'diwa-ai') instantiate(import('./tabs/AiTab'), 'AiTab');
         else if (tab === 'dues') instantiate(import('./tabs/DuesTab'), 'DuesTab');
         else if (tab === 'projects') instantiate(import('./tabs/ProjectsTab'), 'ProjectsTab');
@@ -188,7 +187,6 @@ export class DiwaView extends ItemView {
         else if (tab === 'settings') instantiate(import('./tabs/SettingsTab'), 'SettingsTab');
         else if (tab === 'timeline') instantiate(import('./tabs/TimelineTab'), 'TimelineTab');
         else if (tab === 'journal') instantiate(import('./tabs/JournalTab'), 'JournalTab');
-        else if (tab === 'daily-workspace') instantiate(import('./tabs/CommandCenterTab'), 'CommandCenterTab');
         else if (tab === 'manual') instantiate(import('./tabs/ManualTab'), 'ManualTab');
         else if (tab === 'calendar') instantiate(import('./tabs/CalendarTab'), 'CalendarTab');
         else if (tab === 'export') instantiate(import('./tabs/ExportTab'), 'ExportTab');
