@@ -35,8 +35,10 @@ Always use Obsidian's semantic CSS variables — never hardcoded colors:
 ## CSS Class Naming
 All plugin-specific classes use the `diwa-` prefix:
 - Layout: `diwa-cc-wrap`, `diwa-section`, `diwa-row`
-- Command Center: `diwa-cc-*`
+- Hub Home: `diwa-hub-*`
 - Desktop Hub: `diwa-dh-*`
+- Mobile Hub: `diwa-mh-*`
+- Tablet Hub: `diwa-th-*`
 - Cards: `diwa-card`, `diwa-thought-card`, `diwa-task-card`
 - Actions: `diwa-action-btn`, `diwa-pill`, `diwa-chip`
 - States: `is-zen-mode`, `is-active`, `is-done`, `is-overdue`
@@ -46,11 +48,11 @@ All plugin-specific classes use the `diwa-` prefix:
 2. **Surface Depth**: Use subtle shadows, variable background shades, and consistent border radii (12px–16px) to create implicit hierarchy.
 3. **Consistent Spacing**: Strictly adhere to `var(--mina-spacing)`. Never use arbitrary pixel values for margins/padding.
 4. **Predictable Interaction**: All interactive elements have clear hover/active states. Use `transition: all 0.1s` for micro-interactions, `0.2s` for panel transitions (e.g., Zen Mode collapse).
-5. **Platform Awareness**: Mobile-first layout with tablet and desktop enhancements. The `isTablet()` utility determines layout switching. The Desktop Hub uses a distinct `.mina-dh-*` namespace.
+5. **Platform Awareness**: Mobile-first layout with tablet and desktop enhancements. The `isTablet()` utility determines layout switching. The Desktop Hub uses a distinct `.diwa-dh-*` namespace.
 
 # Component Patterns
 
-## Capture Bar (Command Center)
+## Capture Bar (Hub Home)
 - Full-width textarea, auto-resize
 - Bottom-docked metadata pills (context chips, due date, project)
 - Enter-to-save (Shift+Enter for newline)
@@ -67,7 +69,7 @@ All plugin-specific classes use the `diwa-` prefix:
 - Title area + content area + footer with primary/secondary action buttons
 - Footer actions: right-aligned, primary CTA on the right
 
-## Navigation Footer (Command Center)
+## Navigation Footer (Hub Home)
 - Icon grid linking to all modes
 - Active mode highlighted with `var(--interactive-accent)`
 - Compact icon + label rows, no heavy borders
@@ -81,7 +83,7 @@ All plugin-specific classes use the `diwa-` prefix:
 1. **Layout Definition**: Provide clear HTML structure (using Obsidian's `createEl` pattern) and CSS class assignments.
 2. **CSS Blueprint**: Write complete `.diwa-*` CSS rules for the feature, using CSS variables throughout.
 3. **Refinement**: Audit existing interfaces for alignment, padding issues, or unnecessary clutter.
-4. **Standardization**: Ensure every new mode matches the Command Center's core aesthetic.
+4. **Standardization**: Ensure every new mode matches the hub's core aesthetic.
 
 # Constraints
 - Be direct and professional. No flowery language.

@@ -54,7 +54,7 @@ Before compiling and shipping any release, the following steps **must** be compl
 - `versions.json` — add `"x.y.z": "0.16.0"` (minAppVersion is `0.16.0` since v1.27.0)
 
 ## Current Version
-- **v2.0.0** — MINA Personal OS: Desktop Hub Major Release
+- **v3.0.0** — Explicit 3-Layer Refactor
 
 - Inspect workspace git status (is a repo? untracked/modified files?).
 - Propose and (when approved) execute repository initialization: .gitignore, initial commit, create 'main' branch.
