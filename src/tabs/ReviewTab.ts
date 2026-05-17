@@ -165,7 +165,6 @@ export class ReviewTab extends BaseTab {
         // ── Header ──────────────────────────────────────────────
         const header = wrap.createEl('div', { cls: 'diwa-review-header' });
         const navRow = header.createEl('div', { cls: 'diwa-review-nav-row' });
-        this.renderHomeIcon(navRow);
         const dirtyDot = navRow.createEl('span', { cls: 'diwa-review-dirty-dot' });
         dirtyDot.style.display = 'none';
 
@@ -1026,7 +1025,6 @@ export class ReviewTab extends BaseTab {
         });
     }
 }
-
 
 
 

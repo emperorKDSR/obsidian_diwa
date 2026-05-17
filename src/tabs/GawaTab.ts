@@ -73,7 +73,6 @@ export class GawaTab extends BaseTab {
         const header = parent.createEl('div', { cls: 'diwa-tasks-header' });
 
         const titleRow = header.createEl('div', { cls: 'diwa-tasks-title-row' });
-        this.renderHomeIcon(titleRow);
         titleRow.createEl('h2', { text: 'Focus', cls: 'diwa-tab-title' });
 
         const btnGroup = header.createEl('div', { cls: 'diwa-tasks-header-actions' });

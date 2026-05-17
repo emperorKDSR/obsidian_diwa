@@ -24,7 +24,6 @@ export class CompassTab extends BaseTab {
         });
 
         const navRow = header.createEl('div', { attr: { style: 'display: flex; align-items: center; gap: 12px; margin-bottom: 2px;' } });
-        this.renderHomeIcon(navRow);
 
         header.createEl('h2', {
             text: 'Quarterly Compass',

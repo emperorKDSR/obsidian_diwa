@@ -1,4 +1,4 @@
-import { Platform, MarkdownRenderer, Notice, TFile, moment, setIcon } from 'obsidian';
+import { Platform, MarkdownRenderer, Notice, TFile, moment } from 'obsidian';
 import type { DiwaView } from '../view';
 import type { ThoughtEntry, TaskEntry, ReplyEntry } from '../types';
 import { NINJA_AVATAR_SVG, ICON_PIN, ICON_EDIT, ICON_TRASH, ICON_REPLY, ICON_LINK, ICON_EYE, ICON_EYE_OFF, ICON_ARROW_RIGHT, ICON_MESSAGE_SQUARE } from '../constants';
@@ -23,19 +23,10 @@ export class BaseTab {
     get ai() { return this.plugin.ai; }
     get index() { return this.plugin.index; }
 
-    renderHomeIcon(parent: HTMLElement) {
-        const homeBtn = parent.createEl('button', {
-            attr: { class: 'diwa-home-btn', style: 'background: transparent; border: none; padding: 0; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: center; opacity: 0.6; transition: all 0.2s; width: 28px; height: 28px; border-radius: 8px;' }
-        });
-        homeBtn.addEventListener('mouseleave', () => { homeBtn.style.opacity = '0.6'; homeBtn.style.background = 'transparent'; });        setIcon(homeBtn, 'diwa-home-icon');
-        homeBtn.addEventListener('click', () => { this.view.activeTab = 'home'; this.view.renderView(); });
-    }
-
-    /** ob-dry-01: Render a standard page header with nav row + home icon + h2 title */
+    /** ob-dry-01: Render a standard page header with nav row + h2 title */
     renderPageHeader(parent: HTMLElement, title: string, subtitle?: string): HTMLElement {
         const header = parent.createEl('div', { attr: { style: 'display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px;' } });
         const navRow = header.createEl('div', { attr: { style: 'display: flex; align-items: center; gap: 12px; margin-bottom: 2px;' } });
-        this.renderHomeIcon(navRow);
         header.createEl('h2', { text: title, attr: { style: 'margin: 0; font-size: 1.4em; font-weight: 800; color: var(--text-normal); letter-spacing: -0.03em; line-height: 1.1;' } });
         if (subtitle) header.createEl('span', { text: subtitle, attr: { style: 'font-size: 0.85em; color: var(--text-muted); font-weight: 500;' } });
         return header;

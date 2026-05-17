@@ -1072,8 +1072,6 @@ export class SynthesisTab extends BaseTab {
 
         // ── Top row: home icon + segmented filter + Select + Done All ─────────
         const hdrTop = hdr.createEl('div', { cls: 'diwa-syn-feed-hdr-top' });
-        this.renderHomeIcon(hdrTop);
-
         const segBar = hdrTop.createEl('div', { cls: 'diwa-seg-bar diwa-syn-toggle-bar' });
         const feedScroll = feed.createEl('div', { cls: 'diwa-syn-feed-scroll' });
 
@@ -1988,5 +1986,4 @@ export class SynthesisTab extends BaseTab {
         }
     }
 }
-
 

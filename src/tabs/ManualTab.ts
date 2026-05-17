@@ -269,7 +269,6 @@ export class ManualTab extends BaseTab {
 
         const header = root.createEl('div', { cls: 'diwa-help-header' });
         const navRow = header.createEl('div', { cls: 'diwa-manual-nav-row' });
-        this.renderHomeIcon(navRow);
         const titleWrap = header.createEl('div', { cls: 'diwa-help-header-title' });
         const titleIcon = titleWrap.createEl('span', { cls: 'diwa-help-header-icon' });
         setIcon(titleIcon, 'lucide-book-open');
@@ -331,7 +330,6 @@ export class ManualTab extends BaseTab {
 
         const header = root.createEl('div', { cls: ['diwa-help-header', 'diwa-help-header--mobile'] });
         const navRow = header.createEl('div', { cls: 'diwa-manual-nav-row' });
-        this.renderHomeIcon(navRow);
         const titleWrap = header.createEl('div', { cls: 'diwa-help-header-title' });
         const titleIcon = titleWrap.createEl('span', { cls: 'diwa-help-header-icon' });
         setIcon(titleIcon, 'lucide-book-open');

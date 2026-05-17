@@ -60,7 +60,6 @@ export class CalendarTab extends BaseTab {
     private _renderHeader(parent: HTMLElement, onRefresh: () => void) {
         const header = parent.createEl('div', { cls: 'diwa-cal-header' });
         const titleRow = header.createEl('div', { cls: 'diwa-cal-title-row' });
-        this.renderHomeIcon(titleRow);
         titleRow.createEl('h2', { cls: 'diwa-cal-title', text: 'Calendar' });
 
         const toggle = titleRow.createEl('div', { cls: 'diwa-cal-view-toggle' });
@@ -345,5 +344,4 @@ export class CalendarTab extends BaseTab {
         } catch { /* no review for this week */ }
     }
 }
-
 

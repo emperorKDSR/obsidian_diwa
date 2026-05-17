@@ -16,7 +16,6 @@ export class ExportTab extends BaseTab {
 
         // ── Header ────────────────────────────────────────────────────────
         const headerRow = wrap.createEl('div', { attr: { style: 'display: flex; align-items: center; gap: 12px; margin-bottom: 4px;' } });
-        this.renderHomeIcon(headerRow);
         headerRow.createEl('h2', { text: 'Export & Backup', attr: { style: 'margin: 0; font-size: 1.4em; font-weight: 800;' } });
 
         const thoughtCount = this.index.thoughtIndex.size;
@@ -147,4 +146,3 @@ export class ExportTab extends BaseTab {
         }
     }
 }
-

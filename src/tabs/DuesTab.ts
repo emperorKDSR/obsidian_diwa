@@ -24,8 +24,6 @@ export class DuesTab extends BaseTab {
         const header = wrap.createEl('div', { cls: 'diwa-bills-header' });
 
         const navRow = header.createEl('div', { attr: { style: 'display: flex; align-items: center; gap: 12px;' } });
-        this.renderHomeIcon(navRow);
-
         const titleRow = header.createEl('div', { cls: 'diwa-bills-title-row' });
         const titleStack = titleRow.createEl('div', { cls: 'diwa-bills-title-stack' });
         titleStack.createEl('h2', { text: 'Bill Overview', cls: 'diwa-bills-title' });
@@ -225,5 +223,4 @@ export class DuesTab extends BaseTab {
             .sort((a, b) => (a.dueMoment?.valueOf() || 0) - (b.dueMoment?.valueOf() || 0));
     }
 }
-
 

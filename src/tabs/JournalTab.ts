@@ -34,7 +34,6 @@ export class JournalTab extends BaseTab {
 
         // ── Nav row ───────────────────────────────────────────────────────
         const navRow = scroll.createEl('div', { cls: 'diwa-journal-nav-row' });
-        this.renderHomeIcon(navRow);
         if (!isMobilePhone) {
             const newBtn = navRow.createEl('button', { cls: 'diwa-journal-new-btn' });
             const btnIcon = newBtn.createSpan(); setIcon(btnIcon, 'lucide-pencil');
@@ -379,6 +378,5 @@ export class JournalTab extends BaseTab {
         s.createEl('div', { cls: 'diwa-journal-stat-lbl', text: label });
     }
 }
-
 
 

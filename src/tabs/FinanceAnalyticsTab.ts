@@ -12,7 +12,6 @@ export class FinanceAnalyticsTab extends BaseTab {
 
         // ── Header (full-width on desktop grid) ───────────────────────────
         const headerRow = wrap.createEl('div', { attr: { style: 'display: flex; align-items: center; gap: 12px;' } });
-        this.renderHomeIcon(headerRow);
         headerRow.createEl('h2', { text: 'Finance Analytics', attr: { style: 'margin: 0; font-size: 1.4em; font-weight: 800;' } });
 
         // ── Gather data ───────────────────────────────────────────────────
@@ -127,5 +126,4 @@ export class FinanceAnalyticsTab extends BaseTab {
         return map;
     }
 }
-
 

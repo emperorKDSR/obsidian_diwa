@@ -136,7 +136,6 @@ export class TimelineTab extends BaseTab {
         if (Platform.isMobile) header.style.paddingTop = '0px';
 
         const topBar = header.createEl('div', { cls: 'diwa-tl-header-bar' });
-        this.renderHomeIcon(topBar);
         topBar.createEl('span', { text: 'TIMELINE', cls: 'diwa-tl-title' });
 
         const searchBtn = topBar.createEl('button', {
@@ -641,6 +640,5 @@ export class TimelineTab extends BaseTab {
         ).open();
     }
 }
-
 
 

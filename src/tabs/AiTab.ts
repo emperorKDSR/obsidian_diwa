@@ -71,7 +71,6 @@ export class AiTab extends BaseTab {
         // ─── Header ───
         const header = wrap.createEl('div', { cls: 'diwa-ai-header' });
         const headerLeft = header.createEl('div', { cls: 'diwa-ai-header-left' });
-        this.renderHomeIcon(headerLeft);
         const titleGroup = headerLeft.createEl('div', { cls: 'diwa-ai-title-group' });
         titleGroup.createEl('h2', { text: 'AI Chat', cls: 'diwa-ai-title' });
         const modelBadge = titleGroup.createEl('span', {
@@ -264,5 +263,4 @@ export class AiTab extends BaseTab {
         });
     }
 }
-
 

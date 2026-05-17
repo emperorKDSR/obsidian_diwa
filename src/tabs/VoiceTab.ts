@@ -46,7 +46,6 @@ export class VoiceTab extends BaseTab {
         // Header
         const header = this.shell.createEl('div', { cls: 'diwa-voice-header' });
         const navRow = header.createEl('div', { attr: { style: 'display:flex;align-items:center;gap:12px;margin-bottom:2px;' } });
-        this.renderHomeIcon(navRow);
         header.createEl('h2', { text: 'Voice', attr: { style: 'margin:0;font-size:1.4em;font-weight:800;color:var(--text-normal);letter-spacing:-0.02em;line-height:1.1;' } });
 
         // Stage
@@ -621,6 +620,5 @@ export class VoiceTab extends BaseTab {
 
     onunload() { this.cleanup(); }
 }
-
 
 
