@@ -86,15 +86,44 @@ export class MobileHubView extends ItemView {
         let focusTimer: ReturnType<typeof setTimeout> | null = null;
         let rafId: number | null = null;
 
+        // Capture stable base position before keyboard opens (toolbar offset is constant)
+        let baseTop = 0;
+        let baseLeft = 0;
+        let baseWidth = 0;
+        const measureBase = () => {
+            const rect = root.getBoundingClientRect();
+            baseTop = Math.max(0, rect.top);
+            baseLeft = rect.left;
+            baseWidth = rect.width || window.innerWidth;
+        };
+        measureBase();
+
         const syncKeyboardState = () => {
             const vv = window.visualViewport;
             const viewportDelta = vv ? Math.max(0, window.innerHeight - vv.height) : 0;
             const keyboardOpen = hasFocusedInput() || viewportDelta > 120;
 
+            if (!keyboardOpen) {
+                // Re-capture base position while keyboard is closed and layout is stable
+                measureBase();
+            }
+
             root.toggleClass('is-keyboard-open', keyboardOpen);
+
             if (keyboardOpen && vv) {
-                root.style.setProperty('--diwa-mh-vv-height', `${Math.round(vv.height)}px`);
+                // Use position:fixed so parent container background can't show below root.
+                // top = root's position within the visual viewport (accounting for vv scroll)
+                const offsetTop = vv.offsetTop || 0;
+                const fixedTop = Math.max(0, Math.round(baseTop - offsetTop));
+                const fixedH = Math.max(100, Math.round(vv.height - fixedTop));
+                root.style.setProperty('--diwa-mh-fixed-top', `${fixedTop}px`);
+                root.style.setProperty('--diwa-mh-fixed-left', `${Math.round(baseLeft)}px`);
+                root.style.setProperty('--diwa-mh-fixed-width', `${Math.round(baseWidth)}px`);
+                root.style.setProperty('--diwa-mh-vv-height', `${fixedH}px`);
             } else {
+                root.style.removeProperty('--diwa-mh-fixed-top');
+                root.style.removeProperty('--diwa-mh-fixed-left');
+                root.style.removeProperty('--diwa-mh-fixed-width');
                 root.style.removeProperty('--diwa-mh-vv-height');
             }
         };
@@ -145,6 +174,9 @@ export class MobileHubView extends ItemView {
             }
             window.removeEventListener('resize', onViewportChange);
             root.removeClass('is-keyboard-open');
+            root.style.removeProperty('--diwa-mh-fixed-top');
+            root.style.removeProperty('--diwa-mh-fixed-left');
+            root.style.removeProperty('--diwa-mh-fixed-width');
             root.style.removeProperty('--diwa-mh-vv-height');
             this._keyboardCleanup = null;
         };
