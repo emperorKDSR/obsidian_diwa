@@ -73,7 +73,7 @@ export class GawaTab extends BaseTab {
         const header = parent.createEl('div', { cls: 'diwa-tasks-header' });
 
         const titleRow = header.createEl('div', { cls: 'diwa-tasks-title-row' });
-        titleRow.createEl('h2', { text: 'Focus', cls: 'diwa-tab-title' });
+        titleRow.createEl('h2', { text: 'Gawa Management', cls: 'diwa-tab-title' });
 
         const btnGroup = header.createEl('div', { cls: 'diwa-tasks-header-actions' });
 
@@ -102,7 +102,7 @@ export class GawaTab extends BaseTab {
             cls: `diwa-tasks-sec-btn${this._secondaryMode !== null ? ' is-active' : ''}`,
             attr: { title: 'All tasks' }
         });
-        setIcon(secBtn, 'layout-list');
+        setIcon(secBtn, 'list');
         secBtn.addEventListener('click', () => {
             this._secondaryMode = this._secondaryMode !== null ? null : 'inbox';
             this._rerender();
@@ -227,7 +227,7 @@ export class GawaTab extends BaseTab {
             cls: 'diwa-focus-chevron',
             attr: { title: 'Task details' }
         });
-        setIcon(chevron, isOpen ? 'chevron-up' : 'chevron-down');
+        setIcon(chevron, 'info');
 
         const toggle = () => {
             this._detailPath = isOpen ? null : entry.filePath;
