@@ -86,13 +86,6 @@ export class MobileHubView extends ItemView {
         let focusTimer: ReturnType<typeof setTimeout> | null = null;
         let rafId: number | null = null;
 
-        // Capture toolbar offset ONCE — stable for entire view lifetime.
-        // Use RAF so layout has settled before we measure.
-        let baseTop = 0;
-        requestAnimationFrame(() => {
-            baseTop = Math.max(0, root.getBoundingClientRect().top);
-        });
-
         const syncKeyboardState = () => {
             const vv = window.visualViewport;
             const viewportDelta = vv ? Math.max(0, window.innerHeight - vv.height) : 0;
@@ -100,12 +93,13 @@ export class MobileHubView extends ItemView {
 
             root.toggleClass('is-keyboard-open', keyboardOpen);
 
-            // CSS uses calc(100dvh - --diwa-mh-fixed-top) so height tracks the
-            // visual viewport automatically — no JS pixel maths needed.
-            if (keyboardOpen) {
-                root.style.setProperty('--diwa-mh-fixed-top', `${Math.round(baseTop)}px`);
+            if (keyboardOpen && vv) {
+                const rootTop = Math.max(0, root.getBoundingClientRect().top);
+                const viewportBottom = Math.round((vv.offsetTop || 0) + vv.height);
+                const visibleHeight = Math.max(0, viewportBottom - Math.round(rootTop));
+                root.style.setProperty('--diwa-mh-vv-height', `${visibleHeight}px`);
             } else {
-                root.style.removeProperty('--diwa-mh-fixed-top');
+                root.style.removeProperty('--diwa-mh-vv-height');
             }
         };
 
@@ -155,7 +149,7 @@ export class MobileHubView extends ItemView {
             }
             window.removeEventListener('resize', onViewportChange);
             root.removeClass('is-keyboard-open');
-            root.style.removeProperty('--diwa-mh-fixed-top');
+            root.style.removeProperty('--diwa-mh-vv-height');
             this._keyboardCleanup = null;
         };
     }
