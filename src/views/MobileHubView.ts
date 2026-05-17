@@ -86,27 +86,19 @@ export class MobileHubView extends ItemView {
         let focusTimer: ReturnType<typeof setTimeout> | null = null;
         let rafId: number | null = null;
 
-        // Capture stable base position before keyboard opens (toolbar offset is constant)
-        let baseTop = 0;
-        let baseLeft = 0;
-        let baseWidth = 0;
-        const measureBase = () => {
-            const rect = root.getBoundingClientRect();
-            baseTop = Math.max(0, rect.top);
-            baseLeft = rect.left;
-            baseWidth = rect.width || window.innerWidth;
-        };
-        measureBase();
+        // Capture base position ONCE at setup time — toolbar height is constant,
+        // never changes between keyboard open/close cycles. Re-measuring after
+        // position:fixed removal causes drift because the layout may be in a
+        // mid-scroll state.
+        const initRect = root.getBoundingClientRect();
+        const baseTop = Math.max(0, initRect.top);
+        const baseLeft = initRect.left;
+        const baseWidth = initRect.width || window.innerWidth;
 
         const syncKeyboardState = () => {
             const vv = window.visualViewport;
             const viewportDelta = vv ? Math.max(0, window.innerHeight - vv.height) : 0;
             const keyboardOpen = hasFocusedInput() || viewportDelta > 120;
-
-            if (!keyboardOpen) {
-                // Re-capture base position while keyboard is closed and layout is stable
-                measureBase();
-            }
 
             root.toggleClass('is-keyboard-open', keyboardOpen);
 
