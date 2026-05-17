@@ -73,7 +73,6 @@ export class MobileHubView extends ItemView {
             attr: { 'aria-label': 'Thoughts' }
         });
         setIcon(thoughtsBtn, 'message-circle');
-        thoughtsBtn.createEl('span', { text: 'Thoughts', cls: 'diwa-mh-bottom-nav-label' });
         thoughtsBtn.addEventListener('click', () => { if (this._activeTab !== 'thoughts') { this._activeTab = 'thoughts'; this.renderView(); } });
 
         const gawaBtn = nav.createEl('button', {
@@ -81,7 +80,6 @@ export class MobileHubView extends ItemView {
             attr: { 'aria-label': 'Gawa' }
         });
         setIcon(gawaBtn, 'check-square-2');
-        gawaBtn.createEl('span', { text: 'Gawa', cls: 'diwa-mh-bottom-nav-label' });
         gawaBtn.addEventListener('click', () => { if (this._activeTab !== 'gawa') { this._activeTab = 'gawa'; this.renderView(); } });
         if (this._activeTab === 'gawa') {
             this.renderGawaInput(wrap);
