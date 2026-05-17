@@ -157,7 +157,7 @@ export class TabletHubView extends ItemView {
             : allOpen;
 
         const header = section.createEl('div', { cls: 'diwa-th-task-list-header' });
-        header.createEl('span', { text: 'TASKS', cls: 'diwa-th-task-list-title' });
+        header.createEl('span', { text: 'GAWA', cls: 'diwa-th-task-list-title' });
         const filterGroup = header.createEl('div', { cls: 'diwa-th-task-filter' });
         const pill2 = filterGroup.createEl('button', { text: '2D', cls: `diwa-th-task-filter-pill${this._taskFilter === 'upcoming' ? ' is-active' : ''}` });
         const pillAll = filterGroup.createEl('button', { text: 'ALL', cls: `diwa-th-task-filter-pill${this._taskFilter === 'all' ? ' is-active' : ''}` });

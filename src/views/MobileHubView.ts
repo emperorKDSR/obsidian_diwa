@@ -10,8 +10,11 @@ export class MobileHubView extends ItemView {
     plugin: DiwaPlugin;
 
     _capturePending: number = 0;
+    _taskPending: number = 0;
     _activeContextTab: string = 'all';
     _feedScope: 'today' | 'all' = 'today';
+    _activeTab: 'thoughts' | 'gawa' = 'thoughts';
+    _gawaTaskFilter: 'upcoming' | 'all' = 'upcoming';
 
     private _closed: boolean = false;
 
@@ -25,12 +28,14 @@ export class MobileHubView extends ItemView {
     getIcon(): string { return 'smartphone'; }
 
     getState(): Record<string, unknown> {
-        return { activeContextTab: this._activeContextTab, feedScope: this._feedScope };
+        return { activeContextTab: this._activeContextTab, feedScope: this._feedScope, activeTab: this._activeTab, gawaTaskFilter: this._gawaTaskFilter };
     }
 
     setState(state: Record<string, unknown>, result: ViewStateResult): Promise<void> {
         if (typeof state?.activeContextTab === 'string') this._activeContextTab = state.activeContextTab;
         if (state?.feedScope === 'today' || state?.feedScope === 'all') this._feedScope = state.feedScope as 'today' | 'all';
+        if (state?.activeTab === 'thoughts' || state?.activeTab === 'gawa') this._activeTab = state.activeTab as 'thoughts' | 'gawa';
+        if (state?.gawaTaskFilter === 'upcoming' || state?.gawaTaskFilter === 'all') this._gawaTaskFilter = state.gawaTaskFilter as 'upcoming' | 'all';
         this.renderView();
         return Promise.resolve();
     }
@@ -44,7 +49,7 @@ export class MobileHubView extends ItemView {
     }
 
     async renderView() {
-        if (this._capturePending > 0) return;
+        if (this._capturePending > 0 || this._taskPending > 0) return;
         if (this._closed) return;
 
         const root = this.containerEl.children[1] as HTMLElement;
@@ -59,10 +64,33 @@ export class MobileHubView extends ItemView {
             return;
         }
 
-        const wrap = root.createEl('div', { cls: 'diwa-mh-wrap' });
-        this.renderCapture(wrap);
-        this.renderContextTabs(wrap);
-        await this.renderFeed(wrap);
+        // Bottom navigation bar
+        const nav = root.createEl('div', { cls: 'diwa-mh-bottom-nav' });
+        const thoughtsBtn = nav.createEl('button', {
+            cls: `diwa-mh-bottom-nav-btn${this._activeTab === 'thoughts' ? ' is-active' : ''}`,
+            attr: { 'aria-label': 'Thoughts' }
+        });
+        setIcon(thoughtsBtn, 'message-circle');
+        thoughtsBtn.createEl('span', { text: 'Thoughts', cls: 'diwa-mh-bottom-nav-label' });
+        thoughtsBtn.addEventListener('click', () => { if (this._activeTab !== 'thoughts') { this._activeTab = 'thoughts'; this.renderView(); } });
+
+        const gawaBtn = nav.createEl('button', {
+            cls: `diwa-mh-bottom-nav-btn${this._activeTab === 'gawa' ? ' is-active' : ''}`,
+            attr: { 'aria-label': 'Gawa' }
+        });
+        setIcon(gawaBtn, 'check-square-2');
+        gawaBtn.createEl('span', { text: 'Gawa', cls: 'diwa-mh-bottom-nav-label' });
+        gawaBtn.addEventListener('click', () => { if (this._activeTab !== 'gawa') { this._activeTab = 'gawa'; this.renderView(); } });
+
+        const wrap = root.createEl('div', { cls: 'diwa-mh-wrap diwa-mh-has-bottom-nav' });
+        if (this._activeTab === 'gawa') {
+            this.renderGawaInput(wrap);
+            this.renderGawaList(wrap);
+        } else {
+            this.renderCapture(wrap);
+            this.renderContextTabs(wrap);
+            await this.renderFeed(wrap);
+        }
     }
 
     private renderCapture(parent: HTMLElement) {
@@ -392,5 +420,129 @@ export class MobileHubView extends ItemView {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); }
             if (e.key === 'Escape') exit(true);
         });
+    }
+
+    // ── Gawa panel ────────────────────────────────────────────────────────────
+
+    private renderGawaInput(parent: HTMLElement) {
+        const section = parent.createEl('div', { cls: 'diwa-mh-gawa-input-section' });
+
+        const chipRow = section.createEl('div', { cls: 'diwa-th-task-chip-row' });
+        let contexts: string[] = [];
+        let dueDate: string | null = null;
+
+        const addChip = (tag: string) => {
+            if (contexts.includes(tag)) return;
+            contexts.push(tag);
+            const chip = chipRow.createEl('span', { cls: 'diwa-dh-chip', text: `#${tag}` });
+            chip.addEventListener('click', () => { contexts = contexts.filter(c => c !== tag); chip.remove(); });
+        };
+
+        const textarea = section.createEl('textarea', {
+            cls: 'diwa-mh-gawa-textarea',
+            attr: { placeholder: 'Add a task… (@due, #ctx)', rows: '1' }
+        }) as HTMLTextAreaElement;
+
+        const syncH = () => { textarea.style.height = 'auto'; textarea.style.height = `${textarea.scrollHeight}px`; };
+        textarea.addEventListener('focus', () => { this._taskPending = 1; syncH(); });
+        textarea.addEventListener('input', () => { syncH(); this._taskPending = textarea.value.trim().length > 0 ? 1 : 0; });
+
+        attachInlineTriggers(
+            this.app, textarea,
+            (d) => { dueDate = d; },
+            (tag) => addChip(tag),
+            () => (this.plugin.settings.contexts ?? []).filter(c => !contexts.includes(c)),
+            this.plugin.settings.peopleFolder,
+        );
+
+        const saveTask = async () => {
+            const raw = textarea.value.trim();
+            if (!raw) return;
+            const snap = [...contexts];
+            const due = dueDate;
+            this._taskPending = 0;
+            textarea.value = '';
+            textarea.style.height = '';
+            contexts = [];
+            dueDate = null;
+            chipRow.empty();
+            try {
+                await this.plugin.vault.createTaskFile(raw, snap, due || undefined);
+                new Notice('✓ Task added', 1000);
+            } catch {
+                new Notice('Error saving task', 2000);
+            }
+        };
+
+        textarea.addEventListener('keydown', (e: KeyboardEvent) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveTask(); }
+            if (e.key === 'Escape') {
+                textarea.value = ''; contexts = []; dueDate = null; chipRow.empty();
+                this._taskPending = 0; textarea.blur();
+            }
+        });
+    }
+
+    private renderGawaList(parent: HTMLElement) {
+        const section = parent.createEl('div', { cls: 'diwa-mh-gawa-list-section' });
+
+        const todayM = moment().startOf('day');
+        const cutoff = moment().startOf('day').add(2, 'days').endOf('day');
+
+        const allOpen = Array.from(this.plugin.index.taskIndex.values())
+            .filter(t => t.status === 'open' || t.status === 'waiting')
+            .sort((a, b) => {
+                const aOver = a.due && moment(a.due, 'YYYY-MM-DD').isBefore(todayM, 'day');
+                const bOver = b.due && moment(b.due, 'YYYY-MM-DD').isBefore(todayM, 'day');
+                if (aOver && !bOver) return -1;
+                if (!aOver && bOver) return 1;
+                if (a.due && b.due) return a.due.localeCompare(b.due);
+                if (a.due && !b.due) return -1;
+                if (!a.due && b.due) return 1;
+                return (b.lastUpdate || 0) - (a.lastUpdate || 0);
+            });
+
+        const tasks = this._gawaTaskFilter === 'upcoming'
+            ? allOpen.filter(t => !t.due || moment(t.due, 'YYYY-MM-DD').isSameOrBefore(cutoff, 'day'))
+            : allOpen;
+
+        const header = section.createEl('div', { cls: 'diwa-th-task-list-header' });
+        header.createEl('span', { text: 'GAWA', cls: 'diwa-th-task-list-title' });
+        const filterGroup = header.createEl('div', { cls: 'diwa-th-task-filter' });
+        const pill2 = filterGroup.createEl('button', { text: '2D', cls: `diwa-th-task-filter-pill${this._gawaTaskFilter === 'upcoming' ? ' is-active' : ''}` });
+        const pillAll = filterGroup.createEl('button', { text: 'ALL', cls: `diwa-th-task-filter-pill${this._gawaTaskFilter === 'all' ? ' is-active' : ''}` });
+        pill2.addEventListener('click', () => { if (this._gawaTaskFilter === 'upcoming') return; this._gawaTaskFilter = 'upcoming'; section.remove(); this.renderGawaList(parent); });
+        pillAll.addEventListener('click', () => { if (this._gawaTaskFilter === 'all') return; this._gawaTaskFilter = 'all'; section.remove(); this.renderGawaList(parent); });
+
+        if (tasks.length === 0) {
+            section.createEl('div', { text: this._gawaTaskFilter === 'upcoming' ? 'No tasks in the next 2 days.' : 'All clear.', cls: 'diwa-th-task-empty' });
+            return;
+        }
+
+        const list = section.createEl('div', { cls: 'diwa-th-task-list' });
+        for (const task of tasks) {
+            const isOverdue = !!(task.due && moment(task.due, 'YYYY-MM-DD').isBefore(todayM, 'day'));
+            const item = list.createEl('div', { cls: `diwa-th-task-item${isOverdue ? ' is-overdue' : ''}` });
+
+            const checkbox = item.createEl('div', { cls: 'diwa-th-task-checkbox' });
+            checkbox.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                item.addClass('is-completing');
+                try {
+                    await this.plugin.vault.updateTaskEntry(task.filePath, {
+                        title: task.title, dueDate: task.due || null, recurrence: task.recurrence || null,
+                        priority: task.priority || null, energy: task.energy || null, status: 'done', contexts: task.context || [], project: task.project || null,
+                    });
+                    item.remove();
+                } catch { new Notice('Error updating task', 2000); item.removeClass('is-completing'); }
+            });
+
+            const content = item.createEl('div', { cls: 'diwa-th-task-content' });
+            content.createEl('span', { text: task.title, cls: 'diwa-th-task-title' });
+            if (task.due) {
+                const dueM = moment(task.due, 'YYYY-MM-DD');
+                content.createEl('span', { text: isOverdue ? dueM.format('MMM D') : dueM.fromNow(), cls: `diwa-th-task-due${isOverdue ? ' is-overdue' : ''}` });
+            }
+        }
     }
 }
