@@ -86,14 +86,12 @@ export class MobileHubView extends ItemView {
         let focusTimer: ReturnType<typeof setTimeout> | null = null;
         let rafId: number | null = null;
 
-        // Capture base position ONCE at setup time — toolbar height is constant,
-        // never changes between keyboard open/close cycles. Re-measuring after
-        // position:fixed removal causes drift because the layout may be in a
-        // mid-scroll state.
-        const initRect = root.getBoundingClientRect();
-        const baseTop = Math.max(0, initRect.top);
-        const baseLeft = initRect.left;
-        const baseWidth = initRect.width || window.innerWidth;
+        // Capture toolbar offset ONCE — stable for entire view lifetime.
+        // Use RAF so layout has settled before we measure.
+        let baseTop = 0;
+        requestAnimationFrame(() => {
+            baseTop = Math.max(0, root.getBoundingClientRect().top);
+        });
 
         const syncKeyboardState = () => {
             const vv = window.visualViewport;
@@ -102,21 +100,12 @@ export class MobileHubView extends ItemView {
 
             root.toggleClass('is-keyboard-open', keyboardOpen);
 
-            if (keyboardOpen && vv) {
-                // Use position:fixed so parent container background can't show below root.
-                // top = root's position within the visual viewport (accounting for vv scroll)
-                const offsetTop = vv.offsetTop || 0;
-                const fixedTop = Math.max(0, Math.round(baseTop - offsetTop));
-                const fixedH = Math.max(100, Math.round(vv.height - fixedTop));
-                root.style.setProperty('--diwa-mh-fixed-top', `${fixedTop}px`);
-                root.style.setProperty('--diwa-mh-fixed-left', `${Math.round(baseLeft)}px`);
-                root.style.setProperty('--diwa-mh-fixed-width', `${Math.round(baseWidth)}px`);
-                root.style.setProperty('--diwa-mh-vv-height', `${fixedH}px`);
+            // CSS uses calc(100dvh - --diwa-mh-fixed-top) so height tracks the
+            // visual viewport automatically — no JS pixel maths needed.
+            if (keyboardOpen) {
+                root.style.setProperty('--diwa-mh-fixed-top', `${Math.round(baseTop)}px`);
             } else {
                 root.style.removeProperty('--diwa-mh-fixed-top');
-                root.style.removeProperty('--diwa-mh-fixed-left');
-                root.style.removeProperty('--diwa-mh-fixed-width');
-                root.style.removeProperty('--diwa-mh-vv-height');
             }
         };
 
@@ -167,9 +156,6 @@ export class MobileHubView extends ItemView {
             window.removeEventListener('resize', onViewportChange);
             root.removeClass('is-keyboard-open');
             root.style.removeProperty('--diwa-mh-fixed-top');
-            root.style.removeProperty('--diwa-mh-fixed-left');
-            root.style.removeProperty('--diwa-mh-fixed-width');
-            root.style.removeProperty('--diwa-mh-vv-height');
             this._keyboardCleanup = null;
         };
     }

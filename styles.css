@@ -5923,13 +5923,9 @@ body.is-mobile .diwa-syn-float-bar{position:fixed}.modal.diwa-zen-capture .modal
 
 /* Mobile capture focus mode: prioritize input visibility while typing */
 .diwa-mh-root.is-keyboard-open {
-  position: fixed;
-  top: var(--diwa-mh-fixed-top, 0px);
-  left: var(--diwa-mh-fixed-left, 0px);
-  width: var(--diwa-mh-fixed-width, 100%);
-  height: var(--diwa-mh-vv-height, 100vh);
+  height: calc(100dvh - var(--diwa-mh-fixed-top, 0px));
   min-height: 0;
-  z-index: 100;
+  overflow: hidden;
 }
 .diwa-mh-root.is-keyboard-open .diwa-mh-wrap,
 .diwa-mh-root:has(.diwa-mh-capture-textarea:focus) .diwa-mh-wrap {
