@@ -58,7 +58,7 @@ export class GawaTab extends BaseTab {
         this._container = container;
         container.empty();
 
-        const wrap = container.createEl('div', { cls: 'diwa-tab-wrap' });
+        const wrap = container.createEl('div', { cls: 'diwa-tab-wrap diwa-gawa-tab' });
         this._renderHeader(wrap);
         this._renderFocusSection(wrap);
 

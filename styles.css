@@ -5827,8 +5827,8 @@ body.is-mobile .diwa-syn-float-bar{position:fixed}.modal.diwa-zen-capture .modal
 .diwa-gawa-tab .diwa-detail-util-btn .svg-icon,
 .diwa-gawa-tab .diwa-secondary-action-btn .svg-icon,
 .diwa-gawa-tab .diwa-task-cb .svg-icon {
-  width: 36px;
-  height: 36px;
+  width: 18px;
+  height: 18px;
 }
 
 .diwa-gawa-tab .diwa-focus-empty-icon {
@@ -5839,17 +5839,17 @@ body.is-mobile .diwa-syn-float-bar{position:fixed}.modal.diwa-zen-capture .modal
 .diwa-gawa-tab .diwa-focus-action-btn,
 .diwa-gawa-tab .diwa-focus-chevron,
 .diwa-gawa-tab .diwa-secondary-action-btn {
-  width: 52px;
-  height: 52px;
+  width: 36px;
+  height: 36px;
 }
 
 .diwa-gawa-tab .diwa-tasks-sec-btn {
-  width: 52px;
-  height: 52px;
+  width: 36px;
+  height: 36px;
 }
 
 .diwa-gawa-tab .diwa-task-cb {
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
 }
