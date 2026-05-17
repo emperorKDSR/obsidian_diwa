@@ -5817,3 +5817,39 @@ body.is-mobile .diwa-syn-float-bar{position:fixed}.modal.diwa-zen-capture .modal
 .diwa-secondary-action-btn:hover { color: var(--text-muted); background: var(--background-secondary); }
 .diwa-secondary-action-btn.is-danger:hover { color: var(--text-error); }
 /* ── End Focus-driven Task UI ─────────────────────────────────────────── */
+
+/* ── Gawa icon scale-up ───────────────────────────────────────────────── */
+.diwa-gawa-tab .diwa-tasks-add-btn .svg-icon,
+.diwa-gawa-tab .diwa-tasks-sec-btn .svg-icon,
+.diwa-gawa-tab .diwa-focus-action-btn .svg-icon,
+.diwa-gawa-tab .diwa-focus-chevron .svg-icon,
+.diwa-gawa-tab .diwa-detail-btn .svg-icon,
+.diwa-gawa-tab .diwa-detail-util-btn .svg-icon,
+.diwa-gawa-tab .diwa-secondary-action-btn .svg-icon,
+.diwa-gawa-tab .diwa-task-cb .svg-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.diwa-gawa-tab .diwa-focus-empty-icon {
+  font-size: 3em;
+  line-height: 1;
+}
+
+.diwa-gawa-tab .diwa-focus-action-btn,
+.diwa-gawa-tab .diwa-focus-chevron,
+.diwa-gawa-tab .diwa-secondary-action-btn {
+  width: 52px;
+  height: 52px;
+}
+
+.diwa-gawa-tab .diwa-tasks-sec-btn {
+  width: 52px;
+  height: 52px;
+}
+
+.diwa-gawa-tab .diwa-task-cb {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+}
