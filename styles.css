@@ -5877,9 +5877,16 @@ body.is-mobile .diwa-syn-float-bar{position:fixed}.modal.diwa-zen-capture .modal
 }
 
 /* Mobile bottom navigation bar (Thoughts | Gawa) */
-/* CSS-first: hide nav when keyboard is open (textarea/input focused) */
+/* CSS-first: fully collapse nav when keyboard is open (textarea/input focused) */
 .diwa-mh-root:has(textarea:focus) .diwa-mh-bottom-nav,
-.diwa-mh-root:has(input:focus) .diwa-mh-bottom-nav { display: none; }
+.diwa-mh-root:has(input:focus) .diwa-mh-bottom-nav {
+  display: none;
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  border: none;
+}
 .diwa-mh-bottom-nav {
   flex-shrink: 0;
   display: flex;

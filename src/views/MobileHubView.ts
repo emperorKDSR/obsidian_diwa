@@ -84,9 +84,10 @@ export class MobileHubView extends ItemView {
 
         // Hide bottom nav while keyboard is open (textarea/input focused)
         // so it doesn't overlap the input area when the viewport shrinks.
+        // Fully collapse: height + padding + border to avoid any residual spacing.
         root.addEventListener('focusin', (e: FocusEvent) => {
             if ((e.target as HTMLElement).matches('textarea, input')) {
-                nav.style.display = 'none';
+                nav.style.cssText = 'display:none;height:0;padding:0;overflow:hidden;border:none;min-height:0;';
                 setTimeout(() => {
                     (e.target as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }, 300);
@@ -96,7 +97,7 @@ export class MobileHubView extends ItemView {
             if ((e.target as HTMLElement).matches('textarea, input')) {
                 setTimeout(() => {
                     if (!root.querySelector('textarea:focus, input:focus')) {
-                        nav.style.display = '';
+                        nav.style.cssText = '';
                     }
                 }, 100);
             }
