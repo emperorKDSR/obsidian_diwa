@@ -69,24 +69,6 @@ export class MobileHubView extends ItemView {
 
         const wrap = root.createEl('div', { cls: 'diwa-mh-wrap' });
 
-        // Bottom navigation bar (after wrap so it is the last flex child)
-        const nav = root.createEl('div', { cls: 'diwa-mh-bottom-nav' });
-        const thoughtsBtn = nav.createEl('button', {
-            cls: `diwa-mh-bottom-nav-btn${this._activeTab === 'thoughts' ? ' is-active' : ''}`,
-            attr: { 'aria-label': 'Thoughts' }
-        });
-        setIcon(thoughtsBtn, 'message-circle');
-        thoughtsBtn.addEventListener('click', () => { if (this._activeTab !== 'thoughts') { this._activeTab = 'thoughts'; this.renderView(); } });
-
-        const gawaBtn = nav.createEl('button', {
-            cls: `diwa-mh-bottom-nav-btn${this._activeTab === 'gawa' ? ' is-active' : ''}`,
-            attr: { 'aria-label': 'Gawa' }
-        });
-        setIcon(gawaBtn, 'check-square-2');
-        gawaBtn.addEventListener('click', () => { if (this._activeTab !== 'gawa') { this._activeTab = 'gawa'; this.renderView(); } });
-
-        this.setupKeyboardHandling(root, nav);
-
         if (this._activeTab === 'gawa') {
             this.renderGawaInput(wrap);
             this.renderGawaList(wrap);
@@ -95,9 +77,11 @@ export class MobileHubView extends ItemView {
             this.renderContextTabs(wrap);
             await this.renderFeed(wrap);
         }
+
+        this.setupKeyboardHandling(root);
     }
 
-    private setupKeyboardHandling(root: HTMLElement, nav: HTMLElement) {
+    private setupKeyboardHandling(root: HTMLElement) {
         const hasFocusedInput = () => !!root.querySelector('textarea:focus, input:focus');
         let focusTimer: ReturnType<typeof setTimeout> | null = null;
         let rafId: number | null = null;
@@ -113,7 +97,6 @@ export class MobileHubView extends ItemView {
             } else {
                 root.style.removeProperty('--diwa-mh-vv-height');
             }
-            nav.style.cssText = '';
         };
 
         const scheduleSync = () => {
@@ -163,7 +146,6 @@ export class MobileHubView extends ItemView {
             window.removeEventListener('resize', onViewportChange);
             root.removeClass('is-keyboard-open');
             root.style.removeProperty('--diwa-mh-vv-height');
-            nav.style.cssText = '';
             this._keyboardCleanup = null;
         };
     }
