@@ -17,6 +17,7 @@ export class MobileHubView extends ItemView {
     _gawaTaskFilter: 'upcoming' | 'all' = 'upcoming';
 
     private _closed: boolean = false;
+    private _keyboardCleanup: (() => void) | null = null;
 
     constructor(leaf: WorkspaceLeaf, plugin: DiwaPlugin) {
         super(leaf);
@@ -46,6 +47,7 @@ export class MobileHubView extends ItemView {
 
     async onClose() {
         this._closed = true;
+        this.teardownKeyboardHandling();
     }
 
     async renderView() {
@@ -53,6 +55,7 @@ export class MobileHubView extends ItemView {
         if (this._closed) return;
 
         const root = this.containerEl.children[1] as HTMLElement;
+        this.teardownKeyboardHandling();
         root.empty();
         root.addClass('diwa-mh-root');
 
@@ -82,26 +85,7 @@ export class MobileHubView extends ItemView {
         setIcon(gawaBtn, 'check-square-2');
         gawaBtn.addEventListener('click', () => { if (this._activeTab !== 'gawa') { this._activeTab = 'gawa'; this.renderView(); } });
 
-        // Hide bottom nav while keyboard is open (textarea/input focused)
-        // so it doesn't overlap the input area when the viewport shrinks.
-        // Fully collapse: height + padding + border to avoid any residual spacing.
-        root.addEventListener('focusin', (e: FocusEvent) => {
-            if ((e.target as HTMLElement).matches('textarea, input')) {
-                nav.style.cssText = 'display:none;height:0;padding:0;overflow:hidden;border:none;min-height:0;';
-                setTimeout(() => {
-                    (e.target as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }, 300);
-            }
-        });
-        root.addEventListener('focusout', (e: FocusEvent) => {
-            if ((e.target as HTMLElement).matches('textarea, input')) {
-                setTimeout(() => {
-                    if (!root.querySelector('textarea:focus, input:focus')) {
-                        nav.style.cssText = '';
-                    }
-                }, 100);
-            }
-        });
+        this.setupKeyboardHandling(root, nav);
 
         if (this._activeTab === 'gawa') {
             this.renderGawaInput(wrap);
@@ -111,6 +95,82 @@ export class MobileHubView extends ItemView {
             this.renderContextTabs(wrap);
             await this.renderFeed(wrap);
         }
+    }
+
+    private setupKeyboardHandling(root: HTMLElement, nav: HTMLElement) {
+        const hasFocusedInput = () => !!root.querySelector('textarea:focus, input:focus');
+        let focusTimer: ReturnType<typeof setTimeout> | null = null;
+        let rafId: number | null = null;
+
+        const syncKeyboardState = () => {
+            const vv = window.visualViewport;
+            const viewportDelta = vv ? Math.max(0, window.innerHeight - vv.height) : 0;
+            const keyboardOpen = hasFocusedInput() || viewportDelta > 120;
+
+            root.toggleClass('is-keyboard-open', keyboardOpen);
+            if (keyboardOpen && vv) {
+                root.style.setProperty('--diwa-mh-vv-height', `${Math.round(vv.height)}px`);
+            } else {
+                root.style.removeProperty('--diwa-mh-vv-height');
+            }
+            nav.style.cssText = '';
+        };
+
+        const scheduleSync = () => {
+            if (rafId !== null) cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(() => {
+                rafId = null;
+                syncKeyboardState();
+            });
+        };
+
+        const onFocusIn = (e: FocusEvent) => {
+            if (!(e.target as HTMLElement).matches('textarea, input')) return;
+            if (focusTimer) clearTimeout(focusTimer);
+            scheduleSync();
+        };
+
+        const onFocusOut = (e: FocusEvent) => {
+            if (!(e.target as HTMLElement).matches('textarea, input')) return;
+            if (focusTimer) clearTimeout(focusTimer);
+            focusTimer = setTimeout(() => {
+                focusTimer = null;
+                scheduleSync();
+            }, 100);
+        };
+
+        root.addEventListener('focusin', onFocusIn);
+        root.addEventListener('focusout', onFocusOut);
+
+        const vv = window.visualViewport;
+        const onViewportChange = () => scheduleSync();
+        if (vv) {
+            vv.addEventListener('resize', onViewportChange);
+            vv.addEventListener('scroll', onViewportChange);
+        }
+        window.addEventListener('resize', onViewportChange);
+
+        syncKeyboardState();
+        this._keyboardCleanup = () => {
+            if (focusTimer) clearTimeout(focusTimer);
+            if (rafId !== null) cancelAnimationFrame(rafId);
+            root.removeEventListener('focusin', onFocusIn);
+            root.removeEventListener('focusout', onFocusOut);
+            if (vv) {
+                vv.removeEventListener('resize', onViewportChange);
+                vv.removeEventListener('scroll', onViewportChange);
+            }
+            window.removeEventListener('resize', onViewportChange);
+            root.removeClass('is-keyboard-open');
+            root.style.removeProperty('--diwa-mh-vv-height');
+            nav.style.cssText = '';
+            this._keyboardCleanup = null;
+        };
+    }
+
+    private teardownKeyboardHandling() {
+        if (!this._keyboardCleanup) return;
+        this._keyboardCleanup();
     }
 
     private renderCapture(parent: HTMLElement) {
