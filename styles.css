@@ -5853,3 +5853,18 @@ body.is-mobile .diwa-syn-float-bar{position:fixed}.modal.diwa-zen-capture .modal
   height: 20px;
   min-width: 20px;
 }
+
+/* ThoughtPickerModal suggestion rows */
+.diwa-thought-picker-body {
+  font-size: 0.85em;
+  line-height: 1.4;
+  color: var(--text-normal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.diwa-thought-picker-date {
+  font-size: 0.72em;
+  color: var(--text-muted);
+  margin-top: 2px;
+}

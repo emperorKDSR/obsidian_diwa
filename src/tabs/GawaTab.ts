@@ -4,7 +4,7 @@ import { BaseTab } from './BaseTab';
 import { EditEntryModal } from '../modals/EditEntryModal';
 import { EditTaskModal } from '../modals/EditTaskModal';
 import { ConfirmModal } from '../modals/ConfirmModal';
-import { NotePickerModal } from '../modals/NotePickerModal';
+import { ThoughtPickerModal } from '../modals/ThoughtPickerModal';
 import type { TaskEntry } from '../types';
 import { taskEntryToTask } from '../utils/taskAdapter';
 import {
@@ -319,9 +319,10 @@ export class GawaTab extends BaseTab {
         });
 
         this._utilBtn(utils, 'link', 'Link thought', () => {
-            new NotePickerModal(this.app, async (file) => {
-                await this.plugin.taskLink?.addThoughtToExistingTask(entry.filePath, file.path);
-                await this.plugin.taskLink?.linkTaskToThought(entry.filePath, file.path);
+            const folder = this.plugin.settings?.thoughtsFolder || '000 Bin/DIWA';
+            new ThoughtPickerModal(this.app, this.index.thoughtIndex, folder, async (thought) => {
+                await this.plugin.taskLink?.addThoughtToExistingTask(entry.filePath, thought.filePath);
+                await this.plugin.taskLink?.linkTaskToThought(entry.filePath, thought.filePath);
                 this._rerender();
             }).open();
         });
