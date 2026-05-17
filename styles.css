@@ -5923,14 +5923,14 @@ body.is-mobile .diwa-syn-float-bar{position:fixed}.modal.diwa-zen-capture .modal
 
 /* Mobile capture focus mode: prioritize input visibility while typing */
 .diwa-mh-root.is-keyboard-open {
-  height: var(--diwa-mh-vv-height, 100%);
+  height: 100%;
   min-height: 0;
   overflow: hidden;
 }
 .diwa-mh-root.is-keyboard-open .diwa-mh-wrap,
 .diwa-mh-root:has(.diwa-mh-capture-textarea:focus) .diwa-mh-wrap {
   gap: 6px;
-  padding-bottom: 0;
+  padding-bottom: var(--diwa-mh-kb-inset, 0px);
 }
 .diwa-mh-root.is-keyboard-open .diwa-mh-capture-section,
 .diwa-mh-root:has(.diwa-mh-capture-textarea:focus) .diwa-mh-capture-section {

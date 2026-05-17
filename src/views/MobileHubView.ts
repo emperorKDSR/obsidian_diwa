@@ -88,18 +88,16 @@ export class MobileHubView extends ItemView {
 
         const syncKeyboardState = () => {
             const vv = window.visualViewport;
-            const viewportDelta = vv ? Math.max(0, window.innerHeight - vv.height) : 0;
-            const keyboardOpen = hasFocusedInput() || viewportDelta > 120;
+            const viewportBottom = vv ? (vv.offsetTop || 0) + vv.height : window.innerHeight;
+            const keyboardInset = vv ? Math.max(0, Math.round(window.innerHeight - viewportBottom)) : 0;
+            const keyboardOpen = hasFocusedInput() || keyboardInset > 120;
 
             root.toggleClass('is-keyboard-open', keyboardOpen);
 
             if (keyboardOpen && vv) {
-                const rootTop = Math.max(0, root.getBoundingClientRect().top);
-                const viewportBottom = Math.round((vv.offsetTop || 0) + vv.height);
-                const visibleHeight = Math.max(0, viewportBottom - Math.round(rootTop));
-                root.style.setProperty('--diwa-mh-vv-height', `${visibleHeight}px`);
+                root.style.setProperty('--diwa-mh-kb-inset', `${keyboardInset}px`);
             } else {
-                root.style.removeProperty('--diwa-mh-vv-height');
+                root.style.removeProperty('--diwa-mh-kb-inset');
             }
         };
 
@@ -149,7 +147,7 @@ export class MobileHubView extends ItemView {
             }
             window.removeEventListener('resize', onViewportChange);
             root.removeClass('is-keyboard-open');
-            root.style.removeProperty('--diwa-mh-vv-height');
+            root.style.removeProperty('--diwa-mh-kb-inset');
             this._keyboardCleanup = null;
         };
     }
