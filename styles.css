@@ -4967,6 +4967,7 @@ body.is-mobile .diwa-syn-float-bar{position:fixed}.modal.diwa-zen-capture .modal
    DIWA MOBILE HUB (.diwa-mh-*)
    ══════════════════════════════════════════════════════════════════════════ */
 .diwa-mh-root {
+  position: relative;
   height: 100%;
   overflow: hidden;
   display: flex;
@@ -4976,10 +4977,10 @@ body.is-mobile .diwa-syn-float-bar{position:fixed}.modal.diwa-zen-capture .modal
 .diwa-mh-wrap {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
   overflow: hidden;
   padding: 12px 12px 0;
-  gap: 10px;
+  gap: 8px;
 }
 
 /* Capture */
@@ -5003,9 +5004,9 @@ body.is-mobile .diwa-syn-float-bar{position:fixed}.modal.diwa-zen-capture .modal
 .diwa-mh-ctx-tab {
   flex-shrink: 0;
   width: max-content;
-  padding: 8px 2ch;
-  min-height: 44px;
-  border-radius: 22px;
+  padding: 5px 1.5ch;
+  min-height: 32px;
+  border-radius: 16px;
   border: 1px solid var(--background-modifier-border);
   background: transparent;
   color: var(--text-muted);
@@ -5870,34 +5871,24 @@ body.is-mobile .diwa-syn-float-bar{position:fixed}.modal.diwa-zen-capture .modal
 }
 
 /* Mobile bottom navigation bar (Thoughts | Gawa) */
-.diwa-mh-root {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
 .diwa-mh-bottom-nav {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 8px 16px env(safe-area-inset-bottom, 8px);
+  padding: 6px 16px env(safe-area-inset-bottom, 6px);
   background: var(--background-primary);
   border-top: 1px solid var(--background-modifier-border);
-  z-index: 10;
 }
 .diwa-mh-bottom-nav-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   flex: 1;
   max-width: 100px;
-  padding: 6px 8px;
+  padding: 5px 8px;
   border: none;
   border-radius: 10px;
   background: transparent;
@@ -5906,20 +5897,17 @@ body.is-mobile .diwa-syn-float-bar{position:fixed}.modal.diwa-zen-capture .modal
   transition: background 0.15s, color 0.15s;
 }
 .diwa-mh-bottom-nav-btn .svg-icon {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
 .diwa-mh-bottom-nav-btn.is-active {
   color: var(--interactive-accent);
   background: var(--background-modifier-hover);
 }
 .diwa-mh-bottom-nav-label {
-  font-size: 0.7em;
+  font-size: 0.68em;
   font-weight: 500;
   letter-spacing: 0.02em;
-}
-.diwa-mh-has-bottom-nav {
-  padding-bottom: 64px;
 }
 .diwa-mh-gawa-input-section {
   padding: 12px 16px 8px;

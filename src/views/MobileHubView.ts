@@ -64,7 +64,9 @@ export class MobileHubView extends ItemView {
             return;
         }
 
-        // Bottom navigation bar
+        const wrap = root.createEl('div', { cls: 'diwa-mh-wrap' });
+
+        // Bottom navigation bar (after wrap so it is the last flex child)
         const nav = root.createEl('div', { cls: 'diwa-mh-bottom-nav' });
         const thoughtsBtn = nav.createEl('button', {
             cls: `diwa-mh-bottom-nav-btn${this._activeTab === 'thoughts' ? ' is-active' : ''}`,
@@ -81,8 +83,6 @@ export class MobileHubView extends ItemView {
         setIcon(gawaBtn, 'check-square-2');
         gawaBtn.createEl('span', { text: 'Gawa', cls: 'diwa-mh-bottom-nav-label' });
         gawaBtn.addEventListener('click', () => { if (this._activeTab !== 'gawa') { this._activeTab = 'gawa'; this.renderView(); } });
-
-        const wrap = root.createEl('div', { cls: 'diwa-mh-wrap diwa-mh-has-bottom-nav' });
         if (this._activeTab === 'gawa') {
             this.renderGawaInput(wrap);
             this.renderGawaList(wrap);
