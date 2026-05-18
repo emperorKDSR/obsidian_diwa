@@ -26,9 +26,9 @@ export class MobilePostComposerModal extends Modal {
         const cancelBtn = header.createEl('button', { cls: 'diwa-mobile-post-cancel', text: 'Cancel' });
         cancelBtn.addEventListener('click', () => this.tryClose());
 
-        header.createEl('div', { cls: 'diwa-mobile-post-title', text: 'Create post' });
+        header.createEl('div', { cls: 'diwa-mobile-post-title', text: 'Create DIWA' });
 
-        this.postBtn = header.createEl('button', { cls: 'diwa-mobile-post-post', text: 'Post' }) as HTMLButtonElement;
+        this.postBtn = header.createEl('button', { cls: 'diwa-mobile-post-post', text: 'Save' }) as HTMLButtonElement;
         this.postBtn.disabled = true;
         this.postBtn.addEventListener('click', () => this.save());
 
@@ -51,13 +51,6 @@ export class MobilePostComposerModal extends Modal {
         this.textarea.addEventListener('input', () => this.onInput());
         this.textarea.addEventListener('keyup', () => this.syncHeight());
         this.textarea.addEventListener('focus', () => this.onInput());
-        this.textarea.addEventListener('keydown', (e: KeyboardEvent) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                this.save();
-            }
-        });
-
         attachInlineTriggers(
             this.app,
             this.textarea,
