@@ -3582,23 +3582,32 @@ body.is-mobile .modal.diwa-mobile-post .modal-close-button{display:none;}
 .diwa-mobile-post-post{color:var(--interactive-accent);}
 .diwa-mobile-post-post:disabled{opacity:0.35;cursor:not-allowed;}
 .diwa-mobile-post-body{flex:1;display:flex;flex-direction:column;gap:14px;padding:12px 16px 16px;overflow:hidden;}
-.diwa-mobile-post-row{display:flex;align-items:center;gap:12px;flex-shrink:0;}
-.diwa-mobile-post-avatar{width:40px;height:40px;border-radius:50%;background:rgba(var(--interactive-accent-rgb),0.14);color:var(--interactive-accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.diwa-mobile-post-avatar .svg-icon{width:18px;height:18px;}
-.diwa-mobile-post-prompt{font-size:1.02em;font-weight:600;color:var(--text-normal);}
+.diwa-mobile-post-selector{display:flex;align-items:center;gap:12px;padding:0;border:none;background:transparent;color:var(--text-normal);text-align:left;cursor:pointer;min-height:44px;outline:none;}
+.diwa-mobile-post-selector-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.diwa-mobile-post-selector-label{font-size:0.7em;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);}
+.diwa-mobile-post-selector-summary{font-size:0.95em;line-height:1.45;color:var(--text-normal);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.diwa-mobile-post-selector-chevron{flex-shrink:0;color:var(--text-faint);display:flex;align-items:center;justify-content:center;}
 .diwa-mobile-post-chip-row{display:flex;flex-wrap:wrap;gap:6px;flex-shrink:0;min-height:0;}
 .diwa-mobile-post-chip{display:inline-flex;align-items:center;padding:3px 10px;border-radius:16px;background:rgba(var(--interactive-accent-rgb),0.12);color:var(--interactive-accent);font-size:0.74em;font-weight:600;cursor:pointer;}
+.diwa-mobile-post-chip.is-topic{background:rgba(var(--interactive-accent-rgb),0.10);}
+.diwa-mobile-post-picker{display:flex;flex-direction:column;gap:12px;padding:12px 14px;border-radius:16px;background:var(--background-secondary);min-height:0;max-height:40vh;overflow:hidden;}
+.diwa-mobile-post-picker.is-hidden{display:none;}
+.diwa-mobile-post-picker-section{display:flex;flex-direction:column;gap:8px;}
+.diwa-mobile-post-picker-label{font-size:0.72em;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);}
+.diwa-mobile-post-picker-search,.diwa-mobile-post-picker-topic{width:100%;border:none;border-radius:0;background:transparent;outline:none;padding:0;font:inherit;font-size:16px;line-height:1.5;color:var(--text-normal);-webkit-appearance:none;}
+.diwa-mobile-post-picker-search::placeholder,.diwa-mobile-post-picker-topic::placeholder{color:var(--text-muted);}
+.diwa-mobile-post-picker-list,.diwa-mobile-post-picker-suggestions{display:flex;flex-wrap:wrap;gap:8px;min-height:0;}
+.diwa-mobile-post-picker-pill,.diwa-mobile-post-picker-create,.diwa-mobile-post-picker-done{border:none;border-radius:14px;padding:6px 12px;cursor:pointer;font-size:0.78em;font-weight:600;}
+.diwa-mobile-post-picker-pill{background:var(--background-modifier-hover);color:var(--text-muted);}
+.diwa-mobile-post-picker-pill.is-active{background:rgba(var(--interactive-accent-rgb),0.14);color:var(--interactive-accent);}
+.diwa-mobile-post-picker-create{background:transparent;color:var(--interactive-accent);border:1px dashed rgba(var(--interactive-accent-rgb),0.3);}
+.diwa-mobile-post-picker-actions{display:flex;justify-content:flex-end;flex-shrink:0;}
+.diwa-mobile-post-picker-done{background:var(--interactive-accent);color:var(--text-on-accent);}
 .diwa-mobile-post-capture{flex:1;display:flex;flex-direction:column;min-height:0;}
-.diwa-mobile-post-textarea{width:100%;flex:1;border:none;border-radius:0;background:transparent;resize:none;outline:none;font-family:inherit;font-size:18px;line-height:1.65;color:var(--text-normal);padding:0;min-height:0;overflow-y:auto;-webkit-appearance:none;}
-.diwa-mobile-post-textarea{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
-.diwa-mobile-post-textarea:focus,
-.diwa-mobile-post-textarea:focus-visible{
-  outline: none;
-  box-shadow: none;
-  border: none;
-  background: transparent;
-}
+.diwa-mobile-post-textarea{width:100%;flex:1;border:none;border-radius:0;background:transparent;resize:none;outline:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:18px;line-height:1.65;color:var(--text-normal);padding:0;min-height:0;overflow-y:auto;-webkit-appearance:none;}
+.diwa-mobile-post-textarea:focus,.diwa-mobile-post-textarea:focus-visible{outline:none;box-shadow:none;border:none;background:transparent;}
 .diwa-mobile-post-textarea::placeholder{color:var(--text-muted);}
+.diwa-mobile-post-prompt{display:none;}
 body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bottom,12px),12px);}
 /* ── Synthesis Context UX Improvements v1.25.1 ─────────────────────────── */
 .diwa-syn-ctx-chip-name{max-width:160px}

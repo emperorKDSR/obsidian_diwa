@@ -33,13 +33,14 @@ export class VaultService {
     private formatDate(d: Date): string     { return moment(d).format('YYYY-MM-DD'); }
     private formatTime(d: Date): string     { return moment(d).format('HH:mm:ss'); }
 
-    private buildFrontmatter(title: string, created: string, modified: string, dayStr: string, contexts: string[], pinned: boolean = false, project?: string): string {
+    private buildFrontmatter(title: string, created: string, modified: string, dayStr: string, contexts: string[], pinned: boolean = false, project?: string, topic?: string): string {
         // sec-006: Sanitize title and contexts before YAML embedding to prevent injection
         const safeTitle = this.sanitizeYamlString(title);
         const safeContexts = contexts.map(c => this.sanitizeContext(c));
         const contextYaml = safeContexts.length > 0 ? safeContexts.map(c => `  - ${c}`).join('\n') : '  []';
         const projectLine = project ? `project: "${this.sanitizeYamlString(project)}"\n` : '';
-        return `---\ntitle: "${safeTitle}"\ncreated: ${created}\nmodified: ${modified}\nday: "[[${dayStr}]]"\narea: DIWA\ncontext:\n${contextYaml}\ntags:\n${contextYaml}\npinned: ${pinned}\n${projectLine}---\n`;
+        const topicLine = topic ? `topic: "${this.sanitizeYamlString(topic)}"\n` : '';
+        return `---\ntitle: "${safeTitle}"\ncreated: ${created}\nmodified: ${modified}\nday: "[[${dayStr}]]"\narea: DIWA\ncontext:\n${contextYaml}\ntags:\n${contextYaml}\npinned: ${pinned}\n${topicLine}${projectLine}---\n`;
     }
 
     private buildTaskFrontmatter(title: string, created: string, modified: string, dayStr: string, status: string, due: string, contexts: string[], project?: string, recurrence?: string, recurrenceParentId?: string, priority?: string, energy?: string): string {
@@ -122,7 +123,7 @@ export class VaultService {
         }
     }
 
-    async createThoughtFile(text: string, contexts: string[], project?: string): Promise<TFile> {
+    async createThoughtFile(text: string, contexts: string[], project?: string, topic?: string): Promise<TFile> {
         // arch-08: Normalize <br> → newline at service boundary
         text = text.replace(/<br>/g, '\n');
         const folder = this.settings.thoughtsFolder.trim() || '000 Bin/DIWA';
@@ -130,7 +131,7 @@ export class VaultService {
         const created = this.formatDateTime(now);
         const dayStr = this.formatDate(now);
         const title = this.extractTitle(text);
-        const fm = this.buildFrontmatter(title, created, created, dayStr, contexts, false, project);
+        const fm = this.buildFrontmatter(title, created, created, dayStr, contexts, false, project, topic);
         const filename = this.generateFilename();
         return await this.createFile(folder, filename, fm + text);
     }
@@ -757,5 +758,4 @@ export class VaultService {
         }
     }
 }
-
 
