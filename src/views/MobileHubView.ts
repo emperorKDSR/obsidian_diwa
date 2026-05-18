@@ -1,7 +1,8 @@
-import { ItemView, Notice, Platform, WorkspaceLeaf } from 'obsidian';
+import { ItemView, Platform, WorkspaceLeaf, setIcon } from 'obsidian';
 import { VIEW_TYPE_MOBILE_HUB } from '../constants';
 import type DiwaPlugin from '../main';
-import { createThoughtCaptureWidget, isTablet } from '../utils';
+import { isTablet } from '../utils';
+import { MobilePostComposerModal } from '../modals/MobilePostComposerModal';
 
 export class MobileHubView extends ItemView {
     plugin: DiwaPlugin;
@@ -33,26 +34,17 @@ export class MobileHubView extends ItemView {
         }
 
         const wrap = root.createEl('div', { cls: 'diwa-mh-wrap' });
-        const card = wrap.createEl('div', { cls: 'diwa-mh-capture-card' });
+        const launcher = wrap.createEl('button', { cls: 'diwa-mh-launcher', type: 'button', attr: { 'aria-label': "What's on your mind?" } });
+        const avatar = launcher.createEl('div', { cls: 'diwa-mh-launcher-avatar' });
+        setIcon(avatar, 'message-circle');
+        const body = launcher.createEl('div', { cls: 'diwa-mh-launcher-body' });
+        body.createEl('div', { cls: 'diwa-mh-launcher-title', text: "What's on your mind?" });
+        body.createEl('div', { cls: 'diwa-mh-launcher-subtitle', text: 'Tap to create a post' });
+        const chevron = launcher.createEl('div', { cls: 'diwa-mh-launcher-chevron' });
+        setIcon(chevron, 'chevron-right');
 
-        createThoughtCaptureWidget(card, {
-            app: this.app,
-            containerCls: 'diwa-mh-capture',
-            textareaCls: 'diwa-mh-capture-textarea',
-            chipCls: 'diwa-mh-chip',
-            placeholder: "What's on your mind?",
-            getContexts: () => (this.plugin.settings.contexts ?? []),
-            peopleFolder: this.plugin.settings.peopleFolder,
-            attachmentsFolder: () => this.plugin.settings.attachmentsFolder ?? '000 Bin/DIWA Attachments',
-            onSave: async (raw, contexts) => {
-                try {
-                    await this.plugin.vault.createThoughtFile(raw, contexts);
-                    new Notice('✦ Thought saved', 1200);
-                } catch {
-                    new Notice('Error saving thought — please try again', 2500);
-                }
-            },
-            setPending: () => {}
+        launcher.addEventListener('click', () => {
+            new MobilePostComposerModal(this.app, this.plugin).open();
         });
     }
 }
