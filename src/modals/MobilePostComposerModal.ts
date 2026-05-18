@@ -7,15 +7,19 @@ export class MobilePostComposerModal extends Modal {
     private plugin: DiwaPlugin;
     private textarea!: HTMLTextAreaElement;
     private postBtn!: HTMLButtonElement;
-    private selectorSummary!: HTMLElement;
     private chipsEl!: HTMLElement;
-    private pickerEl!: HTMLElement;
+    private contextButton!: HTMLButtonElement;
+    private topicButton!: HTMLButtonElement;
+    private contextPickerEl!: HTMLElement;
+    private topicPickerEl!: HTMLElement;
     private contextSearch!: HTMLInputElement;
+    private topicSearch!: HTMLInputElement;
     private topicInput!: HTMLInputElement;
     private contexts: string[] = [];
     private topic: string = '';
     private dirty = false;
-    private pickerOpen = false;
+    private contextPickerOpen = false;
+    private topicPickerOpen = false;
 
     constructor(app: App, plugin: DiwaPlugin) {
         super(app);
@@ -40,20 +44,34 @@ export class MobilePostComposerModal extends Modal {
 
         const body = contentEl.createEl('div', { cls: 'diwa-mobile-post-body' });
 
-        const selector = body.createEl('button', {
+        const selectors = body.createEl('div', { cls: 'diwa-mobile-post-selectors' });
+        this.contextButton = selectors.createEl('button', {
             cls: 'diwa-mobile-post-selector',
             type: 'button',
-            attr: { 'aria-label': 'Select context and topic' }
+            attr: { 'aria-label': 'Select context' }
         });
-        const selectorMain = selector.createEl('div', { cls: 'diwa-mobile-post-selector-main' });
-        selectorMain.createEl('div', { cls: 'diwa-mobile-post-selector-label', text: 'Context & topic' });
-        this.selectorSummary = selectorMain.createEl('div', { cls: 'diwa-mobile-post-selector-summary' });
-        const chevron = selector.createEl('div', { cls: 'diwa-mobile-post-selector-chevron' });
-        setIcon(chevron, 'chevron-down');
-        selector.addEventListener('click', () => this.togglePicker());
+        const contextMain = this.contextButton.createEl('div', { cls: 'diwa-mobile-post-selector-main' });
+        contextMain.createEl('div', { cls: 'diwa-mobile-post-selector-label', text: 'Context' });
+        contextMain.createEl('div', { cls: 'diwa-mobile-post-selector-summary' });
+        const contextChevron = this.contextButton.createEl('div', { cls: 'diwa-mobile-post-selector-chevron' });
+        setIcon(contextChevron, 'chevron-down');
+        this.contextButton.addEventListener('click', () => this.toggleContextPicker());
+
+        this.topicButton = selectors.createEl('button', {
+            cls: 'diwa-mobile-post-selector',
+            type: 'button',
+            attr: { 'aria-label': 'Select topic' }
+        });
+        const topicMain = this.topicButton.createEl('div', { cls: 'diwa-mobile-post-selector-main' });
+        topicMain.createEl('div', { cls: 'diwa-mobile-post-selector-label', text: 'Topic' });
+        topicMain.createEl('div', { cls: 'diwa-mobile-post-selector-summary' });
+        const topicChevron = this.topicButton.createEl('div', { cls: 'diwa-mobile-post-selector-chevron' });
+        setIcon(topicChevron, 'chevron-down');
+        this.topicButton.addEventListener('click', () => this.toggleTopicPicker());
 
         this.chipsEl = body.createEl('div', { cls: 'diwa-mobile-post-chip-row' });
-        this.pickerEl = body.createEl('div', { cls: 'diwa-mobile-post-picker is-hidden' });
+        this.contextPickerEl = body.createEl('div', { cls: 'diwa-mobile-post-picker is-hidden' });
+        this.topicPickerEl = body.createEl('div', { cls: 'diwa-mobile-post-picker is-hidden' });
 
         const composer = body.createEl('div', { cls: 'diwa-mobile-post-capture' });
         this.textarea = composer.createEl('textarea', {
@@ -81,8 +99,8 @@ export class MobilePostComposerModal extends Modal {
 
         this.scope.register([], 'Escape', (e) => {
             e.preventDefault();
-            if (this.pickerOpen) {
-                this.closePicker();
+            if (this.contextPickerOpen || this.topicPickerOpen) {
+                this.closePickers();
                 return false;
             }
             this.tryClose();
@@ -90,7 +108,8 @@ export class MobilePostComposerModal extends Modal {
         });
 
         this.renderSelection();
-        this.renderPicker();
+        this.renderContextPicker();
+        this.renderTopicPicker();
         this.syncHeight();
         this.onInput();
         setTimeout(() => this.textarea.focus(), 50);
@@ -109,7 +128,12 @@ export class MobilePostComposerModal extends Modal {
         const parts: string[] = [];
         if (this.contexts.length > 0) parts.push(this.contexts.map(c => `#${c}`).join(', '));
         if (this.topic.trim()) parts.push(this.topic.trim());
-        this.selectorSummary.setText(parts.length > 0 ? parts.join(' · ') : 'Tap to choose who and what this is about');
+        this.contextButton.querySelector<HTMLElement>('.diwa-mobile-post-selector-summary')!.setText(
+            this.contexts.length > 0 ? this.contexts.map(c => `#${c}`).join(', ') : 'Choose context'
+        );
+        this.topicButton.querySelector<HTMLElement>('.diwa-mobile-post-selector-summary')!.setText(
+            this.topic.trim() || 'Add topic'
+        );
         this.refreshChips();
         this.markDirty();
     }
@@ -121,7 +145,8 @@ export class MobilePostComposerModal extends Modal {
             chip.addEventListener('click', () => {
                 this.contexts = this.contexts.filter(c => c !== ctx);
                 this.renderSelection();
-                this.renderPicker();
+                this.renderContextPicker();
+                this.renderTopicPicker();
             });
         }
         if (this.topic.trim()) {
@@ -129,17 +154,17 @@ export class MobilePostComposerModal extends Modal {
             chip.addEventListener('click', () => {
                 this.topic = '';
                 this.renderSelection();
-                this.renderPicker();
+                this.renderTopicPicker();
             });
         }
     }
 
-    private renderPicker() {
-        this.pickerEl.empty();
-        this.pickerEl.toggleClass('is-hidden', !this.pickerOpen);
-        if (!this.pickerOpen) return;
+    private renderContextPicker() {
+        this.contextPickerEl.empty();
+        this.contextPickerEl.toggleClass('is-hidden', !this.contextPickerOpen);
+        if (!this.contextPickerOpen) return;
 
-        const contextsSection = this.pickerEl.createEl('div', { cls: 'diwa-mobile-post-picker-section' });
+        const contextsSection = this.contextPickerEl.createEl('div', { cls: 'diwa-mobile-post-picker-section' });
         contextsSection.createEl('div', { cls: 'diwa-mobile-post-picker-label', text: 'Context' });
         this.contextSearch = contextsSection.createEl('input', {
             cls: 'diwa-mobile-post-picker-search',
@@ -148,8 +173,6 @@ export class MobilePostComposerModal extends Modal {
         }) as HTMLInputElement;
         const contextList = contextsSection.createEl('div', { cls: 'diwa-mobile-post-picker-list' });
         const query = this.contextSearch.value.toLowerCase().trim();
-        const contexts = (this.plugin.settings.contexts ?? []).filter(c => !query || c.toLowerCase().includes(query)).sort((a, b) => a.localeCompare(b));
-
         const redrawContexts = () => {
             contextList.empty();
             const q = this.contextSearch.value.toLowerCase().trim();
@@ -189,8 +212,15 @@ export class MobilePostComposerModal extends Modal {
 
         this.contextSearch.addEventListener('input', () => redrawContexts());
         redrawContexts();
+        setTimeout(() => this.contextSearch.focus(), 50);
+    }
 
-        const topicSection = this.pickerEl.createEl('div', { cls: 'diwa-mobile-post-picker-section' });
+    private renderTopicPicker() {
+        this.topicPickerEl.empty();
+        this.topicPickerEl.toggleClass('is-hidden', !this.topicPickerOpen);
+        if (!this.topicPickerOpen) return;
+
+        const topicSection = this.topicPickerEl.createEl('div', { cls: 'diwa-mobile-post-picker-section' });
         topicSection.createEl('div', { cls: 'diwa-mobile-post-picker-label', text: 'Topic' });
         this.topicInput = topicSection.createEl('input', {
             cls: 'diwa-mobile-post-picker-topic',
@@ -220,23 +250,33 @@ export class MobilePostComposerModal extends Modal {
             });
         }
 
-        const actions = this.pickerEl.createEl('div', { cls: 'diwa-mobile-post-picker-actions' });
+        const actions = this.topicPickerEl.createEl('div', { cls: 'diwa-mobile-post-picker-actions' });
         const doneBtn = actions.createEl('button', { cls: 'diwa-mobile-post-picker-done', text: 'Done', type: 'button' });
-        doneBtn.addEventListener('click', () => this.closePicker());
-        setTimeout(() => this.contextSearch.focus(), 50);
+        doneBtn.addEventListener('click', () => this.closePickers());
+        setTimeout(() => this.topicInput.focus(), 50);
     }
 
-    private togglePicker() {
-        this.pickerOpen = !this.pickerOpen;
-        this.renderPicker();
-        if (this.pickerOpen) {
-            this.textarea.blur();
-        }
+    private toggleContextPicker() {
+        this.contextPickerOpen = !this.contextPickerOpen;
+        this.topicPickerOpen = false;
+        this.renderContextPicker();
+        this.renderTopicPicker();
+        if (this.contextPickerOpen) this.textarea.blur();
     }
 
-    private closePicker() {
-        this.pickerOpen = false;
-        this.renderPicker();
+    private toggleTopicPicker() {
+        this.topicPickerOpen = !this.topicPickerOpen;
+        this.contextPickerOpen = false;
+        this.renderContextPicker();
+        this.renderTopicPicker();
+        if (this.topicPickerOpen) this.textarea.blur();
+    }
+
+    private closePickers() {
+        this.contextPickerOpen = false;
+        this.topicPickerOpen = false;
+        this.renderContextPicker();
+        this.renderTopicPicker();
         this.textarea.focus();
     }
 
@@ -255,7 +295,8 @@ export class MobilePostComposerModal extends Modal {
         if (this.contexts.includes(tag)) return;
         this.contexts.push(tag);
         this.renderSelection();
-        this.renderPicker();
+        this.renderContextPicker();
+        this.renderTopicPicker();
     }
 
     private async save() {
