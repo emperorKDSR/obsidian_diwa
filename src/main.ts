@@ -214,19 +214,7 @@ export default class DiwaPlugin extends Plugin {
         if (isTablet()) {
             await this.activateTabletHub();
         } else if (Platform.isMobile) {
-            const { workspace } = this.app;
-            const existing = workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB);
-            if (existing.length > 0) {
-                const leaf = existing[0];
-                await leaf.setViewState({ type: VIEW_TYPE_MOBILE_HUB, active: true, state: { activeTab: 'gawa' } });
-                workspace.revealLeaf(leaf);
-            } else {
-                const leaf = workspace.getLeaf(false);
-                if (leaf) {
-                    await leaf.setViewState({ type: VIEW_TYPE_MOBILE_HUB, active: true, state: { activeTab: 'gawa' } });
-                    workspace.revealLeaf(leaf);
-                }
-            }
+            await this.activateMobileHub();
         } else {
             await this.activateView('review-gawa');
         }
