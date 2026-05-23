@@ -7250,3 +7250,29 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
     grid-template-columns: 1fr;
   }
 }
+
+@media (min-width: 1024px) {
+  .diwa-dh-right,
+  .diwa-gawa-pane-shell,
+  .diwa-dh-task-list-section,
+  .diwa-gawa-pane-shell > .diwa-dh-task-list-section {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .diwa-dh-task-list {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+    max-height: calc(34px * 25);
+  }
+
+  .diwa-dh-task-item {
+    flex-shrink: 0;
+  }
+}
