@@ -1,7 +1,8 @@
 import { Notice, TFile, moment } from 'obsidian';
 import type DiwaPlugin from '../main';
-import type { TaskEntry, ThoughtEntry } from '../types';
+import type { ThoughtEntry } from '../types';
 import type { TaskController } from './TaskController';
+import { ThoughtIndex } from './ThoughtIndex';
 
 interface ThoughtLinks {
     tasks: string[];
@@ -13,33 +14,68 @@ function unique(values: string[]): string[] {
 }
 
 export class ThoughtController {
-    private thoughtIndex = new Map<string, ThoughtEntry>();
+    readonly thoughtIndex: ThoughtIndex;
+    private listeners = new Set<(thought: ThoughtEntry) => void>();
+    private initialized = false;
+    private updatingThoughtPaths = new Set<string>();
 
-    constructor(private plugin: DiwaPlugin) {}
+    constructor(private plugin: DiwaPlugin) {
+        this.thoughtIndex = new ThoughtIndex();
+    }
+
+    subscribe(listener: (thought: ThoughtEntry) => void): () => void {
+        this.listeners.add(listener);
+        return () => {
+            this.listeners.delete(listener);
+        };
+    }
+
+    private notifyUpdate(thought: ThoughtEntry): void {
+        for (const listener of this.listeners) {
+            try {
+                listener(thought);
+            } catch (error) {
+                console.warn('[DIWA ThoughtController] listener failed', error);
+            }
+        }
+    }
+
+    get isUpdatingThought(): boolean {
+        return this.updatingThoughtPaths.size > 0;
+    }
+
+    isUpdatingThoughtPath(filePath: string): boolean {
+        return this.updatingThoughtPaths.has(filePath);
+    }
+
+    setThoughts(thoughts: ThoughtEntry[]): void {
+        if (this.initialized) return;
+        const normalized = thoughts.map((thought) => this.normalizeThought(thought));
+        this.thoughtIndex.set(normalized);
+        for (const thought of normalized) {
+            this.plugin.index.thoughtIndex.set(thought.filePath, thought);
+        }
+        this.initialized = true;
+    }
 
     hydrateFromIndex(entries: ThoughtEntry[]): void {
-        this.thoughtIndex.clear();
-        for (const thought of entries) {
-            const normalized = this.normalizeThought(thought);
-            this.thoughtIndex.set(normalized.filePath, normalized);
-            this.plugin.index.thoughtIndex.set(normalized.filePath, normalized);
-        }
+        this.setThoughts(entries);
     }
 
     normalizeThought(thought: Partial<ThoughtEntry> & { filePath?: string }): ThoughtEntry {
         const nowTs = Date.now();
         const createdAt = thought.createdAt ?? nowTs;
         const updatedAt = thought.updatedAt ?? createdAt;
+        const sourceLinks = thought.links || { tasks: [], thoughts: [] };
         const links: ThoughtLinks = {
-            tasks: unique(thought.links?.tasks ?? []),
-            thoughts: unique(thought.links?.thoughts ?? []),
+            tasks: unique(sourceLinks.tasks ?? []),
+            thoughts: unique(sourceLinks.thoughts ?? []),
         };
-        const id = thought.id?.trim() || thought.filePath?.trim() || `thought-${nowTs}`;
-        const filePath = thought.filePath?.trim() || id;
+        const filePath = thought.filePath?.trim() || thought.id?.trim() || `thought-${nowTs}`;
+        const id = thought.id?.trim() || filePath;
         const content = (thought.content ?? thought.body ?? thought.title ?? '').trim();
         const createdText = thought.created || moment(createdAt).format('YYYY-MM-DD HH:mm:ss');
         const modifiedText = thought.modified || moment(updatedAt).format('YYYY-MM-DD HH:mm:ss');
-        const day = thought.day || moment(createdAt).format('YYYY-MM-DD');
         return {
             ...thought,
             id,
@@ -51,7 +87,7 @@ export class ThoughtController {
             modified: modifiedText,
             createdAt,
             updatedAt,
-            day,
+            day: thought.day || moment(createdAt).format('YYYY-MM-DD'),
             context: thought.context ?? [],
             allDates: thought.allDates ?? [],
             lastThreadUpdate: thought.lastThreadUpdate ?? updatedAt,
@@ -63,18 +99,68 @@ export class ThoughtController {
         };
     }
 
-    async addThought(thought: Partial<ThoughtEntry> & { content?: string; context?: string[] }): Promise<ThoughtEntry | null> {
+    upsertThought(thought: ThoughtEntry, emit = true): ThoughtEntry {
+        const normalized = this.normalizeThought(thought);
+        this.thoughtIndex.update(normalized);
+        this.plugin.index.thoughtIndex.set(normalized.filePath, normalized);
+        if (emit) this.notifyUpdate(normalized);
+        return normalized;
+    }
+
+    removeThoughtFromIndex(thoughtIdOrPath: string): void {
+        const thought = this.getThought(thoughtIdOrPath);
+        if (!thought) return;
+        this.thoughtIndex.remove(thought.id || thought.filePath);
+        this.plugin.index.thoughtIndex.delete(thought.filePath);
+    }
+
+    async persistThoughts(thoughts?: ThoughtEntry[]): Promise<void> {
+        const entries = (thoughts ?? this.thoughtIndex.getAll()).map((thought) => this.normalizeThought(thought));
+        for (const thought of entries) {
+            await this.plugin.vault.persistThoughtMetadata({
+                filePath: thought.filePath,
+                pinned: thought.pinned,
+                archived: thought.archived,
+                state: thought.state,
+                links: thought.links,
+                createdAt: thought.createdAt,
+                updatedAt: thought.updatedAt,
+                modified: thought.modified,
+                tags: thought.tags,
+            });
+        }
+    }
+
+    syncIndexedThought(filePath: string): ThoughtEntry | null {
+        if (this.isUpdatingThoughtPath(filePath)) {
+            return this.getThought(filePath);
+        }
+        const indexed = this.plugin.index.thoughtIndex.get(filePath);
+        if (!indexed) return null;
+        return this.upsertThought(indexed, true);
+    }
+
+    async addThought(thought: Partial<ThoughtEntry> & { content?: string; context?: string[]; topic?: string | null; project?: string | null }): Promise<ThoughtEntry | null> {
         const content = (thought.content ?? thought.body ?? thought.title ?? '').trim();
         if (!content) return null;
         try {
-            const created = await this.plugin.vault.createThoughtFile(content, thought.context ?? []);
+            const created = await this.plugin.vault.createThoughtFile(
+                content,
+                thought.context ?? [],
+                thought.project ?? undefined,
+                thought.topic ?? undefined,
+            );
             await this.plugin.refreshCoordinator.reindexFile(created);
-            const indexed = this.plugin.index.thoughtIndex.get(created.path);
-            if (!indexed) return null;
-            const normalized = this.normalizeThought(indexed);
-            this.thoughtIndex.set(normalized.filePath, normalized);
-            this.plugin.index.thoughtIndex.set(normalized.filePath, normalized);
-            return normalized;
+            const synced = this.syncIndexedThought(created.path);
+            if (!synced) return null;
+            this.updatingThoughtPaths.add(synced.filePath);
+            try {
+                await this.persistThoughts([synced]);
+                await this.plugin.refreshCoordinator.reindexFile(created);
+                return this.syncIndexedThought(created.path);
+            } finally {
+                this.updatingThoughtPaths.delete(synced.filePath);
+            }
         } catch (error) {
             console.error('[DIWA ThoughtController] addThought failed', error);
             new Notice('Error saving thought', 2000);
@@ -82,10 +168,10 @@ export class ThoughtController {
         }
     }
 
-    async updateThought(thought: Partial<ThoughtEntry> & { id?: string; filePath?: string; content?: string }): Promise<ThoughtEntry | null> {
-        const id = (thought.filePath || thought.id || '').trim();
-        if (!id) return null;
-        const existing = this.getThought(id);
+    async updateThought(thought: Partial<ThoughtEntry> & { id?: string; filePath?: string; content?: string; topic?: string | null }): Promise<ThoughtEntry | null> {
+        const ref = (thought.filePath || thought.id || '').trim();
+        if (!ref) return null;
+        const existing = this.getThought(ref);
         if (!existing) return null;
         const merged = this.normalizeThought({
             ...existing,
@@ -97,57 +183,108 @@ export class ThoughtController {
         });
 
         try {
-            if (thought.content !== undefined || thought.body !== undefined || thought.context !== undefined) {
+            this.updatingThoughtPaths.add(existing.filePath);
+            if (thought.content !== undefined || thought.body !== undefined || thought.context !== undefined || thought.topic !== undefined) {
                 const body = (merged.content || merged.body || merged.title || '').trim();
-                await this.plugin.vault.editThought(existing.filePath, body, merged.context ?? []);
+                await this.plugin.vault.editThought(
+                    existing.filePath,
+                    body,
+                    merged.context ?? [],
+                    merged.topic ?? undefined,
+                );
             }
+            await this.persistThoughts([merged]);
             const file = this.plugin.app.vault.getAbstractFileByPath(existing.filePath);
             if (file instanceof TFile) {
                 await this.plugin.refreshCoordinator.reindexFile(file);
+                const synced = this.plugin.index.thoughtIndex.get(existing.filePath) ?? null;
+                const resolved = this.normalizeThought({ ...(synced ?? existing), ...merged });
+                return this.upsertThought(resolved, true);
             }
-            this.thoughtIndex.set(existing.filePath, merged);
-            this.plugin.index.thoughtIndex.set(existing.filePath, merged);
-            return merged;
+            return this.upsertThought(merged);
         } catch (error) {
             console.error('[DIWA ThoughtController] updateThought failed', error);
             new Notice('Error updating thought', 2000);
             return null;
+        } finally {
+            this.updatingThoughtPaths.delete(existing.filePath);
         }
     }
 
-    removeThought(thoughtId: string): void {
-        const thought = this.getThought(thoughtId);
+    async assignThoughtContext(thoughtIdOrPath: string, contexts: string[], topic?: string | string[]): Promise<ThoughtEntry | null> {
+        const thought = this.getThought(thoughtIdOrPath);
+        if (!thought) return null;
+        try {
+            await this.plugin.vault.assignContextToThought(thought.filePath, contexts, topic);
+            const file = this.plugin.app.vault.getAbstractFileByPath(thought.filePath);
+            if (file instanceof TFile) {
+                await this.plugin.refreshCoordinator.reindexFile(file);
+            }
+            return this.syncIndexedThought(thought.filePath);
+        } catch (error) {
+            console.error('[DIWA ThoughtController] assignThoughtContext failed', error);
+            new Notice('Error updating thought context', 2000);
+            return null;
+        }
+    }
+
+    async setSynthesized(thoughtIdOrPath: string, synthesized: boolean): Promise<ThoughtEntry | null> {
+        const thought = this.getThought(thoughtIdOrPath);
+        if (!thought) return null;
+        try {
+            if (synthesized) await this.plugin.vault.markAsSynthesized(thought.filePath);
+            else await this.plugin.vault.unmarkSynthesized(thought.filePath);
+            const file = this.plugin.app.vault.getAbstractFileByPath(thought.filePath);
+            if (file instanceof TFile) {
+                await this.plugin.refreshCoordinator.reindexFile(file);
+            }
+            return this.syncIndexedThought(thought.filePath);
+        } catch (error) {
+            console.error('[DIWA ThoughtController] setSynthesized failed', error);
+            new Notice('Failed to update archived state.', 2000);
+            return null;
+        }
+    }
+
+    removeThought(thoughtIdOrPath: string): void {
+        const thought = this.getThought(thoughtIdOrPath);
         if (!thought) return;
-        const archived = this.normalizeThought({
+        void this.updateThought({
             ...thought,
             archived: true,
             state: 'raw',
             pinned: false,
-            updatedAt: Date.now(),
-            modified: moment().format('YYYY-MM-DD HH:mm:ss'),
         });
-        this.thoughtIndex.set(archived.filePath, archived);
-        this.plugin.index.thoughtIndex.set(archived.filePath, archived);
     }
 
-    getThought(thoughtId: string): ThoughtEntry | null {
-        const byPath = this.plugin.index.thoughtIndex.get(thoughtId) ?? this.thoughtIndex.get(thoughtId);
+    getThought(thoughtIdOrPath: string): ThoughtEntry | null {
+        const byId = this.thoughtIndex.get(thoughtIdOrPath);
+        if (byId) return this.normalizeThought(byId);
+        const byPath = this.plugin.index.thoughtIndex.get(thoughtIdOrPath);
         if (byPath) return this.normalizeThought(byPath);
-        for (const thought of this.thoughtIndex.values()) {
-            if (thought.id === thoughtId || thought.filePath === thoughtId) return this.normalizeThought(thought);
+        for (const thought of this.thoughtIndex.getAll()) {
+            if (thought.id === thoughtIdOrPath || thought.filePath === thoughtIdOrPath) return this.normalizeThought(thought);
         }
         for (const thought of this.plugin.index.thoughtIndex.values()) {
-            if (thought.id === thoughtId || thought.filePath === thoughtId) return this.normalizeThought(thought);
+            if (thought.id === thoughtIdOrPath || thought.filePath === thoughtIdOrPath) return this.normalizeThought(thought);
         }
         return null;
     }
 
     getAllThoughts(): ThoughtEntry[] {
-        for (const thought of this.plugin.index.thoughtIndex.values()) {
-            const normalized = this.normalizeThought(thought);
-            this.thoughtIndex.set(normalized.filePath, normalized);
+        return this.thoughtIndex.getAll().map((thought) => this.normalizeThought(thought));
+    }
+
+    getThoughtsForTask(taskIdOrPath: string): ThoughtEntry[] {
+        const taskRef = taskIdOrPath.trim();
+        if (!taskRef) return [];
+        const matched: ThoughtEntry[] = [];
+        for (const thought of this.getAllThoughts()) {
+            const linkedTasks = thought.links?.tasks ?? [];
+            if (!linkedTasks.includes(taskRef)) continue;
+            matched.push(thought);
         }
-        return Array.from(this.thoughtIndex.values()).map((thought) => this.normalizeThought(thought));
+        return matched.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
     }
 
     searchThoughts(query: string): ThoughtEntry[] {
@@ -201,6 +338,26 @@ export class ThoughtController {
         };
         const updated = await this.updateThought({ ...thought, links: nextLinks });
         return !!updated;
+    }
+
+    async linkThoughtToThought(sourceId: string, targetId: string): Promise<boolean> {
+        const source = this.getThought(sourceId);
+        const target = this.getThought(targetId);
+        if (!source || !target) return false;
+        if (source.filePath === target.filePath) return true;
+
+        const sourceLinks: ThoughtLinks = {
+            tasks: unique(source.links?.tasks ?? []),
+            thoughts: unique([...(source.links?.thoughts ?? []), target.filePath]),
+        };
+        const targetLinks: ThoughtLinks = {
+            tasks: unique(target.links?.tasks ?? []),
+            thoughts: unique([...(target.links?.thoughts ?? []), source.filePath]),
+        };
+
+        const updatedSource = await this.updateThought({ ...source, links: sourceLinks });
+        const updatedTarget = await this.updateThought({ ...target, links: targetLinks });
+        return !!updatedSource && !!updatedTarget;
     }
 
     async convertThoughtToTask(thoughtId: string, taskController: TaskController): Promise<boolean> {

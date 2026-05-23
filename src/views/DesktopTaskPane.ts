@@ -3,6 +3,8 @@ import type { App } from 'obsidian';
 import type { TaskBucketStatus, TaskEntry, ThoughtEntry } from '../types';
 import { attachInlineTriggers, attachMediaPasteHandler } from '../utils';
 import type { TaskController, TaskPanePort } from './TaskController';
+import type { ThoughtController } from './ThoughtController';
+import { LinkModal } from './LinkModal';
 import { EditTaskModal } from '../modals/EditTaskModal';
 import { FastTaskCaptureModal, type FastTaskCapturePayload } from '../modals/FastTaskCaptureModal';
 
@@ -894,11 +896,10 @@ export class TaskPane implements TaskPanePort {
 
 class ThoughtOverlay {
     private backdropEl: HTMLElement | null = null;
-    private panelEl: HTMLElement | null = null;
     private headerEl: HTMLElement | null = null;
     private listEl: HTMLElement | null = null;
     private inputEl: HTMLInputElement | null = null;
-    private activeItem: TaskItemView | null = null;
+    private activeTaskId: string | null = null;
     private hostEl: HTMLElement | null = null;
     private hostPositionTouched = false;
     private hostPositionOriginal = '';
@@ -908,14 +909,24 @@ class ThoughtOverlay {
         this.close();
     };
 
-    open(item: TaskItemView): void {
-        this.ensureDom();
-        if (!this.backdropEl || !this.panelEl || !this.headerEl || !this.listEl || !this.inputEl) return;
-        this.attachToHost(item.getThoughtOverlayHostElement());
+    constructor(
+        private app: App,
+        private thoughtController: ThoughtController,
+        private taskController: TaskController,
+        private setTaskOverlayActive: (taskId: string, active: boolean) => void,
+    ) {}
 
-        if (this.activeItem && this.activeItem !== item) this.activeItem.setThoughtOverlayActive(false);
-        this.activeItem = item;
-        item.setThoughtOverlayActive(true);
+    open(taskId: string, hostEl: HTMLElement): void {
+        const resolvedTask = this.taskController.getTask(taskId);
+        if (!resolvedTask) return;
+        const taskRef = resolvedTask.filePath || taskId;
+        this.ensureDom();
+        if (!this.backdropEl || !this.headerEl || !this.listEl || !this.inputEl) return;
+        this.attachToHost(hostEl);
+
+        if (this.activeTaskId && this.activeTaskId !== taskRef) this.setTaskOverlayActive(this.activeTaskId, false);
+        this.activeTaskId = taskRef;
+        this.setTaskOverlayActive(taskRef, true);
         this.render();
 
         this.backdropEl.style.display = 'flex';
@@ -926,19 +937,19 @@ class ThoughtOverlay {
     }
 
     close(): void {
-        if (this.activeItem) this.activeItem.setThoughtOverlayActive(false);
-        this.activeItem = null;
+        if (this.activeTaskId) this.setTaskOverlayActive(this.activeTaskId, false);
+        this.activeTaskId = null;
         if (this.backdropEl) this.backdropEl.style.display = 'none';
         window.removeEventListener('keydown', this.onEscape, true);
     }
 
-    refreshFor(item: TaskItemView): void {
-        if (!this.activeItem || this.activeItem !== item) return;
+    refreshTask(taskId: string): void {
+        if (!this.activeTaskId || this.activeTaskId !== taskId) return;
         this.render();
     }
 
-    closeIfActive(item: TaskItemView): void {
-        if (this.activeItem !== item) return;
+    closeIfActive(taskId: string): void {
+        if (this.activeTaskId !== taskId) return;
         this.close();
     }
 
@@ -952,9 +963,9 @@ class ThoughtOverlay {
             this.close();
         });
 
-        this.panelEl = document.createElement('div');
-        this.panelEl.className = 'thought-overlay';
-        this.panelEl.addEventListener('mousedown', (event) => event.stopPropagation());
+        const panelEl = document.createElement('div');
+        panelEl.className = 'thought-overlay';
+        panelEl.addEventListener('mousedown', (event) => event.stopPropagation());
 
         this.headerEl = document.createElement('div');
         this.headerEl.className = 'thought-header';
@@ -975,10 +986,10 @@ class ThoughtOverlay {
             if (event.key !== 'Enter' || event.shiftKey) return;
             event.preventDefault();
             const content = this.inputEl?.value.trim() || '';
-            if (!content || !this.activeItem || !this.inputEl) return;
+            if (!content || !this.activeTaskId || !this.inputEl) return;
             this.inputEl.disabled = true;
             void (async () => {
-                const ok = await this.activeItem!.createThoughtFromOverlay(content);
+                const ok = await this.taskController.createThoughtFromTask(this.activeTaskId!, content);
                 this.inputEl!.disabled = false;
                 if (!ok) return;
                 this.inputEl!.value = '';
@@ -986,50 +997,57 @@ class ThoughtOverlay {
             })();
         });
 
-        this.panelEl.appendChild(this.headerEl);
-        this.panelEl.appendChild(this.listEl);
-        this.panelEl.appendChild(this.inputEl);
-        this.backdropEl.appendChild(this.panelEl);
+        panelEl.appendChild(this.headerEl);
+        panelEl.appendChild(this.listEl);
+        panelEl.appendChild(this.inputEl);
+        this.backdropEl.appendChild(panelEl);
     }
 
-    private attachToHost(host: HTMLElement): void {
+    private attachToHost(hostEl: HTMLElement): void {
         if (!this.backdropEl) return;
-        if (this.hostEl === host && this.backdropEl.parentElement === host) return;
+        if (this.hostEl === hostEl && this.backdropEl.parentElement === hostEl) return;
 
         if (this.hostEl && this.hostPositionTouched) {
             this.hostEl.style.position = this.hostPositionOriginal;
             this.hostPositionTouched = false;
         }
 
-        this.hostEl = host;
-        if (host === document.body) {
-            this.backdropEl.addClass('is-global');
-        } else {
-            this.backdropEl.removeClass('is-global');
-            const computed = window.getComputedStyle(host).position;
+        this.hostEl = hostEl;
+        const isBodyHost = hostEl === document.body;
+        this.backdropEl.toggleClass('is-global', isBodyHost);
+
+        if (!isBodyHost) {
+            const computed = window.getComputedStyle(hostEl).position;
             if (computed === 'static') {
-                this.hostPositionOriginal = host.style.position;
-                host.style.position = 'relative';
+                this.hostPositionOriginal = hostEl.style.position;
+                hostEl.style.position = 'relative';
                 this.hostPositionTouched = true;
             }
         }
-        host.appendChild(this.backdropEl);
+
+        hostEl.appendChild(this.backdropEl);
     }
 
     private render(): void {
-        if (!this.activeItem || !this.headerEl || !this.listEl) return;
-        const thoughtIds = this.activeItem.getLinkedThoughtIdsForOverlay();
-        this.headerEl.setText(`Linked Thoughts (${thoughtIds.length})`);
+        if (!this.activeTaskId || !this.headerEl || !this.listEl) return;
+        const task = this.taskController.getTask(this.activeTaskId);
+        if (!task) {
+            this.close();
+            return;
+        }
+        const taskRef = task.filePath || this.activeTaskId;
+        const linkedThoughts = this.thoughtController.getThoughtsForTask(taskRef);
+        this.headerEl.setText(`Linked Thoughts (${linkedThoughts.length})`);
         this.listEl.empty();
-        if (thoughtIds.length === 0) {
+        if (linkedThoughts.length === 0) {
             this.listEl.createEl('div', { cls: 'diwa-dh-task-thought-empty', text: 'No linked thoughts' });
             return;
         }
-        for (const thoughtId of thoughtIds) {
+        for (const thought of linkedThoughts) {
             const row = this.listEl.createEl('div', { cls: 'diwa-dh-task-thought-row' });
             row.createEl('div', {
                 cls: 'diwa-dh-task-thought-content',
-                text: this.activeItem.getThoughtContentForOverlay(thoughtId),
+                text: (thought.body || thought.content || thought.title || '').trim() || 'Untitled thought',
             });
             const openBtn = row.createEl('button', {
                 cls: 'thought-open-icon',
@@ -1038,7 +1056,8 @@ class ThoughtOverlay {
             safeSetIcon(openBtn, 'lucide-external-link', 'external-link');
             openBtn.addEventListener('click', (event) => {
                 event.stopPropagation();
-                this.activeItem?.openLinkedThoughtForOverlay(thoughtId);
+                const file = this.app.vault.getAbstractFileByPath(thought.filePath);
+                if (file instanceof TFile) void this.app.workspace.getLeaf(false).openFile(file);
             });
             const unlinkBtn = row.createEl('button', {
                 cls: 'diwa-dh-task-thought-unlink',
@@ -1048,8 +1067,14 @@ class ThoughtOverlay {
             unlinkBtn.addEventListener('click', (event) => {
                 event.stopPropagation();
                 void (async () => {
-                    const ok = await this.activeItem!.unlinkThoughtFromOverlay(thoughtId);
-                    if (ok) this.render();
+                    const currentTaskId = this.activeTaskId;
+                    if (!currentTaskId) return;
+                    const ok = await this.taskController.unlinkThoughtFromTask(thought.filePath, currentTaskId);
+                    if (!ok) {
+                        new Notice('Error unlinking thought', 2000);
+                        return;
+                    }
+                    this.render();
                 })();
             });
         }
@@ -1058,15 +1083,18 @@ class ThoughtOverlay {
 
 export class TaskItemView {
     private static sharedThoughtOverlay: ThoughtOverlay | null = null;
+    private static sharedLinkModal: LinkModal | null = null;
     rootEl: HTMLElement;
     private headerEl: HTMLElement;
     private metaEl: HTMLElement;
     private thoughtIconEl: HTMLButtonElement;
+    private taskLinkIconEl: HTMLButtonElement;
     private checkboxEl: HTMLElement;
     private titleEl: HTMLElement;
     private projectChipEl: HTMLButtonElement | null = null;
     private dueChipEl: HTMLButtonElement | null = null;
     private quickActionsEl: HTMLElement | null = null;
+    private linkIconsEl: HTMLElement | null = null;
     private backlogBtnEl: HTMLElement | null = null;
     private activateBtnEl: HTMLElement | null = null;
     private focusBtnEl: HTMLElement | null = null;
@@ -1161,8 +1189,9 @@ export class TaskItemView {
             e.stopPropagation();
             this.openMoreMenu(this.editBtnEl);
         });
-        this.thoughtIconEl = actionsEl.createEl('button', {
-            cls: 'diwa-dh-task-edit-btn task-thought-icon',
+        this.linkIconsEl = actionsEl.createEl('div', { cls: 'task-link-icons' });
+        this.thoughtIconEl = this.linkIconsEl.createEl('button', {
+            cls: 'diwa-dh-task-edit-btn task-thought-icon thought-link-icon',
             attr: {
                 title: 'Linked thoughts',
                 'aria-label': 'Linked thoughts',
@@ -1173,6 +1202,19 @@ export class TaskItemView {
         this.thoughtIconEl.addEventListener('click', (event) => {
             event.stopPropagation();
             this.toggleThoughtList();
+        });
+        this.taskLinkIconEl = this.linkIconsEl.createEl('button', {
+            cls: 'diwa-dh-task-edit-btn task-link-icon',
+            attr: {
+                title: 'Linked items',
+                'aria-label': 'Linked items',
+                type: 'button',
+            },
+            text: '🔗 0',
+        }) as HTMLButtonElement;
+        this.taskLinkIconEl.addEventListener('click', (event) => {
+            event.stopPropagation();
+            this.openLinkModal();
         });
 
         this.rootEl.addEventListener('click', (e) => this.handleClick(e));
@@ -1245,7 +1287,6 @@ export class TaskItemView {
     destroy(): void {
         if (this.destroyed) return;
         this.destroyed = true;
-        this.getThoughtOverlay().closeIfActive(this);
         this.closeInlinePopover();
         if (this.flashTimer !== null) {
             window.clearTimeout(this.flashTimer);
@@ -1350,7 +1391,7 @@ export class TaskItemView {
 
             createOption('Change project', () => this.openProjectPicker(anchor));
             createOption('Change date', () => this.openDuePicker(anchor));
-            createOption('Link thought', () => this.openThoughtLinkPicker(anchor));
+            createOption('Link thought', () => this.openLinkModal());
             createOption('Duplicate', async () => this.duplicateCurrentTask());
             createOption('Delete', () => this.hooks.onDelete?.(getTaskKey(this.currentTask)));
         });
@@ -1618,7 +1659,7 @@ export class TaskItemView {
     }
 
     private toggleThoughtList(): void {
-        this.getThoughtOverlay().open(this);
+        this.openLinkModal();
     }
 
     private updateThoughtToggleLabel(): void {
@@ -1627,12 +1668,36 @@ export class TaskItemView {
         this.thoughtIconEl.setText(`💬 ${count}`);
         this.thoughtIconEl.setAttr('title', `Linked thoughts (${label})`);
         this.thoughtIconEl.setAttr('aria-label', `Linked thoughts (${label})`);
+        const taskCount = this.getRelatedTaskCount();
+        this.taskLinkIconEl.setText(`🔗 ${taskCount}`);
+        this.taskLinkIconEl.setAttr('title', `Linked tasks (${taskCount})`);
+        this.taskLinkIconEl.setAttr('aria-label', `Linked tasks (${taskCount})`);
+        const visible = count > 0 || taskCount > 0;
+        this.thoughtIconEl.style.display = visible ? '' : 'none';
+        this.taskLinkIconEl.style.display = visible ? '' : 'none';
+        if (this.linkIconsEl) this.linkIconsEl.style.display = visible ? '' : 'none';
     }
 
     private syncLinkedThoughts(thoughtIds: string[]): void {
         this.linkedThoughtIds = [...thoughtIds];
         this.updateThoughtToggleLabel();
-        this.getThoughtOverlay().refreshFor(this);
+    }
+
+    private getRelatedTaskCount(): number {
+        const sourceTaskId = getTaskKey(this.currentTask);
+        const related = new Set<string>();
+        for (const thought of this.controller.getLinkedThoughtsForTask(sourceTaskId)) {
+            for (const task of this.controller.getLinkedTasksForThought(thought.filePath)) {
+                const key = getTaskKey(task);
+                if (key === sourceTaskId) continue;
+                related.add(key);
+            }
+        }
+        return related.size;
+    }
+
+    private openLinkModal(): void {
+        this.getLinkModal().open({ taskId: getTaskKey(this.currentTask) }, this.getThoughtOverlayHostElement());
     }
 
     private resolveThought(thoughtId: string): ThoughtEntry | null {
@@ -1663,7 +1728,8 @@ export class TaskItemView {
     }
 
     getThoughtOverlayHostElement(): HTMLElement {
-        return this.rootEl.closest('.diwa-gawa-desktop') as HTMLElement
+        return this.rootEl.closest('.diwa-dh-root') as HTMLElement
+            || this.rootEl.closest('.diwa-gawa-desktop') as HTMLElement
             || this.rootEl.closest('.diwa-view-content') as HTMLElement
             || document.body;
     }
@@ -1705,8 +1771,31 @@ export class TaskItemView {
     }
 
     private getThoughtOverlay(): ThoughtOverlay {
-        if (!TaskItemView.sharedThoughtOverlay) TaskItemView.sharedThoughtOverlay = new ThoughtOverlay();
+        if (!TaskItemView.sharedThoughtOverlay) {
+            TaskItemView.sharedThoughtOverlay = new ThoughtOverlay(
+                this.view.app,
+                this.view.plugin.getThoughtController(),
+                this.controller,
+                (taskId, active) => {
+                    const currentTaskKey = getTaskKey(this.currentTask);
+                    if (taskId !== this.currentTask.filePath && taskId !== currentTaskKey) return;
+                    this.setThoughtOverlayActive(active);
+                },
+            );
+        }
         return TaskItemView.sharedThoughtOverlay;
+    }
+
+    private getLinkModal(): LinkModal {
+        if (!TaskItemView.sharedLinkModal) {
+            TaskItemView.sharedLinkModal = LinkModal.getShared(
+                this.view.app,
+                this.view.plugin,
+                this.view.plugin.getThoughtController(),
+                this.controller,
+            );
+        }
+        return TaskItemView.sharedLinkModal;
     }
 
     private async linkExistingThought(thoughtId: string): Promise<void> {

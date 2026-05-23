@@ -231,7 +231,7 @@ export class VoiceTab extends BaseTab {
                 new EditEntryModal(this.app, this.plugin, textarea.value, 'transcribed', null, false,
                     async (text, ctxs) => {
                         const contexts = parseContextString(ctxs);
-                        await this.vault.createThoughtFile(text, contexts);
+                        await this.plugin.getThoughtController().addThought({ content: text, context: contexts });
                         this.showToast('✦ Saved as Thought');
                         this.resetToIdle();
                     }, 'Transcribed Note').open();
@@ -428,7 +428,7 @@ export class VoiceTab extends BaseTab {
         const text = this.getTranscript().trim();
         if (!text) { new Notice('Transcript is empty — nothing to save.'); return; }
         this.haptic('success');
-        await this.vault.createThoughtFile(text, []);
+        await this.plugin.getThoughtController().addThought({ content: text, context: [] });
         this.showToast('✦ Saved as Thought');
         this.setState('confirmed');
         this.resetToIdle();
@@ -586,7 +586,7 @@ export class VoiceTab extends BaseTab {
                 new EditEntryModal(this.app, this.plugin, textarea.value, 'transcribed', null, false,
                     async (text, ctxs) => {
                         const contexts = parseContextString(ctxs);
-                        await this.vault.createThoughtFile(text, contexts);
+                        await this.plugin.getThoughtController().addThought({ content: text, context: contexts });
                         this.showToast('✦ Saved as Thought');
                         this.setState('confirmed');
                         this.resetToIdle();
@@ -620,5 +620,4 @@ export class VoiceTab extends BaseTab {
 
     onunload() { this.cleanup(); }
 }
-
 

@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Platform, moment, setIcon, Notice, ViewStateResult, MarkdownRenderer, TFile } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Platform, moment, setIcon, Notice, ViewStateResult, MarkdownRenderer } from 'obsidian';
 import { VIEW_TYPE_TABLET_HUB } from '../constants';
 import type DiwaPlugin from '../main';
 import { attachInlineTriggers, createThoughtCaptureWidget, isTablet } from '../utils';
@@ -214,7 +214,7 @@ export class TabletHubView extends ItemView {
             initialContexts: activeCtx !== 'all' ? [activeCtx] : [],
             onSave: async (raw, ctxs) => {
                 try {
-                    await this.plugin.vault.createThoughtFile(raw, ctxs);
+                    await this.plugin.getThoughtController().addThought({ content: raw, context: ctxs });
                     new Notice('✦ Thought saved', 1200);
                 } catch {
                     new Notice('Error saving thought — please try again', 2500);
@@ -347,7 +347,7 @@ export class TabletHubView extends ItemView {
             allPill.addEventListener('click', () => { if (this._feedScope !== 'all') { this._feedScope = 'all'; this.renderView(); } });
         }
 
-        let thoughts = Array.from(this.plugin.index.thoughtIndex.values());
+        let thoughts = this.plugin.getThoughtController().getAllThoughts();
         if (ctx === 'all') {
             thoughts = thoughts.filter(t => t.day === today);
         } else {
@@ -383,9 +383,7 @@ export class TabletHubView extends ItemView {
             tagBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 InlineTopicInput.open(tagBtn, t, this._activeContextTab, this.plugin, async (contexts, topic) => {
-                    await this.plugin.vault.assignContextToThought(t.filePath, contexts, topic);
-                    const file = this.app.vault.getAbstractFileByPath(t.filePath);
-                    if (file instanceof TFile) await this.plugin.index.indexThoughtFile(file);
+                    await this.plugin.getThoughtController().assignThoughtContext(t.filePath, contexts, topic);
                     tagBtn.toggleClass('has-context', contexts.length > 0);
                     if (this._activeContextTab !== 'all') {
                         const ctxLow = this._activeContextTab.toLowerCase();
@@ -483,7 +481,11 @@ export class TabletHubView extends ItemView {
             if (!newText) return;
             exit(false);
             try {
-                await this.plugin.vault.editThought(t.filePath, newText, [...editContexts]);
+                await this.plugin.getThoughtController().updateThought({
+                    filePath: t.filePath,
+                    content: newText,
+                    context: [...editContexts],
+                });
                 new Notice('✦ Thought updated', 1200);
             } catch {
                 new Notice('Error updating thought', 2500);

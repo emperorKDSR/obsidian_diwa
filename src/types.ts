@@ -123,7 +123,7 @@ export interface ThoughtEntry {
     synthesized?: boolean;     // true if the thought has been synthesized into a master note
     links?: {
         tasks: string[];       // linked task IDs (file paths in current implementation)
-        thoughts?: string[];   // linked thought IDs
+        thoughts: string[];    // linked thought IDs
     };
 }
 

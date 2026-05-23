@@ -306,10 +306,19 @@ export class MobilePostComposerModal extends Modal {
         if (!text) return;
         try {
             if (this.options.editFilePath) {
-                await this.plugin.vault.editThought(this.options.editFilePath, text, this.contexts, this.topic.trim() || undefined);
+                await this.plugin.getThoughtController().updateThought({
+                    filePath: this.options.editFilePath,
+                    content: text,
+                    context: this.contexts,
+                    topic: this.topic.trim() || undefined,
+                });
                 new Notice('✦ Thought updated', 1200);
             } else {
-                await this.plugin.vault.createThoughtFile(text, this.contexts, undefined, this.topic.trim() || undefined);
+                await this.plugin.getThoughtController().addThought({
+                    content: text,
+                    context: this.contexts,
+                    topic: this.topic.trim() || undefined,
+                });
                 new Notice('✦ Thought saved', 1200);
             }
             this.close();

@@ -125,7 +125,12 @@ export default class DiwaPlugin extends Plugin {
                 // wipes any open capture textarea (vault create fires when paste saves an image).
                 const scope = this.getRefreshScopeForPath(f.path);
                 if (!scope) return;
-                if (this.index.isThoughtFile(f.path)) await this.index.indexThoughtFile(f as TFile);
+                if (this.index.isThoughtFile(f.path)) {
+                    await this.index.indexThoughtFile(f as TFile);
+                    if (!this.getThoughtController().isUpdatingThoughtPath(f.path)) {
+                        this.getThoughtController().syncIndexedThought(f.path);
+                    }
+                }
                 else if (this.index.isTaskFile(f.path)) await this.index.indexTaskFile(f as TFile);
                 else if (this.index.isDueFile(f.path)) await this.index.buildDueIndex();
                 else if (f.path.startsWith((this.settings.habitsFolder || '000 Bin/DIWA Habits').replace(/\\/g, '/'))) await this.index.refreshHabitIndex();
@@ -136,13 +141,16 @@ export default class DiwaPlugin extends Plugin {
                 const scope = this.getRefreshScopeForPath(f.path);
                 if (!scope) return;
                 await this.refreshCoordinator.reindexFile(f as TFile);
+                if (this.index.isThoughtFile(f.path) && !this.getThoughtController().isUpdatingThoughtPath(f.path)) {
+                    this.getThoughtController().syncIndexedThought(f.path);
+                }
                 this.notifyRefresh(scope);
             }));
 
             this.registerEvent(this.app.vault.on('delete', async (f) => {
                 const scope = this.getRefreshScopeForPath(f.path);
                 if (!scope) return;
-                this.index.thoughtIndex.delete(f.path);
+                this.getThoughtController().removeThoughtFromIndex(f.path);
                 this.index.taskIndex.delete(f.path);
                 if (this.index.isDueFile(f.path)) await this.index.buildDueIndex();
                 this.notifyRefresh(scope);
@@ -154,9 +162,14 @@ export default class DiwaPlugin extends Plugin {
                     this.getRefreshScopeForPath(f.path),
                 );
                 if (!scope) return;
-                this.index.thoughtIndex.delete(oldPath);
+                this.getThoughtController().removeThoughtFromIndex(oldPath);
                 this.index.taskIndex.delete(oldPath);
-                if (this.index.isThoughtFile(f.path)) await this.index.indexThoughtFile(f as TFile);
+                if (this.index.isThoughtFile(f.path)) {
+                    await this.index.indexThoughtFile(f as TFile);
+                    if (!this.getThoughtController().isUpdatingThoughtPath(f.path)) {
+                        this.getThoughtController().syncIndexedThought(f.path);
+                    }
+                }
                 else if (this.index.isTaskFile(f.path)) await this.index.indexTaskFile(f as TFile);
                 this.notifyRefresh(scope);
             }));
@@ -167,6 +180,9 @@ export default class DiwaPlugin extends Plugin {
                 const scope = this.getRefreshScopeForPath(file.path);
                 if (!scope) return;
                 await this.refreshCoordinator.reindexFile(file);
+                if (this.index.isThoughtFile(file.path) && !this.getThoughtController().isUpdatingThoughtPath(file.path)) {
+                    this.getThoughtController().syncIndexedThought(file.path);
+                }
                 this.notifyRefresh(scope);
             }));
         });
@@ -237,7 +253,7 @@ export default class DiwaPlugin extends Plugin {
                     if (isTask) {
                         const due = parts[6].replace(/\[\[|\]\]/g, '');
                         await this.vault.createTaskFile(text, ctxs, due);
-                    } else await this.vault.createThoughtFile(text, ctxs);
+                    } else await this.getThoughtController().addThought({ content: text, context: ctxs });
                 }
             }
             await vault.rename(file, path + '.bak');

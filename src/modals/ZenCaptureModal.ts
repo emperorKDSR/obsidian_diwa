@@ -138,7 +138,7 @@ export class ZenCaptureModal extends Modal {
         const text = this.textarea.value.trim();
         if (!text) return;
         try {
-            await this.plugin.vault.createThoughtFile(text, this.contexts);
+            await this.plugin.getThoughtController().addThought({ content: text, context: this.contexts });
             new Notice('✦ Thought saved');
             this.plugin.zenCaptureDraft = '';
             this.close();
@@ -160,6 +160,5 @@ export class ZenCaptureModal extends Modal {
         }
     }
 }
-
 
 

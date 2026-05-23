@@ -104,7 +104,11 @@ export class BaseTab {
                         count++;
                     }
                 }
-                await this.vault.editThought(entry.filePath, lines.join('\n'), entry.context);
+                await this.plugin.getThoughtController().updateThought({
+                    filePath: entry.filePath,
+                    content: lines.join('\n'),
+                    context: entry.context,
+                });
                 new Notice(isChecked ? 'Task completed' : 'Task reopened');
             });
         });
@@ -197,7 +201,11 @@ export class BaseTab {
         this.renderActionButton(actions, ICON_EDIT, 'Edit', () => {
             new EditEntryModal(this.app, this.plugin, entry.body, entry.context.map(c => `#${c}`).join(' '), null, false, async (newText, newCtxStr) => {
                 const ctxArr = newCtxStr ? parseContextString(newCtxStr) : [];
-                await this.vault.editThought(entry.filePath, newText.replace(/<br>/g, '\n'), ctxArr);
+                await this.plugin.getThoughtController().updateThought({
+                    filePath: entry.filePath,
+                    content: newText.replace(/<br>/g, '\n'),
+                    context: ctxArr,
+                });
                 this.refreshCurrentList();
             }).open();
         });

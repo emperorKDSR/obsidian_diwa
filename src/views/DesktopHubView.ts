@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Platform, moment, setIcon, Notice, ViewStateResult, MarkdownRenderer, TFile } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Platform, moment, setIcon, Notice, ViewStateResult, MarkdownRenderer } from 'obsidian';
 import type DiwaPlugin from '../main';
 import {
     VIEW_TYPE_DIWA,
@@ -12,8 +12,10 @@ import type { DiwaView } from '../view';
 import { DesktopTaskPaneView } from './DesktopTaskPane';
 import { TaskController } from './TaskController';
 import { ThoughtController } from './ThoughtController';
+import { LinkModal } from './LinkModal';
 
 export class DesktopHubView extends ItemView {
+    private static sharedLinkModal: LinkModal | null = null;
     plugin: DiwaPlugin;
     isFocusMode: boolean = true;
 
@@ -39,6 +41,34 @@ export class DesktopHubView extends ItemView {
     private _taskController: TaskController;
     private _thoughtController: ThoughtController;
     private _thoughtSearchQuery: string = '';
+    private _captureSectionEl: HTMLElement | null = null;
+    private _captureInputEl: HTMLTextAreaElement | null = null;
+    private _captureHintEl: HTMLElement | null = null;
+    private _centerInnerEl: HTMLElement | null = null;
+    private _contextTabsHostEl: HTMLElement | null = null;
+    private _feedRootEl: HTMLElement | null = null;
+    private _feedHeaderEl: HTMLElement | null = null;
+    private _feedPinnedListEl: HTMLElement | null = null;
+    private _feedRecentListEl: HTMLElement | null = null;
+    private _feedArchivedListEl: HTMLElement | null = null;
+    private _feedEmptyEl: HTMLElement | null = null;
+    private _thoughtUnsubscribe: (() => void) | null = null;
+    private _thoughtPopoverEl: HTMLElement | null = null;
+    private _thoughtPopoverOutsideHandler: ((event: MouseEvent) => void) | null = null;
+    private _thoughtPopoverEscapeHandler: ((event: KeyboardEvent) => void) | null = null;
+    private _thoughtRowMap = new Map<string, {
+        rootEl: HTMLElement;
+        contentEl: HTMLElement;
+        textEl: HTMLElement;
+        timeEl: HTMLElement;
+        actionsEl: HTMLElement;
+        linkedTaskIconEl: HTMLButtonElement;
+        linkedThoughtIconEl: HTMLButtonElement;
+        pinBtnEl: HTMLButtonElement;
+        archiveBtnEl: HTMLButtonElement;
+        signature: string;
+    }>();
+    private _feedRefreshRaf: number | null = null;
 
     constructor(leaf: WorkspaceLeaf, plugin: DiwaPlugin) {
         super(leaf);
@@ -66,6 +96,11 @@ export class DesktopHubView extends ItemView {
 
     async onOpen() {
         this._closed = false;
+        if (!this._thoughtUnsubscribe) {
+            this._thoughtUnsubscribe = this._thoughtController.subscribe((thought) => {
+                void this.updateThoughtInUI(thought);
+            });
+        }
         // Hide Obsidian's leaf header (same pattern as DiwaView src/view.ts:128-132)
         const header = this.containerEl.children[0] as HTMLElement;
         if (header) header.style.display = 'none';
@@ -74,6 +109,8 @@ export class DesktopHubView extends ItemView {
 
     async onClose() {
         this._closed = true;
+        this._thoughtUnsubscribe?.();
+        this._thoughtUnsubscribe = null;
         this.resetLayoutRefs();
     }
 
@@ -105,7 +142,6 @@ export class DesktopHubView extends ItemView {
         }
 
         if (this._centerEl) {
-            this._centerEl.empty();
             await this.renderCenter(this._centerEl);
         }
 
@@ -140,6 +176,23 @@ export class DesktopHubView extends ItemView {
         this._centerEl = null;
         this._rightEl = null;
         this._taskPaneView = null;
+        this._captureSectionEl = null;
+        this._captureInputEl = null;
+        this._captureHintEl = null;
+        this._centerInnerEl = null;
+        this._contextTabsHostEl = null;
+        this._feedRootEl = null;
+        this._feedHeaderEl = null;
+        this._feedPinnedListEl = null;
+        this._feedRecentListEl = null;
+        this._feedArchivedListEl = null;
+        this._feedEmptyEl = null;
+        this._thoughtRowMap.clear();
+        this.closeThoughtLinkPopover();
+        if (this._feedRefreshRaf !== null) {
+            window.cancelAnimationFrame(this._feedRefreshRaf);
+            this._feedRefreshRaf = null;
+        }
     }
 
     // ── Top Bar ───────────────────────────────────────────────────────────────
@@ -239,60 +292,75 @@ export class DesktopHubView extends ItemView {
 
     // ── CENTER Column ─────────────────────────────────────────────────────────
     private async renderCenter(parent: HTMLElement) {
-        const center = parent;
+        if (!this._captureSectionEl || !parent.contains(this._captureSectionEl)) {
+            this._captureSectionEl = parent.createEl('div', { cls: 'diwa-dh-capture-section' });
+        }
+        if (!this._centerInnerEl || !parent.contains(this._centerInnerEl)) {
+            this._centerInnerEl = parent.createEl('div', { cls: 'diwa-dh-center-inner' });
+            this._contextTabsHostEl = this._centerInnerEl.createEl('div');
+            this._feedRootEl = this._centerInnerEl.createEl('div', { cls: 'diwa-dh-feed' });
+        }
         const activeCtx = this._activeContextTab;
-        this.renderCapture(center, activeCtx !== 'all' ? [activeCtx] : []);
-        const inner = center.createEl('div', { cls: 'diwa-dh-center-inner' });
-        this.renderContextTabs(inner);
-        await this.renderFeed(inner);
+        this.renderCapture(this._captureSectionEl, activeCtx !== 'all' ? [activeCtx] : []);
+        if (this._contextTabsHostEl) {
+            this._contextTabsHostEl.empty();
+            this.renderContextTabs(this._contextTabsHostEl);
+        }
+        await this.renderFeed();
     }
 
     private renderCapture(parent: HTMLElement, initialContexts: string[] = []) {
-        const section = parent.createEl('div', { cls: 'diwa-dh-capture-section' });
-        const capture = section.createEl('div', { cls: 'diwa-dh-capture' });
-        const textarea = capture.createEl('textarea', {
-            cls: 'diwa-dh-capture-textarea',
-            attr: { rows: '2', placeholder: 'Think here…' },
-        }) as HTMLTextAreaElement;
-        const contextHint = capture.createEl('div', { cls: 'diwa-dh-capture-hint' });
-        const activeContexts = initialContexts.length > 0 ? initialContexts.join(', ') : 'all contexts';
-        contextHint.setText(`Enter to save • Shift+Enter newline • Esc clear • Scope: ${activeContexts}`);
+        if (!this._captureInputEl) {
+            parent.empty();
+            const capture = parent.createEl('div', { cls: 'diwa-dh-capture' });
+            const textarea = capture.createEl('textarea', {
+                cls: 'diwa-dh-capture-textarea',
+                attr: { rows: '2', placeholder: 'Think here...' },
+            }) as HTMLTextAreaElement;
+            const contextHint = capture.createEl('div', { cls: 'diwa-dh-capture-hint' });
+            this._captureInputEl = textarea;
+            this._captureHintEl = contextHint;
 
-        const autosize = () => {
-            textarea.style.height = 'auto';
-            textarea.style.height = `${Math.max(42, textarea.scrollHeight)}px`;
-        };
-        textarea.addEventListener('input', autosize);
-        requestAnimationFrame(autosize);
+            const autosize = () => {
+                textarea.style.height = 'auto';
+                textarea.style.height = `${Math.max(42, textarea.scrollHeight)}px`;
+            };
+            textarea.addEventListener('input', autosize);
+            requestAnimationFrame(autosize);
 
-        textarea.addEventListener('keydown', async (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                event.preventDefault();
-                textarea.value = '';
-                autosize();
-                return;
-            }
-            if (event.key !== 'Enter' || event.shiftKey) return;
-            event.preventDefault();
-            const raw = textarea.value.trim();
-            if (!raw) return;
-            this._capturePending++;
-            textarea.disabled = true;
-            try {
-                const created = await this._thoughtController.addThought({ content: raw, context: initialContexts });
-                if (!created) {
-                    new Notice('Error saving thought — please try again', 2500);
+            textarea.addEventListener('keydown', async (event: KeyboardEvent) => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    textarea.value = '';
+                    autosize();
                     return;
                 }
-                textarea.value = '';
-                autosize();
-                new Notice('✦ Thought saved', 1200);
-                await this.renderView();
-            } finally {
-                this._capturePending = Math.max(0, this._capturePending - 1);
-                textarea.disabled = false;
-            }
-        });
+                if (event.key !== 'Enter' || event.shiftKey) return;
+                event.preventDefault();
+                const raw = textarea.value;
+                if (!raw.trim()) return;
+                const contexts = this._activeContextTab !== 'all' ? [this._activeContextTab] : [];
+                this._capturePending++;
+                textarea.disabled = true;
+                try {
+                    const created = await this._thoughtController.addThought({ content: raw, context: contexts });
+                    if (!created) {
+                        new Notice('Error saving thought — please try again', 2500);
+                        return;
+                    }
+                    textarea.value = '';
+                    autosize();
+                    new Notice('✦ Thought saved', 1200);
+                    this.requestThoughtFeedRefresh();
+                } finally {
+                    this._capturePending = Math.max(0, this._capturePending - 1);
+                    textarea.disabled = false;
+                }
+            });
+        }
+
+        const activeContexts = initialContexts.length > 0 ? initialContexts.join(', ') : 'all contexts';
+        this._captureHintEl?.setText(`Enter -> save • Shift+Enter -> multiline • Scope: ${activeContexts}`);
     }
 
     private renderContextTabs(parent: HTMLElement) {
@@ -343,7 +411,7 @@ export class DesktopHubView extends ItemView {
                 if (this._activeContextTab === ctx) return;
                 this._activeContextTab = ctx;
                 if (ctx === 'all') this._feedScope = 'today';
-                this.renderView();
+                this.requestThoughtFeedRefresh();
             });
 
             if (!isDraggable) return;
@@ -379,7 +447,7 @@ export class DesktopHubView extends ItemView {
                 newOrder.splice(dropIndex, 0, moved);
                 this.plugin.settings.contextOrder = newOrder;
                 await this.plugin.saveSettings();
-                this.renderView();
+                this.requestThoughtFeedRefresh();
             });
         });
 
@@ -391,36 +459,81 @@ export class DesktopHubView extends ItemView {
         });
     }
 
-    private async renderFeed(parent: HTMLElement) {
-        const feed = parent.createEl('div', { cls: 'diwa-dh-feed' });
-        const ctx = this._activeContextTab;
-        const today = moment().format('YYYY-MM-DD');
+    private requestThoughtFeedRefresh(): void {
+        if (this._feedRefreshRaf !== null) return;
+        this._feedRefreshRaf = window.requestAnimationFrame(() => {
+            this._feedRefreshRaf = null;
+            void this.renderFeed();
+        });
+    }
 
-        const header = feed.createEl('div', { cls: 'diwa-dh-feed-header' });
-        const labelText = ctx === 'all' ? 'TODAY' : `#${ctx}`.toUpperCase();
-        header.createEl('div', { text: labelText, cls: 'diwa-dh-feed-label' });
-        const search = header.createEl('input', {
+    private ensureFeedStructure(): void {
+        if (!this._feedRootEl) return;
+        if (this._feedHeaderEl) return;
+
+        this._feedHeaderEl = this._feedRootEl.createEl('div', { cls: 'diwa-dh-feed-header' });
+        this._feedHeaderEl.createEl('div', { cls: 'diwa-dh-feed-label' });
+        const search = this._feedHeaderEl.createEl('input', {
             cls: 'diwa-dh-thought-search',
             attr: { type: 'text', placeholder: 'Search thoughts...' },
         }) as HTMLInputElement;
         search.value = this._thoughtSearchQuery;
         search.addEventListener('input', () => {
             this._thoughtSearchQuery = search.value;
-            this.renderView();
+            this.requestThoughtFeedRefresh();
         });
 
+        const list = this._feedRootEl.createEl('div', { cls: 'diwa-dh-feed-list' });
+        const pinnedSection = list.createEl('section', { cls: 'diwa-dh-thought-section' });
+        pinnedSection.createEl('div', { cls: 'diwa-dh-thought-section-title', text: 'Pinned (0)' });
+        this._feedPinnedListEl = pinnedSection.createEl('div');
+
+        const recentSection = list.createEl('section', { cls: 'diwa-dh-thought-section' });
+        recentSection.createEl('div', { cls: 'diwa-dh-thought-section-title', text: 'Recent (0)' });
+        this._feedRecentListEl = recentSection.createEl('div');
+
+        const archivedSection = list.createEl('section', { cls: 'diwa-dh-thought-section diwa-dh-thought-archived-section' });
+        archivedSection.createEl('div', { cls: 'diwa-dh-thought-section-title', text: 'Archived (0)' });
+        this._feedArchivedListEl = archivedSection.createEl('div');
+        archivedSection.style.display = 'none';
+
+        this._feedEmptyEl = this._feedRootEl.createEl('div', { cls: 'diwa-dh-feed-empty' });
+        this._feedEmptyEl.style.display = 'none';
+    }
+
+    private async renderFeed() {
+        this.ensureFeedStructure();
+        if (!this._feedRootEl || !this._feedHeaderEl || !this._feedPinnedListEl || !this._feedRecentListEl || !this._feedArchivedListEl || !this._feedEmptyEl) return;
+
+        const ctx = this._activeContextTab;
+        const today = moment().format('YYYY-MM-DD');
+        const labelText = ctx === 'all' ? 'TODAY' : `#${ctx}`.toUpperCase();
+        const labelEl = this._feedHeaderEl.querySelector('.diwa-dh-feed-label') as HTMLElement | null;
+        if (labelEl) labelEl.setText(labelText);
+
+        let toggle = this._feedHeaderEl.querySelector('.diwa-dh-scope-toggle') as HTMLElement | null;
         if (ctx !== 'all') {
-            const toggle = header.createEl('div', { cls: 'diwa-dh-scope-toggle' });
-            const todayPill = toggle.createEl('button', {
-                cls: `diwa-dh-scope-pill${this._feedScope === 'today' ? ' is-active' : ''}`,
-                text: 'Today'
-            });
-            const allPill = toggle.createEl('button', {
-                cls: `diwa-dh-scope-pill${this._feedScope === 'all' ? ' is-active' : ''}`,
-                text: 'All Time'
-            });
-            todayPill.addEventListener('click', () => { if (this._feedScope !== 'today') { this._feedScope = 'today'; this.renderView(); } });
-            allPill.addEventListener('click', () => { if (this._feedScope !== 'all') { this._feedScope = 'all'; this.renderView(); } });
+            if (!toggle) {
+                toggle = this._feedHeaderEl.createEl('div', { cls: 'diwa-dh-scope-toggle' });
+                const todayPill = toggle.createEl('button', { cls: 'diwa-dh-scope-pill', text: 'Today' });
+                todayPill.dataset.scope = 'today';
+                const allPill = toggle.createEl('button', { cls: 'diwa-dh-scope-pill', text: 'All Time' });
+                allPill.dataset.scope = 'all';
+                toggle.addEventListener('click', (event) => {
+                    const target = event.target as HTMLElement;
+                    const btn = target.closest('.diwa-dh-scope-pill') as HTMLElement | null;
+                    const scope = btn?.dataset.scope;
+                    if (scope !== 'today' && scope !== 'all') return;
+                    if (this._feedScope === scope) return;
+                    this._feedScope = scope;
+                    this.requestThoughtFeedRefresh();
+                });
+            }
+            for (const pill of Array.from(toggle.querySelectorAll<HTMLElement>('.diwa-dh-scope-pill'))) {
+                pill.toggleClass('is-active', pill.dataset.scope === this._feedScope);
+            }
+        } else if (toggle) {
+            toggle.remove();
         }
 
         let thoughts = this._thoughtController.searchThoughts(this._thoughtSearchQuery);
@@ -431,134 +544,412 @@ export class DesktopHubView extends ItemView {
             thoughts = thoughts.filter(t => t.context.some(c => c.toLowerCase() === ctxLow));
             if (this._feedScope === 'today') thoughts = thoughts.filter(t => t.day === today);
         }
-        thoughts = thoughts.filter((thought) => !thought.archived);
         thoughts.sort((a, b) => (b.createdAt ?? b.lastThreadUpdate ?? 0) - (a.createdAt ?? a.lastThreadUpdate ?? 0));
 
-        if (thoughts.length === 0) {
-            feed.createEl('div', {
-                text: ctx === 'all' ? 'Nothing captured yet — your mind is clear.' : `No thoughts tagged #${ctx}${this._feedScope === 'today' ? ' today' : ''}.`,
-                cls: 'diwa-dh-feed-empty'
-            });
-            return;
+        const pinned = thoughts.filter((t) => t.pinned === true && !t.archived);
+        const recent = thoughts.filter((t) => !t.archived && !t.pinned);
+        const archived = thoughts.filter((t) => !!t.archived);
+
+        const setSectionTitle = (container: HTMLElement, title: string, count: number) => {
+            const titleEl = container.parentElement?.querySelector('.diwa-dh-thought-section-title') as HTMLElement | null;
+            if (titleEl) titleEl.setText(`${title} (${count})`);
+        };
+        setSectionTitle(this._feedPinnedListEl, 'Pinned', pinned.length);
+        setSectionTitle(this._feedRecentListEl, 'Recent', recent.length);
+        setSectionTitle(this._feedArchivedListEl, 'Archived', archived.length);
+
+        await this.patchThoughtSection(this._feedPinnedListEl, pinned);
+        await this.patchThoughtSection(this._feedRecentListEl, recent);
+        await this.patchThoughtSection(this._feedArchivedListEl, archived);
+
+        const hasVisible = pinned.length + recent.length > 0;
+        this._feedEmptyEl.style.display = hasVisible ? 'none' : '';
+        if (!hasVisible) {
+            this._feedEmptyEl.setText(ctx === 'all' ? 'Nothing captured yet — your mind is clear.' : `No thoughts tagged #${ctx}${this._feedScope === 'today' ? ' today' : ''}.`);
         }
 
-        const pinned = thoughts.filter((t) => t.pinned || t.state === 'important');
-        const recent = thoughts.filter((t) => !pinned.includes(t)).slice(0, 50);
-        const older = thoughts.filter((t) => !pinned.includes(t) && !recent.includes(t));
+        const visibleIds = new Set<string>([...pinned, ...recent, ...archived].map((thought) => thought.id || thought.filePath));
+        for (const [id, row] of this._thoughtRowMap.entries()) {
+            if (!visibleIds.has(id)) {
+                row.rootEl.remove();
+                this._thoughtRowMap.delete(id);
+            }
+        }
+    }
 
-        const list = feed.createEl('div', { cls: 'diwa-dh-feed-list' });
-        const renderSection = async (title: string, sectionThoughts: ThoughtEntry[]) => {
-            if (sectionThoughts.length === 0) return;
-            const sectionEl = list.createEl('section', { cls: 'diwa-dh-thought-section' });
-            sectionEl.createEl('div', { cls: 'diwa-dh-thought-section-title', text: `${title} (${sectionThoughts.length})` });
-            for (const t of sectionThoughts) {
-                const item = sectionEl.createEl('div', { cls: 'diwa-dh-feed-item' });
-                item.createEl('span', { cls: 'diwa-dh-feed-dot' });
-                const content = item.createEl('div', { cls: 'diwa-dh-feed-content' });
-                const isToday = t.day === today;
-                const ts = t.created
-                    ? (isToday
-                        ? moment(t.created, 'YYYY-MM-DD HH:mm:ss').format('HH:mm')
-                        : moment(t.created, 'YYYY-MM-DD HH:mm:ss').format('MMM D · HH:mm'))
-                    : '';
-                content.createEl('span', { text: ts, cls: 'diwa-dh-feed-time' });
-                const mdEl = content.createEl('div', { cls: 'diwa-dh-feed-text' });
-                await MarkdownRenderer.render(this.app, t.body || t.title || '', mdEl, t.filePath, this);
-                const linkedTasksEl = content.createEl('div', { cls: 'diwa-dh-feed-linked-tasks' });
-                this.renderLinkedTasksForThought(linkedTasksEl, t);
+    private createThoughtRow(thought: ThoughtEntry) {
+        const thoughtId = thought.id || thought.filePath;
+        const item = document.createElement('div');
+        item.className = 'diwa-dh-feed-item thought-item';
+        item.dataset.thoughtId = thoughtId;
+        item.createEl('span', { cls: 'diwa-dh-feed-dot' });
 
-                const actions = item.createEl('div', { cls: 'diwa-dh-feed-actions' });
-                const synBtn = actions.createEl('button', {
-                    cls: 'diwa-dh-feed-edit-btn',
-                    attr: { title: 'Open in synthesis', 'aria-label': 'Open in synthesis' }
-                });
-                setIcon(synBtn, 'sparkles');
-                synBtn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    await this.openSynthesisFromHub(t);
-                });
+        const content = item.createEl('div', { cls: 'diwa-dh-feed-content thought-content' });
+        const timeEl = content.createEl('span', { cls: 'diwa-dh-feed-time thought-meta' });
+        const mdEl = content.createEl('div', { cls: 'diwa-dh-feed-text' });
 
-                const convertBtn = actions.createEl('button', {
-                    cls: 'diwa-dh-feed-edit-btn',
-                    attr: { title: 'Convert to task', 'aria-label': 'Convert to task' }
-                });
-                setIcon(convertBtn, 'arrow-right');
-                convertBtn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    convertBtn.disabled = true;
-                    try {
-                        const ok = await this._thoughtController.convertThoughtToTask(t.filePath, this._taskController);
-                        if (!ok) {
-                            new Notice('Could not convert thought to task.');
-                            return;
-                        }
-                        const refreshed = this._thoughtController.getThought(t.filePath);
-                        if (refreshed) this.renderLinkedTasksForThought(linkedTasksEl, refreshed);
-                        new Notice('Thought converted to task', 1100);
-                    } finally {
-                        convertBtn.disabled = false;
+        const actions = item.createEl('div', { cls: 'diwa-dh-feed-actions thought-actions' });
+        const linkIcons = actions.createEl('div', { cls: 'diwa-dh-link-icons task-link-icons' });
+        const linkedThoughtIconEl = linkIcons.createEl('button', {
+            cls: 'diwa-dh-feed-edit-btn diwa-dh-link-icon thought-link-icon',
+            attr: { type: 'button', title: 'Linked thoughts', 'aria-label': 'Linked thoughts' },
+            text: '💬 0',
+        }) as HTMLButtonElement;
+        linkedThoughtIconEl.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const thoughtRef = item.dataset.thoughtId || '';
+            if (!thoughtRef) return;
+            this.getLinkModal().open({ thoughtId: thoughtRef }, this.getLinkModalHost());
+        });
+        const linkedTaskIconEl = linkIcons.createEl('button', {
+            cls: 'diwa-dh-feed-edit-btn diwa-dh-link-icon task-link-icon',
+            attr: { type: 'button', title: 'Linked tasks', 'aria-label': 'Linked tasks' },
+            text: '🔗 0',
+        }) as HTMLButtonElement;
+        linkedTaskIconEl.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const thoughtRef = item.dataset.thoughtId || '';
+            if (!thoughtRef) return;
+            this.getLinkModal().open({ thoughtId: thoughtRef }, this.getLinkModalHost());
+        });
+        const convertBtn = actions.createEl('button', {
+            cls: 'diwa-dh-feed-edit-btn',
+            attr: { title: 'Convert to task', 'aria-label': 'Convert to task' },
+        }) as HTMLButtonElement;
+        setIcon(convertBtn, 'arrow-right');
+        convertBtn.addEventListener('click', async (event) => {
+            event.stopPropagation();
+            const thoughtRef = item.dataset.thoughtId || '';
+            if (!thoughtRef) return;
+            convertBtn.disabled = true;
+            try {
+                const ok = await this._thoughtController.convertThoughtToTask(thoughtRef, this._taskController);
+                if (!ok) {
+                    new Notice('Could not convert thought to task.');
+                    return;
+                }
+                new Notice('Thought converted to task', 1100);
+                this.requestThoughtFeedRefresh();
+            } finally {
+                convertBtn.disabled = false;
+            }
+        });
+
+        const linkBtn = actions.createEl('button', {
+            cls: 'diwa-dh-feed-edit-btn',
+            attr: { title: 'Link thought', 'aria-label': 'Link thought' },
+        }) as HTMLButtonElement;
+        setIcon(linkBtn, 'link-2');
+        linkBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const thoughtRef = item.dataset.thoughtId || '';
+            if (!thoughtRef) return;
+            this.getLinkModal().open({ thoughtId: thoughtRef }, this.getLinkModalHost());
+        });
+
+        const pinBtn = actions.createEl('button', {
+            cls: 'diwa-dh-feed-edit-btn',
+            attr: { title: 'Pin thought', 'aria-label': 'Pin thought' },
+        }) as HTMLButtonElement;
+        setIcon(pinBtn, 'pin');
+        pinBtn.addEventListener('click', async (event) => {
+            event.stopPropagation();
+            const thoughtRef = item.dataset.thoughtId || '';
+            const current = this._thoughtController.getThought(thoughtRef);
+            if (!current) return;
+            await this._thoughtController.setPinned(thoughtRef, !current.pinned);
+        });
+
+        const archiveBtn = actions.createEl('button', {
+            cls: 'diwa-dh-feed-edit-btn',
+            attr: { title: 'Archive thought', 'aria-label': 'Archive thought' },
+        }) as HTMLButtonElement;
+        setIcon(archiveBtn, 'archive');
+        archiveBtn.addEventListener('click', async (event) => {
+            event.stopPropagation();
+            const thoughtRef = item.dataset.thoughtId || '';
+            const current = this._thoughtController.getThought(thoughtRef);
+            if (!current) return;
+            await this._thoughtController.setArchived(thoughtRef, !current.archived);
+        });
+
+        const editBtn = actions.createEl('button', { cls: 'diwa-dh-feed-edit-btn', attr: { title: 'Edit thought', 'aria-label': 'Edit thought' } });
+        setIcon(editBtn, 'lucide-pencil');
+        editBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const thoughtRef = item.dataset.thoughtId || '';
+            const current = this._thoughtController.getThought(thoughtRef);
+            if (!current) return;
+            this.makeThoughtEditable(item, content, actions, current);
+        });
+
+        return {
+            rootEl: item,
+            contentEl: content,
+            textEl: mdEl,
+            timeEl,
+            actionsEl: actions,
+            linkedTaskIconEl,
+            linkedThoughtIconEl,
+            pinBtnEl: pinBtn,
+            archiveBtnEl: archiveBtn,
+            signature: '',
+        };
+    }
+
+    private thoughtSnippet(thought: ThoughtEntry): string {
+        const fallback = thought.filePath.split('/').pop() || thought.filePath;
+        const firstLine = (thought.body || thought.content || thought.title || fallback)
+            .split('\n')
+            .find((line) => line.trim()) || fallback;
+        const trimmed = firstLine.trim();
+        return trimmed.length > 72 ? `${trimmed.slice(0, 69)}...` : trimmed;
+    }
+
+    private openThoughtLinkPopover(anchor: HTMLElement, sourceId: string): void {
+        this.closeThoughtLinkPopover();
+        if (!this._centerEl) return;
+        const sourceThought = this._thoughtController.getThought(sourceId);
+        if (!sourceThought) return;
+
+        const popover = this._centerEl.createEl('div', { cls: 'diwa-dh-inline-popover' });
+        this._thoughtPopoverEl = popover;
+        const search = popover.createEl('input', {
+            cls: 'diwa-dh-inline-popover-search',
+            attr: {
+                type: 'text',
+                placeholder: 'Search thoughts...',
+                spellcheck: 'false',
+            },
+        }) as HTMLInputElement;
+        const list = popover.createEl('div', { cls: 'diwa-dh-inline-popover-list' });
+        const sourcePath = sourceThought.filePath;
+        const sourceLinks = new Set(sourceThought.links?.thoughts ?? []);
+
+        const renderOptions = (query: string) => {
+            const q = query.trim().toLowerCase();
+            list.empty();
+            const thoughts = this._thoughtController.searchThoughts(q);
+            let count = 0;
+            for (const thought of thoughts) {
+                if (thought.filePath === sourcePath) continue;
+                const targetId = thought.id || thought.filePath;
+                const linked = sourceLinks.has(thought.filePath) || sourceLinks.has(targetId);
+                const option = list.createEl('button', {
+                    cls: `diwa-dh-inline-option${linked ? ' is-active' : ''}`,
+                    text: this.thoughtSnippet(thought),
+                    attr: { type: 'button', title: linked ? 'Already linked' : 'Link thought' },
+                }) as HTMLButtonElement;
+                option.disabled = linked;
+                option.addEventListener('click', async () => {
+                    const ok = await this._thoughtController.linkThoughtToThought(sourceId, targetId);
+                    if (!ok) {
+                        new Notice('Could not link thought', 1600);
+                        return;
                     }
+                    this.closeThoughtLinkPopover();
                 });
-
-                const pinBtn = actions.createEl('button', {
-                    cls: 'diwa-dh-feed-edit-btn',
-                    attr: { title: t.pinned ? 'Unpin thought' : 'Pin thought', 'aria-label': t.pinned ? 'Unpin thought' : 'Pin thought' },
-                });
-                setIcon(pinBtn, t.pinned ? 'pin-off' : 'pin');
-                pinBtn.addEventListener('click', async (event) => {
-                    event.stopPropagation();
-                    await this._thoughtController.setPinned(t.filePath, !t.pinned);
-                    await this.renderView();
-                });
-
-                const archiveBtn = actions.createEl('button', {
-                    cls: 'diwa-dh-feed-edit-btn',
-                    attr: { title: t.archived ? 'Unarchive thought' : 'Archive thought', 'aria-label': t.archived ? 'Unarchive thought' : 'Archive thought' },
-                });
-                setIcon(archiveBtn, t.archived ? 'archive-restore' : 'archive');
-                archiveBtn.addEventListener('click', async (event) => {
-                    event.stopPropagation();
-                    await this._thoughtController.setArchived(t.filePath, !t.archived);
-                    await this.renderView();
-                });
-
-                const editBtn = actions.createEl('button', { cls: 'diwa-dh-feed-edit-btn', attr: { title: 'Edit thought', 'aria-label': 'Edit thought' } });
-                setIcon(editBtn, 'lucide-pencil');
-                editBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.makeThoughtEditable(item, content, actions, t);
-                });
+                count++;
+                if (count >= 30) break;
+            }
+            if (count === 0) {
+                list.createEl('div', { cls: 'diwa-dh-inline-empty', text: 'No thoughts found.' });
             }
         };
 
-        await renderSection('Pinned', pinned);
-        await renderSection('Recent', recent);
-        await renderSection('Older', older);
+        search.addEventListener('input', () => renderOptions(search.value));
+        renderOptions('');
+
+        requestAnimationFrame(() => {
+            if (!this._thoughtPopoverEl || this._thoughtPopoverEl !== popover || !this._centerEl) return;
+            const rootRect = this._centerEl.getBoundingClientRect();
+            const anchorRect = anchor.getBoundingClientRect();
+            const maxLeft = Math.max(8, rootRect.width - popover.offsetWidth - 8);
+            const left = Math.min(Math.max(8, anchorRect.left - rootRect.left), maxLeft);
+            const top = anchorRect.bottom - rootRect.top + 6;
+            popover.style.left = `${left}px`;
+            popover.style.top = `${top}px`;
+            search.focus();
+        });
+
+        this._thoughtPopoverOutsideHandler = (event: MouseEvent) => {
+            const target = event.target as Node | null;
+            if (!target) return;
+            if (popover.contains(target) || anchor.contains(target)) return;
+            this.closeThoughtLinkPopover();
+        };
+        this._thoughtPopoverEscapeHandler = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            this.closeThoughtLinkPopover();
+            anchor.focus();
+        };
+        window.addEventListener('mousedown', this._thoughtPopoverOutsideHandler, true);
+        window.addEventListener('keydown', this._thoughtPopoverEscapeHandler, true);
     }
 
-    private renderLinkedTasksForThought(container: HTMLElement, thought: ThoughtEntry): void {
-        container.empty();
-        const linkedTasks = this._taskController.getLinkedTasksForThought(thought.filePath);
-        if (linkedTasks.length === 0) return;
+    private closeThoughtLinkPopover(): void {
+        if (this._thoughtPopoverOutsideHandler) {
+            window.removeEventListener('mousedown', this._thoughtPopoverOutsideHandler, true);
+            this._thoughtPopoverOutsideHandler = null;
+        }
+        if (this._thoughtPopoverEscapeHandler) {
+            window.removeEventListener('keydown', this._thoughtPopoverEscapeHandler, true);
+            this._thoughtPopoverEscapeHandler = null;
+        }
+        if (this._thoughtPopoverEl) {
+            this._thoughtPopoverEl.remove();
+            this._thoughtPopoverEl = null;
+        }
+    }
 
-        for (const task of linkedTasks.slice(0, 3)) {
-            const taskBtn = container.createEl('button', {
-                cls: 'diwa-dh-feed-linked-task',
-                text: `Linked Task -> ${task.title}`,
-                attr: { type: 'button' },
-            }) as HTMLButtonElement;
-            taskBtn.addEventListener('click', async (event) => {
-                event.stopPropagation();
-                const file = this.app.vault.getAbstractFileByPath(task.filePath);
-                if (file instanceof TFile) await this.app.workspace.getLeaf(false).openFile(file);
-            });
+    private passesThoughtFilters(thought: ThoughtEntry): boolean {
+        const ctx = this._activeContextTab;
+        const today = moment().format('YYYY-MM-DD');
+        const query = this._thoughtSearchQuery.trim().toLowerCase();
+        if (ctx === 'all') {
+            if (thought.day !== today) return false;
+        } else {
+            const ctxLow = ctx.toLowerCase();
+            if (!thought.context.some((c) => c.toLowerCase() === ctxLow)) return false;
+            if (this._feedScope === 'today' && thought.day !== today) return false;
         }
-        if (linkedTasks.length > 3) {
-            container.createEl('span', {
-                cls: 'diwa-dh-feed-linked-task-count',
-                text: `+${linkedTasks.length - 3} more`,
-            });
+        if (query) {
+            const haystack = `${thought.title} ${thought.content || thought.body || ''} ${(thought.tags ?? []).join(' ')}`.toLowerCase();
+            if (!haystack.includes(query)) return false;
         }
+        return true;
+    }
+
+    private async refreshThoughtRow(row: {
+        rootEl: HTMLElement;
+        textEl: HTMLElement;
+        timeEl: HTMLElement;
+        linkedTaskIconEl: HTMLButtonElement;
+        linkedThoughtIconEl: HTMLButtonElement;
+        pinBtnEl: HTMLButtonElement;
+        archiveBtnEl: HTMLButtonElement;
+        signature: string;
+    }, thought: ThoughtEntry): Promise<void> {
+        const today = moment().format('YYYY-MM-DD');
+        const isToday = thought.day === today;
+        const ts = thought.created
+            ? (isToday
+                ? moment(thought.created, 'YYYY-MM-DD HH:mm:ss').format('HH:mm')
+                : moment(thought.created, 'YYYY-MM-DD HH:mm:ss').format('MMM D · HH:mm'))
+            : '';
+        row.timeEl.setText(ts);
+        row.pinBtnEl.setAttr('title', thought.pinned ? 'Unpin thought' : 'Pin thought');
+        row.pinBtnEl.setAttr('aria-label', thought.pinned ? 'Unpin thought' : 'Pin thought');
+        setIcon(row.pinBtnEl, thought.pinned ? 'pin-off' : 'pin');
+        row.archiveBtnEl.setAttr('title', thought.archived ? 'Unarchive thought' : 'Archive thought');
+        row.archiveBtnEl.setAttr('aria-label', thought.archived ? 'Unarchive thought' : 'Archive thought');
+        setIcon(row.archiveBtnEl, thought.archived ? 'archive-restore' : 'archive');
+
+        const signature = `${thought.modified}|${thought.updatedAt}|${thought.body || thought.content || thought.title}`;
+        if (row.signature !== signature) {
+            row.textEl.empty();
+            await MarkdownRenderer.render(this.app, thought.body || thought.title || '', row.textEl, thought.filePath, this);
+            row.signature = signature;
+        }
+        const linkedTasks = this._taskController.getLinkedTasksForThought(thought.filePath);
+        row.linkedTaskIconEl.setText(`🔗 ${linkedTasks.length}`);
+        row.linkedTaskIconEl.style.display = linkedTasks.length > 0 ? '' : 'none';
+
+        const linkedThoughts = Array.from(new Set((thought.links?.thoughts ?? []).filter(Boolean)));
+        row.linkedThoughtIconEl.setText(`💬 ${linkedThoughts.length}`);
+        row.linkedThoughtIconEl.style.display = linkedThoughts.length > 0 ? '' : 'none';
+    }
+
+    private moveThoughtToCorrectSection(thought: ThoughtEntry): void {
+        const thoughtId = thought.id || thought.filePath;
+        const row = this._thoughtRowMap.get(thoughtId);
+        if (!row) return;
+        if (!this._feedPinnedListEl || !this._feedRecentListEl || !this._feedArchivedListEl) return;
+        if (thought.archived) {
+            this._feedArchivedListEl.appendChild(row.rootEl);
+        } else if (thought.pinned === true) {
+            this._feedPinnedListEl.appendChild(row.rootEl);
+        } else {
+            this._feedRecentListEl.appendChild(row.rootEl);
+        }
+    }
+
+    private refreshSectionCounters(): void {
+        const setTitle = (container: HTMLElement | null, title: string) => {
+            if (!container) return;
+            const titleEl = container.parentElement?.querySelector('.diwa-dh-thought-section-title') as HTMLElement | null;
+            if (titleEl) titleEl.setText(`${title} (${container.childElementCount})`);
+        };
+        setTitle(this._feedPinnedListEl, 'Pinned');
+        setTitle(this._feedRecentListEl, 'Recent');
+        setTitle(this._feedArchivedListEl, 'Archived');
+        if (this._feedEmptyEl && this._feedPinnedListEl && this._feedRecentListEl) {
+            const hasVisible = this._feedPinnedListEl.childElementCount + this._feedRecentListEl.childElementCount > 0;
+            this._feedEmptyEl.style.display = hasVisible ? 'none' : '';
+        }
+    }
+
+    private async updateThoughtInUI(thought: ThoughtEntry): Promise<void> {
+        this.ensureFeedStructure();
+        if (!this._feedPinnedListEl || !this._feedRecentListEl || !this._feedArchivedListEl) return;
+        const thoughtId = thought.id || thought.filePath;
+        let row = this._thoughtRowMap.get(thoughtId);
+        if (!row) {
+            row = this.createThoughtRow(thought);
+            this._thoughtRowMap.set(thoughtId, row);
+        }
+        row.rootEl.dataset.thoughtId = thoughtId;
+        await this.refreshThoughtRow(row, thought);
+
+        if (!this.passesThoughtFilters(thought)) {
+            row.rootEl.remove();
+            this.refreshSectionCounters();
+            return;
+        }
+        this.moveThoughtToCorrectSection(thought);
+        this.refreshSectionCounters();
+    }
+
+    private async patchThoughtSection(sectionListEl: HTMLElement, thoughts: ThoughtEntry[]): Promise<void> {
+        for (const thought of thoughts) {
+            const thoughtId = thought.id || thought.filePath;
+            let row = this._thoughtRowMap.get(thoughtId);
+            if (!row) {
+                row = this.createThoughtRow(thought);
+                this._thoughtRowMap.set(thoughtId, row);
+            }
+            row.rootEl.dataset.thoughtId = thoughtId;
+            await this.refreshThoughtRow(row, thought);
+            sectionListEl.appendChild(row.rootEl);
+        }
+
+        const sectionIds = new Set(thoughts.map((thought) => thought.id || thought.filePath));
+        for (const child of Array.from(sectionListEl.children)) {
+            const id = (child as HTMLElement).dataset.thoughtId;
+            if (id && !sectionIds.has(id)) {
+                (child as HTMLElement).remove();
+            }
+        }
+    }
+
+    private getLinkModal(): LinkModal {
+        if (!DesktopHubView.sharedLinkModal) {
+            DesktopHubView.sharedLinkModal = LinkModal.getShared(
+                this.app,
+                this.plugin,
+                this._thoughtController,
+                this._taskController,
+            );
+        }
+        return DesktopHubView.sharedLinkModal;
+    }
+
+    private getLinkModalHost(): HTMLElement {
+        return this._wrapEl
+            || this._centerEl
+            || (this.containerEl.children[1] as HTMLElement | undefined)
+            || document.body;
     }
 
     private makeThoughtEditable(item: HTMLElement, content: HTMLElement, actionsEl: HTMLElement, t: ThoughtEntry) {
@@ -617,6 +1008,7 @@ export class DesktopHubView extends ItemView {
                     context: [...editContexts],
                 });
                 new Notice('✦ Thought updated', 1200);
+                this.requestThoughtFeedRefresh();
             } catch {
                 new Notice('Error updating thought', 2500);
                 content.style.display = '';

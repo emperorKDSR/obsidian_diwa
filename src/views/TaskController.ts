@@ -178,8 +178,9 @@ export class TaskController {
         if (!task) return [];
         const linkedThoughtIds = getTaskThoughtIds(task);
         const linkedThoughts: ThoughtEntry[] = [];
+        const thoughtController = this.plugin.getThoughtController();
         for (const thoughtId of linkedThoughtIds) {
-            const thought = this.plugin.index.thoughtIndex.get(thoughtId);
+            const thought = thoughtController.getThought(thoughtId);
             if (thought) linkedThoughts.push(thought);
         }
         return linkedThoughts;
@@ -291,11 +292,14 @@ export class TaskController {
 
         const updatedThought: ThoughtEntry = {
             ...resolvedThought.thought,
-            links: { tasks: nextTaskIds },
+            links: {
+                tasks: nextTaskIds,
+                thoughts: resolvedThought.thought.links?.thoughts ?? [],
+            },
             modified: moment(now).format('YYYY-MM-DD HH:mm:ss'),
             lastThreadUpdate: now,
         };
-        this.plugin.index.thoughtIndex.set(updatedThought.filePath, updatedThought);
+        this.plugin.getThoughtController().upsertThought(updatedThought);
 
         await this.reindexTask(resolvedTask.filePath);
         await this.reindexThought(resolvedThought.filePath);
@@ -314,13 +318,13 @@ export class TaskController {
 
         try {
             this.plugin.refreshCoordinator.suppressNotifyRefresh(800);
-            const created = await this.plugin.vault.createThoughtFile(
-                thoughtText,
-                [...(resolvedTask.task.context || [])],
-                resolvedTask.task.project,
-            );
-            await this.reindexThought(created.path);
-            return this.linkThoughtToTask(created.path, getTaskKey(resolvedTask.task));
+            const created = await this.plugin.getThoughtController().addThought({
+                content: thoughtText,
+                context: [...(resolvedTask.task.context || [])],
+                project: resolvedTask.task.project || undefined,
+            });
+            if (!created) return false;
+            return this.linkThoughtToTask(created.filePath, getTaskKey(resolvedTask.task));
         } catch (error) {
             console.error('[DIWA TaskController] Error creating thought from task', error);
             return false;
@@ -361,11 +365,14 @@ export class TaskController {
 
         const updatedThought: ThoughtEntry = {
             ...resolvedThought.thought,
-            links: { tasks: nextTaskIds },
+            links: {
+                tasks: nextTaskIds,
+                thoughts: resolvedThought.thought.links?.thoughts ?? [],
+            },
             modified: moment(now).format('YYYY-MM-DD HH:mm:ss'),
             lastThreadUpdate: now,
         };
-        this.plugin.index.thoughtIndex.set(updatedThought.filePath, updatedThought);
+        this.plugin.getThoughtController().upsertThought(updatedThought);
 
         await this.reindexTask(resolvedTask.filePath);
         await this.reindexThought(resolvedThought.filePath);
@@ -487,13 +494,8 @@ export class TaskController {
     }
 
     private resolveThoughtRecord(thoughtId: string): { filePath: string; thought: ThoughtEntry } | null {
-        const byPath = this.plugin.index.thoughtIndex.get(thoughtId);
-        if (byPath) return { filePath: byPath.filePath, thought: byPath };
-        for (const thought of this.plugin.index.thoughtIndex.values()) {
-            if (thought.filePath === thoughtId || thought.id === thoughtId) {
-                return { filePath: thought.filePath, thought };
-            }
-        }
+        const thought = this.plugin.getThoughtController().getThought(thoughtId);
+        if (thought) return { filePath: thought.filePath, thought };
         return null;
     }
 

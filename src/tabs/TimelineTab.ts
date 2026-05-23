@@ -599,7 +599,11 @@ export class TimelineTab extends BaseTab {
                 async (newText, newCtxStr, newDue) => {
                     const ctxArr = newCtxStr ? parseContextString(newCtxStr) : [];
                     if (item.type === 'task') await this.vault.editTask(item.entry.filePath, newText.replace(/<br>/g, '\n'), ctxArr, newDue || undefined);
-                    else await this.vault.editThought(item.entry.filePath, newText.replace(/<br>/g, '\n'), ctxArr);
+                    else await this.plugin.getThoughtController().updateThought({
+                        filePath: item.entry.filePath,
+                        content: newText.replace(/<br>/g, '\n'),
+                        context: ctxArr,
+                    });
                     this._refreshFeed();
                 }
             ).open();
@@ -613,7 +617,7 @@ export class TimelineTab extends BaseTab {
             new ConfirmModal(this.app, `Move this ${item.type} to trash?`, async () => {
                 await this.vault.deleteFile(item.entry.filePath, item.type === 'task' ? 'tasks' : 'thoughts');
                 if (item.type === 'task') this.index.taskIndex.delete(item.entry.filePath);
-                else this.index.thoughtIndex.delete(item.entry.filePath);
+                else this.plugin.getThoughtController().removeThoughtFromIndex(item.entry.filePath);
                 entryEl.remove();
             }).open();
         });
@@ -631,7 +635,7 @@ export class TimelineTab extends BaseTab {
             this.app, this.plugin, '', '', null, false,
             async (text, ctxs) => {
                 if (!text.trim()) return;
-                await this.vault.createThoughtFile(text, parseContextString(ctxs));
+                await this.plugin.getThoughtController().addThought({ content: text, context: parseContextString(ctxs) });
                 this.isSearchMode = false;
                 this._searchQuery = '';
                 this.initTimeline();
@@ -640,5 +644,4 @@ export class TimelineTab extends BaseTab {
         ).open();
     }
 }
-
 

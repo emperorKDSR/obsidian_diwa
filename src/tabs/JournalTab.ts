@@ -117,7 +117,11 @@ export class JournalTab extends BaseTab {
             e.stopPropagation();
             new JournalEntryModal(this.app, this.plugin, 'edit', entry.body, entry.filePath,
                 async (newText, ctxArr) => {
-                    await this.vault.editThought(entry.filePath, newText, ctxArr);
+                    await this.plugin.getThoughtController().updateThought({
+                        filePath: entry.filePath,
+                        content: newText,
+                        context: ctxArr,
+                    });
                     this.view.renderView();
                 }, entry.context).open();
         });
@@ -252,7 +256,7 @@ export class JournalTab extends BaseTab {
             if (!text) return;
             const ctxs = [...contexts];
             if (!ctxs.includes('journal')) ctxs.push('journal');
-            await this.vault.createThoughtFile(text, ctxs);
+            await this.plugin.getThoughtController().addThought({ content: text, context: ctxs });
             textarea.value = '';
             textarea.style.height = '';
             contexts = [];
@@ -355,7 +359,7 @@ export class JournalTab extends BaseTab {
         new JournalEntryModal(this.app, this.plugin, 'new', '', null,
             async (text, contexts) => {
                 if (!text.trim()) return;
-                await this.vault.createThoughtFile(text, contexts);
+                await this.plugin.getThoughtController().addThought({ content: text, context: contexts });
                 this.view.renderView();
             }).open();
     }
@@ -378,5 +382,4 @@ export class JournalTab extends BaseTab {
         s.createEl('div', { cls: 'diwa-journal-stat-lbl', text: label });
     }
 }
-
 

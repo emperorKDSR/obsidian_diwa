@@ -480,6 +480,28 @@ export class VaultService {
             fm['synthesized'] = false;
         });
     }
+
+    async persistThoughtMetadata(thought: Pick<ThoughtEntry, 'filePath' | 'pinned' | 'archived' | 'state' | 'links' | 'createdAt' | 'updatedAt' | 'modified' | 'tags'>): Promise<void> {
+        const file = this.app.vault.getAbstractFileByPath(thought.filePath);
+        if (!(file instanceof TFile)) return;
+        const linkedTasks = Array.from(new Set((thought.links?.tasks ?? []).map((id) => String(id).trim()).filter(Boolean)));
+        const linkedThoughts = Array.from(new Set((thought.links?.thoughts ?? []).map((id) => String(id).trim()).filter(Boolean)));
+        const now = Date.now();
+        const modified = thought.modified || this.formatDateTime(new Date(now));
+        await this.app.fileManager.processFrontMatter(file, (fm) => {
+            fm['pinned'] = Boolean(thought.pinned);
+            fm['archived'] = Boolean(thought.archived);
+            fm['state'] = thought.state || (thought.pinned ? 'important' : 'raw');
+            fm['links'] = {
+                tasks: linkedTasks,
+                thoughts: linkedThoughts,
+            };
+            fm['updatedAt'] = Number(thought.updatedAt ?? now);
+            if (thought.createdAt) fm['createdAt'] = Number(thought.createdAt);
+            fm['modified'] = modified;
+            if (thought.tags) fm['tags'] = thought.tags;
+        });
+    }
     /** Merge new context tags into a thought file. Pass replace=true to overwrite entirely. */
     async assignContext(filePath: string, contexts: string[], replace = false): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(filePath);

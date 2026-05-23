@@ -189,7 +189,7 @@ export class SynthesisTab extends BaseTab {
         delBtn.addEventListener('click', () => {
             new ConfirmModal(this.app, 'Move this thought to trash?', async () => {
                 await this.vault.deleteFile(filePath, 'thoughts');
-                this.index.thoughtIndex.delete(filePath);
+                this.plugin.getThoughtController().removeThoughtFromIndex(filePath);
                 this.view.renderView();
             }).open();
         });
@@ -202,11 +202,8 @@ export class SynthesisTab extends BaseTab {
             const next = check.checked;
             check.disabled = true;
             try {
-                if (next) await this.vault.markAsSynthesized(thought.filePath);
-                else await this.vault.unmarkSynthesized(thought.filePath);
+                await this.plugin.getThoughtController().setSynthesized(thought.filePath, next);
                 thought.synthesized = next;
-                const indexed = this.index.thoughtIndex.get(thought.filePath);
-                if (indexed) indexed.synthesized = next;
                 onChanged?.(next);
                 await this.refreshAfterMutation(thought.filePath);
             } catch (e) {
@@ -241,7 +238,7 @@ export class SynthesisTab extends BaseTab {
             const nextContext = select.value;
             const nextContexts = nextContext ? [nextContext] : [];
             try {
-                await this.vault.assignContextToThought(
+                await this.plugin.getThoughtController().assignThoughtContext(
                     thought.filePath,
                     nextContexts,
                     topicsProvider()
@@ -293,7 +290,7 @@ export class SynthesisTab extends BaseTab {
         const persist = async () => {
             input.disabled = true;
             try {
-                await this.vault.assignContextToThought(
+                await this.plugin.getThoughtController().assignThoughtContext(
                     thought.filePath,
                     contextsProvider().slice(0, 1),
                     selectedTopics
