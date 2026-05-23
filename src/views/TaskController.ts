@@ -2,11 +2,12 @@ import { moment, TFile } from 'obsidian';
 import type DiwaPlugin from '../main';
 import type { TaskEntry } from '../types';
 
-interface TaskPanePort {
+export interface TaskPanePort {
+    paneId: string;
     addTask(task: TaskEntry): void;
     updateTask(task: TaskEntry): void;
     removeTask(taskId: string, filePath?: string): void;
-    syncFromIndex(): void;
+    syncTasks(tasks: TaskEntry[]): void;
 }
 
 function getTaskKey(task: TaskEntry): string {
@@ -14,38 +15,55 @@ function getTaskKey(task: TaskEntry): string {
 }
 
 export class TaskController {
-    private pane: TaskPanePort | null = null;
+    private paneRegistry = new Map<string, TaskPanePort>();
 
     constructor(private plugin: DiwaPlugin) {}
 
-    bindPane(pane: TaskPanePort | null): void {
-        this.pane = pane;
-        if (pane) pane.syncFromIndex();
+    registerPane(pane: TaskPanePort): void {
+        if (this.paneRegistry.has(pane.paneId)) {
+            console.warn('[DIWA TaskController] replacing existing pane registration', { paneId: pane.paneId });
+        }
+        this.paneRegistry.set(pane.paneId, pane);
+        pane.syncTasks(this.getIndexSnapshot());
+    }
+
+    unregisterPane(paneId: string): void {
+        this.paneRegistry.delete(paneId);
     }
 
     syncFromIndex(): void {
-        this.pane?.syncFromIndex();
+        const snapshot = this.getIndexSnapshot();
+        for (const pane of this.paneRegistry.values()) pane.syncTasks(snapshot);
+    }
+
+    syncPane(paneId: string): void {
+        const pane = this.paneRegistry.get(paneId);
+        if (!pane) {
+            console.warn('[DIWA TaskController] syncPane called for unregistered pane', { paneId });
+            return;
+        }
+        pane.syncTasks(this.getIndexSnapshot());
     }
 
     addTask(task: TaskEntry): void {
         this.plugin.index.taskIndex.set(task.filePath, task);
-        this.pane?.addTask(task);
+        for (const pane of this.paneRegistry.values()) pane.addTask(task);
     }
 
     updateTask(task: TaskEntry): void {
         this.plugin.index.taskIndex.set(task.filePath, task);
-        this.pane?.updateTask(task);
+        for (const pane of this.paneRegistry.values()) pane.updateTask(task);
     }
 
     removeTask(taskId: string): void {
         const resolved = this.resolveTaskRecord(taskId);
         if (!resolved) {
             console.warn('[DIWA TaskController] removeTask called for unknown task', { taskId });
-            this.pane?.removeTask(taskId, taskId);
+            for (const pane of this.paneRegistry.values()) pane.removeTask(taskId, taskId);
             return;
         }
         this.plugin.index.taskIndex.delete(resolved.filePath);
-        this.pane?.removeTask(resolved.taskKey, resolved.filePath);
+        for (const pane of this.paneRegistry.values()) pane.removeTask(resolved.taskKey, resolved.filePath);
     }
 
     async toggleTask(taskId: string): Promise<boolean> {
@@ -125,5 +143,9 @@ export class TaskController {
     private async reindexTask(filePath: string): Promise<void> {
         const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
         if (file instanceof TFile) await this.plugin.refreshCoordinator.reindexFile(file);
+    }
+
+    private getIndexSnapshot(): TaskEntry[] {
+        return Array.from(this.plugin.index.taskIndex.values());
     }
 }

@@ -1,542 +1,359 @@
-import { moment, setIcon, Notice } from 'obsidian';
+import { Notice, Platform, TFile, moment, setIcon } from 'obsidian';
 import type { DiwaView } from '../view';
 import { BaseTab } from './BaseTab';
 import { EditEntryModal } from '../modals/EditEntryModal';
-import { EditTaskModal } from '../modals/EditTaskModal';
-import { ConfirmModal } from '../modals/ConfirmModal';
-import { ThoughtPickerModal } from '../modals/ThoughtPickerModal';
 import type { TaskEntry } from '../types';
-import { taskEntryToTask } from '../utils/taskAdapter';
-import {
-    getFocusTasks,
-    getTaskUrgencyTier,
-    explainTaskPriority,
-    maintainFocusStability,
-} from '../utils/focusEngine';
-import type { Task } from '../types';
-import { parseContextString } from '../utils';
+import { isTablet, parseContextString } from '../utils';
+import { TaskController } from '../views/TaskController';
+import { TaskPane, type TaskPaneHost, type TaskFilterFn, type TaskSortFn } from '../views/DesktopTaskPane';
 
-type SecondaryMode = 'inbox' | 'overdue' | 'done';
+interface PaneConfig {
+    paneId: string;
+    title: string;
+    emptyMessage: string;
+    baseFilterFn: TaskFilterFn;
+    filterFn: TaskFilterFn;
+    sortFn?: TaskSortFn;
+}
 
-// ── GawaTab ───────────────────────────────────────────────────────────────
+type MobileTabId = 'inbox' | 'today' | 'focus' | 'projects';
+const MOBILE_TAB_ORDER: MobileTabId[] = ['inbox', 'today', 'focus', 'projects'];
 
-/**
- * Redesigned task experience: focus-first, minimal cognitive load.
- *
- * Primary:   Focus View  — top 3–5 tasks from getFocusTasks(), each as an
- *                          expandable card with urgency indicator + explanation.
- * Secondary: Inbox/Overdue/Done — compact list, opt-in via toggle.
- *
- * All state (focus snapshot, detail path, secondary mode) lives on DiwaView
- * so it survives the tab being re-instantiated on vault events.
- */
 export class GawaTab extends BaseTab {
     private _container: HTMLElement | null = null;
-
-    // ── Accessors — state stored on view for persistence across re-renders ──
-
-    private get _focusSnapshot(): Task[] { return this.view.tasksFocusSnapshot; }
-    private set _focusSnapshot(v: Task[]) { this.view.tasksFocusSnapshot = v; }
-
-    private get _detailPath(): string | null { return this.view.tasksDetailPath; }
-    private set _detailPath(v: string | null) { this.view.tasksDetailPath = v; }
-
-    private get _secondaryMode(): SecondaryMode | null {
-        return this.view.tasksSecondaryMode as SecondaryMode | null;
-    }
-    private set _secondaryMode(v: SecondaryMode | null) {
-        this.view.tasksSecondaryMode = v;
-    }
+    private readonly _taskController: TaskController;
+    private readonly _paneHost: TaskPaneHost;
+    private readonly _paneMap = new Map<string, TaskPane>();
+    private readonly _mobilePaneShells = new Map<MobileTabId, HTMLElement>();
+    private readonly _mobileTabButtons = new Map<MobileTabId, HTMLElement>();
+    private _taskPending = 0;
+    private _taskFilter: 'upcoming' | 'all' = 'all';
 
     constructor(view: DiwaView) {
         super(view);
-    }
-
-    // ── Render entry point ─────────────────────────────────────────────────
-
-    render(container: HTMLElement) {
-        this._container = container;
-        container.empty();
-
-        const wrap = container.createEl('div', { cls: 'diwa-tab-wrap diwa-gawa-tab' });
-        this._renderHeader(wrap);
-        this._renderFocusSection(wrap);
-
-        if (this._secondaryMode !== null) {
-            this._renderSecondarySection(wrap);
-        }
-    }
-
-    // ── Header ─────────────────────────────────────────────────────────────
-
-    private _renderHeader(parent: HTMLElement) {
-        const header = parent.createEl('div', { cls: 'diwa-tasks-header' });
-
-        const titleRow = header.createEl('div', { cls: 'diwa-tasks-title-row' });
-        titleRow.createEl('h2', { text: 'Gawa Management', cls: 'diwa-tab-title' });
-
-        const btnGroup = header.createEl('div', { cls: 'diwa-tasks-header-actions' });
-
-        // Add task button
-        const addBtn = btnGroup.createEl('button', { cls: 'diwa-tasks-add-btn' });
-        setIcon(addBtn.createEl('span'), 'plus');
-        addBtn.createSpan({ text: 'New' });
-        addBtn.addEventListener('click', () => {
-            new EditEntryModal(
-                this.app, this.plugin, '', '',
-                moment().format('YYYY-MM-DD'), true,
-                async (text, ctxs, due, _proj, recur, priority, energy, status) => {
-                    if (!text.trim()) return;
-                    await this.vault.createTaskFile(
-                        text, parseContextString(ctxs), due || undefined, undefined,
-                        { recurrence: recur ?? undefined, priority: priority ?? undefined, energy: energy ?? undefined, status: status !== 'open' ? status : undefined }
-                    );
-                    this._focusSnapshot = []; // reset stability so new task surfaces
-                    this._rerender();
-                }, 'New Task'
-            ).open();
-        });
-
-        // Secondary toggle
-        const secBtn = btnGroup.createEl('button', {
-            cls: `diwa-tasks-sec-btn${this._secondaryMode !== null ? ' is-active' : ''}`,
-            attr: { title: 'All tasks' }
-        });
-        setIcon(secBtn, 'list');
-        secBtn.addEventListener('click', () => {
-            this._secondaryMode = this._secondaryMode !== null ? null : 'inbox';
-            this._rerender();
-        });
-    }
-
-    // ── Focus section ──────────────────────────────────────────────────────
-
-    private _renderFocusSection(parent: HTMLElement) {
-        const section = parent.createEl('div', { cls: 'diwa-focus-section' });
-
-        const allEntries = Array.from(this.index.taskIndex.values());
-        const adapted    = allEntries.map(taskEntryToTask);
-        const newFocus   = getFocusTasks(adapted, 5);
-
-        // Apply stability: preserve user's mental model across re-renders
-        const stable = this._focusSnapshot.length > 0
-            ? maintainFocusStability(this._focusSnapshot, newFocus)
-            : newFocus;
-        this._focusSnapshot = stable;
-
-        if (stable.length === 0) {
-            const empty = section.createEl('div', { cls: 'diwa-focus-empty' });
-            setIcon(empty.createEl('span', { cls: 'diwa-focus-empty-icon' }), 'check-circle');
-            empty.createEl('p', {
-                text: 'All clear — nothing needs focus right now.',
-                cls: 'diwa-focus-empty-text'
-            });
-            return;
-        }
-
-        section.createEl('p', {
-            text: 'What needs your attention right now',
-            cls: 'diwa-focus-label'
-        });
-
-        // Build lookup: adapted task ID → original TaskEntry
-        const entryById = new Map<string, TaskEntry>();
-        for (const entry of allEntries) {
-            entryById.set(taskEntryToTask(entry).id, entry);
-        }
-
-        for (const task of stable) {
-            const entry = entryById.get(task.id);
-            if (!entry) continue;
-            this._renderFocusCard(section, task, entry);
-        }
-    }
-
-    private _renderFocusCard(parent: HTMLElement, task: Task, entry: TaskEntry) {
-        const tier   = getTaskUrgencyTier(task);
-        const isOpen = this._detailPath === entry.filePath;
-
-        const card = parent.createEl('div', {
-            cls: `diwa-focus-card diwa-focus-card--${tier}${isOpen ? ' is-open' : ''}`
-        });
-
-        // ── Urgency dot ────────────────────────────────────────────────────
-        card.createEl('div', { cls: `diwa-urgency-dot diwa-urgency-dot--${tier}` });
-
-        // ── Body ───────────────────────────────────────────────────────────
-        const body = card.createEl('div', { cls: 'diwa-focus-card-body' });
-        body.createEl('div', { text: task.title, cls: 'diwa-focus-card-title' });
-        body.createEl('div', {
-            text: `→ ${explainTaskPriority(task)}`,
-            cls: 'diwa-focus-explanation'
-        });
-
-        // Meta chips
-        const meta = body.createEl('div', { cls: 'diwa-focus-meta' });
-        if (task.due) {
-            const m = moment(task.due, 'YYYY-MM-DD', true);
-            if (m.isValid()) {
-                const overdue = task.status !== 'done' && m.isBefore(moment(), 'day');
-                const today   = m.isSame(moment(), 'day');
-                meta.createEl('span', {
-                    text: today ? 'Today' : overdue ? `Overdue · ${m.format('MMM D')}` : m.format('MMM D'),
-                    cls: `diwa-chip diwa-chip--date${overdue ? ' is-overdue' : today ? ' is-today' : ''}`
-                });
-            }
-        }
-        if (task.status === 'active') {
-            meta.createEl('span', { text: 'Active', cls: 'diwa-chip diwa-chip--active' });
-        }
-        const thoughtCount = (task.sourceThoughtIds ?? []).length;
-        if (thoughtCount > 0) {
-            meta.createEl('span', {
-                text: `${thoughtCount} thought${thoughtCount > 1 ? 's' : ''}`,
-                cls: 'diwa-chip diwa-chip--thoughts'
-            });
-        }
-
-        // ── Quick actions ──────────────────────────────────────────────────
-        const actions = card.createEl('div', { cls: 'diwa-focus-card-actions' });
-
-        if (task.status === 'planned') {
-            const startBtn = actions.createEl('button', { cls: 'diwa-focus-action-btn', attr: { title: 'Start task' } });
-            setIcon(startBtn, 'arrow-right');
-            startBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this._doLifecycle(() => this.plugin.taskLink?.markTaskActive(entry.filePath));
-            });
-        }
-
-        if (task.status === 'active') {
-            const doneBtn = actions.createEl('button', {
-                cls: 'diwa-focus-action-btn diwa-focus-action-btn--done',
-                attr: { title: 'Mark done' }
-            });
-            setIcon(doneBtn, 'check');
-            doneBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this._doLifecycle(
-                    () => this.plugin.taskLink?.markTaskDone(entry.filePath),
-                    () => this._offerReflection(task, entry.filePath)
-                );
-            });
-        }
-
-        // Expand / collapse
-        const chevron = actions.createEl('button', {
-            cls: 'diwa-focus-chevron',
-            attr: { title: 'Task details' }
-        });
-        setIcon(chevron, 'info');
-
-        const toggle = () => {
-            this._detailPath = isOpen ? null : entry.filePath;
-            this._rerender();
+        this._taskController = new TaskController(this.plugin);
+        const self = this;
+        this._paneHost = {
+            app: this.app,
+            plugin: this.plugin,
+            get _taskPending(): number { return self._taskPending; },
+            set _taskPending(value: number) { self._taskPending = value; },
+            get _taskFilter(): 'upcoming' | 'all' { return self._taskFilter; },
+            set _taskFilter(value: 'upcoming' | 'all') { self._taskFilter = value; },
         };
-        body.addEventListener('click', toggle);
-        chevron.addEventListener('click', (e) => { e.stopPropagation(); toggle(); });
-
-        // ── Inline detail panel ────────────────────────────────────────────
-        if (isOpen) {
-            this._renderDetailPanel(parent, task, entry);
-        }
     }
 
-    // ── Detail panel ───────────────────────────────────────────────────────
+    render(container: HTMLElement): void {
+        this._container = container;
+        this.destroyPanes();
+        container.empty();
+        this._mobilePaneShells.clear();
+        this._mobileTabButtons.clear();
 
-    private _renderDetailPanel(parent: HTMLElement, task: Task, entry: TaskEntry) {
-        const panel = parent.createEl('div', { cls: 'diwa-focus-detail' });
-
-        // Status + lifecycle buttons
-        const topRow = panel.createEl('div', { cls: 'diwa-detail-action-row' });
-        topRow.createEl('span', {
-            text: task.status.charAt(0).toUpperCase() + task.status.slice(1),
-            cls: `diwa-status-badge diwa-status-badge--${task.status}`
-        });
-
-        const btnRow = topRow.createEl('div', { cls: 'diwa-detail-btns' });
-
-        if (task.status !== 'active') {
-            const b = btnRow.createEl('button', { cls: 'diwa-detail-btn', attr: { title: 'Set active' } });
-            setIcon(b.createEl('span', { cls: 'diwa-btn-icon' }), 'arrow-right');
-            b.createSpan({ text: 'Start' });
-            b.addEventListener('click', () =>
-                this._doLifecycle(() => this.plugin.taskLink?.markTaskActive(entry.filePath))
-            );
-        }
-
-        if (task.status !== 'done') {
-            const b = btnRow.createEl('button', { cls: 'diwa-detail-btn diwa-detail-btn--primary', attr: { title: 'Mark done' } });
-            setIcon(b.createEl('span', { cls: 'diwa-btn-icon' }), 'check');
-            b.createSpan({ text: 'Done' });
-            b.addEventListener('click', () =>
-                this._doLifecycle(
-                    () => this.plugin.taskLink?.markTaskDone(entry.filePath),
-                    () => this._offerReflection(task, entry.filePath)
-                )
-            );
-        }
-
-        if (task.status === 'done') {
-            const b = btnRow.createEl('button', { cls: 'diwa-detail-btn', attr: { title: 'Reopen' } });
-            setIcon(b.createEl('span', { cls: 'diwa-btn-icon' }), 'rotate-ccw');
-            b.createSpan({ text: 'Reopen' });
-            b.addEventListener('click', () =>
-                this._doLifecycle(() => this.plugin.taskLink?.reopenTask(entry.filePath))
-            );
-        }
-
-        // Timestamps
-        if (task.createdAt || task.updatedAt || task.completedAt) {
-            const times = panel.createEl('div', { cls: 'diwa-detail-times' });
-            if (task.createdAt)  this._timeRow(times, 'Created',   task.createdAt);
-            if (task.updatedAt)  this._timeRow(times, 'Updated',   task.updatedAt);
-            if (task.completedAt) this._timeRow(times, 'Completed', task.completedAt);
-        }
-
-        // Linked thoughts
-        const thoughtIds = task.sourceThoughtIds ?? [];
-        if (thoughtIds.length > 0) {
-            const sec = panel.createEl('div', { cls: 'diwa-detail-thoughts' });
-            sec.createEl('div', { text: 'Linked thoughts', cls: 'diwa-detail-section-label' });
-            for (const tPath of thoughtIds) {
-                const tEntry = this.index.thoughtIndex.get(tPath);
-                const label  = tEntry?.title ?? tPath.split('/').pop()?.replace('.md', '') ?? tPath;
-                const link   = sec.createEl('div', { cls: 'diwa-detail-thought-link' });
-                setIcon(link.createEl('span', { cls: 'diwa-detail-thought-icon' }), 'message-circle');
-                link.createEl('span', { text: label, cls: 'diwa-detail-thought-title' });
-                link.addEventListener('click', () => {
-                    this.app.workspace.openLinkText(tPath, tPath);
-                });
-            }
-        }
-
-        // ── Utility actions ────────────────────────────────────────────────
-        const utils = panel.createEl('div', { cls: 'diwa-detail-utils' });
-
-        this._utilBtn(utils, 'pencil', 'Edit', () => {
-            new EditTaskModal(this.app, entry, this.vault, this.index, () => this._rerender()).open();
-        });
-
-        this._utilBtn(utils, 'link', 'Link thought', () => {
-            const folder = this.plugin.settings?.thoughtsFolder || '000 Bin/DIWA';
-            new ThoughtPickerModal(this.app, this.index.thoughtIndex, folder, async (thought) => {
-                await this.plugin.taskLink?.addThoughtToExistingTask(entry.filePath, thought.filePath);
-                await this.plugin.taskLink?.linkTaskToThought(entry.filePath, thought.filePath);
-                this._rerender();
-            }).open();
-        });
-
-        if (this.plugin.ai) {
-            this._utilBtn(utils, 'sparkles', 'Improve', async () => {
-                const { TaskAiAdvisor } = await import('../services/TaskAiAdvisor');
-                const advisor  = new TaskAiAdvisor(this.plugin.ai);
-                const improved = await advisor.improveTaskTitle(entry.title);
-                if (improved !== entry.title) {
-                    new ConfirmModal(
-                        this.app,
-                        `Suggested: "${improved}"\n\nApply this title?`,
-                        async () => {
-                            await this.vault.editTask(entry.filePath, improved, entry.context, entry.due || undefined);
-                            this._rerender();
-                        }
-                    ).open();
-                } else {
-                    new Notice('Title already looks specific.');
-                }
-            });
-        }
-
-        this._utilBtn(utils, 'trash-2', 'Delete', () => {
-            new ConfirmModal(this.app, 'Move this task to trash?', async () => {
-                this._detailPath = null;
-                await this.vault.deleteFile(entry.filePath, 'tasks');
-            }).open();
-        }, true);
-    }
-
-    private _timeRow(parent: HTMLElement, label: string, iso: string) {
-        const row = parent.createEl('div', { cls: 'diwa-detail-time-row' });
-        row.createEl('span', { text: label, cls: 'diwa-detail-time-label' });
-        const fmt = moment(iso).isValid() ? moment(iso).format('MMM D, YYYY · HH:mm') : iso;
-        row.createEl('span', { text: fmt, cls: 'diwa-detail-time-value' });
-    }
-
-    private _utilBtn(
-        parent: HTMLElement,
-        icon: string,
-        label: string,
-        fn: () => void,
-        danger = false
-    ) {
-        const btn = parent.createEl('button', {
-            cls: `diwa-detail-util-btn${danger ? ' diwa-detail-util-btn--danger' : ''}`
-        });
-        setIcon(btn, icon);
-        btn.createSpan({ text: label });
-        btn.addEventListener('click', fn);
-    }
-
-    // ── Secondary section ──────────────────────────────────────────────────
-
-    private _renderSecondarySection(parent: HTMLElement) {
-        const section = parent.createEl('div', { cls: 'diwa-secondary-section' });
-
-        // Tab bar
-        const tabBar = section.createEl('div', { cls: 'diwa-secondary-tabs' });
-        const TABS: { mode: SecondaryMode; label: string }[] = [
-            { mode: 'inbox',   label: 'Inbox'   },
-            { mode: 'overdue', label: 'Overdue' },
-            { mode: 'done',    label: 'Done'    },
-        ];
-        for (const { mode, label } of TABS) {
-            const btn = tabBar.createEl('button', {
-                text: label,
-                cls: `diwa-secondary-tab${this._secondaryMode === mode ? ' is-active' : ''}`
-            });
-            btn.addEventListener('click', () => { this._secondaryMode = mode; this._rerender(); });
-        }
-
-        // List
-        const list = section.createEl('div', { cls: 'diwa-secondary-list' });
-        const today = moment().startOf('day');
-        let rows = Array.from(this.index.taskIndex.values());
-
-        if (this._secondaryMode === 'done') {
-            rows = rows.filter(t => t.status === 'done').sort((a, b) => b.lastUpdate - a.lastUpdate);
-        } else if (this._secondaryMode === 'overdue') {
-            rows = rows.filter(t => {
-                if (t.status === 'done') return false;
-                const m = moment(t.due, 'YYYY-MM-DD', true);
-                return m.isValid() && m.isBefore(today, 'day');
-            }).sort((a, b) => moment(a.due).valueOf() - moment(b.due).valueOf());
+        const root = container.createEl('div', { cls: 'diwa-gawa-desktop' });
+        const isPhone = this.isPhoneLayout();
+        const isTabletLayout = this.isTabletLayout();
+        if (isPhone) root.addClass('is-mobile');
+        if (isTabletLayout) root.addClass('is-tablet');
+        this.renderHeader(root);
+        if (isPhone) {
+            this.renderMobileLayout(root);
+        } else if (isTabletLayout) {
+            this.renderTabletLayout(root);
         } else {
-            // inbox — all non-done
-            rows = rows
-                .filter(t => t.status !== 'done')
-                .sort((a, b) => {
-                    const ad = !!(a.due?.trim()), bd = !!(b.due?.trim());
-                    if (ad && !bd) return -1;
-                    if (!ad && bd) return 1;
-                    if (ad && bd) return moment(a.due).valueOf() - moment(b.due).valueOf();
-                    return b.lastUpdate - a.lastUpdate;
-                });
+            const grid = root.createEl('div', { cls: 'diwa-gawa-desktop-grid' });
+            this.renderColumn(grid, 'left', [
+                this.createInboxPaneConfig(),
+                this.createProjectsPaneConfig(),
+            ]);
+            this.renderColumn(grid, 'center', [
+                this.createTodayPaneConfig(),
+                this.createBacklogPaneConfig(),
+            ]);
+            this.renderColumn(grid, 'right', [
+                this.createFocusPaneConfig(),
+                this.createActivePaneConfig(),
+            ]);
         }
 
-        if (rows.length === 0) {
-            const msgs: Record<SecondaryMode, string> = {
-                done:    'No completed tasks.',
-                overdue: 'Nothing overdue ✓',
-                inbox:   'Inbox is empty.',
-            };
-            this.renderEmptyState(list, msgs[this._secondaryMode ?? 'inbox']);
-            return;
-        }
-
-        for (const entry of rows) this._renderSecondaryRow(list, entry);
+        this._taskController.syncFromIndex();
     }
 
-    private _renderSecondaryRow(parent: HTMLElement, entry: TaskEntry) {
-        const task    = taskEntryToTask(entry);
-        const tier    = getTaskUrgencyTier(task);
-        const isDone  = entry.status === 'done';
-        const dueM    = entry.due ? moment(entry.due, 'YYYY-MM-DD', true) : null;
-        const overdue = !isDone && dueM?.isValid() && dueM.isBefore(moment(), 'day');
-        const today   = !isDone && dueM?.isValid() && dueM.isSame(moment(), 'day');
+    onunload(): void {
+        this.destroyPanes();
+    }
 
-        const row = parent.createEl('div', {
-            cls: `diwa-secondary-row diwa-secondary-row--${tier}${isDone ? ' is-done' : ''}`
+    private renderHeader(parent: HTMLElement): void {
+        const header = parent.createEl('div', { cls: 'diwa-gawa-header' });
+        const titleGroup = header.createEl('div', { cls: 'diwa-gawa-header-title-group' });
+        titleGroup.createEl('h2', { text: 'GAWA', cls: 'diwa-gawa-header-title' });
+        const subtitle = this.isPhoneLayout()
+            ? 'Mobile Task Workspace'
+            : this.isTabletLayout()
+                ? 'Tablet Task Workspace'
+                : 'Desktop Task Workspace';
+        titleGroup.createEl('span', { text: subtitle, cls: 'diwa-gawa-header-subtitle' });
+
+        const actions = header.createEl('div', { cls: 'diwa-gawa-header-actions' });
+
+        const addBtn = actions.createEl('button', { cls: 'diwa-gawa-header-btn diwa-gawa-header-btn--primary' });
+        setIcon(addBtn, 'plus');
+        addBtn.createEl('span', { text: 'New Task' });
+        addBtn.addEventListener('click', () => this.openCreateTaskModal());
+
+        const refreshBtn = actions.createEl('button', { cls: 'diwa-gawa-header-btn' });
+        setIcon(refreshBtn, 'refresh-cw');
+        refreshBtn.createEl('span', { text: 'Sync' });
+        refreshBtn.addEventListener('click', () => this._taskController.syncFromIndex());
+    }
+
+    private renderColumn(
+        parent: HTMLElement,
+        columnKind: 'left' | 'center' | 'right',
+        configs: PaneConfig[],
+    ): void {
+        const column = parent.createEl('div', { cls: `diwa-gawa-column diwa-gawa-column--${columnKind}` });
+        for (const config of configs) {
+            const shell = column.createEl('section', { cls: 'diwa-gawa-pane-shell' });
+            this.mountPane(shell, config);
+        }
+    }
+
+    private renderMobileLayout(parent: HTMLElement): void {
+        const mobile = parent.createEl('div', { cls: 'diwa-gawa-mobile' });
+
+        const tabBar = mobile.createEl('div', {
+            cls: 'diwa-gawa-mobile-tabbar',
+            attr: { role: 'tablist', 'aria-label': 'GAWA sections' },
         });
+        const paneStack = mobile.createEl('div', { cls: 'diwa-gawa-mobile-pane-stack' });
 
-        row.createEl('div', { cls: `diwa-urgency-dot diwa-urgency-dot--${tier}` });
+        const paneByTab: Record<MobileTabId, PaneConfig> = {
+            inbox: this.createInboxPaneConfig(),
+            today: this.createTodayPaneConfig(),
+            focus: this.createFocusPaneConfig(),
+            projects: this.createProjectsPaneConfig(),
+        };
 
-        const content = row.createEl('div', { cls: 'diwa-secondary-content' });
-        content.createEl('span', { text: entry.title, cls: `diwa-secondary-title${isDone ? ' is-done' : ''}` });
-        if (dueM?.isValid()) {
-            content.createEl('span', {
-                text: today ? 'Today' : overdue ? dueM.format('MMM D') : dueM.format('MMM D'),
-                cls: `diwa-chip diwa-chip--date${overdue ? ' is-overdue' : today ? ' is-today' : ''}`
+        for (const tabId of MOBILE_TAB_ORDER) {
+            const label = tabId.toUpperCase();
+            const button = tabBar.createEl('button', {
+                cls: 'diwa-gawa-mobile-tab-btn',
+                text: label,
+                attr: { role: 'tab', type: 'button' },
             });
+            button.addEventListener('click', () => this.setMobileTab(tabId));
+            this._mobileTabButtons.set(tabId, button);
+
+            const shell = paneStack.createEl('section', {
+                cls: 'diwa-gawa-mobile-pane-shell',
+                attr: { 'data-mobile-tab': tabId },
+            });
+            this._mobilePaneShells.set(tabId, shell);
+            this.mountPane(shell, paneByTab[tabId]);
         }
 
-        const actions = row.createEl('div', { cls: 'diwa-secondary-actions' });
-
-        // Checkbox toggle
-        const cb = actions.createEl('div', { cls: `diwa-task-cb${isDone ? ' is-done' : ''}` });
-        if (isDone) setIcon(cb.createEl('span'), 'check');
-        cb.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            this.view._taskTogglePending++;
-            await this.vault.toggleTask(entry.filePath, !isDone);
-            this.view._taskTogglePending = Math.max(0, this.view._taskTogglePending - 1);
-        });
-
-        // Edit
-        const editBtn = actions.createEl('button', { cls: 'diwa-secondary-action-btn' });
-        setIcon(editBtn, 'pencil');
-        editBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            new EditTaskModal(this.app, entry, this.vault, this.index, () => this._rerender()).open();
-        });
-
-        // Delete
-        const delBtn = actions.createEl('button', { cls: 'diwa-secondary-action-btn is-danger' });
-        setIcon(delBtn, 'trash-2');
-        delBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            new ConfirmModal(this.app, 'Move this task to trash?', async () => {
-                await this.vault.deleteFile(entry.filePath, 'tasks');
-            }).open();
-        });
+        this.applyMobileTabVisibility();
     }
 
-    // ── Lifecycle helpers ──────────────────────────────────────────────────
-
-    /**
-     * Runs a lifecycle action, increments the pending counter so vault events
-     * don't race with the re-render, then re-renders after completion.
-     * An optional `afterFn` is called after successful completion (e.g. to
-     * offer a reflection prompt after marking done).
-     */
-    private async _doLifecycle(
-        fn: () => Promise<void> | undefined,
-        afterFn?: () => void
-    ) {
-        if (!this.plugin.taskLink) {
-            new Notice('Task lifecycle service not available — check plugin setup.');
-            return;
-        }
-        this.view._taskTogglePending++;
-        try {
-            const result = fn();
-            if (result) await result;
-            afterFn?.();
-        } finally {
-            this.view._taskTogglePending = Math.max(0, this.view._taskTogglePending - 1);
-        }
-        this._rerender();
+    private renderTabletLayout(parent: HTMLElement): void {
+        const grid = parent.createEl('div', { cls: 'diwa-gawa-tablet-grid' });
+        this.renderColumn(grid, 'left', [
+            this.createInboxPaneConfig(),
+            this.createProjectsPaneConfig(),
+        ]);
+        this.renderColumn(grid, 'right', [
+            this.createTodayPaneConfig(),
+            this.createFocusPaneConfig(),
+        ]);
     }
 
-    /**
-     * After a task is marked done, optionally offer to create a reflection note.
-     * Strictly opt-in — the user must confirm before anything is written.
-     */
-    private _offerReflection(task: Task, filePath: string) {
-        if (!this.plugin.taskReflection) return;
-        new ConfirmModal(
+    private mountPane(parent: HTMLElement, config: PaneConfig): void {
+        const pane = new TaskPane(this._paneHost, parent, this._taskController, {
+            paneId: config.paneId,
+            title: config.title,
+            emptyMessage: config.emptyMessage,
+            showFilterPills: false,
+            presetFilter: 'all',
+            baseFilterFn: config.baseFilterFn,
+            filterFn: config.filterFn,
+            sortFn: config.sortFn,
+        });
+        this._paneMap.set(config.paneId, pane);
+        this._taskController.registerPane(pane);
+    }
+
+    private destroyPanes(): void {
+        for (const [paneId, pane] of this._paneMap.entries()) {
+            this._taskController.unregisterPane(paneId);
+            pane.destroy();
+        }
+        this._paneMap.clear();
+    }
+
+    private getMobileTab(): MobileTabId {
+        const current = this.view.tasksViewMode;
+        if (MOBILE_TAB_ORDER.includes(current as MobileTabId)) return current as MobileTabId;
+        return 'today';
+    }
+
+    private setMobileTab(tabId: MobileTabId): void {
+        if (this.getMobileTab() === tabId) return;
+        this.view.tasksViewMode = tabId;
+        this.applyMobileTabVisibility();
+    }
+
+    private applyMobileTabVisibility(): void {
+        const active = this.getMobileTab();
+        for (const [tabId, shell] of this._mobilePaneShells.entries()) {
+            const isActive = tabId === active;
+            shell.toggleClass('is-active', isActive);
+            shell.style.display = isActive ? '' : 'none';
+        }
+        for (const [tabId, button] of this._mobileTabButtons.entries()) {
+            const isActive = tabId === active;
+            button.toggleClass('is-active', isActive);
+            button.setAttr('aria-selected', isActive ? 'true' : 'false');
+        }
+    }
+
+    private isPhoneLayout(): boolean {
+        return Platform.isMobile && !isTablet();
+    }
+
+    private isTabletLayout(): boolean {
+        return isTablet();
+    }
+
+    private openCreateTaskModal(): void {
+        new EditEntryModal(
             this.app,
-            `"${task.title}" marked as done.\n\nCreate a reflection note?`,
-            async () => {
-                const file = await this.plugin.taskReflection.generateTaskReflection(task, filePath);
-                if (file) {
-                    this.app.workspace.openLinkText(file.path, file.path);
+            this.plugin,
+            '',
+            '',
+            moment().format('YYYY-MM-DD'),
+            true,
+            async (text, contexts, dueDate, _project, recurrence, priority, energy, status) => {
+                const title = text.trim();
+                if (!title) return;
+                try {
+                    this.plugin.refreshCoordinator.suppressNotifyRefresh(600);
+                    const created = await this.vault.createTaskFile(
+                        title,
+                        parseContextString(contexts),
+                        dueDate || undefined,
+                        undefined,
+                        {
+                            recurrence: recurrence ?? undefined,
+                            priority: priority ?? undefined,
+                            energy: energy ?? undefined,
+                            status: status !== 'open' ? status : undefined,
+                        }
+                    );
+                    if (created instanceof TFile) {
+                        await this.plugin.refreshCoordinator.reindexFile(created);
+                    }
+                    this._taskController.syncFromIndex();
+                    new Notice('Task added', 1000);
+                } catch (error) {
+                    console.error('[DIWA GAWA] Failed to create task', error);
+                    new Notice('Error creating task', 2000);
                 }
-            }
+            },
+            'New Task'
         ).open();
     }
 
-    /** Re-renders the tab into the stored container. */
-    private _rerender() {
-        if (this._container) this.render(this._container);
+    private createInboxPaneConfig(): PaneConfig {
+        return {
+            paneId: 'gawa-inbox',
+            title: 'INBOX',
+            emptyMessage: 'Inbox is clear.',
+            baseFilterFn: (task) => task.status !== 'done',
+            filterFn: (task) => !task.project && !task.due,
+        };
+    }
+
+    private createProjectsPaneConfig(): PaneConfig {
+        return {
+            paneId: 'gawa-projects',
+            title: 'PROJECTS',
+            emptyMessage: 'No project tasks.',
+            baseFilterFn: (task) => task.status !== 'done',
+            filterFn: (task) => !!task.project,
+        };
+    }
+
+    private createTodayPaneConfig(): PaneConfig {
+        return {
+            paneId: 'gawa-today',
+            title: 'TODAY',
+            emptyMessage: 'Nothing due today.',
+            baseFilterFn: (task) => task.status !== 'done',
+            filterFn: (task) => this.isTodayOrOverdue(task),
+            sortFn: (a, b) => {
+                if (a.due && b.due) return a.due.localeCompare(b.due);
+                if (a.due && !b.due) return -1;
+                if (!a.due && b.due) return 1;
+                return (b.lastUpdate || 0) - (a.lastUpdate || 0);
+            },
+        };
+    }
+
+    private createBacklogPaneConfig(): PaneConfig {
+        return {
+            paneId: 'gawa-backlog',
+            title: 'BACKLOG',
+            emptyMessage: 'Backlog is empty.',
+            baseFilterFn: (task) => task.status === 'open' || task.status === 'waiting' || task.status === 'someday',
+            filterFn: (task) => !this.isTodayOrOverdue(task),
+        };
+    }
+
+    private createFocusPaneConfig(): PaneConfig {
+        return {
+            paneId: 'gawa-focus',
+            title: 'FOCUS',
+            emptyMessage: 'No focus candidates.',
+            baseFilterFn: (task) => task.status !== 'done',
+            filterFn: (task) => {
+                const priority = this.getPriorityScore(task.priority);
+                return task.status === 'waiting' || this.isTodayOrOverdue(task) || priority >= 3;
+            },
+            sortFn: (a, b) => {
+                const aPriority = this.getPriorityScore(a.priority);
+                const bPriority = this.getPriorityScore(b.priority);
+                if (aPriority !== bPriority) return bPriority - aPriority;
+                if (a.due && b.due) return a.due.localeCompare(b.due);
+                if (a.due && !b.due) return -1;
+                if (!a.due && b.due) return 1;
+                return (b.lastUpdate || 0) - (a.lastUpdate || 0);
+            },
+        };
+    }
+
+    private createActivePaneConfig(): PaneConfig {
+        return {
+            paneId: 'gawa-active',
+            title: 'ACTIVE',
+            emptyMessage: 'No active tasks.',
+            baseFilterFn: (task) => task.status === 'waiting',
+            filterFn: () => true,
+            sortFn: (a, b) => (b.lastUpdate || 0) - (a.lastUpdate || 0),
+        };
+    }
+
+    private isTodayOrOverdue(task: TaskEntry): boolean {
+        if (!task.due) return false;
+        const due = moment(task.due, 'YYYY-MM-DD', true);
+        if (!due.isValid()) return false;
+        return due.isSameOrBefore(moment().startOf('day'), 'day');
+    }
+
+    private getPriorityScore(priority: TaskEntry['priority']): number {
+        if (priority === 'high') return 3;
+        if (priority === 'medium') return 2;
+        if (priority === 'low') return 1;
+        return 0;
     }
 }

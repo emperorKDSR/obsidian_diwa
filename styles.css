@@ -6292,3 +6292,461 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   color: var(--text-muted);
   padding: 10px 0;
 }
+/* ── GAWA Desktop Workspace (TaskPane) ───────────────────────────────────── */
+.diwa-gawa-desktop {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  min-height: 0;
+  padding: 16px;
+}
+
+.diwa-gawa-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.diwa-gawa-header-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.diwa-gawa-header-title {
+  margin: 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-normal);
+}
+
+.diwa-gawa-header-subtitle {
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.diwa-gawa-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.diwa-gawa-header-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--background-modifier-border-faint);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.diwa-gawa-header-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.diwa-gawa-header-btn--primary {
+  color: var(--text-on-accent);
+  background: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+}
+
+.diwa-gawa-header-btn--primary:hover {
+  filter: brightness(1.03);
+  color: var(--text-on-accent);
+}
+
+.diwa-gawa-desktop-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  min-height: 0;
+  flex: 1;
+}
+
+.diwa-gawa-tablet-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  min-height: 0;
+  flex: 1;
+}
+
+.diwa-gawa-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.diwa-gawa-pane-shell {
+  min-height: 0;
+  flex: 1;
+}
+
+@media (max-width: 1500px) {
+  .diwa-gawa-desktop-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1080px) {
+  .diwa-gawa-desktop-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  .diwa-gawa-desktop.is-tablet {
+    padding: 18px;
+    gap: 18px;
+  }
+
+  .diwa-gawa-desktop.is-tablet .diwa-gawa-tablet-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+
+  .diwa-gawa-desktop.is-tablet .diwa-gawa-column {
+    gap: 14px;
+  }
+
+  .diwa-gawa-desktop.is-tablet .diwa-gawa-pane-shell > .diwa-dh-task-list-section {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .diwa-gawa-desktop.is-tablet .diwa-dh-task-item {
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+
+  .diwa-gawa-desktop.is-tablet .diwa-dh-task-title {
+    font-size: 0.88em;
+    line-height: 1.4;
+  }
+}
+
+.diwa-gawa-pane-shell > .diwa-dh-task-list-section {
+  height: 100%;
+  min-height: 0;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--background-modifier-border-faint);
+  background: color-mix(in srgb, var(--background-primary) 90%, var(--background-secondary) 10%);
+  box-shadow: none;
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-list-header {
+  margin-bottom: 8px;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--background-modifier-border-faint);
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-list-title {
+  font-size: 0.74rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-count {
+  font-size: 0.74rem;
+  color: var(--text-faint);
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-item {
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-checkbox {
+  margin-top: 0;
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-content {
+  justify-content: center;
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-title {
+  line-height: 1.35;
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-empty {
+  padding: 12px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.diwa-gawa-mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+}
+
+.diwa-gawa-mobile-tabbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.diwa-gawa-mobile-tabbar::-webkit-scrollbar {
+  display: none;
+}
+
+.diwa-gawa-mobile-tab-btn {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.diwa-gawa-mobile-tab-btn.is-active {
+  color: var(--text-normal);
+  background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-secondary) 88%);
+}
+
+.diwa-gawa-mobile-tab-btn.is-active::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--interactive-accent);
+}
+
+.diwa-gawa-mobile-pane-stack {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+}
+
+.diwa-gawa-mobile-pane-shell {
+  height: 100%;
+  min-height: 0;
+}
+
+.diwa-gawa-mobile-pane-shell > .diwa-dh-task-list-section {
+  height: 100%;
+  min-height: 0;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--background-modifier-border-faint);
+  background: color-mix(in srgb, var(--background-primary) 92%, var(--background-secondary) 8%);
+}
+
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-item {
+  min-height: 48px;
+  padding: 10px 12px;
+}
+
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-checkbox {
+  width: 18px;
+  height: 18px;
+  margin-top: 0;
+}
+
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-edit-btn {
+  width: 28px;
+  height: 28px;
+}
+
+.diwa-gawa-desktop.is-mobile {
+  padding: 12px;
+  gap: 12px;
+}
+
+.diwa-gawa-desktop.is-mobile .diwa-gawa-header {
+  gap: 8px;
+}
+
+.diwa-gawa-desktop.is-mobile .diwa-gawa-header-btn {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+/* ── GAWA Design System (Minimal / Modern) ──────────────────────────────── */
+.diwa-gawa-desktop {
+  --gawa-space-1: 4px;
+  --gawa-space-2: 8px;
+  --gawa-space-3: 12px;
+  --gawa-space-4: 16px;
+  --gawa-space-5: 24px;
+
+  --gawa-font-label: 12px;
+  --gawa-font-body-sm: 13px;
+  --gawa-font-body: 14px;
+  --gawa-font-weight: 500;
+  --gawa-font-weight-strong: 600;
+
+  --gawa-color-bg: color-mix(in srgb, var(--background-primary) 96%, #f4f5f7 4%);
+  --gawa-color-surface: color-mix(in srgb, var(--background-primary) 92%, var(--background-secondary) 8%);
+  --gawa-color-surface-soft: color-mix(in srgb, var(--background-primary) 88%, var(--background-secondary) 12%);
+  --gawa-color-border: color-mix(in srgb, var(--background-modifier-border) 55%, transparent);
+  --gawa-color-hover: color-mix(in srgb, var(--background-modifier-hover) 72%, var(--gawa-color-surface-soft) 28%);
+  --gawa-color-active: color-mix(in srgb, var(--interactive-accent) 10%, var(--gawa-color-surface) 90%);
+  --gawa-color-muted: #9aa1aa;
+  --gawa-color-muted-strong: #8e959f;
+  --gawa-color-text: var(--text-normal);
+
+  --gawa-radius-sm: 8px;
+  --gawa-radius-md: 12px;
+  --gawa-transition: 120ms ease;
+}
+
+.diwa-gawa-desktop,
+.diwa-gawa-body {
+  font-size: var(--gawa-font-body-sm);
+  line-height: 1.4;
+  color: var(--gawa-color-text);
+  background: var(--gawa-color-bg);
+}
+
+.diwa-gawa-label,
+.diwa-gawa-header-subtitle,
+.diwa-gawa-pane-shell .diwa-dh-task-list-title,
+.diwa-gawa-pane-shell .diwa-dh-task-count {
+  font-size: var(--gawa-font-label);
+  font-weight: var(--gawa-font-weight-strong);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--gawa-color-muted);
+}
+
+.diwa-gawa-pane,
+.diwa-gawa-pane-shell > .diwa-dh-task-list-section,
+.diwa-gawa-mobile-pane-shell > .diwa-dh-task-list-section {
+  padding: var(--gawa-space-3);
+  border-radius: var(--gawa-radius-md);
+  border: 1px solid var(--gawa-color-border);
+  background: var(--gawa-color-surface);
+  box-shadow: none;
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-list-header,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-list-header {
+  margin-bottom: var(--gawa-space-2);
+  padding-bottom: var(--gawa-space-2);
+  border-bottom: 1px solid var(--gawa-color-border);
+}
+
+.diwa-gawa-row,
+.diwa-gawa-pane-shell .diwa-dh-task-item,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-item {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: var(--gawa-space-2);
+  padding: var(--gawa-space-2) var(--gawa-space-3);
+  border-radius: var(--gawa-radius-sm);
+  border: 0;
+  transition:
+    background-color var(--gawa-transition),
+    color var(--gawa-transition),
+    border-color var(--gawa-transition);
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-item:hover,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-item:hover,
+.diwa-gawa-interactive:hover {
+  background: var(--gawa-color-hover);
+}
+
+.diwa-gawa-mobile-tab-btn {
+  min-height: 36px;
+  border-radius: var(--gawa-radius-sm);
+  background: var(--gawa-color-surface-soft);
+  color: var(--gawa-color-muted-strong);
+  transition:
+    background-color var(--gawa-transition),
+    color var(--gawa-transition);
+}
+
+.diwa-gawa-mobile-tab-btn.is-active {
+  background: var(--gawa-color-active);
+  color: var(--gawa-color-text);
+}
+
+.diwa-gawa-header-btn {
+  min-height: 32px;
+  border-radius: var(--gawa-radius-sm);
+  border: 1px solid var(--gawa-color-border);
+  background: transparent;
+  color: var(--gawa-color-muted-strong);
+  font-size: var(--gawa-font-label);
+  font-weight: var(--gawa-font-weight-strong);
+  transition:
+    background-color var(--gawa-transition),
+    color var(--gawa-transition),
+    border-color var(--gawa-transition);
+}
+
+.diwa-gawa-header-btn:hover {
+  background: var(--gawa-color-hover);
+  color: var(--gawa-color-text);
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-title,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-title {
+  font-size: var(--gawa-font-body-sm);
+  font-weight: var(--gawa-font-weight);
+  line-height: 1.35;
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-empty,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-empty {
+  color: var(--gawa-color-muted);
+  font-size: var(--gawa-font-body-sm);
+}
+
+.diwa-gawa-desktop.is-tablet .diwa-dh-task-item {
+  min-height: 34px;
+}
+
+.diwa-gawa-desktop.is-mobile .diwa-dh-task-item,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-item {
+  min-height: 36px;
+}

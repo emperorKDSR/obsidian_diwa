@@ -1,8 +1,8 @@
 import { Notice, TFile, moment, setIcon } from 'obsidian';
+import type { App } from 'obsidian';
 import type { TaskEntry } from '../types';
 import { attachInlineTriggers, attachMediaPasteHandler } from '../utils';
-import type { DesktopHubView } from './DesktopHubView';
-import type { TaskController } from './TaskController';
+import type { TaskController, TaskPanePort } from './TaskController';
 
 export type TaskFilterFn = (task: TaskEntry) => boolean;
 export type TaskSortFn = (a: TaskEntry, b: TaskEntry) => number;
@@ -26,24 +26,22 @@ export interface TaskPaneOptions {
     paneId?: string;
     hooks?: TaskItemHooks;
     plugins?: TaskPanePlugin[];
+    filterFn?: TaskFilterFn | null;
+    baseFilterFn?: TaskFilterFn;
+    sortFn?: TaskSortFn | null;
+    presetFilter?: 'upcoming' | 'all';
+    title?: string;
+    showFilterPills?: boolean;
+    emptyMessage?: string;
+    showQuickInput?: boolean;
 }
 
-type TaskPaneMutationType = 'ADD_TASK' | 'UPDATE_TASK' | 'DELETE_TASK';
-
-interface TaskPaneMutation {
-    type: TaskPaneMutationType;
-    taskId: string;
-    task?: TaskEntry;
+export interface TaskPaneHost {
+    app: App;
+    plugin: any;
+    _taskPending: number;
+    _taskFilter: 'upcoming' | 'all';
 }
-
-interface TaskPaneStateUpdate {
-    mutations: TaskPaneMutation[];
-    orderedIds: string[];
-    tasksById: Map<string, TaskEntry>;
-    orderChanged: boolean;
-}
-
-type TaskPaneListener = (update: TaskPaneStateUpdate) => void;
 
 const DEBUG = false;
 const DEBUG_TASK_PANE_RENDER = DEBUG;
@@ -57,114 +55,39 @@ function getTaskKey(task: TaskEntry): string {
     return task.taskId?.trim() || task.filePath;
 }
 
-function getTaskSignature(task: TaskEntry): string {
-    return JSON.stringify({
-        filePath: task.filePath,
-        title: task.title,
-        status: task.status,
-        due: task.due,
-        context: task.context,
-        priority: task.priority,
-        energy: task.energy,
-        recurrence: task.recurrence,
-        project: task.project,
-        lastUpdate: task.lastUpdate,
-    });
-}
-
-class TaskPaneStateStore {
-    private tasksById = new Map<string, TaskEntry>();
-    private signaturesById = new Map<string, string>();
-    private orderedIds: string[] = [];
-    private listeners = new Set<TaskPaneListener>();
-
-    subscribe(listener: TaskPaneListener): () => void {
-        this.listeners.add(listener);
-        return () => this.listeners.delete(listener);
-    }
-
-    setTasks(tasks: TaskEntry[]): void {
-        const nextTasksById = new Map<string, TaskEntry>();
-        const nextSignaturesById = new Map<string, string>();
-        const nextOrderedIds: string[] = [];
-        const seenTaskIds = new Set<string>();
-        const mutations: TaskPaneMutation[] = [];
-
-        for (const task of tasks) {
-            const taskId = getTaskKey(task);
-            if (seenTaskIds.has(taskId)) {
-                console.warn('[DIWA TaskPane] duplicate taskId detected in state snapshot', {
-                    taskId,
-                    filePath: task.filePath,
-                });
-                debugTaskPane('duplicate task key ignored in ordering', { taskId, filePath: task.filePath });
-                nextTasksById.set(taskId, task);
-                nextSignaturesById.set(taskId, getTaskSignature(task));
-                continue;
-            }
-            seenTaskIds.add(taskId);
-            nextTasksById.set(taskId, task);
-            nextSignaturesById.set(taskId, getTaskSignature(task));
-            nextOrderedIds.push(taskId);
-        }
-
-        for (const taskId of this.tasksById.keys()) {
-            if (!nextTasksById.has(taskId)) {
-                mutations.push({ type: 'DELETE_TASK', taskId });
-            }
-        }
-
-        for (const task of tasks) {
-            const taskId = getTaskKey(task);
-            const nextSignature = nextSignaturesById.get(taskId);
-            if (!this.tasksById.has(taskId)) {
-                mutations.push({ type: 'ADD_TASK', taskId, task });
-            } else if (this.signaturesById.get(taskId) !== nextSignature) {
-                mutations.push({ type: 'UPDATE_TASK', taskId, task });
-            }
-        }
-
-        const orderChanged = this.orderedIds.length !== nextOrderedIds.length
-            || this.orderedIds.some((taskId, index) => taskId !== nextOrderedIds[index]);
-
-        this.tasksById = nextTasksById;
-        this.signaturesById = nextSignaturesById;
-        this.orderedIds = nextOrderedIds;
-
-        if (mutations.length === 0 && !orderChanged) return;
-        this.emit({ mutations, orderedIds: [...this.orderedIds], tasksById: new Map(this.tasksById), orderChanged });
-    }
-
-    private emit(update: TaskPaneStateUpdate): void {
-        for (const listener of this.listeners) listener(update);
-    }
-}
-
-export class DesktopTaskPaneView {
+export class DesktopTaskPaneView implements TaskPanePort {
+    readonly paneId: string;
     private listView: TaskPane | null = null;
     private mounted = false;
 
     constructor(
-        private view: DesktopHubView,
+        private view: TaskPaneHost,
         private rootEl: HTMLElement,
         private controller: TaskController,
         private options: TaskPaneOptions = {},
-    ) {}
+    ) {
+        this.paneId = options.paneId ?? 'desktop-main';
+    }
 
     mount(): void {
         if (this.mounted) {
-            this.syncFromIndex();
+            this.controller.syncPane(this.paneId);
             return;
         }
 
-        this.renderTaskQuickInput(this.rootEl);
-        this.listView = new TaskPane(this.view, this.rootEl, this.controller, this.options);
+        if (this.options.showQuickInput !== false) {
+            this.renderTaskQuickInput(this.rootEl);
+        }
+        this.listView = new TaskPane(this.view, this.rootEl, this.controller, {
+            ...this.options,
+            paneId: this.paneId,
+        });
         this.mounted = true;
-        this.syncFromIndex();
+        this.controller.registerPane(this);
     }
 
-    syncFromIndex(): void {
-        this.listView?.syncFromIndex();
+    syncTasks(tasks: TaskEntry[]): void {
+        this.listView?.syncTasks(tasks);
     }
 
     addTask(task: TaskEntry): void {
@@ -196,6 +119,7 @@ export class DesktopTaskPaneView {
     }
 
     destroy(): void {
+        this.controller.unregisterPane(this.paneId);
         this.listView?.destroy();
         this.listView = null;
         this.mounted = false;
@@ -252,7 +176,7 @@ export class DesktopTaskPaneView {
             textarea,
             (d) => { dueDate = d; },
             (tag) => addChip(tag),
-            () => (this.view.plugin.settings.contexts ?? []).filter(c => !contexts.includes(c)),
+            () => (this.view.plugin.settings.contexts ?? []).filter((c: string) => !contexts.includes(c)),
             this.view.plugin.settings.peopleFolder,
         );
         attachMediaPasteHandler(
@@ -335,97 +259,111 @@ export class DesktopTaskPaneView {
 
 }
 
-class TaskPane {
+export class TaskPane implements TaskPanePort {
     rootEl: HTMLElement;
-    private pillUpcomingEl: HTMLElement;
-    private pillAllEl: HTMLElement;
+    private pillUpcomingEl: HTMLElement | null = null;
+    private pillAllEl: HTMLElement | null = null;
     private countEl: HTMLElement;
     private emptyEl: HTMLElement;
     listEl: HTMLElement;
     taskMap = new Map<string, TaskItemView>();
-    private store = new TaskPaneStateStore();
     private taskIdByFilePath = new Map<string, string>();
     private pluginMap = new Map<string, TaskPanePlugin>();
-    private customFilter: TaskFilterFn | null = null;
-    private sortComparator: TaskSortFn | null = null;
+    private customFilter: TaskFilterFn | null;
+    private baseFilter: TaskFilterFn;
+    private sortComparator: TaskSortFn | null;
+    private presetFilter: 'upcoming' | 'all';
+    private readonly title: string;
+    private readonly emptyMessage?: string;
+    private readonly showFilterPills: boolean;
     private readonly hooks: TaskItemHooks;
-    private readonly paneId: string;
-    private unsubscribe: (() => void) | null = null;
-    private pendingMutations: TaskPaneMutation[] = [];
-    private pendingTasksById = new Map<string, TaskEntry>();
-    private pendingOrderedIds: string[] = [];
-    private pendingOrderChanged = false;
+    readonly paneId: string;
+    private pendingSnapshot: TaskEntry[] | null = null;
     private pendingFrame: number | null = null;
 
     constructor(
-        private view: DesktopHubView,
+        private view: TaskPaneHost,
         parent: HTMLElement,
         private controller: TaskController,
         options: TaskPaneOptions = {},
     ) {
         this.hooks = options.hooks ?? {};
         this.paneId = options.paneId ?? 'default';
+        this.title = options.title ?? 'TASKS';
+        this.emptyMessage = options.emptyMessage;
+        this.showFilterPills = options.showFilterPills ?? true;
+        this.customFilter = options.filterFn ?? null;
+        this.baseFilter = options.baseFilterFn ?? ((task) => task.status === 'open' || task.status === 'waiting');
+        this.sortComparator = options.sortFn ?? null;
+        this.presetFilter = options.presetFilter ?? this.view._taskFilter ?? 'upcoming';
         for (const plugin of options.plugins ?? []) this.pluginMap.set(plugin.id, plugin);
         this.rootEl = parent.createEl('div', { cls: 'diwa-dh-task-list-section' });
         this.rootEl.setAttr('data-task-pane-id', this.paneId);
 
         const header = this.rootEl.createEl('div', { cls: 'diwa-dh-task-list-header' });
-        header.createEl('span', { text: 'TASKS', cls: 'diwa-dh-task-list-title' });
+        header.createEl('span', { text: this.title, cls: 'diwa-dh-task-list-title' });
         this.countEl = header.createEl('span', { cls: 'diwa-dh-task-count' });
 
-        const filterGroup = header.createEl('div', { cls: 'diwa-dh-task-filter' });
-        this.pillUpcomingEl = filterGroup.createEl('button', {
-            text: '2 DAYS',
-            cls: 'diwa-dh-task-filter-pill',
-        });
-        this.pillAllEl = filterGroup.createEl('button', {
-            text: 'ALL',
-            cls: 'diwa-dh-task-filter-pill',
-        });
+        if (this.showFilterPills) {
+            const filterGroup = header.createEl('div', { cls: 'diwa-dh-task-filter' });
+            this.pillUpcomingEl = filterGroup.createEl('button', {
+                text: '2 DAYS',
+                cls: 'diwa-dh-task-filter-pill',
+            });
+            this.pillAllEl = filterGroup.createEl('button', {
+                text: 'ALL',
+                cls: 'diwa-dh-task-filter-pill',
+            });
 
-        this.pillUpcomingEl.addEventListener('click', () => this.setPresetFilter('upcoming'));
-        this.pillAllEl.addEventListener('click', () => this.setPresetFilter('all'));
+            this.pillUpcomingEl.addEventListener('click', () => this.setPresetFilter('upcoming'));
+            this.pillAllEl.addEventListener('click', () => this.setPresetFilter('all'));
+        }
 
         this.emptyEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-empty' });
         this.listEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-list' });
         this.guardContainerAgainstFullClear(this.rootEl, 'task-pane-root');
         this.guardContainerAgainstFullClear(this.listEl, 'task-pane-list');
 
-        this.unsubscribe = this.store.subscribe((update) => this.enqueueStateUpdate(update));
         this.updateFilterButtons();
         this.updateEmptyState(0);
     }
 
-    syncFromIndex(): void {
-        this.store.setTasks(this.getIndexedTasks());
+    syncTasks(tasks: TaskEntry[]): void {
+        this.pendingSnapshot = [...tasks];
+        if (this.pendingFrame !== null) return;
+        this.pendingFrame = requestAnimationFrame(() => this.flushSnapshotSync());
     }
 
     setFilter(filter: TaskFilterFn | null): void {
         this.customFilter = filter;
-        this.applyPresentationForAll();
+        this.controller.syncPane(this.paneId);
         debugTaskPane('FILTER', { paneId: this.paneId, customFilter: !!filter });
     }
 
     setSort(sort: TaskSortFn | null): void {
         this.sortComparator = sort;
-        this.syncFromIndex();
+        this.controller.syncPane(this.paneId);
     }
 
     registerPlugin(plugin: TaskPanePlugin): void {
         this.pluginMap.set(plugin.id, plugin);
-        this.syncFromIndex();
-        this.applyPresentationForAll();
+        this.controller.syncPane(this.paneId);
     }
 
     unregisterPlugin(pluginId: string): void {
         this.pluginMap.delete(pluginId);
-        this.syncFromIndex();
-        this.applyPresentationForAll();
+        this.controller.syncPane(this.paneId);
     }
 
     addTask(task: TaskEntry): void {
         const taskId = getTaskKey(task);
         debugTaskPane('ADD', { taskId, filePath: task.filePath });
+        if (!this.shouldRenderTask(task)) {
+            const existingTaskId = this.taskIdByFilePath.get(task.filePath);
+            if (existingTaskId) this.removeTaskById(existingTaskId);
+            this.updateEmptyState(this.taskMap.size);
+            return;
+        }
         const previousTaskId = this.taskIdByFilePath.get(task.filePath);
         if (previousTaskId && previousTaskId !== taskId) {
             this.removeTaskById(previousTaskId);
@@ -454,7 +392,6 @@ class TaskPane {
 
         const row = this.taskMap.get(taskId);
         if (row) {
-            this.applyPresentationForTask(row);
             if (!row.rootEl.isConnected) {
                 console.warn('[DIWA TaskPane] task row was detached; reattaching', {
                     taskId,
@@ -463,7 +400,7 @@ class TaskPane {
             }
             this.listEl.appendChild(row.rootEl);
         }
-        this.updateEmptyState(this.getVisibleCount());
+        this.updateEmptyState(this.taskMap.size);
         this.verifyDomIntegrity('ADD', taskId);
     }
 
@@ -473,6 +410,13 @@ class TaskPane {
         const previousTaskId = this.taskIdByFilePath.get(task.filePath);
         if (previousTaskId && previousTaskId !== taskId) {
             this.removeTaskById(previousTaskId);
+        }
+        if (!this.shouldRenderTask(task)) {
+            const removableTaskId = this.taskMap.has(taskId) ? taskId : previousTaskId;
+            if (removableTaskId) this.removeTaskById(removableTaskId);
+            this.updateEmptyState(this.taskMap.size);
+            this.verifyDomIntegrity('UPDATE_REMOVE', taskId);
+            return;
         }
         const existing = this.taskMap.get(taskId);
         if (!existing) {
@@ -485,8 +429,7 @@ class TaskPane {
         }
         existing.update(task);
         this.taskIdByFilePath.set(task.filePath, taskId);
-        this.applyPresentationForTask(existing);
-        this.updateEmptyState(this.getVisibleCount());
+        this.updateEmptyState(this.taskMap.size);
         this.verifyDomIntegrity('UPDATE', taskId);
     }
 
@@ -501,7 +444,7 @@ class TaskPane {
             return;
         }
         this.removeTaskById(resolvedTaskId);
-        this.updateEmptyState(this.getVisibleCount());
+        this.updateEmptyState(this.taskMap.size);
         this.verifyDomIntegrity('REMOVE', resolvedTaskId);
     }
 
@@ -510,31 +453,23 @@ class TaskPane {
             cancelAnimationFrame(this.pendingFrame);
             this.pendingFrame = null;
         }
-        this.unsubscribe?.();
-        this.unsubscribe = null;
         for (const itemView of this.taskMap.values()) itemView.destroy();
         this.taskMap.clear();
         this.taskIdByFilePath.clear();
     }
 
     private setPresetFilter(filter: 'upcoming' | 'all'): void {
-        if (this.view._taskFilter === filter) return;
+        if (!this.showFilterPills) return;
+        if (this.presetFilter === filter) return;
+        this.presetFilter = filter;
         this.view._taskFilter = filter;
         this.updateFilterButtons();
-        this.applyPresentationForAll();
+        this.controller.syncPane(this.paneId);
     }
 
     private updateFilterButtons(): void {
-        this.pillUpcomingEl.toggleClass('is-active', this.view._taskFilter === 'upcoming');
-        this.pillAllEl.toggleClass('is-active', this.view._taskFilter === 'all');
-    }
-
-    private getIndexedTasks(): TaskEntry[] {
-        const allOpen = Array.from(this.view.plugin.index.taskIndex.values())
-            .filter(t => t.status === 'open' || t.status === 'waiting')
-            .sort((a, b) => this.compareTasks(a, b));
-
-        return allOpen;
+        this.pillUpcomingEl?.toggleClass('is-active', this.presetFilter === 'upcoming');
+        this.pillAllEl?.toggleClass('is-active', this.presetFilter === 'all');
     }
 
     private compareTasks(a: TaskEntry, b: TaskEntry): number {
@@ -562,23 +497,10 @@ class TaskPane {
         return (b.lastUpdate || 0) - (a.lastUpdate || 0);
     }
 
-    private applyPresentationForAll(): void {
-        for (const itemView of this.taskMap.values()) this.applyPresentationForTask(itemView);
-        this.updateEmptyState(this.getVisibleCount());
-        this.verifyDomIntegrity('FILTER');
-    }
+    private shouldRenderTask(task: TaskEntry): boolean {
+        if (!this.baseFilter(task)) return false;
 
-    private applyPresentationForTask(itemView: TaskItemView): void {
-        const task = itemView.getTask();
-        const visible = this.matchesFilter(task);
-        itemView.setHidden(!visible);
-        itemView.setGroupKey(this.resolveGroup(task));
-    }
-
-    private matchesFilter(task: TaskEntry): boolean {
-        if (!(task.status === 'open' || task.status === 'waiting')) return false;
-
-        if (this.view._taskFilter === 'upcoming') {
+        if (this.presetFilter === 'upcoming') {
             if (task.due) {
                 const cutoff = moment().startOf('day').add(2, 'days').endOf('day');
                 if (!moment(task.due, 'YYYY-MM-DD').isSameOrBefore(cutoff, 'day')) return false;
@@ -602,60 +524,35 @@ class TaskPane {
         return null;
     }
 
-    private getVisibleCount(): number {
-        let count = 0;
-        for (const itemView of this.taskMap.values()) {
-            if (!itemView.isHidden()) count++;
-        }
-        return count;
-    }
-
-    private enqueueStateUpdate(update: TaskPaneStateUpdate): void {
-        this.pendingMutations.push(...update.mutations);
-        this.pendingTasksById = update.tasksById;
-        this.pendingOrderedIds = update.orderedIds;
-        this.pendingOrderChanged = this.pendingOrderChanged || update.orderChanged;
-
-        if (this.pendingFrame !== null) return;
-        this.pendingFrame = requestAnimationFrame(() => this.flushStateUpdate());
-    }
-
-    private flushStateUpdate(): void {
+    private flushSnapshotSync(): void {
         this.pendingFrame = null;
-        const mutations = this.pendingMutations;
-        const tasksById = this.pendingTasksById;
-        const orderedIds = this.pendingOrderedIds;
-        const orderChanged = this.pendingOrderChanged;
-        this.pendingMutations = [];
-        this.pendingTasksById = new Map();
-        this.pendingOrderedIds = [];
-        this.pendingOrderChanged = false;
+        const snapshot = this.pendingSnapshot ?? [];
+        this.pendingSnapshot = null;
+        const orderedTasks = [...snapshot]
+            .filter((task) => this.shouldRenderTask(task))
+            .sort((a, b) => this.compareTasks(a, b));
+        const nextTaskIds = orderedTasks.map((task) => getTaskKey(task));
+        const nextTaskSet = new Set(nextTaskIds);
 
-        const latestMutationById = new Map<string, TaskPaneMutation>();
-        for (const mutation of mutations) latestMutationById.set(mutation.taskId, mutation);
-
-        for (const mutation of latestMutationById.values()) {
-            if (mutation.type !== 'DELETE_TASK') continue;
-            this.removeTaskById(mutation.taskId);
+        for (const existingTaskId of Array.from(this.taskMap.keys())) {
+            if (!nextTaskSet.has(existingTaskId)) this.removeTaskById(existingTaskId);
         }
 
-        for (const mutation of latestMutationById.values()) {
-            if (mutation.type === 'DELETE_TASK' || !mutation.task) continue;
-            if (mutation.type === 'ADD_TASK') this.addTask(mutation.task);
-            else this.updateTask(mutation.task);
+        for (const task of orderedTasks) {
+            const taskId = getTaskKey(task);
+            if (this.taskMap.has(taskId)) {
+                this.updateTask(task);
+            } else {
+                this.addTask(task);
+            }
+            const row = this.taskMap.get(taskId);
+            row?.setGroupKey(this.resolveGroup(task));
         }
 
-        for (const taskId of orderedIds) {
-            if (this.taskMap.has(taskId)) continue;
-            const task = tasksById.get(taskId);
-            if (task) this.addTask(task);
-        }
-
-        if (orderChanged) this.reorderRows(orderedIds);
-
-        this.updateEmptyState(this.getVisibleCount());
-        debugTaskPane('partial update', { mutations, orderedIds });
-        this.verifyDomIntegrity('BATCH');
+        this.reorderRows(nextTaskIds);
+        this.updateEmptyState(this.taskMap.size);
+        debugTaskPane('snapshot sync', { paneId: this.paneId, taskCount: orderedTasks.length });
+        this.verifyDomIntegrity('SYNC');
     }
 
     private removeTaskById(taskId: string): void {
@@ -675,9 +572,13 @@ class TaskPane {
             return;
         }
 
-        this.emptyEl.setText(this.view._taskFilter === 'upcoming'
-            ? 'No tasks in the next 2 days.'
-            : 'All clear — no open gawa.');
+        if (this.emptyMessage) {
+            this.emptyEl.setText(this.emptyMessage);
+        } else {
+            this.emptyEl.setText(this.presetFilter === 'upcoming'
+                ? 'No tasks in the next 2 days.'
+                : 'All clear — no open gawa.');
+        }
         this.emptyEl.style.display = '';
         this.listEl.style.display = 'none';
     }
@@ -784,7 +685,7 @@ class TaskPane {
     }
 }
 
-class TaskItemView {
+export class TaskItemView {
     rootEl: HTMLElement;
     private checkboxEl: HTMLElement;
     private contentEl: HTMLElement;
@@ -793,11 +694,10 @@ class TaskItemView {
     private editBtnEl: HTMLElement;
     private currentTask: TaskEntry;
     private destroyed = false;
-    private hidden = false;
     private groupKey: string | null = null;
 
     constructor(
-        private view: DesktopHubView,
+        private view: TaskPaneHost,
         private controller: TaskController,
         private hooks: TaskItemHooks,
         parent: HTMLElement,
@@ -855,17 +755,6 @@ class TaskItemView {
 
     getTask(): TaskEntry {
         return this.currentTask;
-    }
-
-    setHidden(hidden: boolean): void {
-        if (this.hidden === hidden) return;
-        this.hidden = hidden;
-        this.rootEl.toggleClass('is-filter-hidden', hidden);
-        this.rootEl.style.display = hidden ? 'none' : '';
-    }
-
-    isHidden(): boolean {
-        return this.hidden;
     }
 
     setGroupKey(groupKey: string | null): void {
@@ -950,7 +839,7 @@ class TaskItemView {
             textarea,
             (d) => { editDueDate = d; },
             (tag) => { if (!editContexts.includes(tag)) { editContexts.push(tag); renderChips(); } },
-            () => (this.view.plugin.settings.contexts ?? []).filter(c => !editContexts.includes(c)),
+            () => (this.view.plugin.settings.contexts ?? []).filter((c: string) => !editContexts.includes(c)),
             this.view.plugin.settings.peopleFolder,
         );
 

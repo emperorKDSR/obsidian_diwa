@@ -131,7 +131,6 @@ export class DesktopHubView extends ItemView {
 
     private resetLayoutRefs(): void {
         this._taskPaneView?.destroy();
-        this._taskController.bindPane(null);
         this._wrapEl = null;
         this._topBarEl = null;
         this._sidebarEl = null;
@@ -590,6 +589,5 @@ export class DesktopHubView extends ItemView {
     private mountTaskPane(parent: HTMLElement) {
         this._taskPaneView = new DesktopTaskPaneView(this, parent, this._taskController);
         this._taskPaneView.mount();
-        this._taskController.bindPane(this._taskPaneView);
     }
 }
