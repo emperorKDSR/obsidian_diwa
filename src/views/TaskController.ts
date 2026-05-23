@@ -165,6 +165,10 @@ export class TaskController {
         return this.resolveTaskRecord(taskId)?.task ?? null;
     }
 
+    getAllTasks(): TaskEntry[] {
+        return this.getIndexSnapshot();
+    }
+
     getThought(thoughtId: string): ThoughtEntry | null {
         return this.resolveThoughtRecord(thoughtId)?.thought ?? null;
     }

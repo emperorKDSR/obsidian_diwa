@@ -1636,7 +1636,7 @@ export class TaskItemView {
     }
 
     private resolveThought(thoughtId: string): ThoughtEntry | null {
-        return this.view.plugin.index.thoughtIndex.get(thoughtId) ?? null;
+        return this.view.plugin.getThoughtController().getThought(thoughtId);
     }
 
     private thoughtSnippet(thoughtId: string): string {
@@ -1735,8 +1735,9 @@ export class TaskItemView {
 
     private openThoughtLinkPicker(anchor: HTMLElement): void {
         const linked = new Set(this.linkedThoughtIds);
-        const thoughts = (Array.from(this.view.plugin.index.thoughtIndex.values()) as ThoughtEntry[])
-            .sort((a, b) => (b.modified || '').localeCompare(a.modified || ''));
+        const thoughts = this.view.plugin.getThoughtController()
+            .getAllThoughts()
+            .sort((a: ThoughtEntry, b: ThoughtEntry) => (b.modified || '').localeCompare(a.modified || ''));
 
         this.openInlinePopover(anchor, (popover) => {
             const search = popover.createEl('input', {

@@ -17,6 +17,7 @@ import { TaskReflectionService } from './services/TaskReflectionService';
 import { RefreshCoordinator, type RefreshScope } from './application/RefreshCoordinator';
 import { SearchModal } from './modals/SearchModal';
 import { TaskController } from './views/TaskController';
+import { ThoughtController } from './views/ThoughtController';
 
 class TaskIndexCompat {
     constructor(private readonly plugin: DiwaPlugin) {}
@@ -61,6 +62,7 @@ export default class DiwaPlugin extends Plugin {
     controller: TaskController;
     // Backward-compatible alias used by existing view code
     taskController: TaskController;
+    thoughtController: ThoughtController;
     taskLink: TaskLinkService;
     taskReflection: TaskReflectionService;
     refreshCoordinator: RefreshCoordinator;
@@ -74,6 +76,15 @@ export default class DiwaPlugin extends Plugin {
         return this.controller;
     }
 
+    getThoughtController(): ThoughtController {
+        if (!this.thoughtController) {
+            this.thoughtController = new ThoughtController(this);
+            this.thoughtController.hydrateFromIndex(Array.from(this.index?.thoughtIndex?.values() ?? []));
+            console.warn('[DIWA] ThoughtController was missing and has been re-created');
+        }
+        return this.thoughtController;
+    }
+
 	async onload() {
 		await this.loadSettings();
 
@@ -84,6 +95,7 @@ export default class DiwaPlugin extends Plugin {
         this.taskIndex = new TaskIndexCompat(this);
         this.controller = new TaskController(this);
         this.taskController = this.controller;
+        this.thoughtController = new ThoughtController(this);
         console.log('TaskIndex initialized:', this.taskIndex);
         console.log('[DIWA] Shared TaskController initialized:', this.controller);
         this.taskLink = new TaskLinkService(this.app, this.settings, this.index);
@@ -97,6 +109,7 @@ export default class DiwaPlugin extends Plugin {
             normalizedTasks.forEach((task) => {
                 this.getTaskController().addTask(task);
             });
+            this.getThoughtController().hydrateFromIndex(Array.from(this.index.thoughtIndex.values()));
             console.log('Tasks loaded:', normalizedTasks.length);
             console.log('TaskIndex:', this.taskIndex);
             this.logTaskControllerPanes();

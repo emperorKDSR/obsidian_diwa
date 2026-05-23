@@ -106,17 +106,24 @@ export interface ThoughtEntry {
     title: string;             // from frontmatter
     created: string;           // YYYY-MM-DD HH:mm:ss
     modified: string;          // YYYY-MM-DD HH:mm:ss
+    createdAt?: number;        // ms timestamp for lifecycle-aware sorting
+    updatedAt?: number;        // ms timestamp for lifecycle-aware sorting
     day: string;               // e.g. "2026-03-28"
     allDates: string[];        // all [[YYYY-MM-DD]] links found in full content
     context: string[];         // from frontmatter context list
     topic?: string | null;     // sub-topic label, e.g. "Meeting"
     body: string;              // text before first ## reply header
+    content?: string;          // canonical full content alias
     lastThreadUpdate: number;  // ms timestamp for sorting
+    state?: 'raw' | 'refined' | 'important';
     pinned?: boolean;          // true if the thought is pinned
+    archived?: boolean;
+    tags?: string[];
     project?: string;          // associated project name
     synthesized?: boolean;     // true if the thought has been synthesized into a master note
     links?: {
         tasks: string[];       // linked task IDs (file paths in current implementation)
+        thoughts?: string[];   // linked thought IDs
     };
 }
 

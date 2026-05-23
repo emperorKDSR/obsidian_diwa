@@ -387,16 +387,26 @@ export class IndexService {
             filePath: file.path,
             title: file.basename,
             body: body,
+            content: body,
             day: String(fm.day || '').replace(/^\[\[|\]\]$/g, ''),
             created: fm.created || '',
             modified: fm.modified || '',
+            createdAt: Number(fm.createdAt || file.stat.ctime || Date.now()),
+            updatedAt: Number(fm.updatedAt || file.stat.mtime || Date.now()),
             context: IndexService.normalizeContext(fm.context ?? fm.contexts),
             topic: Array.isArray(fm.topic) ? (fm.topic[0] ? String(fm.topic[0]) : null) : (fm.topic || null),
             synthesized: fm.synthesized || false,
+            state: fm.state || 'raw',
+            pinned: Boolean(fm.pinned),
+            archived: Boolean(fm.archived),
+            tags: IndexService.normalizeStringArray(fm.tags),
             project: fm.project || null,
             allDates: fm.allDates || [],
             lastThreadUpdate: file.stat.mtime,
-            links: { tasks: linkedTaskIds },
+            links: {
+                tasks: linkedTaskIds,
+                thoughts: IndexService.normalizeLinksArray(fm.links, 'thoughts'),
+            },
         });
 
         // Collect open checklist items from this thought file (replace stale entries via Map)
