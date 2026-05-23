@@ -12,6 +12,7 @@ import type { DiwaView } from '../view';
 import { InlineTopicInput } from '../utils/InlineTopicInput';
 import { ConvertToTaskModal } from '../modals/ConvertToTaskModal';
 import { DesktopTaskPaneView } from './DesktopTaskPane';
+import { TaskController } from './TaskController';
 
 export class DesktopHubView extends ItemView {
     plugin: DiwaPlugin;
@@ -36,10 +37,12 @@ export class DesktopHubView extends ItemView {
     private _centerEl: HTMLElement | null = null;
     private _rightEl: HTMLElement | null = null;
     private _taskPaneView: DesktopTaskPaneView | null = null;
+    private _taskController: TaskController;
 
     constructor(leaf: WorkspaceLeaf, plugin: DiwaPlugin) {
         super(leaf);
         this.plugin = plugin;
+        this._taskController = new TaskController(plugin);
     }
 
     getViewType(): string { return VIEW_TYPE_DESKTOP_HUB; }
@@ -107,23 +110,7 @@ export class DesktopHubView extends ItemView {
     }
 
     updateTaskPaneFromIndex(): void {
-        this._taskPaneView?.updateFromIndex();
-    }
-
-    addTaskInPane(task: TaskEntry): void {
-        this.plugin.index.taskIndex.set(task.filePath, task);
-        this._taskPaneView?.addTask(task);
-    }
-
-    updateTaskInPane(task: TaskEntry): void {
-        this.plugin.index.taskIndex.set(task.filePath, task);
-        this._taskPaneView?.updateTask(task);
-    }
-
-    removeTaskFromPane(filePath: string): void {
-        const current = this.plugin.index.taskIndex.get(filePath);
-        this.plugin.index.taskIndex.delete(filePath);
-        this._taskPaneView?.removeTask(current?.taskId?.trim() || filePath, filePath);
+        this._taskController.syncFromIndex();
     }
 
     private buildStableLayout(root: HTMLElement): void {
@@ -139,11 +126,12 @@ export class DesktopHubView extends ItemView {
 
         this._centerEl = cols.createEl('div', { cls: 'diwa-dh-center' });
         this._rightEl = cols.createEl('div', { cls: 'diwa-dh-right' });
-        this.renderRight(this._rightEl);
+        this.mountTaskPane(this._rightEl);
     }
 
     private resetLayoutRefs(): void {
         this._taskPaneView?.destroy();
+        this._taskController.bindPane(null);
         this._wrapEl = null;
         this._topBarEl = null;
         this._sidebarEl = null;
@@ -599,8 +587,9 @@ export class DesktopHubView extends ItemView {
     }
 
     // ── RIGHT Panel ───────────────────────────────────────────────────────────
-    private renderRight(parent: HTMLElement) {
-        this._taskPaneView = new DesktopTaskPaneView(this, parent);
-        this._taskPaneView.render();
+    private mountTaskPane(parent: HTMLElement) {
+        this._taskPaneView = new DesktopTaskPaneView(this, parent, this._taskController);
+        this._taskPaneView.mount();
+        this._taskController.bindPane(this._taskPaneView);
     }
 }
