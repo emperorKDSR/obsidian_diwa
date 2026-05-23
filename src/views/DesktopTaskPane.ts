@@ -957,6 +957,8 @@ export class TaskItemView {
         });
         this.metaEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-meta' });
         this.metaEl.style.display = 'none';
+        this.metaEl.style.width = '100%';
+        this.metaEl.style.position = 'static';
 
         this.applyTask(task, true);
     }
@@ -1283,7 +1285,13 @@ export class TaskItemView {
     }
 
     private syncMetaVisibility(visible: boolean): void {
-        this.metaEl.style.display = visible ? '' : 'none';
+        if (visible) {
+            this.metaEl.style.display = 'block';
+            this.metaEl.style.width = '100%';
+            this.metaEl.style.position = 'static';
+            return;
+        }
+        this.metaEl.style.display = 'none';
     }
 
     private hasVisibleMetadata(task: TaskEntry): boolean {
