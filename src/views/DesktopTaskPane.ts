@@ -119,7 +119,7 @@ export class DesktopTaskPaneView implements TaskPanePort {
     }
 
     destroy(): void {
-        this.controller.unregisterPane(this.paneId);
+        this.controller.unregisterPane(this.paneId, this);
         this.listView?.destroy();
         this.listView = null;
         this.mounted = false;
@@ -280,6 +280,7 @@ export class TaskPane implements TaskPanePort {
     readonly paneId: string;
     private pendingSnapshot: TaskEntry[] | null = null;
     private pendingFrame: number | null = null;
+    private inBatchSync = false;
 
     constructor(
         private view: TaskPaneHost,
@@ -361,7 +362,7 @@ export class TaskPane implements TaskPanePort {
         if (!this.shouldRenderTask(task)) {
             const existingTaskId = this.taskIdByFilePath.get(task.filePath);
             if (existingTaskId) this.removeTaskById(existingTaskId);
-            this.updateEmptyState(this.taskMap.size);
+            if (!this.inBatchSync) this.updateEmptyState(this.taskMap.size);
             return;
         }
         const previousTaskId = this.taskIdByFilePath.get(task.filePath);
@@ -400,8 +401,7 @@ export class TaskPane implements TaskPanePort {
             }
             this.listEl.appendChild(row.rootEl);
         }
-        this.updateEmptyState(this.taskMap.size);
-        this.verifyDomIntegrity('ADD', taskId);
+        this.finalizeMutation('ADD', taskId);
     }
 
     updateTask(task: TaskEntry): void {
@@ -414,8 +414,7 @@ export class TaskPane implements TaskPanePort {
         if (!this.shouldRenderTask(task)) {
             const removableTaskId = this.taskMap.has(taskId) ? taskId : previousTaskId;
             if (removableTaskId) this.removeTaskById(removableTaskId);
-            this.updateEmptyState(this.taskMap.size);
-            this.verifyDomIntegrity('UPDATE_REMOVE', taskId);
+            this.finalizeMutation('UPDATE_REMOVE', taskId);
             return;
         }
         const existing = this.taskMap.get(taskId);
@@ -429,8 +428,7 @@ export class TaskPane implements TaskPanePort {
         }
         existing.update(task);
         this.taskIdByFilePath.set(task.filePath, taskId);
-        this.updateEmptyState(this.taskMap.size);
-        this.verifyDomIntegrity('UPDATE', taskId);
+        this.finalizeMutation('UPDATE', taskId);
     }
 
     removeTask(taskId: string, filePath?: string): void {
@@ -444,8 +442,7 @@ export class TaskPane implements TaskPanePort {
             return;
         }
         this.removeTaskById(resolvedTaskId);
-        this.updateEmptyState(this.taskMap.size);
-        this.verifyDomIntegrity('REMOVE', resolvedTaskId);
+        this.finalizeMutation('REMOVE', resolvedTaskId);
     }
 
     destroy(): void {
@@ -534,25 +531,36 @@ export class TaskPane implements TaskPanePort {
         const nextTaskIds = orderedTasks.map((task) => getTaskKey(task));
         const nextTaskSet = new Set(nextTaskIds);
 
-        for (const existingTaskId of Array.from(this.taskMap.keys())) {
-            if (!nextTaskSet.has(existingTaskId)) this.removeTaskById(existingTaskId);
-        }
-
-        for (const task of orderedTasks) {
-            const taskId = getTaskKey(task);
-            if (this.taskMap.has(taskId)) {
-                this.updateTask(task);
-            } else {
-                this.addTask(task);
+        this.inBatchSync = true;
+        try {
+            for (const existingTaskId of Array.from(this.taskMap.keys())) {
+                if (!nextTaskSet.has(existingTaskId)) this.removeTaskById(existingTaskId);
             }
-            const row = this.taskMap.get(taskId);
-            row?.setGroupKey(this.resolveGroup(task));
+
+            for (const task of orderedTasks) {
+                const taskId = getTaskKey(task);
+                if (this.taskMap.has(taskId)) {
+                    this.updateTask(task);
+                } else {
+                    this.addTask(task);
+                }
+                const row = this.taskMap.get(taskId);
+                row?.setGroupKey(this.resolveGroup(task));
+            }
+        } finally {
+            this.inBatchSync = false;
         }
 
         this.reorderRows(nextTaskIds);
         this.updateEmptyState(this.taskMap.size);
         debugTaskPane('snapshot sync', { paneId: this.paneId, taskCount: orderedTasks.length });
         this.verifyDomIntegrity('SYNC');
+    }
+
+    private finalizeMutation(source: string, taskId?: string): void {
+        if (this.inBatchSync) return;
+        this.updateEmptyState(this.taskMap.size);
+        this.verifyDomIntegrity(source, taskId);
     }
 
     private removeTaskById(taskId: string): void {

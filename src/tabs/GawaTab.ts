@@ -18,9 +18,12 @@ interface PaneConfig {
 
 type MobileTabId = 'inbox' | 'today' | 'focus' | 'projects';
 const MOBILE_TAB_ORDER: MobileTabId[] = ['inbox', 'today', 'focus', 'projects'];
+type GawaLayoutMode = 'desktop' | 'tablet' | 'phone';
 
 export class GawaTab extends BaseTab {
     private _container: HTMLElement | null = null;
+    private _rootEl: HTMLElement | null = null;
+    private _layoutMode: GawaLayoutMode | null = null;
     private readonly _taskController: TaskController;
     private readonly _paneHost: TaskPaneHost;
     private readonly _paneMap = new Map<string, TaskPane>();
@@ -44,15 +47,35 @@ export class GawaTab extends BaseTab {
     }
 
     render(container: HTMLElement): void {
+        const layoutMode = this.resolveLayoutMode();
+        const canReuseLayout =
+            this._container === container
+            && this._rootEl !== null
+            && this._layoutMode === layoutMode
+            && container.contains(this._rootEl);
+
         this._container = container;
+        if (canReuseLayout) {
+            this._taskController.syncFromIndex();
+            return;
+        }
+
         this.destroyPanes();
-        container.empty();
+        if (this._rootEl && container.contains(this._rootEl)) {
+            this._rootEl.remove();
+        } else {
+            for (const child of Array.from(container.children)) {
+                child.remove();
+            }
+        }
         this._mobilePaneShells.clear();
         this._mobileTabButtons.clear();
+        this._layoutMode = layoutMode;
 
         const root = container.createEl('div', { cls: 'diwa-gawa-desktop' });
-        const isPhone = this.isPhoneLayout();
-        const isTabletLayout = this.isTabletLayout();
+        this._rootEl = root;
+        const isPhone = layoutMode === 'phone';
+        const isTabletLayout = layoutMode === 'tablet';
         if (isPhone) root.addClass('is-mobile');
         if (isTabletLayout) root.addClass('is-tablet');
         this.renderHeader(root);
@@ -81,6 +104,11 @@ export class GawaTab extends BaseTab {
 
     onunload(): void {
         this.destroyPanes();
+        this._rootEl = null;
+        this._layoutMode = null;
+        this._container = null;
+        this._mobilePaneShells.clear();
+        this._mobileTabButtons.clear();
     }
 
     private renderHeader(parent: HTMLElement): void {
@@ -185,7 +213,7 @@ export class GawaTab extends BaseTab {
 
     private destroyPanes(): void {
         for (const [paneId, pane] of this._paneMap.entries()) {
-            this._taskController.unregisterPane(paneId);
+            this._taskController.unregisterPane(paneId, pane);
             pane.destroy();
         }
         this._paneMap.clear();
@@ -225,6 +253,12 @@ export class GawaTab extends BaseTab {
         return isTablet();
     }
 
+    private resolveLayoutMode(): GawaLayoutMode {
+        if (this.isPhoneLayout()) return 'phone';
+        if (this.isTabletLayout()) return 'tablet';
+        return 'desktop';
+    }
+
     private openCreateTaskModal(): void {
         new EditEntryModal(
             this.app,
@@ -252,8 +286,15 @@ export class GawaTab extends BaseTab {
                     );
                     if (created instanceof TFile) {
                         await this.plugin.refreshCoordinator.reindexFile(created);
+                        const indexedTask = this.plugin.index.taskIndex.get(created.path);
+                        if (indexedTask) {
+                            this._taskController.addTask(indexedTask);
+                        } else {
+                            this._taskController.syncFromIndex();
+                        }
+                    } else {
+                        this._taskController.syncFromIndex();
                     }
-                    this._taskController.syncFromIndex();
                     new Notice('Task added', 1000);
                 } catch (error) {
                     console.error('[DIWA GAWA] Failed to create task', error);

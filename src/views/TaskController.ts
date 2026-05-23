@@ -8,6 +8,7 @@ export interface TaskPanePort {
     updateTask(task: TaskEntry): void;
     removeTask(taskId: string, filePath?: string): void;
     syncTasks(tasks: TaskEntry[]): void;
+    destroy(): void;
 }
 
 function getTaskKey(task: TaskEntry): string {
@@ -20,14 +21,28 @@ export class TaskController {
     constructor(private plugin: DiwaPlugin) {}
 
     registerPane(pane: TaskPanePort): void {
-        if (this.paneRegistry.has(pane.paneId)) {
+        const existing = this.paneRegistry.get(pane.paneId);
+        if (existing) {
+            if (existing === pane) {
+                pane.syncTasks(this.getIndexSnapshot());
+                return;
+            }
             console.warn('[DIWA TaskController] replacing existing pane registration', { paneId: pane.paneId });
+            try {
+                existing.destroy();
+            } catch (error) {
+                console.warn('[DIWA TaskController] failed to destroy replaced pane', { paneId: pane.paneId, error });
+            }
         }
         this.paneRegistry.set(pane.paneId, pane);
         pane.syncTasks(this.getIndexSnapshot());
     }
 
-    unregisterPane(paneId: string): void {
+    unregisterPane(paneId: string, pane?: TaskPanePort): void {
+        if (pane) {
+            const current = this.paneRegistry.get(paneId);
+            if (current && current !== pane) return;
+        }
         this.paneRegistry.delete(paneId);
     }
 
