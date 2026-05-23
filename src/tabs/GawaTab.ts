@@ -42,10 +42,12 @@ export class GawaTab extends BaseTab {
     private readonly _mobileTabButtons = new Map<MobileTabId, HTMLElement>();
     private _taskPending = 0;
     private _taskFilter: 'upcoming' | 'all' = 'all';
+    private _taskIndexRecoveryInFlight = false;
 
     constructor(view: DiwaView) {
         super(view);
-        this._taskController = new TaskController(this.plugin);
+        this._taskController = this.plugin.getTaskController();
+        console.log('[DIWA] GAWA controller ref:', this._taskController);
         const self = this;
         this._paneHost = {
             app: this.app,
@@ -64,6 +66,9 @@ export class GawaTab extends BaseTab {
             && this._rootEl !== null
             && this._layoutMode === layoutMode
             && container.contains(this._rootEl);
+
+        const indexSize = this.plugin.index.taskIndex.size;
+        console.log('[DIWA GAWA] render', { indexSize, layoutMode, canReuseLayout });
 
         this._container = container;
         if (canReuseLayout) {
@@ -111,6 +116,19 @@ export class GawaTab extends BaseTab {
         }
 
         this._taskController.syncFromIndex();
+        void this.ensureTaskIndexRecovered();
+    }
+
+    /** Incremental refresh — called when only task data changes (avoids full DOM rebuild). */
+    onTasksRefresh(): void {
+        if (this._paneMap.size === 0) {
+            // Panes not yet mounted — fall back to full render is handled by caller
+            console.log('[DIWA GAWA] onTasksRefresh skipped: no panes mounted');
+            return;
+        }
+        const indexSize = this.plugin.index.taskIndex.size;
+        console.log('[DIWA GAWA] onTasksRefresh', { indexSize, paneCount: this._paneMap.size });
+        this._taskController.syncFromIndex();
     }
 
     onunload(): void {
@@ -120,6 +138,27 @@ export class GawaTab extends BaseTab {
         this._container = null;
         this._mobilePaneShells.clear();
         this._mobileTabButtons.clear();
+        this._taskIndexRecoveryInFlight = false;
+    }
+
+    private async ensureTaskIndexRecovered(): Promise<void> {
+        if (this._taskIndexRecoveryInFlight) return;
+        if (this.plugin.index.taskIndex.size > 0) return;
+        this._taskIndexRecoveryInFlight = true;
+        try {
+            await this.plugin.index.buildTaskIndex();
+            this.plugin.index.rebuildCalculatedState();
+            if (this.plugin.index.taskIndex.size > 0) {
+                console.warn('[DIWA GAWA] task index recovered after initial empty snapshot', {
+                    taskCount: this.plugin.index.taskIndex.size,
+                });
+                this._taskController.syncFromIndex();
+            }
+        } catch (error) {
+            console.error('[DIWA GAWA] task index recovery failed', error);
+        } finally {
+            this._taskIndexRecoveryInFlight = false;
+        }
     }
 
     private renderHeader(parent: HTMLElement): void {
@@ -669,9 +708,10 @@ export class GawaTab extends BaseTab {
     }
 
     private getBucketStatus(task: TaskEntry): TaskBucketStatus {
+        const legacyState = String(task.state || '').toLowerCase();
         if (task.bucketStatus) return task.bucketStatus;
-        if (task.status === 'done' || task.lifecycleStatus === 'done') return 'done';
-        if (task.status === 'waiting' || task.lifecycleStatus === 'active') return 'active';
+        if (task.status === 'done' || legacyState === 'done' || task.lifecycleStatus === 'done') return 'done';
+        if (task.status === 'waiting' || legacyState === 'active' || task.lifecycleStatus === 'active') return 'active';
         return 'backlog';
     }
 

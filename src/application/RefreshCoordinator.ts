@@ -66,7 +66,12 @@ export class RefreshCoordinator {
                 if (view && typeof view.renderView === 'function') {
                     // Don't re-render while the user is mid-toggle — let optimistic UI stand
                     if (view._taskTogglePending > 0 || view._habitTogglePending > 0 || view._checklistTogglePending > 0 || view._capturePending > 0 || view._synthesisCaptPending > 0 || view._mergePending > 0) continue;
-                    view.renderView();
+                    // For task-only updates use incremental refresh to avoid full DOM rebuild
+                    if (scope === 'tasks' && typeof (view as any).refreshTasks === 'function') {
+                        (view as any).refreshTasks();
+                    } else {
+                        view.renderView();
+                    }
                 }
             }
             // Refresh any open Desktop Hub leaves

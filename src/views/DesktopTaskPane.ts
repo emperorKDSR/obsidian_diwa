@@ -1,6 +1,6 @@
 import { Notice, TFile, moment, setIcon } from 'obsidian';
 import type { App } from 'obsidian';
-import type { TaskBucketStatus, TaskEntry } from '../types';
+import type { TaskBucketStatus, TaskEntry, ThoughtEntry } from '../types';
 import { attachInlineTriggers, attachMediaPasteHandler } from '../utils';
 import type { TaskController, TaskPanePort } from './TaskController';
 import { EditTaskModal } from '../modals/EditTaskModal';
@@ -58,8 +58,41 @@ function debugTaskPane(message: string, data?: unknown): void {
     console.debug(`[DIWA TaskPane] ${message}`, data ?? '');
 }
 
+function safeSetIcon(target: HTMLElement, iconName: string, fallbackIcon = 'circle'): void {
+    const candidates = [iconName, iconName.replace(/^lucide-/, ''), fallbackIcon]
+        .map((value) => value.trim())
+        .filter(Boolean);
+    const attempted = new Set<string>();
+    for (const candidate of candidates) {
+        if (attempted.has(candidate)) continue;
+        attempted.add(candidate);
+        try {
+            setIcon(target, candidate);
+            return;
+        } catch {
+            // Keep trying fallbacks — avoid task-row construction failures on icon registry mismatches.
+        }
+    }
+}
+
 function getTaskKey(task: TaskEntry): string {
     return task.taskId?.trim() || task.filePath;
+}
+
+function getLinkedThoughtIds(task: TaskEntry): string[] {
+    const linked = [
+        ...(task.sourceThoughtIds ?? []),
+        ...(task.links?.thoughts ?? []),
+    ].map((id) => id.trim()).filter(Boolean);
+    return Array.from(new Set(linked));
+}
+
+function areStringArraysEqual(left: string[], right: string[]): boolean {
+    if (left.length !== right.length) return false;
+    for (let i = 0; i < left.length; i++) {
+        if (left[i] !== right[i]) return false;
+    }
+    return true;
 }
 
 export class DesktopTaskPaneView implements TaskPanePort {
@@ -372,7 +405,12 @@ export class TaskPane implements TaskPanePort {
         this.focusOnDrop = options.focusOnDrop;
         this.allowDragDrop = options.allowDragDrop ?? false;
         this.customFilter = options.filterFn ?? null;
-        this.baseFilter = options.baseFilterFn ?? ((task) => task.status === 'open' || task.status === 'waiting');
+        this.baseFilter = options.baseFilterFn ?? ((task) =>
+            task.status === 'open'
+            || task.status === 'waiting'
+            || task.state === 'backlog'
+            || task.state === 'active'
+        );
         this.sortComparator = options.sortFn ?? null;
         this.presetFilter = options.presetFilter ?? this.view._taskFilter ?? 'upcoming';
         for (const plugin of options.plugins ?? []) this.pluginMap.set(plugin.id, plugin);
@@ -508,13 +546,28 @@ export class TaskPane implements TaskPanePort {
         if (previousTaskId && previousTaskId !== taskId) {
             this.removeTaskById(previousTaskId);
         }
+        const existing = this.taskMap.get(taskId);
+        const hasMissingWorkflowState = !task.status && !task.state && !task.bucketStatus && !task.lifecycleStatus;
+        if (existing && hasMissingWorkflowState) {
+            const stableTask = existing.getTask();
+            existing.update({
+                ...stableTask,
+                ...task,
+                status: stableTask.status,
+                state: task.state ?? stableTask.state,
+                bucketStatus: task.bucketStatus ?? stableTask.bucketStatus,
+                lifecycleStatus: task.lifecycleStatus ?? stableTask.lifecycleStatus,
+            });
+            this.taskIdByFilePath.set(task.filePath, taskId);
+            this.finalizeMutation('UPDATE_PARTIAL', taskId);
+            return;
+        }
         if (!this.shouldRenderTask(task)) {
             const removableTaskId = this.taskMap.has(taskId) ? taskId : previousTaskId;
             if (removableTaskId) this.removeTaskById(removableTaskId);
             this.finalizeMutation('UPDATE_REMOVE', taskId);
             return;
         }
-        const existing = this.taskMap.get(taskId);
         if (!existing) {
             console.warn('[DIWA TaskPane] updateTask called for missing element', {
                 taskId,
@@ -592,6 +645,8 @@ export class TaskPane implements TaskPanePort {
     }
 
     private shouldRenderTask(task: TaskEntry): boolean {
+        // Keep tasks visible when update payload is partial and does not carry workflow state yet.
+        if (!task.status && !task.state && !task.bucketStatus && !task.lifecycleStatus) return true;
         if (!this.baseFilter(task)) return false;
 
         if (this.presetFilter === 'upcoming') {
@@ -636,13 +691,22 @@ export class TaskPane implements TaskPanePort {
 
             for (const task of orderedTasks) {
                 const taskId = getTaskKey(task);
-                if (this.taskMap.has(taskId)) {
-                    this.updateTask(task);
-                } else {
-                    this.addTask(task);
+                try {
+                    if (this.taskMap.has(taskId)) {
+                        this.updateTask(task);
+                    } else {
+                        this.addTask(task);
+                    }
+                    const row = this.taskMap.get(taskId);
+                    row?.setGroupKey(this.resolveGroup(task));
+                } catch (error) {
+                    console.error('[DIWA TaskPane] failed to render task during snapshot sync', {
+                        paneId: this.paneId,
+                        taskId,
+                        filePath: task.filePath,
+                        error,
+                    });
                 }
-                const row = this.taskMap.get(taskId);
-                row?.setGroupKey(this.resolveGroup(task));
             }
         } finally {
             this.inBatchSync = false;
@@ -650,6 +714,7 @@ export class TaskPane implements TaskPanePort {
 
         this.reorderRows(nextTaskIds);
         this.updateEmptyState(this.taskMap.size);
+        console.log(`[DIWA TaskPane] ${this.paneId} synced`, { rendered: orderedTasks.length, total: snapshot.length });
         debugTaskPane('snapshot sync', { paneId: this.paneId, taskCount: orderedTasks.length });
         this.verifyDomIntegrity('SYNC');
     }
@@ -831,6 +896,16 @@ export class TaskItemView {
     rootEl: HTMLElement;
     private headerEl: HTMLElement;
     private metaEl: HTMLElement;
+    private thoughtsEl: HTMLElement;
+    private thoughtToggleEl: HTMLButtonElement;
+    private thoughtListEl: HTMLElement;
+    private thoughtListTitleEl: HTMLElement;
+    private thoughtRowsEl: HTMLElement;
+    private thoughtActionsEl: HTMLElement;
+    private thoughtAddBtnEl: HTMLButtonElement;
+    private thoughtLinkBtnEl: HTMLButtonElement;
+    private thoughtComposerEl: HTMLElement;
+    private thoughtInputEl: HTMLInputElement;
     private checkboxEl: HTMLElement;
     private titleEl: HTMLElement;
     private projectChipEl: HTMLButtonElement | null = null;
@@ -848,6 +923,8 @@ export class TaskItemView {
     private popoverEl: HTMLElement | null = null;
     private popoverOutsideHandler: ((event: MouseEvent) => void) | null = null;
     private popoverEscapeHandler: ((event: KeyboardEvent) => void) | null = null;
+    private thoughtsExpanded = false;
+    private linkedThoughtIds: string[] = [];
 
     constructor(
         private view: TaskPaneHost,
@@ -883,7 +960,7 @@ export class TaskItemView {
                 cls: 'diwa-dh-task-quick-btn',
                 attr: { title: 'Demote task', 'aria-label': 'Demote task' }
             });
-            setIcon(this.backlogBtnEl, 'lucide-inbox');
+            safeSetIcon(this.backlogBtnEl, 'lucide-inbox', 'inbox');
             this.backlogBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
                 void this.runTaskAction(() => this.controller.demoteTask(getTaskKey(this.currentTask)));
@@ -893,7 +970,7 @@ export class TaskItemView {
                 cls: 'diwa-dh-task-quick-btn',
                 attr: { title: 'Promote to Active', 'aria-label': 'Promote to Active' }
             });
-            setIcon(this.activateBtnEl, 'lucide-play');
+            safeSetIcon(this.activateBtnEl, 'lucide-play', 'play');
             this.activateBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
                 void this.runTaskAction(() => this.controller.promoteTask(getTaskKey(this.currentTask)));
@@ -903,7 +980,7 @@ export class TaskItemView {
                 cls: 'diwa-dh-task-quick-btn',
                 attr: { title: 'Focus task', 'aria-label': 'Focus task' }
             });
-            setIcon(this.focusBtnEl, 'lucide-target');
+            safeSetIcon(this.focusBtnEl, 'lucide-target', 'target');
             this.focusBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
                 void this.handleFocusAction();
@@ -913,18 +990,32 @@ export class TaskItemView {
                 cls: 'diwa-dh-task-quick-btn',
                 attr: { title: 'Complete task', 'aria-label': 'Complete task' }
             });
-            setIcon(this.doneBtnEl, 'lucide-check');
+            safeSetIcon(this.doneBtnEl, 'lucide-check', 'check');
             this.doneBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
                 void this.handleToggle();
             });
         }
 
+        this.thoughtToggleEl = actionsEl.createEl('button', {
+            cls: 'diwa-dh-task-edit-btn diwa-dh-task-thought-toggle',
+            attr: {
+                title: 'Linked thoughts',
+                'aria-label': 'Linked thoughts',
+                'aria-expanded': 'false',
+            },
+        }) as HTMLButtonElement;
+        safeSetIcon(this.thoughtToggleEl, 'lucide-message-square', 'message-square');
+        this.thoughtToggleEl.addEventListener('click', (event) => {
+            event.stopPropagation();
+            this.toggleThoughtList();
+        });
+
         this.editBtnEl = actionsEl.createEl('button', {
             cls: 'diwa-dh-task-edit-btn',
             attr: { title: 'More actions', 'aria-label': 'More actions' }
         });
-        setIcon(this.editBtnEl, 'lucide-more-horizontal');
+        safeSetIcon(this.editBtnEl, 'lucide-more-horizontal', 'more-horizontal');
         this.editBtnEl.addEventListener('click', (e) => {
             e.stopPropagation();
             this.openMoreMenu(this.editBtnEl);
@@ -959,6 +1050,58 @@ export class TaskItemView {
         this.metaEl.style.display = 'none';
         this.metaEl.style.width = '100%';
         this.metaEl.style.position = 'static';
+
+        this.thoughtsEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-thoughts' });
+        this.thoughtsEl.addEventListener('click', (event) => event.stopPropagation());
+        this.thoughtListEl = this.thoughtsEl.createEl('div', { cls: 'diwa-dh-task-thought-list' });
+        this.thoughtListEl.style.display = 'none';
+        this.thoughtListTitleEl = this.thoughtListEl.createEl('div', { cls: 'diwa-dh-task-thought-title' });
+        this.thoughtRowsEl = this.thoughtListEl.createEl('div', { cls: 'diwa-dh-task-thought-rows' });
+        this.thoughtActionsEl = this.thoughtListEl.createEl('div', { cls: 'diwa-dh-task-thought-actions' });
+
+        this.thoughtLinkBtnEl = this.thoughtActionsEl.createEl('button', {
+            cls: 'diwa-dh-task-thought-action-btn',
+            text: '+ Link',
+            attr: { type: 'button' },
+        }) as HTMLButtonElement;
+        this.thoughtLinkBtnEl.addEventListener('click', (event) => {
+            event.stopPropagation();
+            this.openThoughtLinkPicker(this.thoughtLinkBtnEl);
+        });
+
+        this.thoughtAddBtnEl = this.thoughtActionsEl.createEl('button', {
+            cls: 'diwa-dh-task-thought-action-btn',
+            text: '+ Add thought',
+            attr: { type: 'button' },
+        }) as HTMLButtonElement;
+        this.thoughtAddBtnEl.addEventListener('click', (event) => {
+            event.stopPropagation();
+            this.toggleThoughtComposer();
+        });
+
+        this.thoughtComposerEl = this.thoughtListEl.createEl('div', { cls: 'diwa-dh-task-thought-composer' });
+        this.thoughtComposerEl.style.display = 'none';
+        this.thoughtInputEl = this.thoughtComposerEl.createEl('input', {
+            cls: 'diwa-dh-task-thought-input',
+            attr: {
+                type: 'text',
+                placeholder: 'Add contextual thought...',
+                'aria-label': 'Add thought to task',
+            },
+        }) as HTMLInputElement;
+        this.thoughtInputEl.addEventListener('keydown', (event: KeyboardEvent) => {
+            event.stopPropagation();
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                this.hideThoughtComposer(true);
+                return;
+            }
+            if (event.key !== 'Enter' || event.shiftKey) return;
+            event.preventDefault();
+            void this.submitInlineThought();
+        });
+
+        this.updateThoughtToggleLabel();
 
         this.applyTask(task, true);
     }
@@ -1062,6 +1205,7 @@ export class TaskItemView {
             || target.closest('.diwa-dh-task-edit-btn')
             || target.closest('.diwa-dh-task-actions')
             || target.closest('.diwa-dh-task-meta')
+            || target.closest('.diwa-dh-task-thoughts')
             || target.closest('.diwa-dh-inline-popover')
         ) return;
         this.hooks.onClick?.(this.currentTask);
@@ -1099,6 +1243,7 @@ export class TaskItemView {
 
             createOption('Change project', () => this.openProjectPicker(anchor));
             createOption('Change date', () => this.openDuePicker(anchor));
+            createOption('Link thought', () => this.openThoughtLinkPicker(anchor));
             createOption('Duplicate', async () => this.duplicateCurrentTask());
             createOption('Delete', () => this.hooks.onDelete?.(getTaskKey(this.currentTask)));
         });
@@ -1112,6 +1257,7 @@ export class TaskItemView {
         this.view._taskPending++;
         this.headerEl.style.display = 'none';
         this.metaEl.style.display = 'none';
+        this.thoughtsEl.style.display = 'none';
 
         let editContexts = [...(task.context || [])];
         let editDueDate: string | null = task.due || null;
@@ -1153,6 +1299,7 @@ export class TaskItemView {
             if (restore) {
                 this.headerEl.style.display = '';
                 this.syncMetaVisibility(this.hasVisibleMetadata(this.currentTask));
+                this.thoughtsEl.style.display = '';
             }
         };
 
@@ -1187,6 +1334,7 @@ export class TaskItemView {
                 new Notice('Error updating task', 2000);
                 this.headerEl.style.display = '';
                 this.syncMetaVisibility(this.hasVisibleMetadata(this.currentTask));
+                this.thoughtsEl.style.display = '';
             }
         };
 
@@ -1216,6 +1364,7 @@ export class TaskItemView {
         if (this.rootEl.hasClass('is-editing')) return;
 
         if (force || this.headerEl.style.display === 'none') this.headerEl.style.display = '';
+        if (force || this.thoughtsEl.style.display === 'none') this.thoughtsEl.style.display = '';
         if (this.rootEl.hasClass('is-completing')) this.rootEl.removeClass('is-completing');
 
         const wasOverdue = this.isOverdue(prev.due);
@@ -1224,12 +1373,17 @@ export class TaskItemView {
         const isDone = this.isDoneTask(task);
         const wasFocused = !!prev.focus;
         const isFocused = !!task.focus;
+        const prevThoughtIds = getLinkedThoughtIds(prev);
+        const nextThoughtIds = getLinkedThoughtIds(task);
         if (force || wasOverdue !== isOverdue) this.rootEl.toggleClass('is-overdue', isOverdue);
         if (force || wasDone !== isDone) this.rootEl.toggleClass('is-done', isDone);
         if (force || wasFocused !== isFocused) this.rootEl.toggleClass('is-focused', isFocused);
         if (force || prev.title !== task.title) this.titleEl.setText(task.title);
         if (force || prev.due !== task.due || prev.project !== task.project || wasOverdue !== isOverdue) {
             this.renderMetaChips(task, isOverdue);
+        }
+        if (force || !areStringArraysEqual(prevThoughtIds, nextThoughtIds)) {
+            this.syncLinkedThoughts(nextThoughtIds);
         }
         if (this.showBucketActions) this.syncQuickActionState(task);
         if (!force && (wasDone !== isDone || wasFocused !== isFocused || prev.bucketStatus !== task.bucketStatus)) {
@@ -1303,12 +1457,16 @@ export class TaskItemView {
     }
 
     private isDoneTask(task: TaskEntry): boolean {
-        return task.status === 'done' || task.bucketStatus === 'done' || task.lifecycleStatus === 'done';
+        return task.status === 'done' || task.state === 'done' || task.bucketStatus === 'done' || task.lifecycleStatus === 'done';
     }
 
     private getWorkflowState(task: TaskEntry): 'backlog' | 'active' | 'focus' | 'done' {
         if (this.isDoneTask(task)) return 'done';
-        const isActive = task.bucketStatus === 'active' || task.status === 'waiting' || task.lifecycleStatus === 'active';
+        const isActive =
+            task.bucketStatus === 'active'
+            || task.status === 'waiting'
+            || task.state === 'active'
+            || task.lifecycleStatus === 'active';
         if (isActive && !!task.focus) return 'focus';
         if (isActive) return 'active';
         return 'backlog';
@@ -1333,7 +1491,7 @@ export class TaskItemView {
             this.focusBtnEl.toggleClass('is-active', isFocusState);
             this.focusBtnEl.setAttr('title', isFocusState ? 'Unfocus task' : 'Focus task');
             this.focusBtnEl.setAttr('aria-label', isFocusState ? 'Unfocus task' : 'Focus task');
-            setIcon(this.focusBtnEl, isFocusState ? 'lucide-target' : 'lucide-target');
+            safeSetIcon(this.focusBtnEl, isFocusState ? 'lucide-target' : 'lucide-target', 'target');
         }
 
         if (this.doneBtnEl) {
@@ -1354,6 +1512,192 @@ export class TaskItemView {
             this.rootEl.removeClass('is-updated');
             this.flashTimer = null;
         }, 420);
+    }
+
+    private toggleThoughtList(): void {
+        this.thoughtsExpanded = !this.thoughtsExpanded;
+        this.thoughtToggleEl.setAttr('aria-expanded', this.thoughtsExpanded ? 'true' : 'false');
+        this.thoughtToggleEl.toggleClass('is-active', this.thoughtsExpanded);
+        this.rootEl.toggleClass('is-thoughts-expanded', this.thoughtsExpanded);
+        if (!this.thoughtsExpanded) {
+            this.thoughtListEl.style.display = 'none';
+            this.hideThoughtComposer(false);
+            return;
+        }
+        this.thoughtListEl.style.display = '';
+        this.renderThoughtRows();
+    }
+
+    private updateThoughtToggleLabel(): void {
+        const label = `Linked thoughts (${this.linkedThoughtIds.length})`;
+        this.thoughtListTitleEl.setText(label);
+        this.thoughtToggleEl.setAttr('title', label);
+        this.thoughtToggleEl.setAttr('aria-label', label);
+    }
+
+    private syncLinkedThoughts(thoughtIds: string[]): void {
+        this.linkedThoughtIds = [...thoughtIds];
+        this.updateThoughtToggleLabel();
+        if (this.thoughtsExpanded) this.renderThoughtRows();
+    }
+
+    private resolveThought(thoughtId: string): ThoughtEntry | null {
+        return this.view.plugin.index.thoughtIndex.get(thoughtId) ?? null;
+    }
+
+    private thoughtSnippet(thoughtId: string): string {
+        const thought = this.resolveThought(thoughtId);
+        const fallback = thoughtId.split('/').pop() || thoughtId;
+        const raw = (thought?.body || thought?.title || fallback).split('\n').find((line) => line.trim()) || fallback;
+        const cleaned = raw.trim();
+        return cleaned.length > 72 ? `${cleaned.slice(0, 69)}...` : cleaned;
+    }
+
+    private renderThoughtRows(): void {
+        this.thoughtRowsEl.empty();
+        if (this.linkedThoughtIds.length === 0) {
+            this.thoughtRowsEl.createEl('div', {
+                cls: 'diwa-dh-task-thought-empty',
+                text: 'No linked thoughts',
+            });
+            return;
+        }
+
+        for (const thoughtId of this.linkedThoughtIds) {
+            const thought = this.resolveThought(thoughtId);
+            const row = this.thoughtRowsEl.createEl('div', { cls: 'diwa-dh-task-thought-row' });
+            const openBtn = row.createEl('button', {
+                cls: 'diwa-dh-task-thought-link',
+                text: this.thoughtSnippet(thoughtId),
+                attr: { type: 'button' },
+            }) as HTMLButtonElement;
+            openBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                if (!thought) return;
+                const file = this.view.app.vault.getAbstractFileByPath(thought.filePath);
+                if (file instanceof TFile) void this.view.app.workspace.getLeaf(false).openFile(file);
+            });
+
+            const unlinkBtn = row.createEl('button', {
+                cls: 'diwa-dh-task-thought-unlink',
+                text: 'Unlink',
+                attr: { type: 'button', 'aria-label': 'Unlink thought from task' },
+            }) as HTMLButtonElement;
+            unlinkBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                void this.unlinkThought(thoughtId);
+            });
+        }
+    }
+
+    private toggleThoughtComposer(): void {
+        if (this.thoughtComposerEl.style.display === 'none') {
+            this.thoughtComposerEl.style.display = '';
+            this.thoughtInputEl.focus();
+            return;
+        }
+        this.hideThoughtComposer(false);
+    }
+
+    private hideThoughtComposer(clearValue: boolean): void {
+        this.thoughtComposerEl.style.display = 'none';
+        if (clearValue) this.thoughtInputEl.value = '';
+    }
+
+    private async submitInlineThought(): Promise<void> {
+        const content = this.thoughtInputEl.value.trim();
+        if (!content) return;
+        this.thoughtInputEl.disabled = true;
+        try {
+            const ok = await this.controller.createThoughtFromTask(getTaskKey(this.currentTask), content);
+            if (!ok) {
+                new Notice('Error linking thought', 2000);
+                return;
+            }
+            this.thoughtInputEl.value = '';
+            this.hideThoughtComposer(false);
+            const latestTask = this.controller.getTask(getTaskKey(this.currentTask));
+            if (latestTask) this.applyTask(latestTask, false);
+            this.flashUpdate();
+        } catch (error) {
+            console.error('[DIWA TaskPane] Error creating thought from task', error);
+            new Notice('Error linking thought', 2000);
+        } finally {
+            this.thoughtInputEl.disabled = false;
+        }
+    }
+
+    private async linkExistingThought(thoughtId: string): Promise<void> {
+        const ok = await this.controller.linkThoughtToTask(thoughtId, getTaskKey(this.currentTask));
+        if (!ok) {
+            new Notice('Error linking thought', 2000);
+            return;
+        }
+        this.closeInlinePopover();
+        const latestTask = this.controller.getTask(getTaskKey(this.currentTask));
+        if (latestTask) this.applyTask(latestTask, false);
+        this.flashUpdate();
+    }
+
+    private async unlinkThought(thoughtId: string): Promise<void> {
+        const ok = await this.controller.unlinkThoughtFromTask(thoughtId, getTaskKey(this.currentTask));
+        if (!ok) {
+            new Notice('Error unlinking thought', 2000);
+            return;
+        }
+        const latestTask = this.controller.getTask(getTaskKey(this.currentTask));
+        if (latestTask) this.applyTask(latestTask, false);
+        this.flashUpdate();
+    }
+
+    private openThoughtLinkPicker(anchor: HTMLElement): void {
+        const linked = new Set(this.linkedThoughtIds);
+        const thoughts = (Array.from(this.view.plugin.index.thoughtIndex.values()) as ThoughtEntry[])
+            .sort((a, b) => (b.modified || '').localeCompare(a.modified || ''));
+
+        this.openInlinePopover(anchor, (popover) => {
+            const search = popover.createEl('input', {
+                cls: 'diwa-dh-inline-popover-search',
+                attr: {
+                    type: 'text',
+                    placeholder: 'Link thought...',
+                    spellcheck: 'false',
+                },
+            }) as HTMLInputElement;
+            const list = popover.createEl('div', { cls: 'diwa-dh-inline-popover-list' });
+
+            const renderOptions = (query: string) => {
+                const q = query.trim().toLowerCase();
+                list.empty();
+                let visibleCount = 0;
+
+                for (const thought of thoughts) {
+                    if (linked.has(thought.filePath)) continue;
+                    const haystack = `${thought.title} ${thought.body}`.toLowerCase();
+                    if (q && !haystack.includes(q)) continue;
+                    const option = list.createEl('button', {
+                        cls: 'diwa-dh-inline-option',
+                        text: this.thoughtSnippet(thought.filePath),
+                        attr: { type: 'button' },
+                    });
+                    option.addEventListener('click', () => {
+                        void this.linkExistingThought(thought.filePath);
+                    });
+                    visibleCount++;
+                }
+
+                if (visibleCount === 0) {
+                    list.createEl('div', {
+                        cls: 'diwa-dh-inline-empty',
+                        text: q ? 'No matching thoughts' : 'No available thoughts',
+                    });
+                }
+            };
+
+            renderOptions('');
+            search.addEventListener('input', () => renderOptions(search.value));
+            setTimeout(() => search.focus(), 30);
+        });
     }
 
     private openProjectPicker(anchor: HTMLElement): void {

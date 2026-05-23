@@ -90,6 +90,9 @@ export class DiwaView extends ItemView {
 
     // Managed current tab instance for lifecycle cleanup
     private currentTab: BaseTab | null = null;
+    private currentTabId: string | null = null;
+    private contentAreaEl: HTMLElement | null = null;
+    private tabRenderToken = 0;
 
     constructor(leaf: WorkspaceLeaf, plugin: DiwaPlugin) {
         super(leaf);
@@ -138,6 +141,8 @@ export class DiwaView extends ItemView {
     async onClose() {
         const header = this.containerEl.children[0] as HTMLElement;
         if (header) header.style.display = '';
+        this.disposeCurrentTab();
+        this.contentAreaEl = null;
     }
 
     /** Persist activeTab + isDedicated so Obsidian can restore the window on reload. */
@@ -158,23 +163,56 @@ export class DiwaView extends ItemView {
 
     renderView() {
         const container = this.containerEl.children[1] as HTMLElement;
-        container.empty();
         container.addClass('diwa-view-root');
-        const contentArea = container.createEl('div', { cls: 'diwa-view-content', attr: { style: 'flex-grow: 1; overflow: hidden; display: flex; flex-direction: column;' } });
-        this.renderTab(contentArea);
+        if (!this.contentAreaEl || !container.contains(this.contentAreaEl)) {
+            container.empty();
+            this.contentAreaEl = container.createEl('div', {
+                cls: 'diwa-view-content',
+                attr: { style: 'flex-grow: 1; overflow: hidden; display: flex; flex-direction: column;' },
+            });
+        }
+
+        const tabChanged = this.currentTabId !== this.activeTab;
+        if (tabChanged) {
+            this.disposeCurrentTab();
+            this.contentAreaEl.empty();
+            this.renderTab(this.contentAreaEl);
+            return;
+        }
+
+        if (this.currentTab) {
+            this.currentTab.render(this.contentAreaEl);
+            return;
+        }
+
+        this.renderTab(this.contentAreaEl);
+    }
+
+    /** Incremental task refresh — uses onTasksRefresh() if current tab supports it, falls back to renderView(). */
+    refreshTasks(): void {
+        if (this.currentTab && typeof (this.currentTab as any).onTasksRefresh === 'function') {
+            (this.currentTab as any).onTasksRefresh();
+            return;
+        }
+        // Tab doesn't support incremental refresh — do full re-render
+        this.renderView();
     }
 
     private renderTab(container: HTMLElement) {
         // arch-04: Error boundaries on all dynamic imports — silent failures leave blank panels
         const loadErr = (e: any) => container.createEl('p', { text: `Failed to load tab: ${e.message}`, cls: 'diwa-tab-error' });
         const instantiate = (promise: Promise<any>, name: string) => {
+            const token = ++this.tabRenderToken;
+            const requestedTab = this.activeTab;
             promise.then((mod: any) => {
+                if (token !== this.tabRenderToken || requestedTab !== this.activeTab) return;
                 try {
                     if (this.currentTab && typeof (this.currentTab as any).onunload === 'function') (this.currentTab as any).onunload();
                 } catch (e) { console.warn('[DIWA View] error during previous tab unload', e); }
                 const TabClass = mod[name];
                 const instance = new TabClass(this);
                 this.currentTab = instance;
+                this.currentTabId = requestedTab;
                 instance.render(container);
             }).catch(loadErr);
         };
@@ -197,6 +235,20 @@ export class DiwaView extends ItemView {
         else if (tab === 'calendar') instantiate(import('./tabs/CalendarTab'), 'CalendarTab');
         else if (tab === 'export') instantiate(import('./tabs/ExportTab'), 'ExportTab');
         else if (tab === 'finance-analytics') instantiate(import('./tabs/FinanceAnalyticsTab'), 'FinanceAnalyticsTab');
+    }
+
+    private disposeCurrentTab(): void {
+        this.tabRenderToken++;
+        try {
+            if (this.currentTab && typeof (this.currentTab as any).onunload === 'function') {
+                (this.currentTab as any).onunload();
+            }
+        } catch (e) {
+            console.warn('[DIWA View] error during tab unload', e);
+        } finally {
+            this.currentTab = null;
+            this.currentTabId = null;
+        }
     }
 
     // Bridge methods to Services

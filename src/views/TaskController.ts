@@ -1,6 +1,6 @@
 import { Notice, moment, TFile } from 'obsidian';
 import type DiwaPlugin from '../main';
-import type { TaskBucketStatus, TaskEntry } from '../types';
+import type { TaskBucketStatus, TaskEntry, ThoughtEntry } from '../types';
 
 export interface TaskPanePort {
     paneId: string;
@@ -16,9 +16,10 @@ function getTaskKey(task: TaskEntry): string {
 }
 
 function resolveTaskBucket(task: TaskEntry): TaskBucketStatus {
+    const legacyState = String(task.state || '').toLowerCase();
     if (task.bucketStatus) return task.bucketStatus;
-    if (task.status === 'done' || task.lifecycleStatus === 'done') return 'done';
-    if (task.status === 'waiting' || task.lifecycleStatus === 'active') return 'active';
+    if (task.status === 'done' || legacyState === 'done' || task.lifecycleStatus === 'done') return 'done';
+    if (task.status === 'waiting' || legacyState === 'active' || task.lifecycleStatus === 'active') return 'active';
     return 'backlog';
 }
 
@@ -62,15 +63,39 @@ function resolveNextWorkflowState(current: WorkflowState, action: WorkflowAction
     return current;
 }
 
+function uniqueIds(values: string[]): string[] {
+    return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function getTaskThoughtIds(task: TaskEntry): string[] {
+    return uniqueIds([
+        ...(task.sourceThoughtIds ?? []),
+        ...(task.links?.thoughts ?? []),
+    ]);
+}
+
+function getThoughtTaskIds(thought: ThoughtEntry): string[] {
+    return uniqueIds(thought.links?.tasks ?? []);
+}
+
 export class TaskController {
     private paneRegistry = new Map<string, TaskPanePort>();
+    // Backward-compatible pane list expected by some runtime/debug paths.
+    panes: TaskPanePort[] = [];
 
-    constructor(private plugin: DiwaPlugin) {}
+    constructor(private plugin: DiwaPlugin) {
+        this.syncPaneList();
+    }
+
+    private syncPaneList(): void {
+        this.panes = Array.from(this.paneRegistry.values());
+    }
 
     registerPane(pane: TaskPanePort): void {
         const existing = this.paneRegistry.get(pane.paneId);
         if (existing) {
             if (existing === pane) {
+                this.syncPaneList();
                 pane.syncTasks(this.getIndexSnapshot());
                 return;
             }
@@ -82,6 +107,8 @@ export class TaskController {
             }
         }
         this.paneRegistry.set(pane.paneId, pane);
+        this.syncPaneList();
+        console.log('Panes:', this.panes);
         pane.syncTasks(this.getIndexSnapshot());
     }
 
@@ -91,11 +118,13 @@ export class TaskController {
             if (current && current !== pane) return;
         }
         this.paneRegistry.delete(paneId);
+        this.syncPaneList();
     }
 
     syncFromIndex(): void {
         const snapshot = this.getIndexSnapshot();
-        for (const pane of this.paneRegistry.values()) pane.syncTasks(snapshot);
+        console.log('[DIWA TaskController] syncFromIndex', { snapshotSize: snapshot.length, paneCount: this.panes.length });
+        for (const pane of this.panes) pane.syncTasks(snapshot);
     }
 
     syncPane(paneId: string): void {
@@ -108,28 +137,236 @@ export class TaskController {
     }
 
     addTask(task: TaskEntry): void {
-        this.plugin.index.taskIndex.set(task.filePath, task);
-        for (const pane of this.paneRegistry.values()) pane.addTask(task);
+        const normalizedTask = this.normalizeTask(task, 'addTask');
+        if (!normalizedTask) return;
+        this.plugin.index.taskIndex.set(normalizedTask.filePath, normalizedTask);
+        for (const pane of this.panes) pane.addTask(normalizedTask);
     }
 
     updateTask(task: TaskEntry): void {
-        this.plugin.index.taskIndex.set(task.filePath, task);
-        for (const pane of this.paneRegistry.values()) pane.updateTask(task);
+        const normalizedTask = this.normalizeTask(task, 'updateTask');
+        if (!normalizedTask) return;
+        this.plugin.index.taskIndex.set(normalizedTask.filePath, normalizedTask);
+        for (const pane of this.panes) pane.updateTask(normalizedTask);
     }
 
     removeTask(taskId: string): void {
         const resolved = this.resolveTaskRecord(taskId);
         if (!resolved) {
             console.warn('[DIWA TaskController] removeTask called for unknown task', { taskId });
-            for (const pane of this.paneRegistry.values()) pane.removeTask(taskId, taskId);
+            for (const pane of this.panes) pane.removeTask(taskId, taskId);
             return;
         }
         this.plugin.index.taskIndex.delete(resolved.filePath);
-        for (const pane of this.paneRegistry.values()) pane.removeTask(resolved.taskKey, resolved.filePath);
+        for (const pane of this.panes) pane.removeTask(resolved.taskKey, resolved.filePath);
     }
 
     getTask(taskId: string): TaskEntry | null {
         return this.resolveTaskRecord(taskId)?.task ?? null;
+    }
+
+    getThought(thoughtId: string): ThoughtEntry | null {
+        return this.resolveThoughtRecord(thoughtId)?.thought ?? null;
+    }
+
+    getLinkedThoughtsForTask(taskId: string): ThoughtEntry[] {
+        const task = this.getTask(taskId);
+        if (!task) return [];
+        const linkedThoughtIds = getTaskThoughtIds(task);
+        const linkedThoughts: ThoughtEntry[] = [];
+        for (const thoughtId of linkedThoughtIds) {
+            const thought = this.plugin.index.thoughtIndex.get(thoughtId);
+            if (thought) linkedThoughts.push(thought);
+        }
+        return linkedThoughts;
+    }
+
+    getLinkedTasksForThought(thoughtId: string): TaskEntry[] {
+        const thought = this.getThought(thoughtId);
+        if (!thought) return [];
+        const linkedTaskPathIds = uniqueIds([
+            ...getThoughtTaskIds(thought),
+            ...Array.from(this.plugin.index.taskIndex.values())
+                .filter((task) => getTaskThoughtIds(task).includes(thought.filePath))
+                .map((task) => task.filePath),
+        ]);
+        const linkedTasks: TaskEntry[] = [];
+        for (const taskPath of linkedTaskPathIds) {
+            const task = this.plugin.index.taskIndex.get(taskPath);
+            if (task) linkedTasks.push(task);
+        }
+        return linkedTasks;
+    }
+
+    async convertThoughtToTask(thoughtId: string): Promise<boolean> {
+        const resolvedThought = this.resolveThoughtRecord(thoughtId);
+        if (!resolvedThought) {
+            console.warn('[DIWA TaskController] convertThoughtToTask called for unknown thought', { thoughtId });
+            return false;
+        }
+
+        const existingLinkedTasks = this.getLinkedTasksForThought(resolvedThought.filePath);
+        if (existingLinkedTasks.length > 0) {
+            new Notice('Thought already linked to a task', 1600);
+            return true;
+        }
+
+        const sourceText = (resolvedThought.thought.body || resolvedThought.thought.title || '').trim();
+        if (!sourceText) {
+            new Notice('Thought is empty, cannot convert', 1800);
+            return false;
+        }
+
+        try {
+            this.plugin.refreshCoordinator.suppressNotifyRefresh(800);
+            const created = await this.plugin.vault.createTaskFile(
+                sourceText,
+                [...(resolvedThought.thought.context || [])],
+                undefined,
+                resolvedThought.thought.project || undefined,
+                { status: 'open' },
+            );
+            await this.reindexTask(created.path);
+            const indexedTask = this.plugin.index.taskIndex.get(created.path);
+            if (!indexedTask) {
+                console.warn('[DIWA TaskController] converted task missing from index after create', {
+                    thoughtId: resolvedThought.filePath,
+                    taskPath: created.path,
+                });
+                return false;
+            }
+
+            this.addTask(indexedTask);
+            const linked = await this.linkThoughtToTask(resolvedThought.filePath, getTaskKey(indexedTask));
+            if (!linked) return false;
+            return true;
+        } catch (error) {
+            console.error('[DIWA TaskController] Error converting thought to task', error);
+            return false;
+        }
+    }
+
+    async linkThoughtToTask(thoughtId: string, taskId: string): Promise<boolean> {
+        const resolvedTask = this.resolveTaskRecord(taskId);
+        const resolvedThought = this.resolveThoughtRecord(thoughtId);
+        if (!resolvedTask || !resolvedThought) {
+            console.warn('[DIWA TaskController] linkThoughtToTask called for unknown entity', {
+                thoughtId,
+                taskId,
+                hasTask: !!resolvedTask,
+                hasThought: !!resolvedThought,
+            });
+            return false;
+        }
+        this.plugin.refreshCoordinator.suppressNotifyRefresh(700);
+
+        const nextThoughtIds = uniqueIds([
+            ...getTaskThoughtIds(resolvedTask.task),
+            resolvedThought.filePath,
+        ]);
+        const nextTaskIds = uniqueIds([
+            ...getThoughtTaskIds(resolvedThought.thought),
+            resolvedTask.filePath,
+        ]);
+
+        const taskUpdated = await this.persistTaskThoughtLinks(resolvedTask.filePath, nextThoughtIds);
+        const thoughtUpdated = await this.persistThoughtTaskLinks(resolvedThought.filePath, nextTaskIds);
+        if (!taskUpdated || !thoughtUpdated) return false;
+
+        const now = Date.now();
+        const updatedTask: TaskEntry = {
+            ...resolvedTask.task,
+            sourceThoughtIds: nextThoughtIds,
+            links: { thoughts: nextThoughtIds },
+            origin: resolvedTask.task.origin ?? 'thought',
+            modified: moment(now).format('YYYY-MM-DD HH:mm:ss'),
+            updatedAt: new Date(now).toISOString(),
+            lastUpdate: now,
+        };
+        this.updateTask(updatedTask);
+
+        const updatedThought: ThoughtEntry = {
+            ...resolvedThought.thought,
+            links: { tasks: nextTaskIds },
+            modified: moment(now).format('YYYY-MM-DD HH:mm:ss'),
+            lastThreadUpdate: now,
+        };
+        this.plugin.index.thoughtIndex.set(updatedThought.filePath, updatedThought);
+
+        await this.reindexTask(resolvedTask.filePath);
+        await this.reindexThought(resolvedThought.filePath);
+        await this.reconcileTask(resolvedTask.filePath, updatedTask.status, updatedTask);
+        return true;
+    }
+
+    async createThoughtFromTask(taskId: string, content: string): Promise<boolean> {
+        const resolvedTask = this.resolveTaskRecord(taskId);
+        if (!resolvedTask) {
+            console.warn('[DIWA TaskController] createThoughtFromTask called for unknown task', { taskId });
+            return false;
+        }
+        const thoughtText = content.trim();
+        if (!thoughtText) return false;
+
+        try {
+            this.plugin.refreshCoordinator.suppressNotifyRefresh(800);
+            const created = await this.plugin.vault.createThoughtFile(
+                thoughtText,
+                [...(resolvedTask.task.context || [])],
+                resolvedTask.task.project,
+            );
+            await this.reindexThought(created.path);
+            return this.linkThoughtToTask(created.path, getTaskKey(resolvedTask.task));
+        } catch (error) {
+            console.error('[DIWA TaskController] Error creating thought from task', error);
+            return false;
+        }
+    }
+
+    async unlinkThoughtFromTask(thoughtId: string, taskId: string): Promise<boolean> {
+        const resolvedTask = this.resolveTaskRecord(taskId);
+        const resolvedThought = this.resolveThoughtRecord(thoughtId);
+        if (!resolvedTask || !resolvedThought) {
+            console.warn('[DIWA TaskController] unlinkThoughtFromTask called for unknown entity', {
+                thoughtId,
+                taskId,
+                hasTask: !!resolvedTask,
+                hasThought: !!resolvedThought,
+            });
+            return false;
+        }
+        this.plugin.refreshCoordinator.suppressNotifyRefresh(700);
+
+        const nextThoughtIds = getTaskThoughtIds(resolvedTask.task).filter((id) => id !== resolvedThought.filePath);
+        const nextTaskIds = getThoughtTaskIds(resolvedThought.thought).filter((id) => id !== resolvedTask.filePath);
+
+        const taskUpdated = await this.persistTaskThoughtLinks(resolvedTask.filePath, nextThoughtIds);
+        const thoughtUpdated = await this.persistThoughtTaskLinks(resolvedThought.filePath, nextTaskIds);
+        if (!taskUpdated || !thoughtUpdated) return false;
+
+        const now = Date.now();
+        const updatedTask: TaskEntry = {
+            ...resolvedTask.task,
+            sourceThoughtIds: nextThoughtIds,
+            links: { thoughts: nextThoughtIds },
+            modified: moment(now).format('YYYY-MM-DD HH:mm:ss'),
+            updatedAt: new Date(now).toISOString(),
+            lastUpdate: now,
+        };
+        this.updateTask(updatedTask);
+
+        const updatedThought: ThoughtEntry = {
+            ...resolvedThought.thought,
+            links: { tasks: nextTaskIds },
+            modified: moment(now).format('YYYY-MM-DD HH:mm:ss'),
+            lastThreadUpdate: now,
+        };
+        this.plugin.index.thoughtIndex.set(updatedThought.filePath, updatedThought);
+
+        await this.reindexTask(resolvedTask.filePath);
+        await this.reindexThought(resolvedThought.filePath);
+        await this.reconcileTask(resolvedTask.filePath, updatedTask.status, updatedTask);
+        return true;
     }
 
     async moveTaskToBucket(
@@ -245,9 +482,67 @@ export class TaskController {
         return null;
     }
 
+    private resolveThoughtRecord(thoughtId: string): { filePath: string; thought: ThoughtEntry } | null {
+        const byPath = this.plugin.index.thoughtIndex.get(thoughtId);
+        if (byPath) return { filePath: byPath.filePath, thought: byPath };
+        for (const thought of this.plugin.index.thoughtIndex.values()) {
+            if (thought.filePath === thoughtId || thought.id === thoughtId) {
+                return { filePath: thought.filePath, thought };
+            }
+        }
+        return null;
+    }
+
     private async reindexTask(filePath: string): Promise<void> {
         const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
         if (file instanceof TFile) await this.plugin.refreshCoordinator.reindexFile(file);
+    }
+
+    private async reindexThought(filePath: string): Promise<void> {
+        const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
+        if (file instanceof TFile) await this.plugin.refreshCoordinator.reindexFile(file);
+    }
+
+    private async persistTaskThoughtLinks(filePath: string, thoughtIds: string[]): Promise<boolean> {
+        const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
+        if (!(file instanceof TFile)) return false;
+        const normalizedThoughtIds = uniqueIds(thoughtIds);
+        try {
+            await this.plugin.app.fileManager.processFrontMatter(file, (fm) => {
+                fm['sourceThoughtIds'] = normalizedThoughtIds;
+                const existingLinks = (fm['links'] && typeof fm['links'] === 'object')
+                    ? { ...(fm['links'] as Record<string, unknown>) }
+                    : {};
+                existingLinks.thoughts = normalizedThoughtIds;
+                fm['links'] = existingLinks;
+                fm['modified'] = moment().format('YYYY-MM-DD HH:mm:ss');
+            });
+            return true;
+        } catch (error) {
+            console.error('[DIWA TaskController] Error persisting task thought links', { filePath, error });
+            return false;
+        }
+    }
+
+    private async persistThoughtTaskLinks(filePath: string, taskIds: string[]): Promise<boolean> {
+        const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
+        if (!(file instanceof TFile)) return false;
+        const normalizedTaskIds = uniqueIds(taskIds);
+        try {
+            await this.plugin.app.fileManager.processFrontMatter(file, (fm) => {
+                fm['linkedTasks'] = normalizedTaskIds;
+                const existingLinks = (fm['links'] && typeof fm['links'] === 'object')
+                    ? { ...(fm['links'] as Record<string, unknown>) }
+                    : {};
+                existingLinks.tasks = normalizedTaskIds;
+                fm['links'] = existingLinks;
+                fm['modified'] = moment().format('YYYY-MM-DD HH:mm:ss');
+            });
+            return true;
+        } catch (error) {
+            console.error('[DIWA TaskController] Error persisting thought task links', { filePath, error });
+            return false;
+        }
     }
 
     private async persistTask(task: TaskEntry): Promise<boolean> {
@@ -324,6 +619,81 @@ export class TaskController {
     }
 
     private getIndexSnapshot(): TaskEntry[] {
-        return Array.from(this.plugin.index.taskIndex.values());
+        const snapshot: TaskEntry[] = [];
+        for (const task of this.plugin.index.taskIndex.values()) {
+            const normalizedTask = this.normalizeTask(task, 'syncSnapshot');
+            if (!normalizedTask) continue;
+            this.plugin.index.taskIndex.set(normalizedTask.filePath, normalizedTask);
+            snapshot.push(normalizedTask);
+        }
+        return snapshot;
+    }
+
+    private normalizeTask(task: TaskEntry, source: string): TaskEntry | null {
+        return this.normalizeIncomingTask(task, source);
+    }
+
+    private normalizeIncomingTask(task: TaskEntry, source: string): TaskEntry | null {
+        const filePath = task.filePath?.trim();
+        if (!filePath) {
+            console.warn('[DIWA TaskController] task missing filePath', { source, task });
+            return null;
+        }
+
+        const body = (task.body || '').trim();
+        const derivedTitle = body.split('\n').find((line) => line.trim())?.trim() || 'Untitled task';
+        const title = (task.title || '').trim() || derivedTitle;
+        const normalizedThoughtIds = uniqueIds([
+            ...(task.sourceThoughtIds ?? []),
+            ...(task.links?.thoughts ?? []),
+        ]);
+
+        const rawStatus = String(task.status || task.state || 'backlog').toLowerCase();
+        let status: TaskEntry['status'];
+        let bucketStatus: TaskBucketStatus | undefined = task.bucketStatus;
+
+        if (rawStatus === 'backlog') {
+            status = 'open';
+            bucketStatus = 'backlog';
+        } else if (rawStatus === 'active') {
+            status = 'waiting';
+            bucketStatus = 'active';
+        } else if (rawStatus === 'done') {
+            status = 'done';
+            bucketStatus = 'done';
+        } else if (rawStatus === 'open' || rawStatus === 'waiting' || rawStatus === 'someday' || rawStatus === 'done') {
+            status = rawStatus as TaskEntry['status'];
+        } else if (task.lifecycleStatus === 'done') {
+            status = 'done';
+        } else if (task.lifecycleStatus === 'active') {
+            status = 'waiting';
+        } else {
+            status = 'open';
+        }
+
+        if (!bucketStatus) {
+            if (status === 'done' || task.lifecycleStatus === 'done') bucketStatus = 'done';
+            else if (status === 'waiting' || task.lifecycleStatus === 'active') bucketStatus = 'active';
+            else bucketStatus = 'backlog';
+        }
+
+        const taskId = task.taskId?.trim() || (task.id && task.id !== filePath ? task.id : undefined);
+        const now = Date.now();
+
+        return {
+            ...task,
+            id: task.id ?? taskId ?? filePath,
+            filePath,
+            taskId,
+            title,
+            body: body || title,
+            status,
+            state: bucketStatus,
+            bucketStatus,
+            lifecycleStatus: task.lifecycleStatus ?? mapBucketToLifecycle(bucketStatus),
+            sourceThoughtIds: normalizedThoughtIds,
+            links: { thoughts: normalizedThoughtIds },
+            lastUpdate: task.lastUpdate || now,
+        };
     }
 }

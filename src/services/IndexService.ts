@@ -1,5 +1,5 @@
 import { App, TFile, moment } from 'obsidian';
-import { DiwaSettings, ThoughtEntry, TaskEntry, DueEntry, ProjectEntry } from '../types';
+import { DiwaSettings, ThoughtEntry, TaskEntry, DueEntry, ProjectEntry, TaskBucketStatus } from '../types';
 
 export interface ChecklistItem {
     text: string;
@@ -33,6 +33,87 @@ export class IndexService {
         if (Array.isArray(raw)) return raw.map(v => String(v).trim()).filter(Boolean);
         // single string — may be comma-separated
         return String(raw).split(',').map(s => s.trim()).filter(Boolean);
+    }
+
+    /** Normalize links object arrays (e.g. links.tasks / links.thoughts). */
+    static normalizeLinksArray(rawLinks: unknown, key: 'tasks' | 'thoughts'): string[] {
+        if (!rawLinks || typeof rawLinks !== 'object') return [];
+        const record = rawLinks as Record<string, unknown>;
+        return IndexService.normalizeStringArray(record[key]);
+    }
+
+    /** Read a frontmatter field by trying multiple key aliases. */
+    static getFrontmatterValue(frontmatter: Record<string, unknown>, keys: string[]): unknown {
+        for (const key of keys) {
+            if (Object.prototype.hasOwnProperty.call(frontmatter, key)) return frontmatter[key];
+        }
+        return undefined;
+    }
+
+    /** Extract and loosely parse frontmatter when metadataCache is unavailable. */
+    static parseFrontmatterFallback(content: string): Record<string, unknown> | null {
+        const blockMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+        if (!blockMatch) return null;
+
+        const result: Record<string, unknown> = {};
+        const lines = blockMatch[1].split(/\r?\n/);
+        let currentListKey: string | null = null;
+
+        for (const line of lines) {
+            const keyMatch = line.match(/^\s*([A-Za-z0-9_-]+)\s*:\s*(.*)\s*$/);
+            if (keyMatch) {
+                const key = keyMatch[1];
+                const rawValue = keyMatch[2];
+                currentListKey = null;
+
+                if (!rawValue) {
+                    result[key] = '';
+                    currentListKey = key;
+                    continue;
+                }
+
+                // Do NOT parse Obsidian wikilinks [[...]] as YAML lists — they start with [[
+                const bracketList = !rawValue.startsWith('[[') && rawValue.match(/^\[(.*)\]$/);
+                if (bracketList) {
+                    result[key] = bracketList[1]
+                        .split(',')
+                        .map((item) => item.trim().replace(/^['"]|['"]$/g, ''))
+                        .filter(Boolean);
+                    continue;
+                }
+                // Strip wikilink wrapper [[...]] from scalar values (e.g. due: [[2026-04-05]])
+                if (rawValue.startsWith('[[') && rawValue.endsWith(']]')) {
+                    result[key] = rawValue.slice(2, -2).trim();
+                    continue;
+                }
+
+                const lower = rawValue.toLowerCase();
+                if (lower === 'true') {
+                    result[key] = true;
+                    continue;
+                }
+                if (lower === 'false') {
+                    result[key] = false;
+                    continue;
+                }
+
+                result[key] = rawValue.replace(/^['"]|['"]$/g, '');
+                continue;
+            }
+
+            if (!currentListKey) continue;
+            const listItem = line.match(/^\s*-\s*(.*)\s*$/);
+            if (!listItem) {
+                if (line.trim()) currentListKey = null;
+                continue;
+            }
+            const normalized = listItem[1].trim().replace(/^['"]|['"]$/g, '');
+            const existing = result[currentListKey];
+            if (Array.isArray(existing)) existing.push(normalized);
+            else result[currentListKey] = normalized ? [normalized] : [];
+        }
+
+        return result;
     }
 
     /** Returns all unique non-empty topic strings across the thought index. */
@@ -88,6 +169,21 @@ export class IndexService {
     constructor(app: App, settings: DiwaSettings) {
         this.app = app;
         this.settings = settings;
+    }
+
+    private normalizeVaultPath(path: string): string {
+        return path
+            .replace(/\\/g, '/')
+            .trim()
+            .replace(/^\/+/, '')
+            .replace(/\/+$/, '');
+    }
+
+    private pathIsInFolder(path: string, folder: string): boolean {
+        const normalizedPath = this.normalizeVaultPath(path).toLowerCase();
+        const normalizedFolder = this.normalizeVaultPath(folder).toLowerCase();
+        if (!normalizedFolder) return false;
+        return normalizedPath === normalizedFolder || normalizedPath.startsWith(`${normalizedFolder}/`);
     }
 
     updateSettings(settings: DiwaSettings) {
@@ -227,24 +323,67 @@ export class IndexService {
         this._thoughtChecklistMap.clear();
         this._thoughtDoneChecklistMap.clear();
         const files = this.app.vault.getMarkdownFiles().filter(f => this.isThoughtFile(f.path));
-        for (const f of files) await this.indexThoughtFile(f);
+        for (const f of files) {
+            try {
+                await this.indexThoughtFile(f);
+            } catch (error) {
+                console.warn('[DIWA IndexService] skipped thought file due indexing error', { path: f.path, error });
+            }
+        }
     }
 
     async buildTaskIndex(): Promise<void> {
         this.taskIndex.clear();
-        const files = this.app.vault.getMarkdownFiles().filter(f => this.isTaskFile(f.path));
+        let files = this.app.vault.getMarkdownFiles().filter(f => this.isTaskFile(f.path));
+        if (files.length === 0) {
+            const fallbackFolders = ['000 Bin/GAWA', '000 Bin/DIWA Gawa'];
+            const configuredFolder = this.normalizeVaultPath(this.settings.tasksFolder || '');
+            for (const folder of fallbackFolders) {
+                const normalizedFolder = this.normalizeVaultPath(folder);
+                if (!normalizedFolder || normalizedFolder.toLowerCase() === configuredFolder.toLowerCase()) continue;
+                const fallbackFiles = this.app.vault.getMarkdownFiles().filter((f) =>
+                    this.pathIsInFolder(f.path, normalizedFolder)
+                    && f.path.toLowerCase().endsWith('.md')
+                    && !f.path.toLowerCase().includes('/trash/')
+                );
+                if (fallbackFiles.length === 0) continue;
+                console.warn('[DIWA IndexService] task folder fallback engaged', {
+                    configuredFolder: this.settings.tasksFolder,
+                    fallbackFolder: folder,
+                    fileCount: fallbackFiles.length,
+                });
+                files = fallbackFiles;
+                break;
+            }
+        }
         // arch-02: Pass skipRebuild=true — rebuildCalculatedState() called once in buildIndices()
-        for (const f of files) await this.indexTaskFile(f, true);
+        for (const f of files) {
+            try {
+                await this.indexTaskFile(f, true);
+            } catch (error) {
+                console.warn('[DIWA IndexService] skipped task file due indexing error', { path: f.path, error });
+            }
+        }
     }
 
     async indexThoughtFile(file: TFile) {
         const cache = this.app.metadataCache.getFileCache(file);
-        if (!cache || !cache.frontmatter) return;
-        const fm = cache.frontmatter;
         // arch-01: Read actual file content for body — was incorrectly set to file.basename
         const content = await this.app.vault.read(file);
+        const fallbackFrontmatter = IndexService.parseFrontmatterFallback(content);
+        const cacheFrontmatter = cache?.frontmatter as Record<string, unknown> | undefined;
+        const fm = {
+            ...(fallbackFrontmatter ?? {}),
+            ...(cacheFrontmatter ?? {}),
+        } as Record<string, any>;
+        if (Object.keys(fm).length === 0) return;
         const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').trim();
+        const linkedTaskIds = Array.from(new Set([
+            ...IndexService.normalizeStringArray(fm.linkedTasks),
+            ...IndexService.normalizeLinksArray(fm.links, 'tasks'),
+        ]));
         this.thoughtIndex.set(file.path, {
+            id: file.path,
             filePath: file.path,
             title: file.basename,
             body: body,
@@ -256,7 +395,8 @@ export class IndexService {
             synthesized: fm.synthesized || false,
             project: fm.project || null,
             allDates: fm.allDates || [],
-            lastThreadUpdate: file.stat.mtime
+            lastThreadUpdate: file.stat.mtime,
+            links: { tasks: linkedTaskIds },
         });
 
         // Collect open checklist items from this thought file (replace stale entries via Map)
@@ -288,47 +428,110 @@ export class IndexService {
     // arch-02: skipRebuild param prevents O(n²) calls during bulk index build
     async indexTaskFile(file: TFile, skipRebuild = false) {
         const cache = this.app.metadataCache.getFileCache(file);
-        if (!cache || !cache.frontmatter) return;
-        const fm = cache.frontmatter;
         const content = await this.app.vault.read(file);
+        const fallbackFrontmatter = IndexService.parseFrontmatterFallback(content);
+        const cacheFrontmatter = cache?.frontmatter as Record<string, unknown> | undefined;
+        const fallbackFm = (fallbackFrontmatter ?? {}) as Record<string, unknown>;
+        const cacheFm = (cacheFrontmatter ?? {}) as Record<string, unknown>;
+        const pickFrontmatter = (keys: string[]): unknown =>
+            IndexService.getFrontmatterValue(fallbackFm, keys)
+            ?? IndexService.getFrontmatterValue(cacheFm, keys);
+        const fm = {
+            ...(fallbackFrontmatter ?? {}),
+            ...(cacheFrontmatter ?? {}),
+        } as Record<string, any>;
+        if (Object.keys(fm).length === 0) return;
         const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').trim();
+        const rawWorkflowStatus = String(pickFrontmatter(['status', 'state']) ?? 'backlog').toLowerCase().trim();
+        const normalizedTaskIdValue = pickFrontmatter(['taskId', 'taskID']);
+        const normalizedTaskId = normalizedTaskIdValue ? String(normalizedTaskIdValue) : undefined;
+        const rawBucketValue = String(pickFrontmatter(['bucket']) ?? fm.bucket ?? '').toLowerCase().trim();
+        const dueValue = pickFrontmatter(['due']) ?? fm.due;
+        const titleValue = pickFrontmatter(['title']) ?? fm.title;
+        const dayValue = pickFrontmatter(['day']) ?? fm.day;
+        const createdValue = pickFrontmatter(['created']) ?? fm.created;
+        const modifiedValue = pickFrontmatter(['modified']) ?? fm.modified;
+        const projectValue = pickFrontmatter(['project']) ?? fm.project;
+        const priorityValue = pickFrontmatter(['priority']) ?? fm.priority;
+        const energyValue = pickFrontmatter(['energy']) ?? fm.energy;
+        const recurrenceValue = pickFrontmatter(['recurrence']) ?? fm.recurrence;
+        const recurrenceParentIdValue = pickFrontmatter(['recurrenceParentId']) ?? fm.recurrenceParentId;
+        const focusValue = pickFrontmatter(['focus']) ?? fm.focus;
+
+        let normalizedStatus: TaskEntry['status'] = 'open';
+        let normalizedLegacyState: TaskEntry['state'] = 'backlog';
+        let normalizedBucketStatus: TaskBucketStatus | undefined = (['backlog', 'active', 'done'].includes(rawBucketValue))
+            ? rawBucketValue as TaskBucketStatus
+            : undefined;
+
+        if (rawWorkflowStatus === 'done') {
+            normalizedStatus = 'done';
+            normalizedLegacyState = 'done';
+            normalizedBucketStatus = normalizedBucketStatus ?? 'done';
+        } else if (rawWorkflowStatus === 'waiting' || rawWorkflowStatus === 'active') {
+            normalizedStatus = 'waiting';
+            normalizedLegacyState = 'active';
+            normalizedBucketStatus = normalizedBucketStatus ?? 'active';
+        } else if (rawWorkflowStatus === 'someday') {
+            normalizedStatus = 'someday';
+            normalizedLegacyState = 'someday';
+            normalizedBucketStatus = normalizedBucketStatus ?? 'backlog';
+        } else if (rawWorkflowStatus === 'open') {
+            normalizedStatus = 'open';
+            normalizedLegacyState = 'open';
+            normalizedBucketStatus = normalizedBucketStatus ?? 'backlog';
+        } else {
+            normalizedStatus = 'open';
+            normalizedLegacyState = 'backlog';
+            normalizedBucketStatus = normalizedBucketStatus ?? 'backlog';
+        }
+
+        const normalizedLifecycleStatus: TaskEntry['lifecycleStatus'] = (['planned', 'active', 'done'].includes(String(fm.lifecycleStatus)))
+            ? fm.lifecycleStatus as 'planned' | 'active' | 'done'
+            : (normalizedBucketStatus === 'done'
+                ? 'done'
+                : (normalizedBucketStatus === 'active' ? 'active' : 'planned'));
+
+        const linkedThoughtIds = Array.from(new Set([
+            ...IndexService.normalizeStringArray(fm.sourceThoughtIds),
+            ...IndexService.normalizeLinksArray(fm.links, 'thoughts'),
+        ]));
 
         this.taskIndex.set(file.path, {
+            id: normalizedTaskId ?? file.path,
             filePath: file.path,
-            title: fm.title || file.basename,
+            title: titleValue || file.basename,
             body: body,
-            status: fm.status || 'open',
+            status: normalizedStatus,
+            state: normalizedLegacyState,
             // Normalize due: strip [[...]] wikilink wrapper, handle Date objects from YAML
-            due: fm.due
-                ? (typeof fm.due === 'object'
-                    ? moment(fm.due).format('YYYY-MM-DD')
-                    : String(fm.due).trim().replace(/^\[\[|\]\]$/g, ''))
+            due: dueValue
+                ? (typeof dueValue === 'object'
+                    ? moment(dueValue).format('YYYY-MM-DD')
+                    : String(dueValue).trim().replace(/^\[\[|\]\]$/g, ''))
                 : '',
-            created: fm.created || '',
-            modified: fm.modified || '',
+            created: createdValue ? String(createdValue) : '',
+            modified: modifiedValue ? String(modifiedValue) : '',
             lastUpdate: file.stat.mtime,
-            day: String(fm.day || '').replace(/^\[\[|\]\]$/g, ''),
+            day: String(dayValue || '').replace(/^\[\[|\]\]$/g, ''),
             context: IndexService.normalizeContext(fm.context ?? fm.contexts),
             children: [],
-            project: fm.project || undefined,
-            priority: fm.priority || undefined,
-            energy: fm.energy || undefined,
-            recurrence: fm.recurrence || undefined,
-            recurrenceParentId: fm.recurrenceParentId || undefined,
-            bucketStatus: (['backlog', 'active', 'done'].includes(String(fm.bucket)))
-                ? String(fm.bucket) as 'backlog' | 'active' | 'done'
-                : undefined,
-            focus: typeof fm.focus === 'boolean'
-                ? fm.focus
-                : (String(fm.focus).toLowerCase() === 'true' ? true : undefined),
+            project: projectValue ? String(projectValue) : undefined,
+            priority: priorityValue as TaskEntry['priority'] | undefined,
+            energy: energyValue as TaskEntry['energy'] | undefined,
+            recurrence: recurrenceValue as TaskEntry['recurrence'] | undefined,
+            recurrenceParentId: recurrenceParentIdValue ? String(recurrenceParentIdValue) : undefined,
+            bucketStatus: normalizedBucketStatus,
+            focus: typeof focusValue === 'boolean'
+                ? focusValue
+                : (String(focusValue).toLowerCase() === 'true' ? true : undefined),
             // Unified task model fields — gracefully absent on legacy tasks
-            taskId: fm.taskId ? String(fm.taskId) : undefined,
+            taskId: normalizedTaskId,
             origin: fm.origin === 'thought' ? 'thought' : (fm.origin === 'direct' ? 'direct' : undefined),
-            sourceThoughtIds: IndexService.normalizeStringArray(fm.sourceThoughtIds),
+            sourceThoughtIds: linkedThoughtIds,
+            links: { thoughts: linkedThoughtIds },
             // Lifecycle fields — gracefully absent on legacy tasks
-            lifecycleStatus: (['planned', 'active', 'done'].includes(fm.lifecycleStatus))
-                ? fm.lifecycleStatus as 'planned' | 'active' | 'done'
-                : undefined,
+            lifecycleStatus: normalizedLifecycleStatus,
             createdAt:   fm.createdAt   ? String(fm.createdAt)   : undefined,
             updatedAt:   fm.updatedAt   ? String(fm.updatedAt)   : undefined,
             completedAt: fm.completedAt ? String(fm.completedAt) : undefined,
@@ -337,20 +540,26 @@ export class IndexService {
     }
 
     isThoughtFile(path: string): boolean {
-        const folder = (this.settings.thoughtsFolder || '000 Bin/DIWA').trim();
-        // Use folder + '/' to prevent prefix collision with sibling folders
-        // e.g. '000 Bin/DIWA' must NOT match '000 Bin/DIWA Gawa/...'
-        return path.startsWith(folder + '/') && path.endsWith('.md') && !path.includes('/trash/');
+        const folder = this.settings.thoughtsFolder || '000 Bin/DIWA';
+        const normalizedPath = this.normalizeVaultPath(path);
+        return this.pathIsInFolder(normalizedPath, folder)
+            && normalizedPath.toLowerCase().endsWith('.md')
+            && !normalizedPath.toLowerCase().includes('/trash/');
     }
 
     isTaskFile(path: string): boolean {
-        const folder = (this.settings.tasksFolder || '000 Bin/DIWA Gawa').trim();
-        return path.startsWith(folder + '/') && path.endsWith('.md') && !path.includes('/trash/');
+        const folder = this.settings.tasksFolder || '000 Bin/DIWA Gawa';
+        const normalizedPath = this.normalizeVaultPath(path);
+        return this.pathIsInFolder(normalizedPath, folder)
+            && normalizedPath.toLowerCase().endsWith('.md')
+            && !normalizedPath.toLowerCase().includes('/trash/');
     }
 
     isDueFile(path: string): boolean {
-        const folder = (this.settings.pfFolder || '000 Bin/DIWA PF').replace(/\\/g, '/').trim();
-        return path.startsWith(folder + '/') && path.endsWith('.md');
+        const folder = this.settings.pfFolder || '000 Bin/DIWA PF';
+        const normalizedPath = this.normalizeVaultPath(path);
+        return this.pathIsInFolder(normalizedPath, folder)
+            && normalizedPath.toLowerCase().endsWith('.md');
     }
 
     getProjects(): string[] {

@@ -260,5 +260,8 @@ export class BaseTab {
     // Default unload hook — override in tabs that allocate global resources
     onunload(): void { /* no-op */ }
 
+    /** Optional hook: called when only tasks have changed (avoids full re-render). Override in task-aware tabs. */
+    onTasksRefresh?(): void;
+
     render(container: HTMLElement, ...args: any[]): void {}
 }

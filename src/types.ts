@@ -101,6 +101,7 @@ export interface ReplyEntry {
 }
 
 export interface ThoughtEntry {
+    id?: string;               // stable ID alias; defaults to filePath when absent
     filePath: string;          // vault path to the file
     title: string;             // from frontmatter
     created: string;           // YYYY-MM-DD HH:mm:ss
@@ -114,15 +115,20 @@ export interface ThoughtEntry {
     pinned?: boolean;          // true if the thought is pinned
     project?: string;          // associated project name
     synthesized?: boolean;     // true if the thought has been synthesized into a master note
+    links?: {
+        tasks: string[];       // linked task IDs (file paths in current implementation)
+    };
 }
 
 export interface TaskEntry {
+    id?: string;           // stable ID alias; defaults to taskId/filePath when absent
     filePath: string;
     title: string;
     created: string;       // "YYYY-MM-DD HH:mm:ss"
     modified: string;
     day: string;           // "YYYY-MM-DD"
     status: 'open' | 'done' | 'waiting' | 'someday';
+    state?: 'backlog' | 'active' | 'done' | 'open' | 'waiting' | 'someday'; // legacy alias persisted in older frontmatter
     due: string;           // "YYYY-MM-DD" or ""
     context: string[];
     body: string;
@@ -145,6 +151,9 @@ export interface TaskEntry {
     updatedAt?: string;                     // ISO-8601 timestamp, updated on every state change
     completedAt?: string;                   // ISO-8601 timestamp, set when lifecycleStatus = done
     reflectionThoughtId?: string;           // vault path of the reflection note for this task
+    links?: {
+        thoughts: string[];                 // linked thought IDs (file paths in current implementation)
+    };
 }
 
 export type RecurrenceRule = 'daily' | 'weekly' | 'biweekly' | 'monthly';

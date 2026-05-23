@@ -10,7 +10,6 @@ import { attachInlineTriggers, createThoughtCaptureWidget } from '../utils';
 import type { ThoughtEntry, TaskEntry } from '../types';
 import type { DiwaView } from '../view';
 import { InlineTopicInput } from '../utils/InlineTopicInput';
-import { ConvertToTaskModal } from '../modals/ConvertToTaskModal';
 import { DesktopTaskPaneView } from './DesktopTaskPane';
 import { TaskController } from './TaskController';
 
@@ -42,7 +41,8 @@ export class DesktopHubView extends ItemView {
     constructor(leaf: WorkspaceLeaf, plugin: DiwaPlugin) {
         super(leaf);
         this.plugin = plugin;
-        this._taskController = new TaskController(plugin);
+        this._taskController = plugin.getTaskController();
+        console.log('[DIWA] DesktopHub controller ref:', this._taskController);
     }
 
     getViewType(): string { return VIEW_TYPE_DESKTOP_HUB; }
@@ -421,6 +421,8 @@ export class DesktopHubView extends ItemView {
             content.createEl('span', { text: ts, cls: 'diwa-dh-feed-time' });
             const mdEl = content.createEl('div', { cls: 'diwa-dh-feed-text' });
             await MarkdownRenderer.render(this.app, t.body || t.title || '', mdEl, t.filePath, this);
+            const linkedTasksEl = content.createEl('div', { cls: 'diwa-dh-feed-linked-tasks' });
+            this.renderLinkedTasksForThought(linkedTasksEl, t);
 
             const actions = item.createEl('div', { cls: 'diwa-dh-feed-actions' });
             const synBtn = actions.createEl('button', {
@@ -462,32 +464,20 @@ export class DesktopHubView extends ItemView {
                 attr: { title: 'Convert to task', 'aria-label': 'Convert to task' }
             });
             setIcon(convertBtn, 'arrow-right');
-            convertBtn.addEventListener('click', (e) => {
+            convertBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                new ConvertToTaskModal(this.app, t.body || t.title || '', t.context, async (title, dueDate) => {
-                    if (!title) {
-                        new Notice('Task title is required.');
+                convertBtn.disabled = true;
+                try {
+                    const ok = await this._taskController.convertThoughtToTask(t.filePath);
+                    if (!ok) {
+                        new Notice('Could not convert thought to task.');
                         return;
                     }
-
-                    const taskLink = this.plugin.taskLink;
-                    if (!taskLink) {
-                        new Notice('Task support is not ready.');
-                        return;
-                    }
-
-                    const task = await taskLink.createTaskFromThought(t.filePath, title);
-                    if (!task.filePath) {
-                        new Notice('Could not create task.');
-                        return;
-                    }
-
-                    if (dueDate) {
-                        await this.plugin.vault.setTaskDue(task.filePath, dueDate);
-                    }
-
-                    await taskLink.linkTaskToThought(task.filePath, t.filePath);
-                }).open();
+                    this.renderLinkedTasksForThought(linkedTasksEl, t);
+                    new Notice('Thought converted to task', 1100);
+                } finally {
+                    convertBtn.disabled = false;
+                }
             });
 
             const editBtn = actions.createEl('button', { cls: 'diwa-dh-feed-edit-btn', attr: { title: 'Edit thought', 'aria-label': 'Edit thought' } });
@@ -495,6 +485,31 @@ export class DesktopHubView extends ItemView {
             editBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.makeThoughtEditable(item, content, actions, t);
+            });
+        }
+    }
+
+    private renderLinkedTasksForThought(container: HTMLElement, thought: ThoughtEntry): void {
+        container.empty();
+        const linkedTasks = this._taskController.getLinkedTasksForThought(thought.filePath);
+        if (linkedTasks.length === 0) return;
+
+        for (const task of linkedTasks.slice(0, 3)) {
+            const taskBtn = container.createEl('button', {
+                cls: 'diwa-dh-feed-linked-task',
+                text: `Linked Task -> ${task.title}`,
+                attr: { type: 'button' },
+            }) as HTMLButtonElement;
+            taskBtn.addEventListener('click', async (event) => {
+                event.stopPropagation();
+                const file = this.app.vault.getAbstractFileByPath(task.filePath);
+                if (file instanceof TFile) await this.app.workspace.getLeaf(false).openFile(file);
+            });
+        }
+        if (linkedTasks.length > 3) {
+            container.createEl('span', {
+                cls: 'diwa-dh-feed-linked-task-count',
+                text: `+${linkedTasks.length - 3} more`,
             });
         }
     }

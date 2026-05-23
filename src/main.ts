@@ -1,6 +1,6 @@
 import { Plugin, TFile, Notice, WorkspaceLeaf, Platform, moment, addIcon } from 'obsidian';
 import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, AI_CHAT_ICON_ID, AI_CHAT_ICON_SVG, TIMELINE_ICON_ID, TIMELINE_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, VOICE_ICON_ID, VOICE_ICON_SVG, PROJECT_ICON_ID, PROJECT_ICON_SVG, SYNTHESIS_ICON_ID, SYNTHESIS_ICON_SVG, COMPASS_ICON_ID, COMPASS_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_SEARCH, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB } from './constants';
-import { DiwaSettings } from './types';
+import { DiwaSettings, TaskEntry } from './types';
 import { isTablet } from './utils';
 import { DiwaView } from './view';
 import { DesktopHubView } from './views/DesktopHubView';
@@ -16,6 +16,35 @@ import { TaskLinkService } from './services/TaskLinkService';
 import { TaskReflectionService } from './services/TaskReflectionService';
 import { RefreshCoordinator, type RefreshScope } from './application/RefreshCoordinator';
 import { SearchModal } from './modals/SearchModal';
+import { TaskController } from './views/TaskController';
+
+class TaskIndexCompat {
+    constructor(private readonly plugin: DiwaPlugin) {}
+
+    getAll(): TaskEntry[] {
+        return Array.from(this.plugin.index?.taskIndex?.values() ?? []);
+    }
+
+    set(tasks: TaskEntry[]): void {
+        if (!this.plugin.index?.taskIndex) return;
+        this.plugin.index.taskIndex.clear();
+        for (const task of tasks) {
+            const path = task.filePath?.trim();
+            if (!path) continue;
+            this.plugin.index.taskIndex.set(path, task);
+        }
+    }
+
+    get(taskIdOrPath: string): TaskEntry | undefined {
+        if (!this.plugin.index?.taskIndex) return undefined;
+        const byPath = this.plugin.index.taskIndex.get(taskIdOrPath);
+        if (byPath) return byPath;
+        for (const task of this.plugin.index.taskIndex.values()) {
+            if (task.taskId === taskIdOrPath || task.id === taskIdOrPath) return task;
+        }
+        return undefined;
+    }
+}
 
 export default class DiwaPlugin extends Plugin {
 	settings: DiwaSettings;
@@ -26,9 +55,24 @@ export default class DiwaPlugin extends Plugin {
     ai: AiService;
     vault: VaultService;
     index: IndexService;
+    // Compatibility facade for runtime callers expecting plugin.taskIndex.getAll()/set()
+    taskIndex: TaskIndexCompat;
+    // Shared singleton task controller (canonical public name)
+    controller: TaskController;
+    // Backward-compatible alias used by existing view code
+    taskController: TaskController;
     taskLink: TaskLinkService;
     taskReflection: TaskReflectionService;
     refreshCoordinator: RefreshCoordinator;
+
+    getTaskController(): TaskController {
+        if (!this.controller) {
+            this.controller = new TaskController(this);
+            this.taskController = this.controller;
+            console.warn('[DIWA] TaskController was missing and has been re-created');
+        }
+        return this.controller;
+    }
 
 	async onload() {
 		await this.loadSettings();
@@ -37,13 +81,27 @@ export default class DiwaPlugin extends Plugin {
         this.ai = new AiService(this.app, this.settings);
         this.vault = new VaultService(this.app, this.settings);
         this.index = new IndexService(this.app, this.settings);
+        this.taskIndex = new TaskIndexCompat(this);
+        this.controller = new TaskController(this);
+        this.taskController = this.controller;
+        console.log('TaskIndex initialized:', this.taskIndex);
+        console.log('[DIWA] Shared TaskController initialized:', this.controller);
         this.taskLink = new TaskLinkService(this.app, this.settings, this.index);
         this.taskReflection = new TaskReflectionService(this.app, this.settings, this.index);
         this.refreshCoordinator = new RefreshCoordinator(this.app, this.settings, this.index);
 
         this.app.workspace.onLayoutReady(async () => {
             await this.index.buildIndices();
+            const normalizedTasks = this.normalizeIndexedTasks(Array.from(this.index.taskIndex.values()));
+            this.taskIndex.set(normalizedTasks);
+            normalizedTasks.forEach((task) => {
+                this.getTaskController().addTask(task);
+            });
+            console.log('Tasks loaded:', normalizedTasks.length);
+            console.log('TaskIndex:', this.taskIndex);
+            this.logTaskControllerPanes();
             this.notifyRefresh(); // ensure view re-renders with freshly-built index
+            this.refreshOpenTaskPanes();
             this.scanForContexts();
             
             // --- REACTIVE NERVE SYSTEM ---
@@ -314,6 +372,56 @@ export default class DiwaPlugin extends Plugin {
 	notifyRefresh(scope: RefreshScope = 'all'): void {
 	    this.refreshCoordinator.notifyRefresh(scope);
 	}
+
+    private normalizeIndexedTasks(tasks: TaskEntry[]): TaskEntry[] {
+        return tasks.map((task) => {
+            const id = task.id || task.taskId || task.filePath;
+            const title = task.title || task.body || 'Untitled task';
+            const rawStatus = String(task.status || task.state || 'backlog').toLowerCase();
+            const status: TaskEntry['status'] =
+                rawStatus === 'done'
+                    ? 'done'
+                    : rawStatus === 'active' || rawStatus === 'waiting'
+                        ? 'waiting'
+                        : rawStatus === 'someday'
+                            ? 'someday'
+                            : 'open';
+            const bucketStatus = task.bucketStatus
+                ?? (status === 'done' ? 'done' : (status === 'waiting' ? 'active' : 'backlog'));
+            const state = task.state
+                ?? (bucketStatus === 'done' ? 'done' : (bucketStatus === 'active' ? 'active' : 'backlog'));
+            return {
+                ...task,
+                id,
+                title,
+                status,
+                state,
+                bucketStatus,
+                focus: !!task.focus,
+                links: task.links ?? { thoughts: [] },
+            };
+        });
+    }
+
+    private refreshOpenTaskPanes(): void {
+        const diwaLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DIWA);
+        for (const leaf of diwaLeaves) {
+            const view = leaf.view as any;
+            if (typeof view?.refreshTasks === 'function') view.refreshTasks();
+            else if (typeof view?.renderView === 'function') view.renderView();
+        }
+
+        const desktopLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB);
+        for (const leaf of desktopLeaves) {
+            const view = leaf.view as any;
+            if (typeof view?.updateTaskPaneFromIndex === 'function') view.updateTaskPaneFromIndex();
+            else if (typeof view?.renderView === 'function') view.renderView();
+        }
+    }
+
+    private logTaskControllerPanes(): void {
+        console.log('Controller panes:', this.controller?.panes ?? []);
+    }
 
     private getRefreshScopeForPath(path: string): RefreshScope | null {
         if (this.index.isTaskFile(path)) return 'tasks';
