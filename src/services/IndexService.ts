@@ -1,5 +1,6 @@
 import { App, TFile, moment } from 'obsidian';
 import { DiwaSettings, ThoughtEntry, TaskEntry, DueEntry, ProjectEntry, TaskBucketStatus } from '../types';
+import { extractWikiLinks } from '../utils/wikilinks';
 
 export interface ChecklistItem {
     text: string;
@@ -388,6 +389,7 @@ export class IndexService {
             title: file.basename,
             body: body,
             content: body,
+            wikilinks: extractWikiLinks(body),
             day: String(fm.day || '').replace(/^\[\[|\]\]$/g, ''),
             created: fm.created || '',
             modified: fm.modified || '',

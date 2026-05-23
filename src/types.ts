@@ -17,6 +17,14 @@ export interface ProjectEntry {
     milestones?: Milestone[];
 }
 
+export interface AISettingsConfig {
+    enabled: boolean;
+    model: string;
+    temperature: number;
+    enableSuggestions: boolean;
+    enableSummaries: boolean;
+}
+
 export interface DiwaSettings {
     captureFolder: string;
 	captureFilePath: string;
@@ -69,6 +77,7 @@ export interface DiwaSettings {
     legacyMigrated?: boolean;
     peopleFolder: string;
     contextOrder: string[];
+    ai: AISettingsConfig;
 }
 
 export interface Milestone {
@@ -114,6 +123,7 @@ export interface ThoughtEntry {
     topic?: string | null;     // sub-topic label, e.g. "Meeting"
     body: string;              // text before first ## reply header
     content?: string;          // canonical full content alias
+    wikilinks: string[];       // derived from [[wikilinks]] in content/body
     lastThreadUpdate: number;  // ms timestamp for sorting
     state?: 'raw' | 'refined' | 'important';
     pinned?: boolean;          // true if the thought is pinned
@@ -125,6 +135,12 @@ export interface ThoughtEntry {
         tasks: string[];       // linked task IDs (file paths in current implementation)
         thoughts: string[];    // linked thought IDs
     };
+    aiProcessed?: boolean;
+    aiResult?: {
+        intent?: 'explore' | 'analyze' | 'plan' | 'recall';
+        summary?: string;
+        topics?: string[];
+    } | null;
 }
 
 export interface TaskEntry {

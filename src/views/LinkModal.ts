@@ -1,8 +1,9 @@
-import { App, Notice, TFile } from 'obsidian';
+import { App, Notice, Platform, TFile } from 'obsidian';
 import type DiwaPlugin from '../main';
 import type { TaskEntry, ThoughtEntry } from '../types';
 import type { TaskController } from './TaskController';
 import type { ThoughtController } from './ThoughtController';
+import type { ThoughtProcessor } from './ThoughtProcessor';
 
 export interface LinkModalContext {
     taskId?: string;
@@ -16,9 +17,15 @@ function getTaskKey(task: TaskEntry): string {
 export class LinkModal {
     private static shared: LinkModal | null = null;
 
-    static getShared(app: App, plugin: DiwaPlugin, thoughtController: ThoughtController, taskController: TaskController): LinkModal {
+    static getShared(
+        app: App,
+        plugin: DiwaPlugin,
+        thoughtController: ThoughtController,
+        taskController: TaskController,
+        thoughtProcessor: ThoughtProcessor,
+    ): LinkModal {
         if (!LinkModal.shared) {
-            LinkModal.shared = new LinkModal(app, plugin, thoughtController, taskController);
+            LinkModal.shared = new LinkModal(app, plugin, thoughtController, taskController, thoughtProcessor);
         }
         return LinkModal.shared;
     }
@@ -26,7 +33,9 @@ export class LinkModal {
     private backdropEl: HTMLElement | null = null;
     private modalEl: HTMLElement | null = null;
     private thoughtsListEl: HTMLElement | null = null;
+    private recallThoughtsListEl: HTMLElement | null = null;
     private tasksListEl: HTMLElement | null = null;
+    private notesListEl: HTMLElement | null = null;
     private addThoughtInputEl: HTMLInputElement | null = null;
     private addTaskInputEl: HTMLInputElement | null = null;
     private activeContext: LinkModalContext | null = null;
@@ -44,6 +53,7 @@ export class LinkModal {
         private plugin: DiwaPlugin,
         private thoughtController: ThoughtController,
         private taskController: TaskController,
+        private thoughtProcessor: ThoughtProcessor,
     ) {}
 
     open(context: LinkModalContext, hostEl?: HTMLElement): void {
@@ -57,6 +67,9 @@ export class LinkModal {
         this.attachToHost(hostEl ?? document.body);
         this.render();
         if (!this.backdropEl || !this.addThoughtInputEl) return;
+        this.modalEl?.toggleClass('is-mobile', this.isMobile());
+        this.modalEl?.addClass('open');
+        this.backdropEl?.addClass('open');
         this.backdropEl.style.display = 'block';
         window.addEventListener('keydown', this.onEscape, true);
         window.setTimeout(() => this.addThoughtInputEl?.focus(), 10);
@@ -65,6 +78,8 @@ export class LinkModal {
     close(): void {
         this.activeContext = null;
         window.removeEventListener('keydown', this.onEscape, true);
+        this.modalEl?.removeClass('open');
+        this.backdropEl?.removeClass('open');
         if (this.hostEl && this.hostPositionTouched) {
             this.hostEl.style.position = this.hostPositionOriginal;
             this.hostPositionTouched = false;
@@ -75,7 +90,9 @@ export class LinkModal {
         this.backdropEl = null;
         this.modalEl = null;
         this.thoughtsListEl = null;
+        this.recallThoughtsListEl = null;
         this.tasksListEl = null;
+        this.notesListEl = null;
         this.addThoughtInputEl = null;
         this.addTaskInputEl = null;
     }
@@ -92,6 +109,16 @@ export class LinkModal {
         this.modalEl = document.createElement('div');
         this.modalEl.className = 'link-modal';
         this.modalEl.addEventListener('mousedown', (event) => event.stopPropagation());
+        let touchStartY = 0;
+        this.modalEl.addEventListener('touchstart', (event) => {
+            if (!this.isMobile()) return;
+            touchStartY = event.touches[0]?.clientY ?? 0;
+        }, { passive: true });
+        this.modalEl.addEventListener('touchend', (event) => {
+            if (!this.isMobile()) return;
+            const endY = event.changedTouches[0]?.clientY ?? touchStartY;
+            if (endY - touchStartY > 80) this.close();
+        }, { passive: true });
 
         const header = this.modalEl.createEl('div', { cls: 'link-modal-header', text: 'Linked Items' });
         header.setAttr('role', 'heading');
@@ -101,9 +128,17 @@ export class LinkModal {
         thoughtsSection.createEl('div', { cls: 'section-title', text: 'Thoughts' });
         this.thoughtsListEl = thoughtsSection.createEl('div', { cls: 'thought-list' });
 
+        const relatedSection = this.modalEl.createEl('div', { cls: 'link-modal-section recall-section' });
+        relatedSection.createEl('div', { cls: 'section-title', text: 'Related Past Thoughts' });
+        this.recallThoughtsListEl = relatedSection.createEl('div', { cls: 'recall-thought-list' });
+
         const tasksSection = this.modalEl.createEl('div', { cls: 'link-modal-section' });
         tasksSection.createEl('div', { cls: 'section-title', text: 'Tasks' });
         this.tasksListEl = tasksSection.createEl('div', { cls: 'task-list' });
+
+        const notesSection = this.modalEl.createEl('div', { cls: 'link-modal-section' });
+        notesSection.createEl('div', { cls: 'section-title', text: 'Notes' });
+        this.notesListEl = notesSection.createEl('div', { cls: 'note-list' });
 
         const inputs = this.modalEl.createEl('div', { cls: 'link-modal-inputs' });
         this.addThoughtInputEl = inputs.createEl('input', {
@@ -182,10 +217,14 @@ export class LinkModal {
         host.appendChild(this.modalEl);
     }
 
-    private resolveContext(context: LinkModalContext): { thoughts: ThoughtEntry[]; tasks: TaskEntry[] } {
+    private isMobile(): boolean {
+        return this.plugin.isMobile() || Platform.isMobile;
+    }
+
+    private resolveContext(context: LinkModalContext): { thoughts: ThoughtEntry[]; recallThoughts: ThoughtEntry[]; tasks: TaskEntry[]; notes: string[] } {
         if (context.taskId) {
             const task = this.taskController.getTask(context.taskId);
-            if (!task) return { thoughts: [], tasks: [] };
+            if (!task) return { thoughts: [], recallThoughts: [], tasks: [], notes: [] };
             const thoughts = this.taskController.getLinkedThoughtsForTask(context.taskId);
             const tasksById = new Map<string, TaskEntry>();
             tasksById.set(getTaskKey(task), task);
@@ -194,35 +233,59 @@ export class LinkModal {
                     tasksById.set(getTaskKey(linkedTask), linkedTask);
                 }
             }
+            const notes = new Set<string>();
+            for (const thought of thoughts) {
+                for (const wikilink of thought.wikilinks ?? []) notes.add(wikilink);
+            }
+            const related = new Map<string, ThoughtEntry>();
+            for (const linkedThought of thoughts) {
+                for (const candidate of this.thoughtProcessor.recall(linkedThought)) {
+                    const key = candidate.id || candidate.filePath;
+                    related.set(key, candidate);
+                }
+            }
+            for (const linkedThought of thoughts) {
+                related.delete(linkedThought.id || linkedThought.filePath);
+            }
             return {
                 thoughts,
+                recallThoughts: Array.from(related.values()).slice(0, 5),
                 tasks: Array.from(tasksById.values()),
+                notes: Array.from(notes.values()),
             };
         }
 
         if (context.thoughtId) {
             const thought = this.thoughtController.getThought(context.thoughtId);
-            if (!thought) return { thoughts: [], tasks: [] };
+            if (!thought) return { thoughts: [], recallThoughts: [], tasks: [], notes: [] };
             const thoughtMap = new Map<string, ThoughtEntry>();
             thoughtMap.set(thought.filePath, thought);
             for (const linkedThoughtId of thought.links?.thoughts ?? []) {
                 const linkedThought = this.thoughtController.getThought(linkedThoughtId);
                 if (linkedThought) thoughtMap.set(linkedThought.filePath, linkedThought);
             }
+            const notes = new Set<string>();
+            for (const entry of thoughtMap.values()) {
+                for (const wikilink of entry.wikilinks ?? []) notes.add(wikilink);
+            }
             return {
                 thoughts: Array.from(thoughtMap.values()),
+                recallThoughts: this.thoughtProcessor.recall(thought),
                 tasks: this.taskController.getLinkedTasksForThought(thought.filePath),
+                notes: Array.from(notes.values()),
             };
         }
 
-        return { thoughts: [], tasks: [] };
+        return { thoughts: [], recallThoughts: [], tasks: [], notes: [] };
     }
 
     private render(): void {
-        if (!this.activeContext || !this.thoughtsListEl || !this.tasksListEl) return;
-        const { thoughts, tasks } = this.resolveContext(this.activeContext);
+        if (!this.activeContext || !this.thoughtsListEl || !this.recallThoughtsListEl || !this.tasksListEl || !this.notesListEl) return;
+        const { thoughts, recallThoughts, tasks, notes } = this.resolveContext(this.activeContext);
         this.renderThoughts(thoughts);
+        this.renderRecallThoughts(recallThoughts);
         this.renderTasks(tasks);
+        this.renderNotes(notes);
     }
 
     private renderThoughts(thoughts: ThoughtEntry[]): void {
@@ -262,6 +325,51 @@ export class LinkModal {
                 event.stopPropagation();
                 const file = this.app.vault.getAbstractFileByPath(task.filePath);
                 if (file instanceof TFile) await this.app.workspace.getLeaf(false).openFile(file);
+            });
+        }
+    }
+
+    private renderRecallThoughts(thoughts: ThoughtEntry[]): void {
+        if (!this.recallThoughtsListEl) return;
+        this.recallThoughtsListEl.empty();
+        if (thoughts.length === 0) {
+            this.recallThoughtsListEl.createEl('div', { cls: 'link-modal-empty', text: 'No related past thoughts' });
+            return;
+        }
+        for (const thought of thoughts) {
+            const row = this.recallThoughtsListEl.createEl('div', { cls: 'thought-item link-modal-item' });
+            row.createEl('span', {
+                cls: 'text',
+                text: (thought.body || thought.content || thought.title || thought.filePath).split('\n').find((line) => line.trim())?.trim() || 'Untitled thought',
+            });
+            const open = row.createEl('span', { cls: 'open-link', text: '↗' });
+            open.addEventListener('click', async (event) => {
+                event.stopPropagation();
+                const file = this.app.vault.getAbstractFileByPath(thought.filePath);
+                if (file instanceof TFile) await this.app.workspace.getLeaf(false).openFile(file);
+            });
+        }
+    }
+
+    private renderNotes(notes: string[]): void {
+        if (!this.notesListEl) return;
+        this.notesListEl.empty();
+        if (notes.length === 0) {
+            this.notesListEl.createEl('div', { cls: 'link-modal-empty', text: 'No linked notes' });
+            return;
+        }
+        for (const noteName of notes) {
+            const row = this.notesListEl.createEl('div', { cls: 'note-item link-modal-item' });
+            row.createEl('span', { cls: 'text', text: noteName });
+            const open = row.createEl('span', { cls: 'open-link', text: '↗' });
+            open.addEventListener('click', async (event) => {
+                event.stopPropagation();
+                const file = this.thoughtController.resolveWikiLink(noteName);
+                if (file instanceof TFile) {
+                    await this.app.workspace.getLeaf(false).openFile(file);
+                    return;
+                }
+                await this.app.workspace.openLinkText(noteName, '', false);
             });
         }
     }

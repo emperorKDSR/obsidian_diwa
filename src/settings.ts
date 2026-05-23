@@ -30,14 +30,25 @@ export class DiwaSettingTab extends PluginSettingTab {
 		new Setting(containerEl).setName('Date Format').setDesc('moment.js format for dates.').addText(text => text.setPlaceholder('YYYY-MM-DD').setValue(this.plugin.settings.dateFormat).onChange(async (value) => { this.plugin.settings.dateFormat = value; await this.plugin.saveSettings(); this.plugin.notifyRefresh(); }));
 		new Setting(containerEl).setName('Time Format').setDesc('moment.js format for time.').addText(text => text.setPlaceholder('HH:mm').setValue(this.plugin.settings.timeFormat).onChange(async (value) => { this.plugin.settings.timeFormat = value; await this.plugin.saveSettings(); this.plugin.notifyRefresh(); }));
 
-        containerEl.createEl('h3', { text: 'Intelligence (Gemini AI)' });
+        containerEl.createEl('h3', { text: 'AI Configuration' });
+        containerEl.createEl('p', {
+            text: 'Populate only these fields: API key, model, and temperature.',
+        });
         // sec-002: API key masked as password — was plain text
         new Setting(containerEl).setName('Gemini API Key').setDesc('Your Google AI Studio API key.').addText(text => {
             text.setPlaceholder('AIza...').setValue(this.plugin.settings.geminiApiKey).onChange(async (value) => { this.plugin.settings.geminiApiKey = value; await this.plugin.saveSettings(); });
             text.inputEl.type = 'password';
         });
-		new Setting(containerEl).setName('Gemini Model').setDesc('Model ID to use (e.g. gemini-1.5-pro).').addText(text => text.setPlaceholder('gemini-1.5-pro').setValue(this.plugin.settings.geminiModel).onChange(async (value) => { this.plugin.settings.geminiModel = value; await this.plugin.saveSettings(); }));
-        new Setting(containerEl).setName('Transcription Language').setDesc('Target language for audio transcription/translation.').addText(text => text.setPlaceholder('English').setValue(this.plugin.settings.transcriptionLanguage).onChange(async (value) => { this.plugin.settings.transcriptionLanguage = value; await this.plugin.saveSettings(); }));
+        new Setting(containerEl).setName('AI Model').setDesc('Model used by AIProcessor (e.g. gemini-2.5-flash or gpt-4o-mini).').addText(text => text.setPlaceholder('gpt-4o-mini').setValue(this.plugin.settings.ai.model).onChange(async (value) => {
+            const model = (value || 'gpt-4o-mini').trim();
+            this.plugin.settings.ai.model = model;
+            // Keep legacy Gemini model in sync when a Gemini model is provided.
+            if (model.startsWith('gemini-')) this.plugin.settings.geminiModel = model;
+            await this.plugin.saveSettings();
+        }));
+        new Setting(containerEl).setName('AI Temperature').setDesc('Creativity control for AIProcessor calls (0.0 to 2.0).').addText(text => text.setPlaceholder('0.7').setValue(String(this.plugin.settings.ai.temperature)).onChange(async (value) => { const parsed = Number(value); this.plugin.settings.ai.temperature = Number.isFinite(parsed) ? Math.max(0, Math.min(2, parsed)) : 0.7; await this.plugin.saveSettings(); }));
+
+        containerEl.createEl('h3', { text: 'Finance' });
         new Setting(containerEl).setName('Monthly Income').setDesc('Used for the Cashflow Dashboard in Finance Mode.').addText(text => text.setPlaceholder('0').setValue(this.plugin.settings.monthlyIncome.toString()).onChange(async (value) => { this.plugin.settings.monthlyIncome = parseFloat(value) || 0; await this.plugin.saveSettings(); }));
 
         containerEl.createEl('h3', { text: 'Contexts & Tags' });

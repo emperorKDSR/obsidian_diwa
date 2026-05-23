@@ -347,7 +347,7 @@ export class TabletHubView extends ItemView {
             allPill.addEventListener('click', () => { if (this._feedScope !== 'all') { this._feedScope = 'all'; this.renderView(); } });
         }
 
-        let thoughts = this.plugin.getThoughtController().getAllThoughts();
+        let thoughts = this.plugin.getThoughtProcessor().getTopThoughts(500);
         if (ctx === 'all') {
             thoughts = thoughts.filter(t => t.day === today);
         } else {

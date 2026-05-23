@@ -12,7 +12,9 @@ import type { DiwaView } from '../view';
 import { DesktopTaskPaneView } from './DesktopTaskPane';
 import { TaskController } from './TaskController';
 import { ThoughtController } from './ThoughtController';
+import { ThoughtProcessor } from './ThoughtProcessor';
 import { LinkModal } from './LinkModal';
+import { ThoughtFocusPanel } from './ThoughtFocusPanel';
 
 export class DesktopHubView extends ItemView {
     private static sharedLinkModal: LinkModal | null = null;
@@ -40,17 +42,22 @@ export class DesktopHubView extends ItemView {
     private _taskPaneView: DesktopTaskPaneView | null = null;
     private _taskController: TaskController;
     private _thoughtController: ThoughtController;
+    private _thoughtProcessor: ThoughtProcessor;
     private _thoughtSearchQuery: string = '';
     private _captureSectionEl: HTMLElement | null = null;
     private _captureInputEl: HTMLTextAreaElement | null = null;
     private _captureHintEl: HTMLElement | null = null;
     private _centerInnerEl: HTMLElement | null = null;
     private _contextTabsHostEl: HTMLElement | null = null;
+    private _thoughtWorkspaceEl: HTMLElement | null = null;
     private _feedRootEl: HTMLElement | null = null;
+    private _focusPanelHostEl: HTMLElement | null = null;
+    private _focusPanel: ThoughtFocusPanel | null = null;
     private _feedHeaderEl: HTMLElement | null = null;
     private _feedPinnedListEl: HTMLElement | null = null;
     private _feedRecentListEl: HTMLElement | null = null;
     private _feedArchivedListEl: HTMLElement | null = null;
+    private _feedClustersListEl: HTMLElement | null = null;
     private _feedEmptyEl: HTMLElement | null = null;
     private _thoughtUnsubscribe: (() => void) | null = null;
     private _thoughtPopoverEl: HTMLElement | null = null;
@@ -59,9 +66,14 @@ export class DesktopHubView extends ItemView {
     private _thoughtRowMap = new Map<string, {
         rootEl: HTMLElement;
         contentEl: HTMLElement;
+        contextsEl: HTMLElement;
         textEl: HTMLElement;
         timeEl: HTMLElement;
         actionsEl: HTMLElement;
+        suggestionTaskEl: HTMLButtonElement;
+        suggestionLinksEl: HTMLElement;
+        suggestionRecallEl: HTMLElement;
+        convertBtnEl: HTMLButtonElement;
         linkedTaskIconEl: HTMLButtonElement;
         linkedThoughtIconEl: HTMLButtonElement;
         pinBtnEl: HTMLButtonElement;
@@ -69,12 +81,14 @@ export class DesktopHubView extends ItemView {
         signature: string;
     }>();
     private _feedRefreshRaf: number | null = null;
+    private _contextSelectionGuardUntil = 0;
 
     constructor(leaf: WorkspaceLeaf, plugin: DiwaPlugin) {
         super(leaf);
         this.plugin = plugin;
         this._taskController = plugin.getTaskController();
         this._thoughtController = plugin.getThoughtController();
+        this._thoughtProcessor = plugin.getThoughtProcessor();
         console.log('[DIWA] DesktopHub controller ref:', this._taskController);
     }
 
@@ -120,6 +134,18 @@ export class DesktopHubView extends ItemView {
         const root = this.containerEl.children[1] as HTMLElement;
         root.addClass('diwa-dh-root');
 
+        if (this.isMobile()) {
+            await this.applyMobileLayout(root);
+            return;
+        }
+        await this.applyDesktopLayout(root);
+    }
+
+    private isMobile(): boolean {
+        return this.plugin.isMobile();
+    }
+
+    private async applyDesktopLayout(root: HTMLElement): Promise<void> {
         if (!Platform.isDesktop) {
             this.resetLayoutRefs();
             root.empty();
@@ -129,6 +155,7 @@ export class DesktopHubView extends ItemView {
             });
             return;
         }
+        this._wrapEl?.removeClass('is-mobile-layout');
 
         if (!this._wrapEl || !root.contains(this._wrapEl)) {
             this.buildStableLayout(root);
@@ -146,6 +173,22 @@ export class DesktopHubView extends ItemView {
         }
 
         this.updateTaskPaneFromIndex();
+    }
+
+    private async applyMobileLayout(root: HTMLElement): Promise<void> {
+        if (!this._wrapEl || !root.contains(this._wrapEl)) {
+            this.buildStableLayout(root);
+        }
+        this._wrapEl?.addClass('is-mobile-layout');
+        this._wrapEl?.removeClass('is-focus-mode');
+
+        if (this._topBarEl) {
+            this._topBarEl.empty();
+            this.renderTopBar(this._topBarEl);
+        }
+        if (this._centerEl) {
+            await this.renderCenter(this._centerEl);
+        }
     }
 
     updateTaskPaneFromIndex(): void {
@@ -181,11 +224,16 @@ export class DesktopHubView extends ItemView {
         this._captureHintEl = null;
         this._centerInnerEl = null;
         this._contextTabsHostEl = null;
+        this._thoughtWorkspaceEl = null;
         this._feedRootEl = null;
+        this._focusPanel?.destroy();
+        this._focusPanel = null;
+        this._focusPanelHostEl = null;
         this._feedHeaderEl = null;
         this._feedPinnedListEl = null;
         this._feedRecentListEl = null;
         this._feedArchivedListEl = null;
+        this._feedClustersListEl = null;
         this._feedEmptyEl = null;
         this._thoughtRowMap.clear();
         this.closeThoughtLinkPopover();
@@ -216,6 +264,29 @@ export class DesktopHubView extends ItemView {
         }
 
         const right = bar.createEl('div', { cls: 'diwa-dh-topbar-right' });
+        const aiModeWrap = right.createEl('label', {
+            cls: 'diwa-dh-ai-mode',
+            attr: { style: 'display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:12px;' },
+        });
+        aiModeWrap.createEl('span', { text: 'AI Mode:' });
+        const aiModeSelect = aiModeWrap.createEl('select', {
+            cls: 'diwa-dh-ai-mode-select',
+            attr: { style: 'padding:4px 8px;border-radius:6px;' },
+        }) as HTMLSelectElement;
+        const modeOptions: Array<{ value: 'off' | 'assist' | 'active'; label: string }> = [
+            { value: 'off', label: 'Off' },
+            { value: 'assist', label: 'Assist' },
+            { value: 'active', label: 'Active' },
+        ];
+        for (const option of modeOptions) {
+            aiModeSelect.createEl('option', { value: option.value, text: option.label });
+        }
+        aiModeSelect.value = this.plugin.aiMode;
+        aiModeSelect.addEventListener('change', () => {
+            const nextMode = aiModeSelect.value as 'off' | 'assist' | 'active';
+            this.plugin.setAIMode(nextMode);
+        });
+
         const focusBtn = right.createEl('button', {
             cls: `diwa-dh-focus-btn${this.isFocusMode ? ' is-active' : ''}`,
             attr: { title: this.isFocusMode ? 'Exit Focus Mode' : 'Enter Focus Mode' }
@@ -298,7 +369,10 @@ export class DesktopHubView extends ItemView {
         if (!this._centerInnerEl || !parent.contains(this._centerInnerEl)) {
             this._centerInnerEl = parent.createEl('div', { cls: 'diwa-dh-center-inner' });
             this._contextTabsHostEl = this._centerInnerEl.createEl('div');
-            this._feedRootEl = this._centerInnerEl.createEl('div', { cls: 'diwa-dh-feed' });
+            this._thoughtWorkspaceEl = this._centerInnerEl.createEl('div', { cls: 'diwa-dh-thought-workspace' });
+            this._feedRootEl = this._thoughtWorkspaceEl.createEl('div', { cls: 'diwa-dh-feed' });
+            this._focusPanelHostEl = this._thoughtWorkspaceEl.createEl('div', { cls: 'diwa-dh-focus-panel-host' });
+            this.getFocusPanel().attach(this._focusPanelHostEl);
         }
         const activeCtx = this._activeContextTab;
         this.renderCapture(this._captureSectionEl, activeCtx !== 'all' ? [activeCtx] : []);
@@ -306,13 +380,14 @@ export class DesktopHubView extends ItemView {
             this._contextTabsHostEl.empty();
             this.renderContextTabs(this._contextTabsHostEl);
         }
+        if (this._focusPanelHostEl) this.getFocusPanel().attach(this._focusPanelHostEl);
         await this.renderFeed();
     }
 
     private renderCapture(parent: HTMLElement, initialContexts: string[] = []) {
         if (!this._captureInputEl) {
             parent.empty();
-            const capture = parent.createEl('div', { cls: 'diwa-dh-capture' });
+            const capture = parent.createEl('div', { cls: 'diwa-dh-capture diwa-capture-bar' });
             const textarea = capture.createEl('textarea', {
                 cls: 'diwa-dh-capture-textarea',
                 attr: { rows: '2', placeholder: 'Think here...' },
@@ -327,6 +402,27 @@ export class DesktopHubView extends ItemView {
             };
             textarea.addEventListener('input', autosize);
             requestAnimationFrame(autosize);
+            capture.addEventListener('click', (event) => {
+                const target = event.target as HTMLElement | null;
+                if (!target) return;
+                if (
+                    target.closest('.diwa-chip')
+                    || target.closest('.diwa-dh-chip')
+                    || target.closest('.diwa-capture-desktop-chip-area')
+                    || target.closest('button')
+                    || target.closest('a')
+                    || target.closest('[role="button"]')
+                ) return;
+                textarea.focus();
+            });
+            attachInlineTriggers(
+                this.app,
+                textarea,
+                () => {},
+                undefined,
+                undefined,
+                this.plugin.settings.peopleFolder,
+            );
 
             textarea.addEventListener('keydown', async (event: KeyboardEvent) => {
                 if (event.key === 'Escape') {
@@ -373,7 +469,6 @@ export class DesktopHubView extends ItemView {
         const displayContexts = [...order, ...unordered];
 
         const bar = parent.createEl('div', { cls: 'diwa-dh-ctx-tabbar' });
-        let dragIndex = -1;
 
         // Mouse drag-to-scroll
         let isMouseDown = false, scrollStartX = 0, scrollLeft = 0;
@@ -387,6 +482,7 @@ export class DesktopHubView extends ItemView {
         bar.addEventListener('mouseleave', () => { isMouseDown = false; bar.removeClass('is-scrolling'); });
         bar.addEventListener('mouseup', () => { isMouseDown = false; bar.removeClass('is-scrolling'); });
         bar.addEventListener('mousemove', (e) => {
+            if (!isMouseDown) return;
             e.preventDefault();
             const x = e.pageX - bar.offsetLeft;
             bar.scrollLeft = scrollLeft - (x - scrollStartX) * 1.5;
@@ -394,59 +490,30 @@ export class DesktopHubView extends ItemView {
 
         const tabs = [...displayContexts, 'all'];
 
-        tabs.forEach((ctx, idx) => {
+        tabs.forEach((ctx) => {
             const label = ctx === 'all' ? 'All' : ctx;
-            const isActive = this._activeContextTab === ctx;
-            const isDraggable = ctx !== 'all';
+            const isActive = this._activeContextTab.toLowerCase() === ctx.toLowerCase();
             const pill = bar.createEl('button', {
                 cls: `diwa-dh-ctx-tab${isActive ? ' is-active' : ''}`,
                 text: label,
                 attr: {
                     title: ctx === 'all' ? 'Show all thoughts from today' : `Filter by #${ctx}`,
-                    ...(isDraggable ? { draggable: 'true' } : {})
                 }
             });
 
-            pill.addEventListener('click', () => {
-                if (this._activeContextTab === ctx) return;
+            pill.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (this._activeContextTab.toLowerCase() === ctx.toLowerCase()) return;
                 this._activeContextTab = ctx;
                 if (ctx === 'all') this._feedScope = 'today';
-                this.requestThoughtFeedRefresh();
-            });
-
-            if (!isDraggable) return;
-
-            pill.addEventListener('dragstart', (e) => {
-                dragIndex = idx;
-                pill.addClass('is-dragging');
-                e.dataTransfer?.setData('text/plain', String(idx));
-            });
-
-            pill.addEventListener('dragend', () => {
-                pill.removeClass('is-dragging');
-                bar.querySelectorAll('.diwa-dh-ctx-tab').forEach(p => p.removeClass('is-drag-over'));
-            });
-
-            pill.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                bar.querySelectorAll('.diwa-dh-ctx-tab').forEach(p => p.removeClass('is-drag-over'));
-                if (dragIndex !== idx) pill.addClass('is-drag-over');
-            });
-
-            pill.addEventListener('dragleave', () => {
-                pill.removeClass('is-drag-over');
-            });
-
-            pill.addEventListener('drop', async (e) => {
-                e.preventDefault();
-                pill.removeClass('is-drag-over');
-                const dropIndex = idx;
-                if (dragIndex < 0 || dragIndex === dropIndex) return;
-                const newOrder = [...displayContexts];
-                const [moved] = newOrder.splice(dragIndex, 1);
-                newOrder.splice(dropIndex, 0, moved);
-                this.plugin.settings.contextOrder = newOrder;
-                await this.plugin.saveSettings();
+                for (const tab of Array.from(bar.querySelectorAll<HTMLElement>('.diwa-dh-ctx-tab'))) {
+                    tab.removeClass('is-active');
+                }
+                pill.addClass('is-active');
+                if (this._captureSectionEl) {
+                    this.renderCapture(this._captureSectionEl, this._activeContextTab !== 'all' ? [this._activeContextTab] : []);
+                }
                 this.requestThoughtFeedRefresh();
             });
         });
@@ -497,13 +564,18 @@ export class DesktopHubView extends ItemView {
         this._feedArchivedListEl = archivedSection.createEl('div');
         archivedSection.style.display = 'none';
 
+        const clustersSection = list.createEl('section', { cls: 'diwa-dh-thought-section diwa-dh-thought-clusters-section' });
+        clustersSection.createEl('div', { cls: 'diwa-dh-thought-section-title', text: 'Clusters (0)' });
+        this._feedClustersListEl = clustersSection.createEl('div', { cls: 'diwa-dh-clusters-list' });
+        clustersSection.style.display = 'none';
+
         this._feedEmptyEl = this._feedRootEl.createEl('div', { cls: 'diwa-dh-feed-empty' });
         this._feedEmptyEl.style.display = 'none';
     }
 
     private async renderFeed() {
         this.ensureFeedStructure();
-        if (!this._feedRootEl || !this._feedHeaderEl || !this._feedPinnedListEl || !this._feedRecentListEl || !this._feedArchivedListEl || !this._feedEmptyEl) return;
+        if (!this._feedRootEl || !this._feedHeaderEl || !this._feedPinnedListEl || !this._feedRecentListEl || !this._feedArchivedListEl || !this._feedClustersListEl || !this._feedEmptyEl) return;
 
         const ctx = this._activeContextTab;
         const today = moment().format('YYYY-MM-DD');
@@ -536,7 +608,10 @@ export class DesktopHubView extends ItemView {
             toggle.remove();
         }
 
-        let thoughts = this._thoughtController.searchThoughts(this._thoughtSearchQuery);
+        const hasQuery = this._thoughtSearchQuery.trim().length > 0;
+        let thoughts = hasQuery
+            ? this._thoughtController.searchThoughts(this._thoughtSearchQuery)
+            : this._thoughtProcessor.getTopThoughts(500);
         if (ctx === 'all') {
             thoughts = thoughts.filter(t => t.day === today);
         } else {
@@ -544,8 +619,6 @@ export class DesktopHubView extends ItemView {
             thoughts = thoughts.filter(t => t.context.some(c => c.toLowerCase() === ctxLow));
             if (this._feedScope === 'today') thoughts = thoughts.filter(t => t.day === today);
         }
-        thoughts.sort((a, b) => (b.createdAt ?? b.lastThreadUpdate ?? 0) - (a.createdAt ?? a.lastThreadUpdate ?? 0));
-
         const pinned = thoughts.filter((t) => t.pinned === true && !t.archived);
         const recent = thoughts.filter((t) => !t.archived && !t.pinned);
         const archived = thoughts.filter((t) => !!t.archived);
@@ -562,17 +635,43 @@ export class DesktopHubView extends ItemView {
         await this.patchThoughtSection(this._feedRecentListEl, recent);
         await this.patchThoughtSection(this._feedArchivedListEl, archived);
 
+        const visibleIds = new Set<string>([...pinned, ...recent, ...archived].map((thought) => thought.id || thought.filePath));
+        const visibleClusters = this._thoughtProcessor.clusterThoughts()
+            .map((cluster) => ({
+                ...cluster,
+                thoughts: cluster.thoughts.filter((thought) => visibleIds.has(thought.id || thought.filePath)),
+            }))
+            .filter((cluster) => cluster.thoughts.length > 1);
+        this.renderClusters(visibleClusters);
+
         const hasVisible = pinned.length + recent.length > 0;
         this._feedEmptyEl.style.display = hasVisible ? 'none' : '';
         if (!hasVisible) {
             this._feedEmptyEl.setText(ctx === 'all' ? 'Nothing captured yet — your mind is clear.' : `No thoughts tagged #${ctx}${this._feedScope === 'today' ? ' today' : ''}.`);
         }
 
-        const visibleIds = new Set<string>([...pinned, ...recent, ...archived].map((thought) => thought.id || thought.filePath));
         for (const [id, row] of this._thoughtRowMap.entries()) {
             if (!visibleIds.has(id)) {
                 row.rootEl.remove();
                 this._thoughtRowMap.delete(id);
+            }
+        }
+    }
+
+    private renderClusters(clusters: Array<{ label: string; thoughts: ThoughtEntry[] }>): void {
+        if (!this._feedClustersListEl) return;
+        const sectionEl = this._feedClustersListEl.parentElement as HTMLElement | null;
+        const titleEl = sectionEl?.querySelector('.diwa-dh-thought-section-title') as HTMLElement | null;
+        if (titleEl) titleEl.setText(`Clusters (${clusters.length})`);
+        if (sectionEl) sectionEl.style.display = clusters.length > 0 ? '' : 'none';
+
+        this._feedClustersListEl.empty();
+        for (const cluster of clusters) {
+            const clusterEl = this._feedClustersListEl.createEl('div', { cls: 'diwa-dh-cluster' });
+            clusterEl.createEl('div', { cls: 'diwa-dh-cluster-title', text: `${cluster.label} (${cluster.thoughts.length})` });
+            const thoughtsEl = clusterEl.createEl('div', { cls: 'diwa-dh-cluster-thoughts' });
+            for (const thought of cluster.thoughts) {
+                thoughtsEl.createEl('div', { cls: 'diwa-dh-cluster-thought', text: `• ${this.thoughtSnippet(thought)}` });
             }
         }
     }
@@ -582,11 +681,59 @@ export class DesktopHubView extends ItemView {
         const item = document.createElement('div');
         item.className = 'diwa-dh-feed-item thought-item';
         item.dataset.thoughtId = thoughtId;
-        item.createEl('span', { cls: 'diwa-dh-feed-dot' });
+        item.addEventListener('click', (event) => {
+            if (Date.now() < this._contextSelectionGuardUntil) return;
+            const target = event.target as HTMLElement | null;
+            if (!target) return;
+            if (
+                target.closest('.diwa-dh-feed-actions')
+                || target.closest('.diwa-dh-link-icons')
+                || target.closest('.diwa-dh-thought-suggestion-task')
+                || target.closest('.diwa-dh-feed-context-btn')
+                || target.closest('.diwa-dh-feed-contexts')
+                || target.closest('.wikilink')
+            ) return;
+            const thoughtRef = item.dataset.thoughtId || '';
+            if (!thoughtRef) return;
+            this.getFocusPanel().open(thoughtRef);
+        });
+        const dot = item.createEl('span', { cls: 'diwa-dh-feed-dot' });
+        dot.addEventListener('click', (event) => {
+            if (!this.isMobile()) return;
+            event.stopPropagation();
+            const wasOpen = item.hasClass('is-actions-open');
+            this._thoughtRowMap.forEach((entry) => entry.rootEl.removeClass('is-actions-open'));
+            if (!wasOpen) item.addClass('is-actions-open');
+        });
 
         const content = item.createEl('div', { cls: 'diwa-dh-feed-content thought-content' });
         const timeEl = content.createEl('span', { cls: 'diwa-dh-feed-time thought-meta' });
+        const contextsEl = content.createEl('div', { cls: 'diwa-dh-feed-contexts' });
         const mdEl = content.createEl('div', { cls: 'diwa-dh-feed-text' });
+        const suggestionsEl = content.createEl('div', {
+            cls: 'diwa-dh-thought-suggestions',
+            attr: { style: 'display:flex;flex-direction:column;gap:4px;margin-top:6px;' },
+        });
+        const suggestionTaskEl = suggestionsEl.createEl('button', {
+            cls: 'diwa-dh-thought-suggestion-task',
+            text: 'Convert to task?',
+            attr: {
+                type: 'button',
+                style: 'display:none;background:transparent;border:none;padding:0;color:var(--text-muted);font-size:11px;cursor:pointer;text-align:left;opacity:.82;',
+            },
+        }) as HTMLButtonElement;
+        const suggestionLinksEl = suggestionsEl.createEl('div', {
+            cls: 'diwa-dh-thought-suggestion-links',
+            attr: {
+                style: 'display:none;color:var(--text-muted);font-size:11px;opacity:.82;',
+            },
+        });
+        const suggestionRecallEl = suggestionsEl.createEl('div', {
+            cls: 'diwa-dh-thought-suggestion-recall',
+            attr: {
+                style: 'display:none;color:var(--text-muted);font-size:11px;opacity:.82;',
+            },
+        });
 
         const actions = item.createEl('div', { cls: 'diwa-dh-feed-actions thought-actions' });
         const linkIcons = actions.createEl('div', { cls: 'diwa-dh-link-icons task-link-icons' });
@@ -633,6 +780,11 @@ export class DesktopHubView extends ItemView {
             } finally {
                 convertBtn.disabled = false;
             }
+        });
+        suggestionTaskEl.addEventListener('click', (event) => {
+            event.stopPropagation();
+            if (convertBtn.style.display === 'none') return;
+            convertBtn.click();
         });
 
         const linkBtn = actions.createEl('button', {
@@ -686,9 +838,14 @@ export class DesktopHubView extends ItemView {
         return {
             rootEl: item,
             contentEl: content,
+            contextsEl,
             textEl: mdEl,
             timeEl,
             actionsEl: actions,
+            suggestionTaskEl,
+            suggestionLinksEl,
+            suggestionRecallEl,
+            convertBtnEl: convertBtn,
             linkedTaskIconEl,
             linkedThoughtIconEl,
             pinBtnEl: pinBtn,
@@ -823,8 +980,13 @@ export class DesktopHubView extends ItemView {
 
     private async refreshThoughtRow(row: {
         rootEl: HTMLElement;
+        contextsEl: HTMLElement;
         textEl: HTMLElement;
         timeEl: HTMLElement;
+        suggestionTaskEl: HTMLButtonElement;
+        suggestionLinksEl: HTMLElement;
+        suggestionRecallEl: HTMLElement;
+        convertBtnEl: HTMLButtonElement;
         linkedTaskIconEl: HTMLButtonElement;
         linkedThoughtIconEl: HTMLButtonElement;
         pinBtnEl: HTMLButtonElement;
@@ -839,6 +1001,43 @@ export class DesktopHubView extends ItemView {
                 : moment(thought.created, 'YYYY-MM-DD HH:mm:ss').format('MMM D · HH:mm'))
             : '';
         row.timeEl.setText(ts);
+        row.contextsEl.empty();
+        const contexts = (thought.context ?? []).map((ctx) => ctx.trim()).filter(Boolean);
+        for (const ctx of contexts) {
+            const activeCtx = this._activeContextTab.toLowerCase();
+            const button = row.contextsEl.createEl('button', {
+                cls: `diwa-dh-feed-context-btn${activeCtx === ctx.toLowerCase() ? ' is-active' : ''}`,
+                text: `#${ctx}`,
+                attr: { type: 'button', 'aria-label': `Filter by ${ctx}` },
+            });
+            const selectContext = () => {
+                if (this._activeContextTab.toLowerCase() === ctx.toLowerCase()) return;
+                this._activeContextTab = ctx;
+                if (this._contextTabsHostEl) {
+                    this._contextTabsHostEl.empty();
+                    this.renderContextTabs(this._contextTabsHostEl);
+                }
+                this.requestThoughtFeedRefresh();
+            };
+            button.addEventListener('pointerdown', (event) => {
+                this._contextSelectionGuardUntil = Date.now() + 350;
+                event.preventDefault();
+                event.stopPropagation();
+            });
+            button.addEventListener('click', (event) => {
+                event.stopPropagation();
+                event.preventDefault();
+                this._contextSelectionGuardUntil = Date.now() + 350;
+                selectContext();
+            });
+            button.addEventListener('keydown', (event: KeyboardEvent) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                event.stopPropagation();
+                this._contextSelectionGuardUntil = Date.now() + 350;
+                selectContext();
+            });
+        }
         row.pinBtnEl.setAttr('title', thought.pinned ? 'Unpin thought' : 'Pin thought');
         row.pinBtnEl.setAttr('aria-label', thought.pinned ? 'Unpin thought' : 'Pin thought');
         setIcon(row.pinBtnEl, thought.pinned ? 'pin-off' : 'pin');
@@ -850,6 +1049,7 @@ export class DesktopHubView extends ItemView {
         if (row.signature !== signature) {
             row.textEl.empty();
             await MarkdownRenderer.render(this.app, thought.body || thought.title || '', row.textEl, thought.filePath, this);
+            this.hydrateWikiLinks(row.textEl);
             row.signature = signature;
         }
         const linkedTasks = this._taskController.getLinkedTasksForThought(thought.filePath);
@@ -859,6 +1059,42 @@ export class DesktopHubView extends ItemView {
         const linkedThoughts = Array.from(new Set((thought.links?.thoughts ?? []).filter(Boolean)));
         row.linkedThoughtIconEl.setText(`💬 ${linkedThoughts.length}`);
         row.linkedThoughtIconEl.style.display = linkedThoughts.length > 0 ? '' : 'none';
+
+        const shouldSuggestTask = this._thoughtProcessor.suggestTask(thought);
+        row.suggestionTaskEl.style.display = shouldSuggestTask ? '' : 'none';
+
+        const suggestedLinks = await this._thoughtProcessor.suggestLinks(thought);
+        if (suggestedLinks.length > 0) {
+            const labels = suggestedLinks
+                .map((entry) => this.thoughtSnippet(entry))
+                .filter(Boolean)
+                .slice(0, 3);
+            row.suggestionLinksEl.empty();
+            row.suggestionLinksEl.createEl('div', { text: 'Suggested Links' });
+            for (const label of labels) {
+                row.suggestionLinksEl.createEl('div', { text: `• ${label}` });
+            }
+            row.suggestionLinksEl.style.display = '';
+        } else {
+            row.suggestionLinksEl.empty();
+            row.suggestionLinksEl.style.display = 'none';
+        }
+
+        const recallHints = this._thoughtProcessor.recall(thought)
+            .map((entry) => this.thoughtSnippet(entry))
+            .filter(Boolean)
+            .slice(0, 3);
+        if (recallHints.length > 0) {
+            row.suggestionRecallEl.empty();
+            row.suggestionRecallEl.createEl('div', { text: 'Related Past Thoughts' });
+            for (const label of recallHints) {
+                row.suggestionRecallEl.createEl('div', { text: `• ${label}` });
+            }
+            row.suggestionRecallEl.style.display = '';
+        } else {
+            row.suggestionRecallEl.empty();
+            row.suggestionRecallEl.style.display = 'none';
+        }
     }
 
     private moveThoughtToCorrectSection(thought: ThoughtEntry): void {
@@ -940,9 +1176,53 @@ export class DesktopHubView extends ItemView {
                 this.plugin,
                 this._thoughtController,
                 this._taskController,
+                this._thoughtProcessor,
             );
         }
         return DesktopHubView.sharedLinkModal;
+    }
+
+    private getFocusPanel(): ThoughtFocusPanel {
+        if (!this._focusPanel) {
+            this._focusPanel = new ThoughtFocusPanel(
+                this.app,
+                this.plugin,
+                this._thoughtController,
+                this._taskController,
+                this._thoughtProcessor,
+                this,
+            );
+        }
+        return this._focusPanel;
+    }
+
+    private hydrateWikiLinks(container: HTMLElement): void {
+        const links = Array.from(container.querySelectorAll<HTMLElement>('a.internal-link, .internal-link'));
+        for (const linkEl of links) {
+            const linkText = linkEl.dataset.href
+                || linkEl.getAttribute('data-href')
+                || linkEl.getAttribute('href')
+                || linkEl.textContent
+                || '';
+            const clean = linkText.replace(/^#/, '').trim();
+            if (!clean) continue;
+            const span = document.createElement('span');
+            span.className = 'wikilink';
+            span.textContent = linkEl.textContent || clean;
+            span.tabIndex = 0;
+            span.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void this.app.workspace.openLinkText(clean, '', false);
+            });
+            span.addEventListener('keydown', (event: KeyboardEvent) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                event.stopPropagation();
+                void this.app.workspace.openLinkText(clean, '', false);
+            });
+            linkEl.replaceWith(span);
+        }
     }
 
     private getLinkModalHost(): HTMLElement {
@@ -967,7 +1247,12 @@ export class DesktopHubView extends ItemView {
             chipRow.empty();
             for (const ctx of editContexts) {
                 const chip = chipRow.createEl('span', { cls: 'diwa-dh-chip', text: `#${ctx}` });
-                chip.addEventListener('click', () => { editContexts = editContexts.filter(c => c !== ctx); renderChips(); });
+                chip.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    editContexts = editContexts.filter(c => c !== ctx);
+                    renderChips();
+                });
             }
         };
         renderChips();

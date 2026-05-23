@@ -276,7 +276,9 @@ export function createThoughtCaptureWidget(parent: HTMLElement, options: Thought
         if (contexts.includes(tag)) return;
         contexts.push(tag);
         const chip = chipRow.createEl('span', { cls: chipCls, text: `#${tag}` });
-        chip.addEventListener('click', () => {
+        chip.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
             contexts = contexts.filter(c => c !== tag);
             chip.remove();
         });
@@ -341,4 +343,3 @@ export function createThoughtCaptureWidget(parent: HTMLElement, options: Thought
         }
     });
 }
-

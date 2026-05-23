@@ -1356,7 +1356,17 @@ export class TaskItemView {
             || target.closest('.thought-overlay')
             || target.closest('.diwa-dh-inline-popover')
         ) return;
+        this.triggerRecall();
         this.hooks.onClick?.(this.currentTask);
+    }
+
+    private triggerRecall(): void {
+        const sourceTaskId = getTaskKey(this.currentTask);
+        const linkedThoughts = this.controller.getLinkedThoughtsForTask(sourceTaskId);
+        const processor = this.view.plugin.getThoughtProcessor();
+        for (const thought of linkedThoughts) {
+            processor.recall(thought);
+        }
     }
 
     private openStructuredEditor(): void {
@@ -1793,6 +1803,7 @@ export class TaskItemView {
                 this.view.plugin,
                 this.view.plugin.getThoughtController(),
                 this.controller,
+                this.view.plugin.getThoughtProcessor(),
             );
         }
         return TaskItemView.sharedLinkModal;
@@ -1824,8 +1835,8 @@ export class TaskItemView {
 
     private openThoughtLinkPicker(anchor: HTMLElement): void {
         const linked = new Set(this.linkedThoughtIds);
-        const thoughts = this.view.plugin.getThoughtController()
-            .getAllThoughts()
+        const thoughts = this.view.plugin.getThoughtProcessor()
+            .getTopThoughts(500)
             .sort((a: ThoughtEntry, b: ThoughtEntry) => (b.modified || '').localeCompare(a.modified || ''));
 
         this.openInlinePopover(anchor, (popover) => {

@@ -3,6 +3,7 @@ import type DiwaPlugin from '../main';
 import type { ThoughtEntry } from '../types';
 import type { TaskController } from './TaskController';
 import { ThoughtIndex } from './ThoughtIndex';
+import { extractWikiLinks } from '../utils/wikilinks';
 
 interface ThoughtLinks {
     tasks: string[];
@@ -74,6 +75,7 @@ export class ThoughtController {
         const filePath = thought.filePath?.trim() || thought.id?.trim() || `thought-${nowTs}`;
         const id = thought.id?.trim() || filePath;
         const content = (thought.content ?? thought.body ?? thought.title ?? '').trim();
+        const wikilinks = extractWikiLinks(content);
         const createdText = thought.created || moment(createdAt).format('YYYY-MM-DD HH:mm:ss');
         const modifiedText = thought.modified || moment(updatedAt).format('YYYY-MM-DD HH:mm:ss');
         return {
@@ -83,6 +85,7 @@ export class ThoughtController {
             content,
             title: thought.title || content.split('\n').find((line) => line.trim()) || 'Untitled thought',
             body: thought.body || content,
+            wikilinks,
             created: createdText,
             modified: modifiedText,
             createdAt,
@@ -97,6 +100,12 @@ export class ThoughtController {
             tags: thought.tags ?? [],
             links,
         };
+    }
+
+    resolveWikiLink(name: string): TFile | null {
+        const linkpath = name.trim();
+        if (!linkpath) return null;
+        return this.plugin.app.metadataCache.getFirstLinkpathDest(linkpath, '');
     }
 
     upsertThought(thought: ThoughtEntry, emit = true): ThoughtEntry {

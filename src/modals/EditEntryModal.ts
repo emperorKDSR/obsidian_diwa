@@ -700,13 +700,16 @@ export class EditEntryModal extends Modal {
                 chip.createSpan({ text: `#${ctx}` });
                 const x = chip.createSpan({ text: '×', cls: 'diwa-mobile-chip-x' });
                 x.addEventListener('click', (e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     this.initialContexts = this.initialContexts.filter(c => c !== ctx);
                     renderChips();
                 });
             });
             const addBtn = chipStrip.createEl('button', { text: '+', cls: 'diwa-mobile-chip-add' });
-            addBtn.addEventListener('click', () => {
+            addBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 new ContextSuggestModal(this.app, this.plugin.settings.contexts ?? [], async (ctx) => {
                     if (!this.initialContexts.includes(ctx)) { this.initialContexts.push(ctx); renderChips(); }
                 }).open();
@@ -841,5 +844,4 @@ export class EditEntryModal extends Modal {
         this.contentEl.empty();
     }
 }
-
 

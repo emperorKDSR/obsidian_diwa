@@ -65,6 +65,39 @@ export class AiService {
         this.settings = settings;
     }
 
+    async call(prompt: string, options?: { model?: string; temperature?: number }): Promise<string> {
+        const apiKey = AiService.validateApiKey(this.settings.geminiApiKey);
+        const requestedModel = (options?.model || '').trim();
+        const fallbackModel = this.settings.geminiModel || 'gemini-2.5-pro';
+        const modelCandidate = requestedModel.startsWith('gemini-') ? requestedModel : fallbackModel;
+        const modelId = AiService.resolveModel(modelCandidate, fallbackModel);
+        const rawTemperature = options?.temperature;
+        const temperature = typeof rawTemperature === 'number' && Number.isFinite(rawTemperature)
+            ? Math.max(0, Math.min(2, rawTemperature))
+            : 0.7;
+
+        const body = {
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature,
+                maxOutputTokens: this.settings.maxOutputTokens ?? 65536,
+                topP: 0.95,
+                topK: 40,
+            },
+        };
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+            body: JSON.stringify(body),
+        });
+        if (resp.status === 429) throw new Error(`AI Rate limit reached (HTTP 429). Model: ${modelId}.`);
+        if (resp.status === 404) throw new Error(`Model not found (HTTP 404). "${modelId}" is invalid or unavailable.`);
+        if (!resp.ok) throw new Error(`AI Error (HTTP ${resp.status}). Model: ${modelId}.`);
+        const data = await resp.json() as GeminiResponse;
+        return (data?.candidates?.[0]?.content?.parts ?? []).map((part: GeminiPart) => part.text ?? '').join('').trim();
+    }
+
     // ob-05: Safe chunked base64 encoding — avoids call stack overflow on large buffers
     private static bufferToBase64(buffer: ArrayBuffer): string {
         const bytes = new Uint8Array(buffer);
@@ -438,4 +471,3 @@ Rules:
         }
     }
 }
-

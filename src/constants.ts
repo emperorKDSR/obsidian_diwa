@@ -3,6 +3,7 @@ import { DiwaSettings } from './types';
 export const VIEW_TYPE_DIWA = "diwa-view";
 export const VIEW_TYPE_DESKTOP_HUB = "diwa-desktop-hub";
 export const VIEW_TYPE_MOBILE_HUB  = "diwa-mobile-hub";
+export const VIEW_TYPE_MOBILE_GAWA = "diwa-mobile-gawa";
 export const VIEW_TYPE_TABLET_HUB  = "diwa-tablet-hub";
 export const VIEW_TYPE_SEARCH = "diwa-search-view";
 
@@ -205,4 +206,11 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
     reminderTasksEnabled: true,
     peopleFolder: '000 Bin/DIWA People',
     legacyMigrated: false,
+    ai: {
+        enabled: true,
+        model: 'gpt-4o-mini',
+        temperature: 0.7,
+        enableSuggestions: true,
+        enableSummaries: true,
+    },
 }

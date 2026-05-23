@@ -1,15 +1,17 @@
 import { Plugin, TFile, Notice, WorkspaceLeaf, Platform, moment, addIcon } from 'obsidian';
-import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, AI_CHAT_ICON_ID, AI_CHAT_ICON_SVG, TIMELINE_ICON_ID, TIMELINE_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, VOICE_ICON_ID, VOICE_ICON_SVG, PROJECT_ICON_ID, PROJECT_ICON_SVG, SYNTHESIS_ICON_ID, SYNTHESIS_ICON_SVG, COMPASS_ICON_ID, COMPASS_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_SEARCH, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB } from './constants';
+import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, AI_CHAT_ICON_ID, AI_CHAT_ICON_SVG, TIMELINE_ICON_ID, TIMELINE_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, VOICE_ICON_ID, VOICE_ICON_SVG, PROJECT_ICON_ID, PROJECT_ICON_SVG, SYNTHESIS_ICON_ID, SYNTHESIS_ICON_SVG, COMPASS_ICON_ID, COMPASS_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_SEARCH, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_MOBILE_GAWA, VIEW_TYPE_TABLET_HUB } from './constants';
 import { DiwaSettings, TaskEntry } from './types';
 import { isTablet } from './utils';
 import { DiwaView } from './view';
 import { DesktopHubView } from './views/DesktopHubView';
 import { MobileHubView } from './views/MobileHubView';
+import { MobileGawaView } from './views/MobileGawaView';
 import { TabletHubView } from './views/TabletHubView';
 import { SearchView } from './views/SearchView';
 import { DiwaSettingTab } from './settings';
 
 import { AiService } from './services/AiService';
+import { AIProcessor } from './services/AIProcessor';
 import { VaultService } from './services/VaultService';
 import { IndexService } from './services/IndexService';
 import { TaskLinkService } from './services/TaskLinkService';
@@ -18,6 +20,7 @@ import { RefreshCoordinator, type RefreshScope } from './application/RefreshCoor
 import { SearchModal } from './modals/SearchModal';
 import { TaskController } from './views/TaskController';
 import { ThoughtController } from './views/ThoughtController';
+import { ThoughtProcessor } from './views/ThoughtProcessor';
 
 class TaskIndexCompat {
     constructor(private readonly plugin: DiwaPlugin) {}
@@ -51,9 +54,11 @@ export default class DiwaPlugin extends Plugin {
 	settings: DiwaSettings;
     settingsInitialized: boolean = false;
     zenCaptureDraft: string = '';
+    aiMode: 'off' | 'assist' | 'active' = 'assist';
     
     // Services
     ai: AiService;
+    aiProcessor: AIProcessor;
     vault: VaultService;
     index: IndexService;
     // Compatibility facade for runtime callers expecting plugin.taskIndex.getAll()/set()
@@ -63,6 +68,7 @@ export default class DiwaPlugin extends Plugin {
     // Backward-compatible alias used by existing view code
     taskController: TaskController;
     thoughtController: ThoughtController;
+    thoughtProcessor: ThoughtProcessor;
     taskLink: TaskLinkService;
     taskReflection: TaskReflectionService;
     refreshCoordinator: RefreshCoordinator;
@@ -85,17 +91,44 @@ export default class DiwaPlugin extends Plugin {
         return this.thoughtController;
     }
 
+    getThoughtProcessor(): ThoughtProcessor {
+        if (!this.thoughtProcessor) {
+            this.thoughtProcessor = new ThoughtProcessor(this.getThoughtController(), this.aiProcessor, () => this.shouldUseAI());
+            console.warn('[DIWA] ThoughtProcessor was missing and has been re-created');
+        }
+        return this.thoughtProcessor;
+    }
+
+    getAIConfig() {
+        return this.settings.ai;
+    }
+
+    isMobile(): boolean {
+        return (this.app as { isMobile?: boolean }).isMobile ?? Platform.isMobile;
+    }
+
+    shouldUseAI(): boolean {
+        return this.aiMode !== 'off' && !!this.aiProcessor?.available && !!this.getAIConfig()?.enabled;
+    }
+
+    setAIMode(mode: 'off' | 'assist' | 'active'): void {
+        this.aiMode = mode;
+    }
+
 	async onload() {
 		await this.loadSettings();
 
         // Initialize Services
         this.ai = new AiService(this.app, this.settings);
+        const apiClient = this.ai;
+        this.aiProcessor = new AIProcessor(apiClient, this.getAIConfig());
         this.vault = new VaultService(this.app, this.settings);
         this.index = new IndexService(this.app, this.settings);
         this.taskIndex = new TaskIndexCompat(this);
         this.controller = new TaskController(this);
         this.taskController = this.controller;
         this.thoughtController = new ThoughtController(this);
+        this.thoughtProcessor = new ThoughtProcessor(this.thoughtController, this.aiProcessor, () => this.shouldUseAI());
         console.log('TaskIndex initialized:', this.taskIndex);
         console.log('[DIWA] Shared TaskController initialized:', this.controller);
         this.taskLink = new TaskLinkService(this.app, this.settings, this.index);
@@ -190,6 +223,7 @@ export default class DiwaPlugin extends Plugin {
         this.registerView(VIEW_TYPE_DIWA, (leaf) => new DiwaView(leaf, this));
         this.registerView(VIEW_TYPE_DESKTOP_HUB, (leaf) => new DesktopHubView(leaf, this));
         this.registerView(VIEW_TYPE_MOBILE_HUB,  (leaf) => new MobileHubView(leaf, this));
+        this.registerView(VIEW_TYPE_MOBILE_GAWA, (leaf) => new MobileGawaView(leaf, this));
         this.registerView(VIEW_TYPE_TABLET_HUB,  (leaf) => new TabletHubView(leaf, this));
         this.registerView(VIEW_TYPE_SEARCH, (leaf) => new SearchView(leaf, this));
 
@@ -222,6 +256,7 @@ export default class DiwaPlugin extends Plugin {
 
         this.addCommand({ id: 'open-diwa-desktop-hub', name: 'DIWA: Open Desktop Hub', icon: DESKTOP_HUB_ICON_ID, callback: () => { this.activateDesktopHub(); } });
         this.addCommand({ id: 'open-diwa-mobile-hub',  name: 'DIWA: Open Mobile Hub',  icon: 'smartphone', callback: () => { this.activateMobileHub(); } });
+        this.addCommand({ id: 'open-diwa-mobile-gawa', name: 'DIWA: Open Mobile Gawa', icon: 'check-square-2', callback: () => { this.activateMobileGawa(); } });
         this.addCommand({ id: 'open-diwa-tablet-hub',  name: 'DIWA: Open Tablet Hub',  icon: 'tablet',     callback: () => { this.activateTabletHub(); } });
         this.addCommand({ id: 'diwa-open-gawa', name: 'DIWA: Gawa', icon: 'check-square-2', callback: () => { this.activateGawa(); } });
         this.addCommand({ id: 'diwa-global-search', name: 'DIWA: Global Search', icon: 'lucide-search', hotkeys: [{ modifiers: ['Mod', 'Shift'], key: 'f' }], callback: () => { new SearchModal(this.app, this).open(); } });
@@ -309,11 +344,23 @@ export default class DiwaPlugin extends Plugin {
         if (leaf) { await leaf.setViewState({ type: VIEW_TYPE_TABLET_HUB, active: true }); workspace.revealLeaf(leaf); }
     }
 
+    async activateMobileGawa() {
+        const { workspace } = this.app;
+        const existing = workspace.getLeavesOfType(VIEW_TYPE_MOBILE_GAWA);
+        if (existing.length > 0) { workspace.revealLeaf(existing[0]); return; }
+        if (!Platform.isMobile || isTablet()) {
+            new Notice('DIWA Mobile Gawa is available on phones only.', 2500);
+            return;
+        }
+        const leaf = workspace.getLeaf(false);
+        if (leaf) { await leaf.setViewState({ type: VIEW_TYPE_MOBILE_GAWA, active: true }); workspace.revealLeaf(leaf); }
+    }
+
     async activateGawa() {
         if (isTablet()) {
             await this.activateTabletHub();
         } else if (Platform.isMobile) {
-            await this.activateMobileHub();
+            await this.activateMobileGawa();
         } else {
             await this.activateView('review-gawa');
         }
@@ -377,6 +424,17 @@ export default class DiwaPlugin extends Plugin {
 		const loadedData = await this.loadData();
         this.settings = Object.assign({}, DEFAULT_SETTINGS);
         if (loadedData) Object.assign(this.settings, loadedData);
+        this.settings.ai = Object.assign({}, DEFAULT_SETTINGS.ai, this.settings.ai ?? {});
+        this.settings.ai.enabled = this.settings.ai.enabled !== false;
+        this.settings.ai.enableSuggestions = this.settings.ai.enableSuggestions !== false;
+        this.settings.ai.enableSummaries = this.settings.ai.enableSummaries !== false;
+        if (typeof this.settings.ai.model !== 'string' || !this.settings.ai.model.trim()) {
+            this.settings.ai.model = DEFAULT_SETTINGS.ai.model;
+        }
+        const aiTemperature = Number(this.settings.ai.temperature);
+        this.settings.ai.temperature = Number.isFinite(aiTemperature)
+            ? Math.max(0, Math.min(2, aiTemperature))
+            : DEFAULT_SETTINGS.ai.temperature;
         // Sanitize: remove null/non-string entries that can creep in from malformed YAML frontmatter
         if (this.settings.contexts) {
             this.settings.contexts = this.settings.contexts.filter((c: any) => c && typeof c === 'string');
