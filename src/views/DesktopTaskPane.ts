@@ -997,20 +997,6 @@ export class TaskItemView {
             });
         }
 
-        this.thoughtToggleEl = actionsEl.createEl('button', {
-            cls: 'diwa-dh-task-edit-btn diwa-dh-task-thought-toggle',
-            attr: {
-                title: 'Linked thoughts',
-                'aria-label': 'Linked thoughts',
-                'aria-expanded': 'false',
-            },
-        }) as HTMLButtonElement;
-        safeSetIcon(this.thoughtToggleEl, 'lucide-message-square', 'message-square');
-        this.thoughtToggleEl.addEventListener('click', (event) => {
-            event.stopPropagation();
-            this.toggleThoughtList();
-        });
-
         this.editBtnEl = actionsEl.createEl('button', {
             cls: 'diwa-dh-task-edit-btn',
             attr: { title: 'More actions', 'aria-label': 'More actions' }
@@ -1051,12 +1037,25 @@ export class TaskItemView {
         this.metaEl.style.width = '100%';
         this.metaEl.style.position = 'static';
 
-        this.thoughtsEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-thoughts' });
+        this.thoughtsEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-thoughts task-thoughts' });
         this.thoughtsEl.addEventListener('click', (event) => event.stopPropagation());
+        this.thoughtToggleEl = this.thoughtsEl.createEl('button', {
+            cls: 'diwa-dh-task-thoughts-summary task-thoughts-summary',
+            attr: {
+                type: 'button',
+                title: 'Linked thoughts',
+                'aria-label': 'Linked thoughts',
+                'aria-expanded': 'false',
+            },
+        }) as HTMLButtonElement;
+        this.thoughtToggleEl.addEventListener('click', (event) => {
+            event.stopPropagation();
+            this.toggleThoughtList();
+        });
         this.thoughtListEl = this.thoughtsEl.createEl('div', { cls: 'diwa-dh-task-thought-list' });
         this.thoughtListEl.style.display = 'none';
         this.thoughtListTitleEl = this.thoughtListEl.createEl('div', { cls: 'diwa-dh-task-thought-title' });
-        this.thoughtRowsEl = this.thoughtListEl.createEl('div', { cls: 'diwa-dh-task-thought-rows' });
+        this.thoughtRowsEl = this.thoughtListEl.createEl('div', { cls: 'diwa-dh-task-thought-rows task-thought-list' });
         this.thoughtActionsEl = this.thoughtListEl.createEl('div', { cls: 'diwa-dh-task-thought-actions' });
 
         this.thoughtLinkBtnEl = this.thoughtActionsEl.createEl('button', {
@@ -1082,10 +1081,10 @@ export class TaskItemView {
         this.thoughtComposerEl = this.thoughtListEl.createEl('div', { cls: 'diwa-dh-task-thought-composer' });
         this.thoughtComposerEl.style.display = 'none';
         this.thoughtInputEl = this.thoughtComposerEl.createEl('input', {
-            cls: 'diwa-dh-task-thought-input',
+            cls: 'diwa-dh-task-thought-input task-thought-input',
             attr: {
                 type: 'text',
-                placeholder: 'Add contextual thought...',
+                placeholder: 'Add thought...',
                 'aria-label': 'Add thought to task',
             },
         }) as HTMLInputElement;
@@ -1529,8 +1528,10 @@ export class TaskItemView {
     }
 
     private updateThoughtToggleLabel(): void {
-        const label = `Linked thoughts (${this.linkedThoughtIds.length})`;
+        const count = this.linkedThoughtIds.length;
+        const label = `Linked thoughts (${count})`;
         this.thoughtListTitleEl.setText(label);
+        this.thoughtToggleEl.setText(`💭 ${count} ${count === 1 ? 'thought' : 'thoughts'}`);
         this.thoughtToggleEl.setAttr('title', label);
         this.thoughtToggleEl.setAttr('aria-label', label);
     }
