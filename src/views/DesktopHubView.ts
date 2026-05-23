@@ -1,14 +1,17 @@
 import { ItemView, WorkspaceLeaf, Platform, moment, setIcon, Notice, ViewStateResult, MarkdownRenderer, TFile } from 'obsidian';
 import type DiwaPlugin from '../main';
 import {
+    VIEW_TYPE_DIWA,
     VIEW_TYPE_DESKTOP_HUB,
     PF_ICON_ID, SYNTHESIS_ICON_ID, AI_CHAT_ICON_ID, REVIEW_ICON_ID,
     SETTINGS_ICON_ID, TIMELINE_ICON_ID, JOURNAL_ICON_ID, COMPASS_ICON_ID,
 } from '../constants';
-import { attachInlineTriggers, attachMediaPasteHandler, createThoughtCaptureWidget } from '../utils';
+import { attachInlineTriggers, createThoughtCaptureWidget } from '../utils';
 import type { ThoughtEntry, TaskEntry } from '../types';
+import type { DiwaView } from '../view';
 import { InlineTopicInput } from '../utils/InlineTopicInput';
 import { ConvertToTaskModal } from '../modals/ConvertToTaskModal';
+import { DesktopTaskPaneView } from './DesktopTaskPane';
 
 export class DesktopHubView extends ItemView {
     plugin: DiwaPlugin;
@@ -27,6 +30,12 @@ export class DesktopHubView extends ItemView {
 
     // Guard against DOM updates after view is closed
     private _closed: boolean = false;
+    private _wrapEl: HTMLElement | null = null;
+    private _topBarEl: HTMLElement | null = null;
+    private _sidebarEl: HTMLElement | null = null;
+    private _centerEl: HTMLElement | null = null;
+    private _rightEl: HTMLElement | null = null;
+    private _taskPaneView: DesktopTaskPaneView | null = null;
 
     constructor(leaf: WorkspaceLeaf, plugin: DiwaPlugin) {
         super(leaf);
@@ -59,16 +68,18 @@ export class DesktopHubView extends ItemView {
 
     async onClose() {
         this._closed = true;
+        this.resetLayoutRefs();
     }
 
     async renderView() {
         if (this._capturePending > 0 || this._taskPending > 0) return;
 
         const root = this.containerEl.children[1] as HTMLElement;
-        root.empty();
         root.addClass('diwa-dh-root');
 
         if (!Platform.isDesktop) {
+            this.resetLayoutRefs();
+            root.empty();
             root.createEl('div', {
                 text: '⊕ DIWA Desktop Hub requires a desktop environment.',
                 attr: { style: 'color: var(--text-muted); font-size: 0.9em; text-align: center; margin-top: 80px; padding: 24px;' }
@@ -76,20 +87,74 @@ export class DesktopHubView extends ItemView {
             return;
         }
 
-        const wrap = root.createEl('div', { cls: 'diwa-dh-wrap' });
-        if (this.isFocusMode) wrap.addClass('is-focus-mode');
+        if (!this._wrapEl || !root.contains(this._wrapEl)) {
+            this.buildStableLayout(root);
+        }
 
-        this.renderTopBar(wrap);
+        this._wrapEl?.toggleClass('is-focus-mode', this.isFocusMode);
 
-        const cols = wrap.createEl('div', { cls: 'diwa-dh-cols' });
-        this.renderSidebar(cols);
-        await this.renderCenter(cols);
-        this.renderRight(cols);
+        if (this._topBarEl) {
+            this._topBarEl.empty();
+            this.renderTopBar(this._topBarEl);
+        }
+
+        if (this._centerEl) {
+            this._centerEl.empty();
+            await this.renderCenter(this._centerEl);
+        }
+
+        this.updateTaskPaneFromIndex();
+    }
+
+    updateTaskPaneFromIndex(): void {
+        this._taskPaneView?.updateFromIndex();
+    }
+
+    addTaskInPane(task: TaskEntry): void {
+        this.plugin.index.taskIndex.set(task.filePath, task);
+        this._taskPaneView?.addTask(task);
+    }
+
+    updateTaskInPane(task: TaskEntry): void {
+        this.plugin.index.taskIndex.set(task.filePath, task);
+        this._taskPaneView?.updateTask(task);
+    }
+
+    removeTaskFromPane(filePath: string): void {
+        const current = this.plugin.index.taskIndex.get(filePath);
+        this.plugin.index.taskIndex.delete(filePath);
+        this._taskPaneView?.removeTask(current?.taskId?.trim() || filePath, filePath);
+    }
+
+    private buildStableLayout(root: HTMLElement): void {
+        this.resetLayoutRefs();
+        root.empty();
+
+        this._wrapEl = root.createEl('div', { cls: 'diwa-dh-wrap' });
+        this._topBarEl = this._wrapEl.createEl('div', { cls: 'diwa-dh-topbar' });
+
+        const cols = this._wrapEl.createEl('div', { cls: 'diwa-dh-cols' });
+        this._sidebarEl = cols.createEl('nav', { cls: 'diwa-dh-sidebar', attr: { 'aria-label': 'DIWA Navigation' } });
+        this.renderSidebar(this._sidebarEl);
+
+        this._centerEl = cols.createEl('div', { cls: 'diwa-dh-center' });
+        this._rightEl = cols.createEl('div', { cls: 'diwa-dh-right' });
+        this.renderRight(this._rightEl);
+    }
+
+    private resetLayoutRefs(): void {
+        this._taskPaneView?.destroy();
+        this._wrapEl = null;
+        this._topBarEl = null;
+        this._sidebarEl = null;
+        this._centerEl = null;
+        this._rightEl = null;
+        this._taskPaneView = null;
     }
 
     // ── Top Bar ───────────────────────────────────────────────────────────────
     private renderTopBar(parent: HTMLElement) {
-        const bar = parent.createEl('div', { cls: 'diwa-dh-topbar' });
+        const bar = parent;
 
         const left = bar.createEl('div', { cls: 'diwa-dh-topbar-left' });
         left.createEl('span', { text: 'DIWA', cls: 'diwa-dh-topbar-logo' });
@@ -123,7 +188,7 @@ export class DesktopHubView extends ItemView {
 
     // ── LEFT Sidebar ──────────────────────────────────────────────────────────
     private renderSidebar(parent: HTMLElement) {
-        const sidebar = parent.createEl('nav', { cls: 'diwa-dh-sidebar', attr: { 'aria-label': 'DIWA Navigation' } });
+        const sidebar = parent;
 
         const groups: { title: string; items: { label: string; icon: string; tab: string }[] }[] = [
             {
@@ -184,7 +249,7 @@ export class DesktopHubView extends ItemView {
 
     // ── CENTER Column ─────────────────────────────────────────────────────────
     private async renderCenter(parent: HTMLElement) {
-        const center = parent.createEl('div', { cls: 'diwa-dh-center' });
+        const center = parent;
         const activeCtx = this._activeContextTab;
         this.renderCapture(center, activeCtx !== 'all' ? [activeCtx] : []);
         const inner = center.createEl('div', { cls: 'diwa-dh-center-inner' });
@@ -371,6 +436,16 @@ export class DesktopHubView extends ItemView {
             await MarkdownRenderer.render(this.app, t.body || t.title || '', mdEl, t.filePath, this);
 
             const actions = item.createEl('div', { cls: 'diwa-dh-feed-actions' });
+            const synBtn = actions.createEl('button', {
+                cls: 'diwa-dh-feed-edit-btn',
+                attr: { title: 'Open in synthesis', 'aria-label': 'Open in synthesis' }
+            });
+            setIcon(synBtn, 'sparkles');
+            synBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                await this.openSynthesisFromHub(t);
+            });
+
             const tagBtn = actions.createEl('button', {
                 cls: `diwa-dh-feed-tag-btn${t.context.length > 0 ? ' has-context' : ''}`,
                 attr: { title: 'Assign topic', 'aria-label': 'Assign topic' }
@@ -503,278 +578,29 @@ export class DesktopHubView extends ItemView {
         });
     }
 
+    private async openSynthesisFromHub(thought: ThoughtEntry): Promise<void> {
+        await this.plugin.activateView('synthesis', false);
+        const leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_DIWA).find((l) => {
+            const view = l.view as DiwaView;
+            return !!view && view.activeTab === 'synthesis' && !view.isDedicated;
+        });
+        const view = leaf?.view as DiwaView | undefined;
+        if (!view) return;
+
+        const ctx = this._activeContextTab !== 'all' ? this._activeContextTab : (thought.context?.[0] ?? null);
+        if (ctx) {
+            view.synthesisContextMode = 'filter';
+            view.synthesisActiveCtxFilter = ctx;
+            view.activeSynthesisContexts = [ctx];
+        }
+        view.synthesisInspectorPath = thought.filePath;
+        view.synthesisLastSelectedPath = thought.filePath;
+        view.renderView();
+    }
+
     // ── RIGHT Panel ───────────────────────────────────────────────────────────
     private renderRight(parent: HTMLElement) {
-        const right = parent.createEl('div', { cls: 'diwa-dh-right' });
-        this.renderTaskQuickInput(right);
-        this.renderTaskList(right);
-    }
-
-    private renderTaskQuickInput(parent: HTMLElement) {
-        const section = parent.createEl('div', { cls: 'diwa-dh-task-input-section' });
-        section.addEventListener('click', (e) => {
-            if (e.target !== textarea) textarea.focus();
-        });
-
-        const chipRow = section.createEl('div', { cls: 'diwa-dh-task-chip-row' });
-        let contexts: string[] = [];
-        let dueDate: string | null = null;
-
-        const addChip = (tag: string) => {
-            if (contexts.includes(tag)) return;
-            contexts.push(tag);
-            const chip = chipRow.createEl('span', { cls: 'diwa-dh-chip', text: `#${tag}` });
-            chip.addEventListener('click', () => {
-                contexts = contexts.filter(c => c !== tag);
-                chip.remove();
-            });
-        };
-
-        const textarea = section.createEl('textarea', {
-            cls: 'diwa-dh-task-textarea',
-            attr: { placeholder: 'Add a task… (@due, #ctx, /person, [[link)', rows: '1' }
-        }) as HTMLTextAreaElement;
-
-        const syncHeight = () => {
-            textarea.style.height = 'auto';
-            textarea.style.overflowY = 'hidden';
-            textarea.style.height = `${textarea.scrollHeight}px`;
-        };
-
-        textarea.addEventListener('focus', () => { this._taskPending = 1; syncHeight(); });
-        textarea.addEventListener('input', () => {
-            syncHeight();
-            this._taskPending = textarea.value.trim().length > 0 ? 1 : 0;
-        });
-        textarea.addEventListener('keyup', () => syncHeight());
-
-        attachInlineTriggers(
-            this.app,
-            textarea,
-            (d) => { dueDate = d; },
-            (tag) => addChip(tag),
-            () => (this.plugin.settings.contexts ?? []).filter(c => !contexts.includes(c)),
-            this.plugin.settings.peopleFolder,
-        );
-        attachMediaPasteHandler(
-            this.app,
-            textarea,
-            () => this.plugin.settings.attachmentsFolder ?? '000 Bin/DIWA Attachments'
-        );
-
-        const saveTask = async () => {
-            const raw = textarea.value.trim();
-            if (!raw) return;
-            const ctxSnapshot = [...contexts];
-            const due = dueDate;
-            this._taskPending = 0;
-            textarea.value = '';
-            textarea.style.height = '';
-            textarea.style.overflowY = '';
-            contexts = [];
-            dueDate = null;
-            chipRow.empty();
-            try {
-                await this.plugin.vault.createTaskFile(raw, ctxSnapshot, due || undefined);
-                new Notice('✓ Task added', 1000);
-            } catch {
-                new Notice('Error saving task', 2000);
-            }
-        };
-
-        textarea.addEventListener('keydown', (e: KeyboardEvent) => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveTask(); }
-            if (e.key === 'Escape') {
-                textarea.value = '';
-                contexts = [];
-                dueDate = null;
-                chipRow.empty();
-                this._taskPending = 0;
-                textarea.blur();
-            }
-        });
-    }
-
-    private renderTaskList(parent: HTMLElement) {
-        const section = parent.createEl('div', { cls: 'diwa-dh-task-list-section' });
-
-        const todayM = moment().startOf('day');
-        const cutoff = moment().startOf('day').add(2, 'days').endOf('day');
-
-        const allOpen = Array.from(this.plugin.index.taskIndex.values())
-            .filter(t => t.status === 'open' || t.status === 'waiting')
-            .sort((a, b) => {
-                const aOver = a.due && moment(a.due, 'YYYY-MM-DD').isBefore(todayM, 'day');
-                const bOver = b.due && moment(b.due, 'YYYY-MM-DD').isBefore(todayM, 'day');
-                if (aOver && !bOver) return -1;
-                if (!aOver && bOver) return 1;
-                if (a.due && b.due) return a.due.localeCompare(b.due);
-                if (a.due && !b.due) return -1;
-                if (!a.due && b.due) return 1;
-                return (b.lastUpdate || 0) - (a.lastUpdate || 0);
-            });
-
-        const tasks = this._taskFilter === 'upcoming'
-            ? allOpen.filter(t => !t.due || moment(t.due, 'YYYY-MM-DD').isSameOrBefore(cutoff, 'day'))
-            : allOpen;
-
-        // ── Header with filter toggle ────────────────────────────
-        const header = section.createEl('div', { cls: 'diwa-dh-task-list-header' });
-        header.createEl('span', { text: 'TASKS', cls: 'diwa-dh-task-list-title' });
-
-        const filterGroup = header.createEl('div', { cls: 'diwa-dh-task-filter' });
-
-        const pill2 = filterGroup.createEl('button', {
-            text: '2 DAYS',
-            cls: `diwa-dh-task-filter-pill${this._taskFilter === 'upcoming' ? ' is-active' : ''}`,
-        });
-        const pillAll = filterGroup.createEl('button', {
-            text: 'ALL',
-            cls: `diwa-dh-task-filter-pill${this._taskFilter === 'all' ? ' is-active' : ''}`,
-        });
-
-        pill2.addEventListener('click', () => {
-            if (this._taskFilter === 'upcoming') return;
-            this._taskFilter = 'upcoming';
-            section.remove();
-            this.renderTaskList(parent);
-        });
-        pillAll.addEventListener('click', () => {
-            if (this._taskFilter === 'all') return;
-            this._taskFilter = 'all';
-            section.remove();
-            this.renderTaskList(parent);
-        });
-
-        if (tasks.length === 0) {
-            section.createEl('div', {
-                text: this._taskFilter === 'upcoming'
-                    ? 'No tasks in the next 2 days.'
-                    : 'All clear — no open gawa.',
-                cls: 'diwa-dh-task-empty'
-            });
-            return;
-        }
-
-        const list = section.createEl('div', { cls: 'diwa-dh-task-list' });
-        for (const task of tasks) {
-            const isOverdue = !!(task.due && moment(task.due, 'YYYY-MM-DD').isBefore(todayM, 'day'));
-            const item = list.createEl('div', { cls: `diwa-dh-task-item${isOverdue ? ' is-overdue' : ''}` });
-
-            const checkbox = item.createEl('div', { cls: 'diwa-dh-task-checkbox' });
-            checkbox.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                item.addClass('is-completing');
-                try {
-                    await this.plugin.vault.updateTaskEntry(task.filePath, {
-                        title: task.title,
-                        dueDate: task.due || null,
-                        recurrence: task.recurrence || null,
-                        priority: task.priority || null,
-                        energy: task.energy || null,
-                        status: 'done',
-                        contexts: task.context || [],
-                        project: task.project || null,
-                    });
-                    item.remove();
-                } catch {
-                    new Notice('Error updating task', 2000);
-                    item.removeClass('is-completing');
-                }
-            });
-
-            const content = item.createEl('div', { cls: 'diwa-dh-task-content' });
-            content.createEl('span', { text: task.title, cls: 'diwa-dh-task-title' });
-
-            if (task.due) {
-                const dueM = moment(task.due, 'YYYY-MM-DD');
-                const label = isOverdue ? dueM.format('MMM D') : dueM.fromNow();
-                content.createEl('span', {
-                    text: label,
-                    cls: `diwa-dh-task-due${isOverdue ? ' is-overdue' : ''}`
-                });
-            }
-
-            const editBtn = item.createEl('button', { cls: 'diwa-dh-task-edit-btn', attr: { title: 'Edit task', 'aria-label': 'Edit task' } });
-            setIcon(editBtn, 'lucide-pencil');
-            editBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.makeTaskEditable(item, checkbox, content, editBtn, task);
-            });
-        }
-    }
-
-    private makeTaskEditable(item: HTMLElement, checkbox: HTMLElement, content: HTMLElement, editBtn: HTMLElement, task: TaskEntry) {
-        if (item.hasClass('is-editing')) return;
-        item.addClass('is-editing');
-        this._taskPending++;
-        checkbox.style.display = 'none';
-        content.style.display = 'none';
-        editBtn.style.display = 'none';
-
-        let editContexts = [...(task.context || [])];
-        let editDueDate: string | null = task.due || null;
-        const form = item.createEl('div', { cls: 'diwa-edit-form' });
-
-        const chipRow = form.createEl('div', { cls: 'diwa-edit-chip-row' });
-        const renderChips = () => {
-            chipRow.empty();
-            for (const ctx of editContexts) {
-                const chip = chipRow.createEl('span', { cls: 'diwa-dh-chip', text: `#${ctx}` });
-                chip.addEventListener('click', () => { editContexts = editContexts.filter(c => c !== ctx); renderChips(); });
-            }
-        };
-        renderChips();
-
-        const textarea = form.createEl('textarea', { cls: 'diwa-edit-textarea', attr: { rows: '2' } }) as HTMLTextAreaElement;
-        textarea.value = task.title || task.body || '';
-        const syncH = () => { textarea.style.height = 'auto'; textarea.style.height = `${textarea.scrollHeight}px`; };
-        requestAnimationFrame(() => { syncH(); textarea.focus(); textarea.setSelectionRange(textarea.value.length, textarea.value.length); });
-        textarea.addEventListener('input', syncH);
-
-        attachInlineTriggers(
-            this.app, textarea,
-            (d) => { editDueDate = d; },
-            (tag) => { if (!editContexts.includes(tag)) { editContexts.push(tag); renderChips(); } },
-            () => (this.plugin.settings.contexts ?? []).filter(c => !editContexts.includes(c)),
-            this.plugin.settings.peopleFolder,
-        );
-
-        const actions = form.createEl('div', { cls: 'diwa-edit-actions' });
-        const saveBtn = actions.createEl('button', { cls: 'diwa-edit-save-btn', text: 'Save' });
-        const cancelBtn = actions.createEl('button', { cls: 'diwa-edit-cancel-btn', text: 'Cancel' });
-
-        const exit = (restore: boolean) => {
-            item.removeClass('is-editing');
-            form.remove();
-            this._taskPending = Math.max(0, this._taskPending - 1);
-            if (restore) { checkbox.style.display = ''; content.style.display = ''; editBtn.style.display = ''; }
-        };
-
-        const save = async () => {
-            const newText = textarea.value.trim();
-            if (!newText) return;
-            exit(false);
-            try {
-                await this.plugin.vault.editTask(
-                    task.filePath, newText, [...editContexts],
-                    editDueDate || undefined,
-                    { priority: task.priority, energy: task.energy, status: task.status }
-                );
-                new Notice('✓ Task updated', 1000);
-            } catch {
-                new Notice('Error updating task', 2000);
-                checkbox.style.display = '';
-                content.style.display = '';
-                editBtn.style.display = '';
-            }
-        };
-
-        saveBtn.addEventListener('click', save);
-        cancelBtn.addEventListener('click', () => exit(true));
-        textarea.addEventListener('keydown', (e: KeyboardEvent) => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); }
-            if (e.key === 'Escape') { exit(true); }
-        });
+        this._taskPaneView = new DesktopTaskPaneView(this, parent);
+        this._taskPaneView.render();
     }
 }

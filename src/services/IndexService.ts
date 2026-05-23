@@ -39,7 +39,21 @@ export class IndexService {
     getExistingTopics(): string[] {
         const seen = new Set<string>();
         for (const entry of this.thoughtIndex.values()) {
-            if (entry.topic) seen.add(entry.topic);
+            if (typeof entry.topic === 'string' && entry.topic.trim()) seen.add(entry.topic.trim());
+        }
+        for (const file of this.app.vault.getMarkdownFiles()) {
+            if (!this.isThoughtFile(file.path)) continue;
+            const cache = this.app.metadataCache.getFileCache(file);
+            const topic = cache?.frontmatter?.topic;
+            if (Array.isArray(topic)) {
+                for (const t of topic) {
+                    const s = String(t).trim();
+                    if (s) seen.add(s);
+                }
+            } else if (topic) {
+                const s = String(topic).trim();
+                if (s) seen.add(s);
+            }
         }
         return Array.from(seen).sort();
     }
@@ -229,7 +243,7 @@ export class IndexService {
         const fm = cache.frontmatter;
         // arch-01: Read actual file content for body — was incorrectly set to file.basename
         const content = await this.app.vault.read(file);
-        const body = content.replace(/^---\n[\s\S]*?\n---\n/, '').trim();
+        const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').trim();
         this.thoughtIndex.set(file.path, {
             filePath: file.path,
             title: file.basename,
@@ -238,7 +252,7 @@ export class IndexService {
             created: fm.created || '',
             modified: fm.modified || '',
             context: IndexService.normalizeContext(fm.context ?? fm.contexts),
-            topic: fm.topic || null,
+            topic: Array.isArray(fm.topic) ? (fm.topic[0] ? String(fm.topic[0]) : null) : (fm.topic || null),
             synthesized: fm.synthesized || false,
             project: fm.project || null,
             allDates: fm.allDates || [],
@@ -277,7 +291,7 @@ export class IndexService {
         if (!cache || !cache.frontmatter) return;
         const fm = cache.frontmatter;
         const content = await this.app.vault.read(file);
-        const body = content.replace(/^---\n[\s\S]*?\n---\n/, '').trim();
+        const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').trim();
 
         this.taskIndex.set(file.path, {
             filePath: file.path,

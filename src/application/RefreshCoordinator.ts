@@ -1,14 +1,18 @@
 import { App, Notice, TFile } from 'obsidian';
-import { VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_DIWA } from '../constants';
+import { VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_DIWA, VIEW_TYPE_MOBILE_HUB } from '../constants';
 import type { DiwaSettings } from '../types';
 import { DesktopHubView } from '../views/DesktopHubView';
 import { DiwaView } from '../view';
+import { MobileHubView } from '../views/MobileHubView';
 import type { IndexService } from '../services/IndexService';
+
+export type RefreshScope = 'all' | 'tasks' | 'thoughts';
 
 export class RefreshCoordinator {
     private _indexDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private _reindexCooldown: Map<string, number> = new Map();
     private _suppressNotifyRefreshUntil: number = 0;
+    private _pendingRefreshScope: RefreshScope | null = null;
 
     constructor(
         private app: App,
@@ -44,11 +48,18 @@ export class RefreshCoordinator {
         else if (file.path === capPath) await this.index.buildChecklistIndex();
     }
 
-    notifyRefresh(): void {
+    notifyRefresh(scope: RefreshScope = 'all'): void {
         if (Date.now() < this._suppressNotifyRefreshUntil) return;
+        this._pendingRefreshScope = this.mergeRefreshScope(this._pendingRefreshScope, scope);
         if (this._indexDebounceTimer) clearTimeout(this._indexDebounceTimer);
+        
+        // Task-only updates flush on next-frame cadence; other scopes batch to absorb sync bursts
+        const debounceMs = this._pendingRefreshScope === 'tasks' ? 16 : 400;
+        
         this._indexDebounceTimer = setTimeout(() => {
             if (Date.now() < this._suppressNotifyRefreshUntil) return;
+            const scope = this._pendingRefreshScope ?? 'all';
+            this._pendingRefreshScope = null;
             const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DIWA);
             for (const leaf of leaves) {
                 const view = leaf.view as DiwaView;
@@ -63,11 +74,28 @@ export class RefreshCoordinator {
             for (const leaf of hubLeaves) {
                 const view = leaf.view as DesktopHubView;
                 if (view && typeof view.renderView === 'function') {
+                    if (scope === 'tasks' && typeof view.updateTaskPaneFromIndex === 'function') {
+                        view.updateTaskPaneFromIndex();
+                        continue;
+                    }
                     if (view._capturePending > 0 || view._taskPending > 0) continue;
                     view.renderView();
                 }
             }
-        }, 400); // 400ms: handles cloud-sync bursts and gives async indexing headroom
+            const mobileHubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB);
+            for (const leaf of mobileHubLeaves) {
+                const view = leaf.view as MobileHubView;
+                if (view && typeof view.renderView === 'function') {
+                    view.renderView();
+                }
+            }
+        }, debounceMs);
+    }
+
+    private mergeRefreshScope(current: RefreshScope | null, next: RefreshScope): RefreshScope {
+        if (!current || current === next) return next;
+        if (current === 'all' || next === 'all') return 'all';
+        return 'all';
     }
 
     onunload(): void {
@@ -75,6 +103,7 @@ export class RefreshCoordinator {
             clearTimeout(this._indexDebounceTimer);
             this._indexDebounceTimer = null;
         }
+        this._pendingRefreshScope = null;
         this._reindexCooldown.clear();
     }
 }

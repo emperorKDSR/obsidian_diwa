@@ -3,8 +3,16 @@ import type DiwaPlugin from '../main';
 import { attachInlineTriggers, attachMediaPasteHandler } from '../utils';
 import { ConfirmModal } from './ConfirmModal';
 
+interface MobilePostComposerOptions {
+    editFilePath?: string;
+    text?: string;
+    contexts?: string[];
+    topic?: string;
+}
+
 export class MobilePostComposerModal extends Modal {
     private plugin: DiwaPlugin;
+    private options: MobilePostComposerOptions;
     private textarea!: HTMLTextAreaElement;
     private postBtn!: HTMLButtonElement;
     private chipsEl!: HTMLElement;
@@ -14,16 +22,18 @@ export class MobilePostComposerModal extends Modal {
     private topicPickerEl!: HTMLElement;
     private contextSearch!: HTMLInputElement;
     private topicSearch!: HTMLInputElement;
-    private topicInput!: HTMLInputElement;
     private contexts: string[] = [];
     private topic: string = '';
     private dirty = false;
     private contextPickerOpen = false;
     private topicPickerOpen = false;
 
-    constructor(app: App, plugin: DiwaPlugin) {
+    constructor(app: App, plugin: DiwaPlugin, options: MobilePostComposerOptions = {}) {
         super(app);
         this.plugin = plugin;
+        this.options = options;
+        this.contexts = [...(options.contexts ?? [])];
+        this.topic = options.topic?.trim() ?? '';
     }
 
     onOpen() {
@@ -36,7 +46,8 @@ export class MobilePostComposerModal extends Modal {
         const cancelBtn = header.createEl('button', { cls: 'diwa-mobile-post-cancel', text: 'Cancel' });
         cancelBtn.addEventListener('click', () => this.tryClose());
 
-        header.createEl('div', { cls: 'diwa-mobile-post-title', text: 'Create DIWA' });
+        const isEditMode = !!this.options.editFilePath;
+        header.createEl('div', { cls: 'diwa-mobile-post-title', text: isEditMode ? 'Edit DIWA' : 'Create DIWA' });
 
         this.postBtn = header.createEl('button', { cls: 'diwa-mobile-post-post', text: 'Save' }) as HTMLButtonElement;
         this.postBtn.disabled = true;
@@ -78,6 +89,7 @@ export class MobilePostComposerModal extends Modal {
             cls: 'diwa-mobile-post-textarea',
             attr: { placeholder: "What's on your mind?", rows: '1' }
         }) as HTMLTextAreaElement;
+        if (this.options.text) this.textarea.value = this.options.text;
 
         this.textarea.addEventListener('input', () => this.onInput());
         this.textarea.addEventListener('keyup', () => this.syncHeight());
@@ -125,14 +137,11 @@ export class MobilePostComposerModal extends Modal {
     }
 
     private renderSelection() {
-        const parts: string[] = [];
-        if (this.contexts.length > 0) parts.push(this.contexts.map(c => `#${c}`).join(', '));
-        if (this.topic.trim()) parts.push(this.topic.trim());
         this.contextButton.querySelector<HTMLElement>('.diwa-mobile-post-selector-summary')!.setText(
-            this.contexts.length > 0 ? this.contexts.map(c => `#${c}`).join(', ') : 'Choose context'
+            this.contexts[0] ? this.contexts[0].toUpperCase() : 'CONTEXT'
         );
         this.topicButton.querySelector<HTMLElement>('.diwa-mobile-post-selector-summary')!.setText(
-            this.topic.trim() || 'Add topic'
+            this.topic ? this.topic.toUpperCase() : 'TOPIC'
         );
         this.refreshChips();
         this.markDirty();
@@ -140,23 +149,6 @@ export class MobilePostComposerModal extends Modal {
 
     private refreshChips() {
         this.chipsEl.empty();
-        for (const ctx of this.contexts) {
-            const chip = this.chipsEl.createEl('span', { cls: 'diwa-mobile-post-chip', text: `#${ctx}` });
-            chip.addEventListener('click', () => {
-                this.contexts = this.contexts.filter(c => c !== ctx);
-                this.renderSelection();
-                this.renderContextPicker();
-                this.renderTopicPicker();
-            });
-        }
-        if (this.topic.trim()) {
-            const chip = this.chipsEl.createEl('span', { cls: 'diwa-mobile-post-chip is-topic', text: this.topic.trim() });
-            chip.addEventListener('click', () => {
-                this.topic = '';
-                this.renderSelection();
-                this.renderTopicPicker();
-            });
-        }
     }
 
     private renderContextPicker() {
@@ -182,17 +174,13 @@ export class MobilePostComposerModal extends Modal {
             for (const ctx of filtered) {
                 const pill = contextList.createEl('button', {
                     cls: `diwa-mobile-post-picker-pill${this.contexts.includes(ctx) ? ' is-active' : ''}`,
-                    text: `#${ctx}`,
+                    text: ctx.toUpperCase(),
                     type: 'button'
                 });
                 pill.addEventListener('click', () => {
-                    if (this.contexts.includes(ctx)) {
-                        this.contexts = this.contexts.filter(c => c !== ctx);
-                    } else {
-                        this.contexts.push(ctx);
-                    }
+                    this.contexts = [ctx];
                     this.renderSelection();
-                    redrawContexts();
+                    this.closePickers();
                 });
             }
             const createCtx = this.contextSearch.value.trim();
@@ -200,12 +188,12 @@ export class MobilePostComposerModal extends Modal {
                 const createBtn = contextList.createEl('button', {
                     cls: 'diwa-mobile-post-picker-create',
                     type: 'button',
-                    text: `+ Add "${createCtx}"`
+                    text: `    + Add "${createCtx.toUpperCase()}"`
                 });
                 createBtn.addEventListener('click', () => {
-                    this.contexts.push(createCtx);
+                    this.contexts = [createCtx];
                     this.renderSelection();
-                    redrawContexts();
+                    this.closePickers();
                 });
             }
         };
@@ -222,38 +210,54 @@ export class MobilePostComposerModal extends Modal {
 
         const topicSection = this.topicPickerEl.createEl('div', { cls: 'diwa-mobile-post-picker-section' });
         topicSection.createEl('div', { cls: 'diwa-mobile-post-picker-label', text: 'Topic' });
-        this.topicInput = topicSection.createEl('input', {
-            cls: 'diwa-mobile-post-picker-topic',
+        this.topicSearch = topicSection.createEl('input', {
+            cls: 'diwa-mobile-post-picker-search',
             type: 'text',
-            attr: { placeholder: 'Add topic (optional)', spellcheck: 'false' }
+            attr: { placeholder: 'Search or create topic', spellcheck: 'false' }
         }) as HTMLInputElement;
-        this.topicInput.value = this.topic;
-        this.topicInput.addEventListener('input', () => {
-            this.topic = this.topicInput.value.trim();
+        this.topicSearch.value = this.topic;
+
+        const topicList = topicSection.createEl('div', { cls: 'diwa-mobile-post-picker-list' });
+        const redrawTopics = () => {
+            topicList.empty();
+            const q = this.topicSearch.value.toLowerCase().trim();
+            const filtered = this.plugin.index.getExistingTopics()
+                .filter(t => !q || t.toLowerCase().includes(q))
+                .sort((a, b) => a.localeCompare(b));
+            for (const topic of filtered) {
+                const pill = topicList.createEl('button', {
+                    cls: `diwa-mobile-post-picker-pill${this.topic === topic ? ' is-active' : ''}`,
+                    text: topic.toUpperCase(),
+                    type: 'button'
+                });
+                pill.addEventListener('click', () => {
+                    this.topic = topic;
+                    this.renderSelection();
+                    this.closePickers();
+                });
+            }
+            const createTopic = this.topicSearch.value.trim();
+            if (createTopic && !this.plugin.index.getExistingTopics().some(t => t.toLowerCase() === createTopic.toLowerCase())) {
+                const createBtn = topicList.createEl('button', {
+                    cls: 'diwa-mobile-post-picker-create',
+                    type: 'button',
+                    text: `+ Add "${createTopic.toUpperCase()}"`
+                });
+                createBtn.addEventListener('click', () => {
+                    this.topic = createTopic;
+                    this.renderSelection();
+                    this.closePickers();
+                });
+            }
+        };
+
+        this.topicSearch.addEventListener('input', () => {
+            this.topic = this.topicSearch.value.trim();
             this.renderSelection();
+            redrawTopics();
         });
-
-        const topicSuggestions = topicSection.createEl('div', { cls: 'diwa-mobile-post-picker-suggestions' });
-        const existingTopics = this.plugin.index.getExistingTopics()
-            .filter(t => !this.topicInput.value.trim() || t.toLowerCase().includes(this.topicInput.value.trim().toLowerCase()))
-            .slice(0, 8);
-        for (const topic of existingTopics) {
-            const pill = topicSuggestions.createEl('button', {
-                cls: 'diwa-mobile-post-picker-pill',
-                text: topic,
-                type: 'button'
-            });
-            pill.addEventListener('click', () => {
-                this.topic = topic;
-                this.topicInput.value = topic;
-                this.renderSelection();
-            });
-        }
-
-        const actions = this.topicPickerEl.createEl('div', { cls: 'diwa-mobile-post-picker-actions' });
-        const doneBtn = actions.createEl('button', { cls: 'diwa-mobile-post-picker-done', text: 'Done', type: 'button' });
-        doneBtn.addEventListener('click', () => this.closePickers());
-        setTimeout(() => this.topicInput.focus(), 50);
+        redrawTopics();
+        setTimeout(() => this.topicSearch.focus(), 50);
     }
 
     private toggleContextPicker() {
@@ -292,19 +296,22 @@ export class MobilePostComposerModal extends Modal {
     }
 
     private addContext(tag: string) {
-        if (this.contexts.includes(tag)) return;
-        this.contexts.push(tag);
+        this.contexts = [tag];
         this.renderSelection();
-        this.renderContextPicker();
-        this.renderTopicPicker();
+        this.closePickers();
     }
 
     private async save() {
         const text = this.textarea.value.trim();
         if (!text) return;
         try {
-            await this.plugin.vault.createThoughtFile(text, this.contexts, undefined, this.topic.trim() || undefined);
-            new Notice('✦ Thought saved', 1200);
+            if (this.options.editFilePath) {
+                await this.plugin.vault.editThought(this.options.editFilePath, text, this.contexts, this.topic.trim() || undefined);
+                new Notice('✦ Thought updated', 1200);
+            } else {
+                await this.plugin.vault.createThoughtFile(text, this.contexts, undefined, this.topic.trim() || undefined);
+                new Notice('✦ Thought saved', 1200);
+            }
             this.close();
         } catch {
             new Notice('Error saving thought — please try again', 2500);

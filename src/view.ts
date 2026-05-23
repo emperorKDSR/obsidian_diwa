@@ -40,6 +40,12 @@ export class DiwaView extends ItemView {
     synthesisSelectedPaths: Set<string> = new Set();
     synthesisCtxStripCollapsed: boolean = false;
     synthesisActiveCtxFilter: string | null = null;
+    synthesisContextMode: 'filter' | 'prime' = 'filter';
+    synthesisInspectorPath: string | null = null;
+    synthesisLastSelectedPath: string | null = null;
+    synthesisTableArchivedFilter: 'false' | 'true' | 'all' = 'false';
+    synthesisTableContextFilter: string = 'all';
+    synthesisTableTopicFilter: string = 'all';
     _mergePending: number = 0;
 
     // Gawa state — persists across re-renders (viewMode survives vault events)

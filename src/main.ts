@@ -14,7 +14,7 @@ import { VaultService } from './services/VaultService';
 import { IndexService } from './services/IndexService';
 import { TaskLinkService } from './services/TaskLinkService';
 import { TaskReflectionService } from './services/TaskReflectionService';
-import { RefreshCoordinator } from './application/RefreshCoordinator';
+import { RefreshCoordinator, type RefreshScope } from './application/RefreshCoordinator';
 import { SearchModal } from './modals/SearchModal';
 
 export default class DiwaPlugin extends Plugin {
@@ -52,39 +52,51 @@ export default class DiwaPlugin extends Plugin {
                 // Only refresh when the created file actually affects indexed state.
                 // Attachment/voice/binary files must NOT trigger a re-render — doing so
                 // wipes any open capture textarea (vault create fires when paste saves an image).
-                let shouldRefresh = false;
-                if (this.index.isThoughtFile(f.path)) { await this.index.indexThoughtFile(f as TFile); shouldRefresh = true; }
-                else if (this.index.isTaskFile(f.path)) { await this.index.indexTaskFile(f as TFile); shouldRefresh = true; }
-                else if (this.index.isDueFile(f.path)) { await this.index.buildDueIndex(); shouldRefresh = true; }
-                else if (f.path.startsWith((this.settings.habitsFolder || '000 Bin/DIWA Habits').replace(/\\/g, '/'))) { await this.index.refreshHabitIndex(); shouldRefresh = true; }
-                if (shouldRefresh) this.notifyRefresh();
-            }));
-            
-            this.registerEvent(this.app.vault.on('modify', async (f) => { 
-                await this.refreshCoordinator.reindexFile(f as TFile);
-                this.notifyRefresh();
+                const scope = this.getRefreshScopeForPath(f.path);
+                if (!scope) return;
+                if (this.index.isThoughtFile(f.path)) await this.index.indexThoughtFile(f as TFile);
+                else if (this.index.isTaskFile(f.path)) await this.index.indexTaskFile(f as TFile);
+                else if (this.index.isDueFile(f.path)) await this.index.buildDueIndex();
+                else if (f.path.startsWith((this.settings.habitsFolder || '000 Bin/DIWA Habits').replace(/\\/g, '/'))) await this.index.refreshHabitIndex();
+                this.notifyRefresh(scope);
             }));
 
-            this.registerEvent(this.app.vault.on('delete', async (f) => { 
-                this.index.thoughtIndex.delete(f.path); 
+            this.registerEvent(this.app.vault.on('modify', async (f) => {
+                const scope = this.getRefreshScopeForPath(f.path);
+                if (!scope) return;
+                await this.refreshCoordinator.reindexFile(f as TFile);
+                this.notifyRefresh(scope);
+            }));
+
+            this.registerEvent(this.app.vault.on('delete', async (f) => {
+                const scope = this.getRefreshScopeForPath(f.path);
+                if (!scope) return;
+                this.index.thoughtIndex.delete(f.path);
                 this.index.taskIndex.delete(f.path);
                 if (this.index.isDueFile(f.path)) await this.index.buildDueIndex();
-                this.notifyRefresh(); 
+                this.notifyRefresh(scope);
             }));
-            
+
             this.registerEvent(this.app.vault.on('rename', async (f, oldPath) => {
+                const scope = this.mergeRefreshScopes(
+                    this.getRefreshScopeForPath(oldPath),
+                    this.getRefreshScopeForPath(f.path),
+                );
+                if (!scope) return;
                 this.index.thoughtIndex.delete(oldPath);
                 this.index.taskIndex.delete(oldPath);
                 if (this.index.isThoughtFile(f.path)) await this.index.indexThoughtFile(f as TFile);
                 else if (this.index.isTaskFile(f.path)) await this.index.indexTaskFile(f as TFile);
-                this.notifyRefresh();
+                this.notifyRefresh(scope);
             }));
 
             // metadataCache.changed: authoritative trigger for cloud-synced files
             // (OneDrive/iCloud sync may not fire vault 'modify'/'create' reliably)
             this.registerEvent(this.app.metadataCache.on('changed', async (file) => {
+                const scope = this.getRefreshScopeForPath(file.path);
+                if (!scope) return;
                 await this.refreshCoordinator.reindexFile(file);
-                this.notifyRefresh();
+                this.notifyRefresh(scope);
             }));
         });
 
@@ -299,9 +311,30 @@ export default class DiwaPlugin extends Plugin {
 	    if (this.refreshCoordinator) this.refreshCoordinator.updateSettings(this.settings);
 	}
 
-	notifyRefresh(): void {
-	    this.refreshCoordinator.notifyRefresh();
+	notifyRefresh(scope: RefreshScope = 'all'): void {
+	    this.refreshCoordinator.notifyRefresh(scope);
 	}
+
+    private getRefreshScopeForPath(path: string): RefreshScope | null {
+        if (this.index.isTaskFile(path)) return 'tasks';
+        if (this.index.isThoughtFile(path)) return 'thoughts';
+        if (this.index.isDueFile(path)) return 'all';
+
+        const habitsFolder = (this.settings.habitsFolder || '000 Bin/DIWA Habits').replace(/\\/g, '/');
+        if (path.startsWith(habitsFolder)) return 'all';
+
+        const captureFolder = this.settings.captureFolder.trim() || '000 Bin/DIWA';
+        const captureFile = this.settings.captureFilePath.trim() || 'Daily Capture.md';
+        if (path === `${captureFolder}/${captureFile}`) return 'all';
+
+        return null;
+    }
+
+    private mergeRefreshScopes(a: RefreshScope | null, b: RefreshScope | null): RefreshScope | null {
+        if (!a) return b;
+        if (!b || a === b) return a;
+        return 'all';
+    }
 
     getProjects(): string[] {
         return this.index ? this.index.getProjects() : [];
@@ -344,4 +377,3 @@ export default class DiwaPlugin extends Plugin {
         }
     }
 }
-
