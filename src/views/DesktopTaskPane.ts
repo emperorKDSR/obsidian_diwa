@@ -3,6 +3,8 @@ import type { App } from 'obsidian';
 import type { TaskBucketStatus, TaskEntry } from '../types';
 import { attachInlineTriggers, attachMediaPasteHandler } from '../utils';
 import type { TaskController, TaskPanePort } from './TaskController';
+import { EditTaskModal } from '../modals/EditTaskModal';
+import { FastTaskCaptureModal, type FastTaskCapturePayload } from '../modals/FastTaskCaptureModal';
 
 export type TaskFilterFn = (task: TaskEntry) => boolean;
 export type TaskSortFn = (a: TaskEntry, b: TaskEntry) => number;
@@ -38,6 +40,7 @@ export interface TaskPaneOptions {
     bucketOnDrop?: TaskBucketStatus;
     focusOnDrop?: boolean;
     allowDragDrop?: boolean;
+    inlineContentRenderer?: (parent: HTMLElement) => void;
 }
 
 export interface TaskPaneHost {
@@ -151,7 +154,7 @@ export class DesktopTaskPaneView implements TaskPanePort {
 
         const textarea = section.createEl('textarea', {
             cls: 'diwa-dh-task-textarea',
-            attr: { placeholder: 'Add a task… (@due, #ctx, /person, [[link)', rows: '1' }
+            attr: { placeholder: 'Add a task… (Enter save, Ctrl/Cmd+Enter refine)', rows: '1' }
         }) as HTMLTextAreaElement;
 
         const syncHeight = () => {
@@ -189,11 +192,7 @@ export class DesktopTaskPaneView implements TaskPanePort {
             () => this.view.plugin.settings.attachmentsFolder ?? '000 Bin/DIWA Attachments'
         );
 
-        const saveTask = async () => {
-            const raw = textarea.value.trim();
-            if (!raw) return;
-            const ctxSnapshot = [...contexts];
-            const due = dueDate;
+        const resetQuickInput = () => {
             this.view._taskPending = 0;
             textarea.value = '';
             textarea.style.height = '';
@@ -201,6 +200,14 @@ export class DesktopTaskPaneView implements TaskPanePort {
             contexts = [];
             dueDate = null;
             chipRow.empty();
+        };
+
+        const saveTask = async () => {
+            const raw = textarea.value.trim();
+            if (!raw) return;
+            const ctxSnapshot = [...contexts];
+            const due = dueDate;
+            resetQuickInput();
             try {
                 this.view.plugin.refreshCoordinator.suppressNotifyRefresh(800);
                 const created = await this.view.plugin.vault.createTaskFile(raw, ctxSnapshot, due || undefined);
@@ -215,14 +222,69 @@ export class DesktopTaskPaneView implements TaskPanePort {
             }
         };
 
+        const openStructuredCapture = () => {
+            const draftText = textarea.value.trim();
+            const draftContexts = [...contexts];
+            const draftDueDate = dueDate;
+            const seededParts = [draftText];
+            for (const ctx of draftContexts) seededParts.push(`#${ctx}`);
+            if (draftDueDate) seededParts.push(`@${draftDueDate}`);
+            const seededText = seededParts.filter(Boolean).join(' ').trim();
+
+            new FastTaskCaptureModal(
+                this.view.app,
+                this.view.plugin,
+                async (payload: FastTaskCapturePayload) => {
+                    try {
+                        this.view.plugin.refreshCoordinator.suppressNotifyRefresh(800);
+                        const created = await this.view.plugin.vault.createTaskFile(
+                            payload.text,
+                            payload.contexts,
+                            payload.dueDate || undefined,
+                            payload.project || undefined,
+                            {
+                                priority: payload.priority ?? undefined,
+                                status: payload.status,
+                            }
+                        );
+                        if (created instanceof TFile) {
+                            await this.view.plugin.refreshCoordinator.reindexFile(created);
+                            const indexedTask = this.view.plugin.index.taskIndex.get(created.path);
+                            if (indexedTask) {
+                                this.controller.addTask(indexedTask);
+                                if (payload.focus) {
+                                    await this.controller.moveTaskToBucket(
+                                        this.resolveTaskKey(indexedTask),
+                                        'active',
+                                        { focus: true }
+                                    );
+                                }
+                            } else {
+                                this.controller.syncFromIndex();
+                            }
+                        } else {
+                            this.controller.syncFromIndex();
+                        }
+                        resetQuickInput();
+                        new Notice('✓ Task added', 1000);
+                    } catch (error) {
+                        console.error('[DIWA TaskPane] Error saving structured task', error);
+                        new Notice('Error saving task', 2000);
+                    }
+                },
+                seededText
+            ).open();
+        };
+
         textarea.addEventListener('keydown', (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                e.preventDefault();
+                openStructuredCapture();
+                return;
+            }
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveTask(); }
             if (e.key === 'Escape') {
-                textarea.value = '';
-                contexts = [];
-                dueDate = null;
-                chipRow.empty();
-                this.view._taskPending = 0;
+                resetQuickInput();
                 textarea.blur();
             }
         });
@@ -259,6 +321,10 @@ export class DesktopTaskPaneView implements TaskPanePort {
             children: [],
             taskId,
         };
+    }
+
+    private resolveTaskKey(task: TaskEntry): string {
+        return task.taskId?.trim() || task.filePath;
     }
 
 }
@@ -330,6 +396,11 @@ export class TaskPane implements TaskPanePort {
 
             this.pillUpcomingEl.addEventListener('click', () => this.setPresetFilter('upcoming'));
             this.pillAllEl.addEventListener('click', () => this.setPresetFilter('all'));
+        }
+
+        if (options.inlineContentRenderer) {
+            const inlineContent = this.rootEl.createEl('div', { cls: 'diwa-dh-task-inline-content' });
+            options.inlineContentRenderer(inlineContent);
         }
 
         this.emptyEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-empty' });
@@ -762,8 +833,10 @@ export class TaskItemView {
     private metaEl: HTMLElement;
     private checkboxEl: HTMLElement;
     private titleEl: HTMLElement;
-    private dueEl: HTMLElement | null = null;
+    private projectChipEl: HTMLButtonElement | null = null;
+    private dueChipEl: HTMLButtonElement | null = null;
     private quickActionsEl: HTMLElement | null = null;
+    private backlogBtnEl: HTMLElement | null = null;
     private activateBtnEl: HTMLElement | null = null;
     private focusBtnEl: HTMLElement | null = null;
     private doneBtnEl: HTMLElement | null = null;
@@ -772,6 +845,9 @@ export class TaskItemView {
     private destroyed = false;
     private groupKey: string | null = null;
     private flashTimer: number | null = null;
+    private popoverEl: HTMLElement | null = null;
+    private popoverOutsideHandler: ((event: MouseEvent) => void) | null = null;
+    private popoverEscapeHandler: ((event: KeyboardEvent) => void) | null = null;
 
     constructor(
         private view: TaskPaneHost,
@@ -784,6 +860,7 @@ export class TaskItemView {
         this.currentTask = task;
         this.rootEl = parent.createEl('div', { cls: 'diwa-dh-task-item' });
         this.rootEl.setAttr('data-task-id', getTaskKey(task));
+        this.rootEl.setAttr('aria-keyshortcuts', 'Space Ctrl+Enter Meta+Enter Ctrl+ArrowUp Meta+ArrowUp Ctrl+ArrowDown Meta+ArrowDown');
         this.rootEl.tabIndex = 0;
         this.rootEl.draggable = true;
         this.rootEl.addEventListener('dragstart', (event) => this.handleDragStart(event));
@@ -802,46 +879,55 @@ export class TaskItemView {
         this.titleEl = mainEl.createEl('div', { cls: 'diwa-dh-task-title' });
         if (this.showBucketActions) {
             this.quickActionsEl = actionsEl.createEl('div', { cls: 'diwa-dh-task-quick-actions' });
+            this.backlogBtnEl = this.quickActionsEl.createEl('button', {
+                cls: 'diwa-dh-task-quick-btn',
+                attr: { title: 'Demote task', 'aria-label': 'Demote task' }
+            });
+            setIcon(this.backlogBtnEl, 'lucide-inbox');
+            this.backlogBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                void this.runTaskAction(() => this.controller.demoteTask(getTaskKey(this.currentTask)));
+            });
+
             this.activateBtnEl = this.quickActionsEl.createEl('button', {
                 cls: 'diwa-dh-task-quick-btn',
-                attr: { title: 'Move to Active', 'aria-label': 'Move to Active' }
+                attr: { title: 'Promote to Active', 'aria-label': 'Promote to Active' }
             });
             setIcon(this.activateBtnEl, 'lucide-play');
             this.activateBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
-                void this.moveToBucket('active', false);
+                void this.runTaskAction(() => this.controller.promoteTask(getTaskKey(this.currentTask)));
             });
 
             this.focusBtnEl = this.quickActionsEl.createEl('button', {
                 cls: 'diwa-dh-task-quick-btn',
-                attr: { title: 'Set Focus', 'aria-label': 'Set Focus' }
+                attr: { title: 'Focus task', 'aria-label': 'Focus task' }
             });
             setIcon(this.focusBtnEl, 'lucide-target');
             this.focusBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
-                void this.moveToBucket('active', true);
+                void this.handleFocusAction();
             });
 
             this.doneBtnEl = this.quickActionsEl.createEl('button', {
                 cls: 'diwa-dh-task-quick-btn',
-                attr: { title: 'Mark Done', 'aria-label': 'Mark Done' }
+                attr: { title: 'Complete task', 'aria-label': 'Complete task' }
             });
             setIcon(this.doneBtnEl, 'lucide-check');
             this.doneBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
-                void this.moveToBucket('done', false);
+                void this.handleToggle();
             });
         }
 
         this.editBtnEl = actionsEl.createEl('button', {
             cls: 'diwa-dh-task-edit-btn',
-            attr: { title: 'Edit task', 'aria-label': 'Edit task' }
+            attr: { title: 'More actions', 'aria-label': 'More actions' }
         });
-        setIcon(this.editBtnEl, 'lucide-pencil');
+        setIcon(this.editBtnEl, 'lucide-more-horizontal');
         this.editBtnEl.addEventListener('click', (e) => {
             e.stopPropagation();
-            this.hooks.onEdit?.(this.currentTask);
-            this.makeEditable();
+            this.openMoreMenu(this.editBtnEl);
         });
         this.rootEl.addEventListener('click', (e) => this.handleClick(e));
         this.rootEl.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -853,12 +939,17 @@ export class TaskItemView {
             }
             if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                 e.preventDefault();
-                void this.moveToBucket('active', true);
+                void this.runTaskAction(() => this.controller.focusTask(getTaskKey(this.currentTask)));
                 return;
             }
-            if (e.shiftKey && e.key === 'Enter') {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'ArrowUp') {
                 e.preventDefault();
-                void this.moveToBucket('active', false);
+                void this.runTaskAction(() => this.controller.promoteTask(getTaskKey(this.currentTask)));
+                return;
+            }
+            if ((e.metaKey || e.ctrlKey) && e.key === 'ArrowDown') {
+                e.preventDefault();
+                void this.runTaskAction(() => this.controller.demoteTask(getTaskKey(this.currentTask)));
                 return;
             }
             if (e.key !== 'Delete') return;
@@ -904,6 +995,7 @@ export class TaskItemView {
     destroy(): void {
         if (this.destroyed) return;
         this.destroyed = true;
+        this.closeInlinePopover();
         if (this.flashTimer !== null) {
             window.clearTimeout(this.flashTimer);
             this.flashTimer = null;
@@ -928,39 +1020,36 @@ export class TaskItemView {
         this.rootEl.addClass('is-dragging');
     }
 
-    private async moveToBucket(bucket: TaskBucketStatus, focus?: boolean): Promise<void> {
+    private async runTaskAction(action: () => Promise<boolean>): Promise<void> {
         if (this.destroyed) return;
         if (this.rootEl.hasClass('is-completing')) return;
         this.rootEl.addClass('is-completing');
         try {
-            const ok = await this.controller.moveTaskToBucket(getTaskKey(this.currentTask), bucket, { focus });
+            const ok = await action();
             if (!ok) {
                 new Notice('Error updating task', 2000);
             }
         } catch (error) {
-            console.error('[DIWA TaskPane] Error moving task', error);
+            console.error('[DIWA TaskPane] Error updating task state', error);
             new Notice('Error updating task', 2000);
         } finally {
             this.rootEl.removeClass('is-completing');
         }
     }
 
+    private async handleFocusAction(): Promise<void> {
+        if (this.getWorkflowState(this.currentTask) === 'focus') {
+            await this.runTaskAction(() => this.controller.demoteTask(getTaskKey(this.currentTask)));
+            return;
+        }
+        await this.runTaskAction(() => this.controller.focusTask(getTaskKey(this.currentTask)));
+    }
+
     private async handleToggle(): Promise<void> {
         if (this.destroyed) return;
         if (this.rootEl.hasClass('is-completing')) return;
         this.hooks.onToggle?.(this.currentTask);
-        this.rootEl.addClass('is-completing');
-        try {
-            const ok = await this.controller.toggleTask(getTaskKey(this.currentTask));
-            if (!ok) {
-                new Notice('Error updating task', 2000);
-                this.rootEl.removeClass('is-completing');
-            }
-        } catch (e) {
-            console.error('[DIWA TaskPane] Error updating task', e);
-            new Notice('Error updating task', 2000);
-            this.rootEl.removeClass('is-completing');
-        }
+        await this.runTaskAction(() => this.controller.toggleTask(getTaskKey(this.currentTask)));
     }
 
     private handleClick(event: MouseEvent): void {
@@ -970,12 +1059,52 @@ export class TaskItemView {
             target.closest('.diwa-dh-task-checkbox')
             || target.closest('.diwa-dh-task-edit-btn')
             || target.closest('.diwa-dh-task-actions')
+            || target.closest('.diwa-dh-task-meta')
+            || target.closest('.diwa-dh-inline-popover')
         ) return;
         this.hooks.onClick?.(this.currentTask);
     }
 
+    private openStructuredEditor(): void {
+        if (this.destroyed) return;
+        this.hooks.onEdit?.(this.currentTask);
+        new EditTaskModal(
+            this.view.app,
+            this.currentTask,
+            this.view.plugin.vault,
+            this.view.plugin.index,
+            () => {
+                void this.controller.reconcileTask(this.currentTask.filePath, undefined, this.currentTask);
+            }
+        ).open();
+    }
+
+    private openMoreMenu(anchor: HTMLElement): void {
+        if (this.destroyed) return;
+        this.openInlinePopover(anchor, (popover) => {
+            const actions = popover.createEl('div', { cls: 'diwa-dh-inline-popover-list' });
+            const createOption = (label: string, run: () => void | Promise<void>) => {
+                const option = actions.createEl('button', {
+                    cls: 'diwa-dh-inline-option',
+                    text: label,
+                    attr: { type: 'button' },
+                });
+                option.addEventListener('click', () => {
+                    this.closeInlinePopover();
+                    void run();
+                });
+            };
+
+            createOption('Change project', () => this.openProjectPicker(anchor));
+            createOption('Change date', () => this.openDuePicker(anchor));
+            createOption('Duplicate', async () => this.duplicateCurrentTask());
+            createOption('Delete', () => this.hooks.onDelete?.(getTaskKey(this.currentTask)));
+        });
+    }
+
     private makeEditable(): void {
         if (this.rootEl.hasClass('is-editing')) return;
+        this.hooks.onEdit?.(this.currentTask);
         const task = this.currentTask;
         this.rootEl.addClass('is-editing');
         this.view._taskPending++;
@@ -1021,7 +1150,7 @@ export class TaskItemView {
             this.view._taskPending = Math.max(0, this.view._taskPending - 1);
             if (restore) {
                 this.headerEl.style.display = '';
-                this.syncMetaVisibility(!!this.currentTask.due);
+                this.syncMetaVisibility(true);
             }
         };
 
@@ -1055,7 +1184,7 @@ export class TaskItemView {
                 console.error('[DIWA TaskPane] Error updating task', e);
                 new Notice('Error updating task', 2000);
                 this.headerEl.style.display = '';
-                this.syncMetaVisibility(!!this.currentTask.due);
+                this.syncMetaVisibility(true);
             }
         };
 
@@ -1097,26 +1226,51 @@ export class TaskItemView {
         if (force || wasDone !== isDone) this.rootEl.toggleClass('is-done', isDone);
         if (force || wasFocused !== isFocused) this.rootEl.toggleClass('is-focused', isFocused);
         if (force || prev.title !== task.title) this.titleEl.setText(task.title);
-        if (force || prev.due !== task.due || wasOverdue !== isOverdue) this.renderDue(task.due, isOverdue);
+        if (force || prev.due !== task.due || prev.project !== task.project || wasOverdue !== isOverdue) {
+            this.renderMetaChips(task, isOverdue);
+        }
         if (this.showBucketActions) this.syncQuickActionState(task);
         if (!force && (wasDone !== isDone || wasFocused !== isFocused || prev.bucketStatus !== task.bucketStatus)) {
             this.flashUpdate();
         }
     }
 
-    private renderDue(due: string, isOverdue: boolean): void {
-        if (!due) {
-            if (this.dueEl) {
-                this.dueEl.remove();
-                this.dueEl = null;
-            }
-            this.syncMetaVisibility(false);
-            return;
+    private renderMetaChips(task: TaskEntry, isOverdue: boolean): void {
+        if (!this.projectChipEl) {
+            this.projectChipEl = this.metaEl.createEl('button', {
+                cls: 'diwa-dh-task-chip diwa-dh-task-chip--project',
+                attr: { type: 'button', 'aria-label': 'Edit project' },
+            }) as HTMLButtonElement;
+            this.projectChipEl.addEventListener('click', (event) => {
+                event.stopPropagation();
+                this.openProjectPicker(this.projectChipEl!);
+            });
         }
-        const dueM = moment(due, 'YYYY-MM-DD');
-        if (!this.dueEl) this.dueEl = this.metaEl.createEl('div', { cls: 'diwa-dh-task-due' });
-        this.dueEl.setText(isOverdue ? dueM.format('MMM D') : dueM.fromNow());
-        this.dueEl.toggleClass('is-overdue', isOverdue);
+
+        if (!this.dueChipEl) {
+            this.dueChipEl = this.metaEl.createEl('button', {
+                cls: 'diwa-dh-task-chip diwa-dh-task-chip--due',
+                attr: { type: 'button', 'aria-label': 'Edit due date' },
+            }) as HTMLButtonElement;
+            this.dueChipEl.addEventListener('click', (event) => {
+                event.stopPropagation();
+                this.openDuePicker(this.dueChipEl!);
+            });
+        }
+
+        const projectLabel = task.project?.trim() ? `#${task.project}` : '#project';
+        this.projectChipEl.setText(projectLabel);
+        this.projectChipEl.toggleClass('is-empty', !task.project?.trim());
+
+        let dueLabel = '@date';
+        if (task.due) {
+            const dueMoment = moment(task.due, 'YYYY-MM-DD', true);
+            dueLabel = dueMoment.isValid() ? `@${dueMoment.format('MMM D')}` : `@${task.due}`;
+        }
+        this.dueChipEl.setText(dueLabel);
+        this.dueChipEl.toggleClass('is-empty', !task.due);
+        this.dueChipEl.toggleClass('is-overdue', !!task.due && isOverdue);
+
         this.syncMetaVisibility(true);
     }
 
@@ -1132,13 +1286,45 @@ export class TaskItemView {
         return task.status === 'done' || task.bucketStatus === 'done' || task.lifecycleStatus === 'done';
     }
 
+    private getWorkflowState(task: TaskEntry): 'backlog' | 'active' | 'focus' | 'done' {
+        if (this.isDoneTask(task)) return 'done';
+        const isActive = task.bucketStatus === 'active' || task.status === 'waiting' || task.lifecycleStatus === 'active';
+        if (isActive && !!task.focus) return 'focus';
+        if (isActive) return 'active';
+        return 'backlog';
+    }
+
     private syncQuickActionState(task: TaskEntry): void {
         if (!this.showBucketActions) return;
-        const isDone = this.isDoneTask(task);
-        this.doneBtnEl?.toggleClass('is-active', isDone);
-        this.focusBtnEl?.toggleClass('is-active', !!task.focus && !isDone);
-        const isActive = task.bucketStatus === 'active' || task.status === 'waiting' || task.lifecycleStatus === 'active';
-        this.activateBtnEl?.toggleClass('is-active', isActive && !isDone);
+        const state = this.getWorkflowState(task);
+
+        const showActivate = state === 'backlog';
+        const showBacklog = state === 'active';
+        const showFocusToggle = state === 'active' || state === 'focus';
+        const showDone = true;
+
+        this.activateBtnEl?.toggleClass('is-hidden', !showActivate);
+        this.backlogBtnEl?.toggleClass('is-hidden', !showBacklog);
+        this.focusBtnEl?.toggleClass('is-hidden', !showFocusToggle);
+        this.doneBtnEl?.toggleClass('is-hidden', !showDone);
+
+        if (this.focusBtnEl) {
+            const isFocusState = state === 'focus';
+            this.focusBtnEl.toggleClass('is-active', isFocusState);
+            this.focusBtnEl.setAttr('title', isFocusState ? 'Unfocus task' : 'Focus task');
+            this.focusBtnEl.setAttr('aria-label', isFocusState ? 'Unfocus task' : 'Focus task');
+            setIcon(this.focusBtnEl, isFocusState ? 'lucide-target' : 'lucide-target');
+        }
+
+        if (this.doneBtnEl) {
+            const isDone = state === 'done';
+            this.doneBtnEl.toggleClass('is-active', isDone);
+            this.doneBtnEl.setAttr('title', isDone ? 'Reopen task' : 'Complete task');
+            this.doneBtnEl.setAttr('aria-label', isDone ? 'Reopen task' : 'Complete task');
+        }
+
+        this.activateBtnEl?.toggleClass('is-active', state === 'active');
+        this.backlogBtnEl?.toggleClass('is-active', state === 'backlog');
     }
 
     private flashUpdate(): void {
@@ -1148,5 +1334,219 @@ export class TaskItemView {
             this.rootEl.removeClass('is-updated');
             this.flashTimer = null;
         }, 420);
+    }
+
+    private openProjectPicker(anchor: HTMLElement): void {
+        const projects = (Array.from(this.view.plugin.index.projectIndex.values()) as Array<{ name: string; status: string }>)
+            .filter((project) => project.status !== 'archived')
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        this.openInlinePopover(anchor, (popover) => {
+            const search = popover.createEl('input', {
+                cls: 'diwa-dh-inline-popover-search',
+                attr: {
+                    type: 'text',
+                    placeholder: 'Find project…',
+                    spellcheck: 'false',
+                },
+            }) as HTMLInputElement;
+            const list = popover.createEl('div', { cls: 'diwa-dh-inline-popover-list' });
+
+            const renderOptions = (query: string) => {
+                const q = query.trim().toLowerCase();
+                list.empty();
+
+                const clearBtn = list.createEl('button', {
+                    cls: 'diwa-dh-inline-option',
+                    text: '#none',
+                    attr: { type: 'button' },
+                });
+                clearBtn.toggleClass('is-active', !this.currentTask.project);
+                clearBtn.addEventListener('click', () => {
+                    void this.applyInlineMetadata({ project: null });
+                });
+
+                let visibleCount = 0;
+                for (const project of projects) {
+                    if (q && !project.name.toLowerCase().includes(q)) continue;
+                    const option = list.createEl('button', {
+                        cls: 'diwa-dh-inline-option',
+                        text: `#${project.name}`,
+                        attr: { type: 'button' },
+                    });
+                    option.toggleClass('is-active', this.currentTask.project === project.name);
+                    option.addEventListener('click', () => {
+                        void this.applyInlineMetadata({ project: project.name });
+                    });
+                    visibleCount++;
+                }
+
+                if (visibleCount === 0 && q) {
+                    list.createEl('div', {
+                        cls: 'diwa-dh-inline-empty',
+                        text: 'No matching projects',
+                    });
+                }
+            };
+
+            renderOptions('');
+            search.addEventListener('input', () => renderOptions(search.value));
+            setTimeout(() => search.focus(), 30);
+        });
+    }
+
+    private openDuePicker(anchor: HTMLElement): void {
+        this.openInlinePopover(anchor, (popover) => {
+            const quickActions = popover.createEl('div', { cls: 'diwa-dh-inline-quick-actions' });
+            const createQuickBtn = (label: string, onClick: () => void) => {
+                const btn = quickActions.createEl('button', {
+                    cls: 'diwa-dh-inline-quick-btn',
+                    text: label,
+                    attr: { type: 'button' },
+                });
+                btn.addEventListener('click', onClick);
+            };
+
+            const baseDate = this.currentTask.due && moment(this.currentTask.due, 'YYYY-MM-DD', true).isValid()
+                ? moment(this.currentTask.due, 'YYYY-MM-DD', true)
+                : moment().startOf('day');
+
+            createQuickBtn('+1d', () => {
+                void this.applyInlineMetadata({ dueDate: baseDate.clone().add(1, 'day').format('YYYY-MM-DD') });
+            });
+            createQuickBtn('Tomorrow', () => {
+                void this.applyInlineMetadata({ dueDate: moment().startOf('day').add(1, 'day').format('YYYY-MM-DD') });
+            });
+            createQuickBtn('Next Week', () => {
+                void this.applyInlineMetadata({ dueDate: moment().startOf('day').add(7, 'day').format('YYYY-MM-DD') });
+            });
+            createQuickBtn('Clear', () => {
+                void this.applyInlineMetadata({ dueDate: null });
+            });
+
+            const picker = popover.createEl('input', {
+                cls: 'diwa-dh-inline-date-input',
+                attr: { type: 'date', 'aria-label': 'Set due date' },
+            }) as HTMLInputElement;
+            if (this.currentTask.due && moment(this.currentTask.due, 'YYYY-MM-DD', true).isValid()) {
+                picker.value = this.currentTask.due;
+            }
+            picker.addEventListener('change', () => {
+                const nextDue = picker.value.trim() || null;
+                void this.applyInlineMetadata({ dueDate: nextDue });
+            });
+            setTimeout(() => picker.focus(), 30);
+        });
+    }
+
+    private openInlinePopover(anchor: HTMLElement, render: (popover: HTMLElement) => void): void {
+        this.closeInlinePopover();
+        const popover = this.rootEl.createEl('div', { cls: 'diwa-dh-inline-popover' });
+        this.popoverEl = popover;
+        render(popover);
+
+        requestAnimationFrame(() => {
+            if (!this.popoverEl || this.popoverEl !== popover || this.destroyed) return;
+            const rootRect = this.rootEl.getBoundingClientRect();
+            const anchorRect = anchor.getBoundingClientRect();
+            const maxLeft = Math.max(8, rootRect.width - popover.offsetWidth - 8);
+            const left = Math.min(Math.max(8, anchorRect.left - rootRect.left), maxLeft);
+            const top = anchorRect.bottom - rootRect.top + 6;
+            popover.style.left = `${left}px`;
+            popover.style.top = `${top}px`;
+        });
+
+        this.popoverOutsideHandler = (event: MouseEvent) => {
+            const target = event.target as Node | null;
+            if (!target) return;
+            if (popover.contains(target) || anchor.contains(target)) return;
+            this.closeInlinePopover();
+        };
+        this.popoverEscapeHandler = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            this.closeInlinePopover();
+            this.rootEl.focus();
+        };
+        window.addEventListener('mousedown', this.popoverOutsideHandler, true);
+        window.addEventListener('keydown', this.popoverEscapeHandler, true);
+    }
+
+    private closeInlinePopover(): void {
+        if (this.popoverOutsideHandler) {
+            window.removeEventListener('mousedown', this.popoverOutsideHandler, true);
+            this.popoverOutsideHandler = null;
+        }
+        if (this.popoverEscapeHandler) {
+            window.removeEventListener('keydown', this.popoverEscapeHandler, true);
+            this.popoverEscapeHandler = null;
+        }
+        if (this.popoverEl) {
+            this.popoverEl.remove();
+            this.popoverEl = null;
+        }
+    }
+
+    private async duplicateCurrentTask(): Promise<void> {
+        if (this.destroyed) return;
+        if (this.rootEl.hasClass('is-completing')) return;
+
+        const source = this.currentTask;
+        const bodyText = (source.body || source.title || '').trim();
+        if (!bodyText) {
+            new Notice('Task is empty, cannot duplicate', 1500);
+            return;
+        }
+
+        this.rootEl.addClass('is-completing');
+        try {
+            this.view.plugin.refreshCoordinator.suppressNotifyRefresh(700);
+            const created = await this.view.plugin.vault.createTaskFile(
+                bodyText,
+                [...(source.context || [])],
+                source.due || undefined,
+                source.project || undefined,
+                {
+                    priority: source.priority ?? undefined,
+                    energy: source.energy ?? undefined,
+                    recurrence: source.recurrence ?? undefined,
+                    status: 'open',
+                },
+            );
+
+            await this.view.plugin.refreshCoordinator.reindexFile(created);
+            const indexedTask = this.view.plugin.index.taskIndex.get(created.path);
+            if (indexedTask) {
+                this.controller.addTask(indexedTask);
+            } else {
+                this.controller.syncFromIndex();
+            }
+            new Notice('Task duplicated', 1000);
+        } catch (error) {
+            console.error('[DIWA TaskPane] Error duplicating task', error);
+            new Notice('Error duplicating task', 2000);
+        } finally {
+            this.rootEl.removeClass('is-completing');
+        }
+    }
+
+    private async applyInlineMetadata(updates: { project?: string | null; dueDate?: string | null }): Promise<void> {
+        if (this.destroyed) return;
+        if (this.rootEl.hasClass('is-completing')) return;
+        this.closeInlinePopover();
+        this.rootEl.addClass('is-completing');
+        try {
+            const ok = await this.controller.updateTaskMetadata(getTaskKey(this.currentTask), updates);
+            if (!ok) {
+                new Notice('Error updating task', 2000);
+                return;
+            }
+            this.flashUpdate();
+        } catch (error) {
+            console.error('[DIWA TaskPane] Error updating task metadata', error);
+            new Notice('Error updating task', 2000);
+        } finally {
+            this.rootEl.removeClass('is-completing');
+        }
     }
 }

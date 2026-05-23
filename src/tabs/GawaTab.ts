@@ -1,11 +1,11 @@
 import { Notice, Platform, TFile, moment, setIcon } from 'obsidian';
 import type { DiwaView } from '../view';
 import { BaseTab } from './BaseTab';
-import { EditEntryModal } from '../modals/EditEntryModal';
 import type { TaskBucketStatus, TaskEntry } from '../types';
-import { isTablet, parseContextString } from '../utils';
+import { isTablet, parseNaturalDate } from '../utils';
 import { TaskController } from '../views/TaskController';
 import { TaskPane, type TaskPaneHost, type TaskFilterFn, type TaskSortFn } from '../views/DesktopTaskPane';
+import { FastTaskCaptureModal, type FastTaskCapturePayload } from '../modals/FastTaskCaptureModal';
 
 interface PaneConfig {
     paneId: string;
@@ -21,6 +21,15 @@ interface PaneConfig {
 type MobileTabId = 'inbox' | 'today' | 'focus' | 'projects';
 const MOBILE_TAB_ORDER: MobileTabId[] = ['inbox', 'today', 'focus', 'projects'];
 type GawaLayoutMode = 'desktop' | 'tablet' | 'phone';
+type InboxCaptureTarget = 'backlog' | 'active' | 'focus';
+
+interface ParsedInboxCapture {
+    text: string;
+    contexts: string[];
+    dueDate: string | null;
+    project: string | null;
+    priority: 'high' | 'medium' | 'low' | null;
+}
 
 export class GawaTab extends BaseTab {
     private _container: HTMLElement | null = null;
@@ -125,16 +134,68 @@ export class GawaTab extends BaseTab {
         titleGroup.createEl('span', { text: subtitle, cls: 'diwa-gawa-header-subtitle' });
 
         const actions = header.createEl('div', { cls: 'diwa-gawa-header-actions' });
+        this.renderFastCapture(actions);
 
         const addBtn = actions.createEl('button', { cls: 'diwa-gawa-header-btn diwa-gawa-header-btn--primary' });
         setIcon(addBtn, 'plus');
-        addBtn.createEl('span', { text: 'New Task' });
+        addBtn.createEl('span', { text: 'Refine' });
         addBtn.addEventListener('click', () => this.openCreateTaskModal());
 
         const refreshBtn = actions.createEl('button', { cls: 'diwa-gawa-header-btn' });
         setIcon(refreshBtn, 'refresh-cw');
         refreshBtn.createEl('span', { text: 'Sync' });
         refreshBtn.addEventListener('click', () => this._taskController.syncFromIndex());
+    }
+
+    private renderFastCapture(parent: HTMLElement): void {
+        const capture = parent.createEl('div', { cls: 'diwa-gawa-capture' });
+        const input = capture.createEl('input', {
+            cls: 'diwa-gawa-capture-input',
+            attr: {
+                type: 'text',
+                placeholder: 'Fast capture… (Enter add, Ctrl/Cmd+Enter refine)',
+                'aria-label': 'Fast capture task',
+            },
+        }) as HTMLInputElement;
+
+        const quickCreate = async () => {
+            const title = input.value.trim();
+            if (!title) return;
+            input.disabled = true;
+            try {
+                this.plugin.refreshCoordinator.suppressNotifyRefresh(600);
+                const created = await this.vault.createTaskFile(title, []);
+                if (created instanceof TFile) {
+                    await this.plugin.refreshCoordinator.reindexFile(created);
+                    const indexedTask = this.plugin.index.taskIndex.get(created.path);
+                    if (indexedTask) {
+                        this._taskController.addTask(indexedTask);
+                    } else {
+                        this._taskController.syncFromIndex();
+                    }
+                } else {
+                    this._taskController.syncFromIndex();
+                }
+                input.value = '';
+                new Notice('Task added', 900);
+            } catch (error) {
+                console.error('[DIWA GAWA] Failed fast capture task', error);
+                new Notice('Error creating task', 2000);
+            } finally {
+                input.disabled = false;
+                input.focus();
+            }
+        };
+
+        input.addEventListener('keydown', (event: KeyboardEvent) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            if (event.metaKey || event.ctrlKey) {
+                this.openCreateTaskModal(input.value.trim());
+                return;
+            }
+            void quickCreate();
+        });
     }
 
     private renderColumn(
@@ -212,9 +273,80 @@ export class GawaTab extends BaseTab {
             bucketOnDrop: config.bucketOnDrop,
             focusOnDrop: config.focusOnDrop,
             showBucketActions: true,
+            inlineContentRenderer: config.paneId === 'gawa-inbox'
+                ? (container) => this.renderInboxInlineCapture(container)
+                : undefined,
         });
         this._paneMap.set(config.paneId, pane);
         this._taskController.registerPane(pane);
+    }
+
+    private renderInboxInlineCapture(parent: HTMLElement): void {
+        const capture = parent.createEl('div', { cls: 'diwa-gawa-inbox-capture' });
+        const input = capture.createEl('input', {
+            cls: 'diwa-gawa-inbox-capture-input',
+            attr: {
+                type: 'text',
+                placeholder: '+ Add task...',
+                'aria-label': 'Add task to inbox',
+            },
+        }) as HTMLInputElement;
+
+        const submit = async (target: InboxCaptureTarget): Promise<void> => {
+            if (input.disabled) return;
+            const parsed = this.parseInboxCaptureInput(input.value);
+            if (!parsed.text) return;
+
+            const status: TaskEntry['status'] = target === 'backlog' ? 'open' : 'waiting';
+            const shouldFocus = target === 'focus';
+            input.disabled = true;
+            try {
+                this.plugin.refreshCoordinator.suppressNotifyRefresh(700);
+                const created = await this.vault.createTaskFile(
+                    parsed.text,
+                    parsed.contexts,
+                    parsed.dueDate || undefined,
+                    parsed.project || undefined,
+                    {
+                        priority: parsed.priority ?? undefined,
+                        status,
+                    }
+                );
+                const optimisticTask = await this.buildOptimisticTask(created, parsed, status, shouldFocus);
+                this._taskController.addTask(optimisticTask);
+                input.value = '';
+                await this.plugin.refreshCoordinator.reindexFile(created);
+                await this._taskController.reconcileTask(created.path, status, optimisticTask);
+                if (shouldFocus) {
+                    await this._taskController.moveTaskToBucket(created.path, 'active', { focus: true });
+                }
+            } catch (error) {
+                console.error('[DIWA GAWA] Failed inbox inline capture', error);
+                new Notice('Error creating task', 2000);
+            } finally {
+                input.disabled = false;
+                input.focus();
+            }
+        };
+
+        input.addEventListener('keydown', (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                input.value = '';
+                return;
+            }
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            if (event.metaKey || event.ctrlKey) {
+                void submit('focus');
+                return;
+            }
+            if (event.shiftKey) {
+                void submit('active');
+                return;
+            }
+            void submit('backlog');
+        });
     }
 
     private destroyPanes(): void {
@@ -265,50 +397,173 @@ export class GawaTab extends BaseTab {
         return 'desktop';
     }
 
-    private openCreateTaskModal(): void {
-        new EditEntryModal(
+    private openCreateTaskModal(initialText: string = ''): void {
+        new FastTaskCaptureModal(
             this.app,
             this.plugin,
-            '',
-            '',
-            moment().format('YYYY-MM-DD'),
-            true,
-            async (text, contexts, dueDate, _project, recurrence, priority, energy, status) => {
-                const title = text.trim();
-                if (!title) return;
-                try {
-                    this.plugin.refreshCoordinator.suppressNotifyRefresh(600);
-                    const created = await this.vault.createTaskFile(
-                        title,
-                        parseContextString(contexts),
-                        dueDate || undefined,
-                        undefined,
-                        {
-                            recurrence: recurrence ?? undefined,
-                            priority: priority ?? undefined,
-                            energy: energy ?? undefined,
-                            status: status !== 'open' ? status : undefined,
-                        }
-                    );
-                    if (created instanceof TFile) {
-                        await this.plugin.refreshCoordinator.reindexFile(created);
-                        const indexedTask = this.plugin.index.taskIndex.get(created.path);
-                        if (indexedTask) {
-                            this._taskController.addTask(indexedTask);
-                        } else {
-                            this._taskController.syncFromIndex();
-                        }
-                    } else {
-                        this._taskController.syncFromIndex();
-                    }
-                    new Notice('Task added', 1000);
-                } catch (error) {
-                    console.error('[DIWA GAWA] Failed to create task', error);
-                    new Notice('Error creating task', 2000);
-                }
+            async (payload: FastTaskCapturePayload) => {
+                await this.createTaskFromCapture(payload);
             },
-            'New Task'
+            initialText,
         ).open();
+    }
+
+    private async createTaskFromCapture(payload: FastTaskCapturePayload): Promise<void> {
+        try {
+            this.plugin.refreshCoordinator.suppressNotifyRefresh(600);
+            const created = await this.vault.createTaskFile(
+                payload.text,
+                payload.contexts,
+                payload.dueDate || undefined,
+                payload.project || undefined,
+                {
+                    priority: payload.priority ?? undefined,
+                    status: payload.status,
+                }
+            );
+            if (created instanceof TFile) {
+                await this.plugin.refreshCoordinator.reindexFile(created);
+                const indexedTask = this.plugin.index.taskIndex.get(created.path);
+                if (indexedTask) {
+                    this._taskController.addTask(indexedTask);
+                    if (payload.focus) {
+                        await this._taskController.moveTaskToBucket(
+                            this.resolveTaskKey(indexedTask),
+                            'active',
+                            { focus: true }
+                        );
+                    }
+                } else {
+                    this._taskController.syncFromIndex();
+                }
+            } else {
+                this._taskController.syncFromIndex();
+            }
+            new Notice('Task added', 1000);
+        } catch (error) {
+            console.error('[DIWA GAWA] Failed to create task', error);
+            new Notice('Error creating task', 2000);
+        }
+    }
+
+    private parseInboxCaptureInput(value: string): ParsedInboxCapture {
+        const tags = Array.from(value.matchAll(/(^|\s)#([^\s#@!.,;:!?()[\]{}]+)/g)).map((match) => match[2]);
+        const dueTokens = Array.from(value.matchAll(/(^|\s)@([^\s#@!.,;:!?()[\]{}]+)/g)).map((match) => match[2]);
+        const priorityTokens = Array.from(value.matchAll(/(^|\s)!([^\s#@!.,;:!?()[\]{}]+)/g)).map((match) => match[2]);
+
+        const projectLookup = this.buildProjectLookup();
+        const contexts: string[] = [];
+        let project: string | null = null;
+        for (const tag of tags) {
+            const resolvedProject = projectLookup.get(this.normalizeCaptureToken(tag));
+            if (!project && resolvedProject) {
+                project = resolvedProject;
+                continue;
+            }
+            if (!contexts.includes(tag)) contexts.push(tag);
+        }
+
+        let dueDate: string | null = null;
+        for (const token of dueTokens) {
+            const parsed = this.tryParseCaptureDate(token);
+            if (parsed) {
+                dueDate = parsed;
+                break;
+            }
+        }
+
+        let priority: ParsedInboxCapture['priority'] = null;
+        for (const token of priorityTokens) {
+            const parsed = this.parseCapturePriority(token);
+            if (parsed) {
+                priority = parsed;
+                break;
+            }
+        }
+
+        const text = value
+            .replace(/(^|\s)(#[^\s#@!.,;:!?()[\]{}]+|@[^\s#@!.,;:!?()[\]{}]+|![^\s#@!.,;:!?()[\]{}]+)/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        return { text, contexts, dueDate, project, priority };
+    }
+
+    private buildProjectLookup(): Map<string, string> {
+        const projectLookup = new Map<string, string>();
+        for (const project of this.plugin.index.projectIndex.values()) {
+            if (project.status === 'archived') continue;
+            projectLookup.set(this.normalizeCaptureToken(project.name), project.name);
+            projectLookup.set(this.normalizeCaptureToken(project.id), project.name);
+        }
+        return projectLookup;
+    }
+
+    private normalizeCaptureToken(value: string): string {
+        return value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+    }
+
+    private tryParseCaptureDate(token: string): string | null {
+        const normalized = token.replace(/[_-]/g, ' ').trim();
+        const naturalDate = parseNaturalDate(normalized);
+        if (naturalDate) return naturalDate;
+        const strictDate = moment(token, 'YYYY-MM-DD', true);
+        return strictDate.isValid() ? strictDate.format('YYYY-MM-DD') : null;
+    }
+
+    private parseCapturePriority(token: string): ParsedInboxCapture['priority'] {
+        const normalized = token.toLowerCase();
+        if (['h', 'high', 'p1', '1'].includes(normalized)) return 'high';
+        if (['m', 'med', 'medium', 'p2', '2'].includes(normalized)) return 'medium';
+        if (['l', 'low', 'p3', '3'].includes(normalized)) return 'low';
+        return null;
+    }
+
+    private async buildOptimisticTask(
+        file: TFile,
+        parsed: ParsedInboxCapture,
+        status: TaskEntry['status'],
+        focus: boolean,
+    ): Promise<TaskEntry> {
+        let taskId: string | undefined;
+        try {
+            const content = await this.app.vault.read(file);
+            const match = content.match(/^\s*taskId:\s*("?)([^\r\n"]+)\1\s*$/m);
+            taskId = match?.[2]?.trim() || undefined;
+        } catch {
+            // File exists but read may race briefly on sync backends.
+        }
+
+        const now = Date.now();
+        const created = moment(now).format('YYYY-MM-DD HH:mm:ss');
+        const day = moment(now).format('YYYY-MM-DD');
+        const firstLine = parsed.text.split('\n').find((line) => line.trim()) || parsed.text;
+        const bucketStatus: TaskBucketStatus = status === 'waiting' ? 'active' : 'backlog';
+        const lifecycleStatus: TaskEntry['lifecycleStatus'] = bucketStatus === 'active' ? 'active' : 'planned';
+
+        return {
+            filePath: file.path,
+            title: firstLine.replace(/[#*_`\[\]]/g, '').trim() || parsed.text,
+            created,
+            modified: created,
+            day,
+            status,
+            due: parsed.dueDate || '',
+            context: [...parsed.contexts],
+            body: parsed.text,
+            lastUpdate: now,
+            children: [],
+            project: parsed.project || undefined,
+            priority: parsed.priority ?? undefined,
+            bucketStatus,
+            focus,
+            lifecycleStatus,
+            taskId,
+        };
+    }
+
+    private resolveTaskKey(task: TaskEntry): string {
+        return task.taskId?.trim() || task.filePath;
     }
 
     private createInboxPaneConfig(): PaneConfig {

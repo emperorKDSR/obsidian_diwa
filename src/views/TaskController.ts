@@ -1,4 +1,4 @@
-import { moment, TFile } from 'obsidian';
+import { Notice, moment, TFile } from 'obsidian';
 import type DiwaPlugin from '../main';
 import type { TaskBucketStatus, TaskEntry } from '../types';
 
@@ -32,6 +32,34 @@ function mapBucketToLifecycle(bucket: TaskBucketStatus): TaskEntry['lifecycleSta
     if (bucket === 'done') return 'done';
     if (bucket === 'active') return 'active';
     return 'planned';
+}
+
+type WorkflowState = 'backlog' | 'active' | 'focus' | 'done';
+type WorkflowAction = 'promote' | 'focus' | 'demote' | 'complete';
+
+const MAX_FOCUS_TASKS = 3;
+
+function resolveWorkflowState(task: TaskEntry): WorkflowState {
+    const bucket = resolveTaskBucket(task);
+    if (bucket === 'done') return 'done';
+    if (bucket === 'active' && !!task.focus) return 'focus';
+    if (bucket === 'active') return 'active';
+    return 'backlog';
+}
+
+function resolveNextWorkflowState(current: WorkflowState, action: WorkflowAction): WorkflowState {
+    if (action === 'complete') return 'done';
+    if (action === 'focus') return 'focus';
+    if (action === 'promote') {
+        if (current === 'backlog' || current === 'focus' || current === 'done') return 'active';
+        return 'active';
+    }
+    if (action === 'demote') {
+        if (current === 'focus') return 'active';
+        if (current === 'active' || current === 'done') return 'backlog';
+        return 'backlog';
+    }
+    return current;
 }
 
 export class TaskController {
@@ -109,53 +137,73 @@ export class TaskController {
         bucket: TaskBucketStatus,
         options?: { focus?: boolean }
     ): Promise<boolean> {
-        const resolved = this.resolveTaskRecord(taskId);
-        if (!resolved) {
-            console.warn('[DIWA TaskController] moveTaskToBucket called for unknown task', { taskId, bucket });
-            return false;
-        }
-        const task = this.plugin.index.taskIndex.get(resolved.filePath) ?? resolved.task;
-        const nextBucket = bucket;
-        const nextFocus = nextBucket === 'done'
-            ? false
-            : (options?.focus ?? task.focus ?? false);
-        const now = Date.now();
-        const isoNow = new Date(now).toISOString();
-        const updatedTask: TaskEntry = {
-            ...task,
-            bucketStatus: nextBucket,
-            focus: nextFocus,
-            status: mapBucketToStatus(nextBucket),
-            lifecycleStatus: mapBucketToLifecycle(nextBucket),
-            modified: moment(now).format('YYYY-MM-DD HH:mm:ss'),
-            updatedAt: isoNow,
-            completedAt: nextBucket === 'done' ? isoNow : undefined,
-            lastUpdate: now,
-        };
-        return this.persistTask(updatedTask);
+        if (bucket === 'done') return this.completeTask(taskId);
+        if (bucket === 'active' && options?.focus) return this.focusTask(taskId);
+        if (bucket === 'active') return this.promoteTask(taskId);
+        if (bucket === 'backlog') return this.demoteTask(taskId);
+        return false;
+    }
+
+    async promoteTask(taskId: string): Promise<boolean> {
+        return this.applyWorkflowAction(taskId, 'promote');
+    }
+
+    async focusTask(taskId: string): Promise<boolean> {
+        return this.applyWorkflowAction(taskId, 'focus');
+    }
+
+    async demoteTask(taskId: string): Promise<boolean> {
+        return this.applyWorkflowAction(taskId, 'demote');
+    }
+
+    async completeTask(taskId: string): Promise<boolean> {
+        return this.applyWorkflowAction(taskId, 'complete');
     }
 
     async setTaskFocus(taskId: string, focus: boolean): Promise<boolean> {
-        const resolved = this.resolveTaskRecord(taskId);
-        if (!resolved) {
+        if (focus) return this.focusTask(taskId);
+        const task = this.getTask(taskId);
+        if (!task) {
             console.warn('[DIWA TaskController] setTaskFocus called for unknown task', { taskId, focus });
             return false;
         }
-        const task = this.plugin.index.taskIndex.get(resolved.filePath) ?? resolved.task;
-        const bucket = resolveTaskBucket(task) === 'done' ? 'active' : resolveTaskBucket(task);
-        return this.moveTaskToBucket(getTaskKey(task), bucket, { focus });
+        const currentState = resolveWorkflowState(task);
+        if (currentState === 'focus') return this.demoteTask(taskId);
+        return true;
     }
 
     async toggleTask(taskId: string): Promise<boolean> {
-        const resolved = this.resolveTaskRecord(taskId);
-        if (!resolved) {
+        const task = this.getTask(taskId);
+        if (!task) {
             console.warn('[DIWA TaskController] toggleTask called for unknown task', { taskId });
             return false;
         }
+        const currentState = resolveWorkflowState(task);
+        return currentState === 'done' ? this.demoteTask(taskId) : this.completeTask(taskId);
+    }
+
+    async updateTaskMetadata(
+        taskId: string,
+        updates: { project?: string | null; dueDate?: string | null },
+    ): Promise<boolean> {
+        const resolved = this.resolveTaskRecord(taskId);
+        if (!resolved) {
+            console.warn('[DIWA TaskController] updateTaskMetadata called for unknown task', { taskId, updates });
+            return false;
+        }
         const task = this.plugin.index.taskIndex.get(resolved.filePath) ?? resolved.task;
-        const currentBucket = resolveTaskBucket(task);
-        const nextBucket: TaskBucketStatus = currentBucket === 'done' ? 'backlog' : 'done';
-        return this.moveTaskToBucket(taskId, nextBucket, { focus: false });
+        const now = Date.now();
+        const due = updates.dueDate !== undefined ? (updates.dueDate || '') : task.due;
+        const project = updates.project !== undefined ? (updates.project || undefined) : task.project;
+        const updatedTask: TaskEntry = {
+            ...task,
+            due,
+            project,
+            modified: moment(now).format('YYYY-MM-DD HH:mm:ss'),
+            updatedAt: new Date(now).toISOString(),
+            lastUpdate: now,
+        };
+        return this.persistTask(updatedTask);
     }
 
     async reconcileTask(
@@ -222,6 +270,57 @@ export class TaskController {
         await this.reindexTask(task.filePath);
         await this.reconcileTask(task.filePath, task.status, task);
         return true;
+    }
+
+    private async applyWorkflowAction(taskId: string, action: WorkflowAction): Promise<boolean> {
+        const resolved = this.resolveTaskRecord(taskId);
+        if (!resolved) {
+            console.warn('[DIWA TaskController] workflow action called for unknown task', { taskId, action });
+            return false;
+        }
+        const task = this.plugin.index.taskIndex.get(resolved.filePath) ?? resolved.task;
+        const currentState = resolveWorkflowState(task);
+        const nextState = resolveNextWorkflowState(currentState, action);
+
+        if (action === 'focus' && nextState === 'focus' && currentState !== 'focus') {
+            const focusedCount = this.getFocusedTaskCount(getTaskKey(task));
+            if (focusedCount >= MAX_FOCUS_TASKS) {
+                new Notice(`Focus is limited to ${MAX_FOCUS_TASKS} tasks.`, 1800);
+                return false;
+            }
+        }
+
+        if (nextState === currentState) return true;
+        const updatedTask = this.buildTaskForState(task, nextState);
+        return this.persistTask(updatedTask);
+    }
+
+    private buildTaskForState(task: TaskEntry, state: WorkflowState): TaskEntry {
+        const now = Date.now();
+        const isoNow = new Date(now).toISOString();
+        const nextBucket: TaskBucketStatus = state === 'done' ? 'done' : (state === 'backlog' ? 'backlog' : 'active');
+        const nextFocus = state === 'focus';
+        return {
+            ...task,
+            bucketStatus: nextBucket,
+            focus: nextFocus,
+            status: mapBucketToStatus(nextBucket),
+            lifecycleStatus: mapBucketToLifecycle(nextBucket),
+            modified: moment(now).format('YYYY-MM-DD HH:mm:ss'),
+            updatedAt: isoNow,
+            completedAt: state === 'done' ? isoNow : undefined,
+            lastUpdate: now,
+        };
+    }
+
+    private getFocusedTaskCount(excludingTaskKey?: string): number {
+        let count = 0;
+        for (const task of this.plugin.index.taskIndex.values()) {
+            const taskKey = getTaskKey(task);
+            if (excludingTaskKey && taskKey === excludingTaskKey) continue;
+            if (resolveWorkflowState(task) === 'focus') count++;
+        }
+        return count;
     }
 
     private getIndexSnapshot(): TaskEntry[] {
