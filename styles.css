@@ -6750,3 +6750,57 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 .diwa-gawa-mobile-pane-shell .diwa-dh-task-item {
   min-height: 36px;
 }
+
+.diwa-dh-task-list-section.is-drop-target {
+  border-color: var(--interactive-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--interactive-accent) 48%, transparent);
+  background: color-mix(in srgb, var(--interactive-accent) 8%, var(--background-primary) 92%);
+}
+
+.diwa-dh-task-item.is-dragging {
+  opacity: 0.55;
+}
+
+.diwa-dh-task-item.is-updated {
+  background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-modifier-hover) 86%);
+}
+
+.diwa-dh-task-item.is-focused .diwa-dh-task-title {
+  color: var(--interactive-accent);
+}
+
+.diwa-dh-task-item.is-done .diwa-dh-task-title {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.diwa-dh-task-quick-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.diwa-dh-task-quick-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.diwa-dh-task-quick-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.diwa-dh-task-quick-btn.is-active {
+  background: color-mix(in srgb, var(--interactive-accent) 16%, transparent);
+  color: var(--interactive-accent);
+}

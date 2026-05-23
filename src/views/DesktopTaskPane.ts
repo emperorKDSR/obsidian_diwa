@@ -1,6 +1,6 @@
 import { Notice, TFile, moment, setIcon } from 'obsidian';
 import type { App } from 'obsidian';
-import type { TaskEntry } from '../types';
+import type { TaskBucketStatus, TaskEntry } from '../types';
 import { attachInlineTriggers, attachMediaPasteHandler } from '../utils';
 import type { TaskController, TaskPanePort } from './TaskController';
 
@@ -34,6 +34,10 @@ export interface TaskPaneOptions {
     showFilterPills?: boolean;
     emptyMessage?: string;
     showQuickInput?: boolean;
+    showBucketActions?: boolean;
+    bucketOnDrop?: TaskBucketStatus;
+    focusOnDrop?: boolean;
+    allowDragDrop?: boolean;
 }
 
 export interface TaskPaneHost {
@@ -276,6 +280,10 @@ export class TaskPane implements TaskPanePort {
     private readonly title: string;
     private readonly emptyMessage?: string;
     private readonly showFilterPills: boolean;
+    private readonly showBucketActions: boolean;
+    private readonly bucketOnDrop?: TaskBucketStatus;
+    private readonly focusOnDrop?: boolean;
+    private readonly allowDragDrop: boolean;
     private readonly hooks: TaskItemHooks;
     readonly paneId: string;
     private pendingSnapshot: TaskEntry[] | null = null;
@@ -293,6 +301,10 @@ export class TaskPane implements TaskPanePort {
         this.title = options.title ?? 'TASKS';
         this.emptyMessage = options.emptyMessage;
         this.showFilterPills = options.showFilterPills ?? true;
+        this.showBucketActions = options.showBucketActions ?? false;
+        this.bucketOnDrop = options.bucketOnDrop;
+        this.focusOnDrop = options.focusOnDrop;
+        this.allowDragDrop = options.allowDragDrop ?? false;
         this.customFilter = options.filterFn ?? null;
         this.baseFilter = options.baseFilterFn ?? ((task) => task.status === 'open' || task.status === 'waiting');
         this.sortComparator = options.sortFn ?? null;
@@ -322,6 +334,13 @@ export class TaskPane implements TaskPanePort {
 
         this.emptyEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-empty' });
         this.listEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-list' });
+        if (this.allowDragDrop && this.bucketOnDrop) {
+            this.rootEl.setAttr('data-drop-bucket', this.bucketOnDrop);
+            this.rootEl.addEventListener('dragenter', (event) => this.handleDragEnter(event));
+            this.rootEl.addEventListener('dragover', (event) => this.handleDragOver(event));
+            this.rootEl.addEventListener('dragleave', (event) => this.handleDragLeave(event));
+            this.rootEl.addEventListener('drop', (event) => this.handleDrop(event));
+        }
         this.guardContainerAgainstFullClear(this.rootEl, 'task-pane-root');
         this.guardContainerAgainstFullClear(this.listEl, 'task-pane-list');
 
@@ -385,7 +404,14 @@ export class TaskPane implements TaskPanePort {
                 });
                 strayRow.remove();
             }
-            const itemView = new TaskItemView(this.view, this.controller, this.hooks, this.listEl, task);
+            const itemView = new TaskItemView(
+                this.view,
+                this.controller,
+                this.hooks,
+                this.listEl,
+                task,
+                this.showBucketActions
+            );
             this.taskMap.set(taskId, itemView);
             this.warnIfDuplicateDomNode(taskId);
         }
@@ -563,6 +589,43 @@ export class TaskPane implements TaskPanePort {
         this.verifyDomIntegrity(source, taskId);
     }
 
+    private handleDragEnter(event: DragEvent): void {
+        if (!this.getDraggedTaskId(event)) return;
+        event.preventDefault();
+        this.rootEl.addClass('is-drop-target');
+    }
+
+    private handleDragOver(event: DragEvent): void {
+        if (!this.getDraggedTaskId(event)) return;
+        event.preventDefault();
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+        this.rootEl.addClass('is-drop-target');
+    }
+
+    private handleDragLeave(event: DragEvent): void {
+        const nextTarget = event.relatedTarget as Node | null;
+        if (nextTarget && this.rootEl.contains(nextTarget)) return;
+        this.rootEl.removeClass('is-drop-target');
+    }
+
+    private handleDrop(event: DragEvent): void {
+        this.rootEl.removeClass('is-drop-target');
+        const draggedTaskId = this.getDraggedTaskId(event);
+        if (!draggedTaskId || !this.bucketOnDrop) return;
+        event.preventDefault();
+        void this.controller.moveTaskToBucket(draggedTaskId, this.bucketOnDrop, {
+            focus: this.focusOnDrop,
+        });
+    }
+
+    private getDraggedTaskId(event: DragEvent): string | null {
+        const dataTransfer = event.dataTransfer;
+        if (!dataTransfer) return null;
+        return dataTransfer.getData('application/x-diwa-task-id')
+            || dataTransfer.getData('text/plain')
+            || null;
+    }
+
     private removeTaskById(taskId: string): void {
         const itemView = this.taskMap.get(taskId);
         itemView?.destroy();
@@ -699,10 +762,15 @@ export class TaskItemView {
     private contentEl: HTMLElement;
     private titleEl: HTMLElement;
     private dueEl: HTMLElement | null = null;
+    private quickActionsEl: HTMLElement | null = null;
+    private activateBtnEl: HTMLElement | null = null;
+    private focusBtnEl: HTMLElement | null = null;
+    private doneBtnEl: HTMLElement | null = null;
     private editBtnEl: HTMLElement;
     private currentTask: TaskEntry;
     private destroyed = false;
     private groupKey: string | null = null;
+    private flashTimer: number | null = null;
 
     constructor(
         private view: TaskPaneHost,
@@ -710,11 +778,15 @@ export class TaskItemView {
         private hooks: TaskItemHooks,
         parent: HTMLElement,
         task: TaskEntry,
+        private showBucketActions: boolean,
     ) {
         this.currentTask = task;
         this.rootEl = parent.createEl('div', { cls: 'diwa-dh-task-item' });
         this.rootEl.setAttr('data-task-id', getTaskKey(task));
         this.rootEl.tabIndex = 0;
+        this.rootEl.draggable = true;
+        this.rootEl.addEventListener('dragstart', (event) => this.handleDragStart(event));
+        this.rootEl.addEventListener('dragend', () => this.rootEl.removeClass('is-dragging'));
 
         this.checkboxEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-checkbox' });
         this.checkboxEl.addEventListener('click', (e) => {
@@ -724,6 +796,38 @@ export class TaskItemView {
 
         this.contentEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-content' });
         this.titleEl = this.contentEl.createEl('span', { cls: 'diwa-dh-task-title' });
+        if (this.showBucketActions) {
+            this.quickActionsEl = this.contentEl.createEl('div', { cls: 'diwa-dh-task-quick-actions' });
+            this.activateBtnEl = this.quickActionsEl.createEl('button', {
+                cls: 'diwa-dh-task-quick-btn',
+                attr: { title: 'Move to Active', 'aria-label': 'Move to Active' }
+            });
+            setIcon(this.activateBtnEl, 'lucide-play');
+            this.activateBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                void this.moveToBucket('active', false);
+            });
+
+            this.focusBtnEl = this.quickActionsEl.createEl('button', {
+                cls: 'diwa-dh-task-quick-btn',
+                attr: { title: 'Set Focus', 'aria-label': 'Set Focus' }
+            });
+            setIcon(this.focusBtnEl, 'lucide-target');
+            this.focusBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                void this.moveToBucket('active', true);
+            });
+
+            this.doneBtnEl = this.quickActionsEl.createEl('button', {
+                cls: 'diwa-dh-task-quick-btn',
+                attr: { title: 'Mark Done', 'aria-label': 'Mark Done' }
+            });
+            setIcon(this.doneBtnEl, 'lucide-check');
+            this.doneBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                void this.moveToBucket('done', false);
+            });
+        }
 
         this.editBtnEl = this.rootEl.createEl('button', {
             cls: 'diwa-dh-task-edit-btn',
@@ -737,6 +841,22 @@ export class TaskItemView {
         });
         this.rootEl.addEventListener('click', (e) => this.handleClick(e));
         this.rootEl.addEventListener('keydown', (e: KeyboardEvent) => {
+            if (this.rootEl.hasClass('is-editing')) return;
+            if (e.key === ' ' || e.code === 'Space') {
+                e.preventDefault();
+                void this.handleToggle();
+                return;
+            }
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                e.preventDefault();
+                void this.moveToBucket('active', true);
+                return;
+            }
+            if (e.shiftKey && e.key === 'Enter') {
+                e.preventDefault();
+                void this.moveToBucket('active', false);
+                return;
+            }
             if (e.key !== 'Delete') return;
             this.hooks.onDelete?.(getTaskKey(this.currentTask));
         });
@@ -778,6 +898,10 @@ export class TaskItemView {
     destroy(): void {
         if (this.destroyed) return;
         this.destroyed = true;
+        if (this.flashTimer !== null) {
+            window.clearTimeout(this.flashTimer);
+            this.flashTimer = null;
+        }
         if (!this.rootEl.isConnected) {
             console.warn('[DIWA TaskPane] destroy called for already-detached task row', {
                 taskId: getTaskKey(this.currentTask),
@@ -786,6 +910,33 @@ export class TaskItemView {
             return;
         }
         this.rootEl.remove();
+    }
+
+    private handleDragStart(event: DragEvent): void {
+        const dataTransfer = event.dataTransfer;
+        if (!dataTransfer) return;
+        const taskId = getTaskKey(this.currentTask);
+        dataTransfer.setData('application/x-diwa-task-id', taskId);
+        dataTransfer.setData('text/plain', taskId);
+        dataTransfer.effectAllowed = 'move';
+        this.rootEl.addClass('is-dragging');
+    }
+
+    private async moveToBucket(bucket: TaskBucketStatus, focus?: boolean): Promise<void> {
+        if (this.destroyed) return;
+        if (this.rootEl.hasClass('is-completing')) return;
+        this.rootEl.addClass('is-completing');
+        try {
+            const ok = await this.controller.moveTaskToBucket(getTaskKey(this.currentTask), bucket, { focus });
+            if (!ok) {
+                new Notice('Error updating task', 2000);
+            }
+        } catch (error) {
+            console.error('[DIWA TaskPane] Error moving task', error);
+            new Notice('Error updating task', 2000);
+        } finally {
+            this.rootEl.removeClass('is-completing');
+        }
     }
 
     private async handleToggle(): Promise<void> {
@@ -933,9 +1084,19 @@ export class TaskItemView {
 
         const wasOverdue = this.isOverdue(prev.due);
         const isOverdue = this.isOverdue(task.due);
+        const wasDone = this.isDoneTask(prev);
+        const isDone = this.isDoneTask(task);
+        const wasFocused = !!prev.focus;
+        const isFocused = !!task.focus;
         if (force || wasOverdue !== isOverdue) this.rootEl.toggleClass('is-overdue', isOverdue);
+        if (force || wasDone !== isDone) this.rootEl.toggleClass('is-done', isDone);
+        if (force || wasFocused !== isFocused) this.rootEl.toggleClass('is-focused', isFocused);
         if (force || prev.title !== task.title) this.titleEl.setText(task.title);
         if (force || prev.due !== task.due || wasOverdue !== isOverdue) this.renderDue(task.due, isOverdue);
+        if (this.showBucketActions) this.syncQuickActionState(task);
+        if (!force && (wasDone !== isDone || wasFocused !== isFocused || prev.bucketStatus !== task.bucketStatus)) {
+            this.flashUpdate();
+        }
     }
 
     private renderDue(due: string, isOverdue: boolean): void {
@@ -954,5 +1115,27 @@ export class TaskItemView {
 
     private isOverdue(due: string): boolean {
         return !!(due && moment(due, 'YYYY-MM-DD').isBefore(moment().startOf('day'), 'day'));
+    }
+
+    private isDoneTask(task: TaskEntry): boolean {
+        return task.status === 'done' || task.bucketStatus === 'done' || task.lifecycleStatus === 'done';
+    }
+
+    private syncQuickActionState(task: TaskEntry): void {
+        if (!this.showBucketActions) return;
+        const isDone = this.isDoneTask(task);
+        this.doneBtnEl?.toggleClass('is-active', isDone);
+        this.focusBtnEl?.toggleClass('is-active', !!task.focus && !isDone);
+        const isActive = task.bucketStatus === 'active' || task.status === 'waiting' || task.lifecycleStatus === 'active';
+        this.activateBtnEl?.toggleClass('is-active', isActive && !isDone);
+    }
+
+    private flashUpdate(): void {
+        this.rootEl.addClass('is-updated');
+        if (this.flashTimer !== null) window.clearTimeout(this.flashTimer);
+        this.flashTimer = window.setTimeout(() => {
+            this.rootEl.removeClass('is-updated');
+            this.flashTimer = null;
+        }, 420);
     }
 }

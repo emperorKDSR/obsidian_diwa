@@ -56,7 +56,8 @@ export class VaultService {
         const parentLine = recurrenceParentId ? `recurrenceParentId: "${recurrenceParentId}"\n` : '';
         const priorityLine = priority ? `priority: ${priority}\n` : '';
         const energyLine = energy ? `energy: ${energy}\n` : '';
-        return `---\ntitle: "${safeTitle}"\ntaskId: ${taskId}\ncreated: ${created}\nmodified: ${modified}\nday: "[[${dayStr}]]"\narea: DIWA_TASKS\nstatus: ${status}\ndue: ${dueYaml}\ncontext:\n${contextYaml}\ntags:\n${contextYaml}\n${projectLine}${recurrenceLine}${parentLine}${priorityLine}${energyLine}---\n`;
+        const bucketLine = status === 'done' ? 'bucket: done\n' : (status === 'waiting' ? 'bucket: active\n' : 'bucket: backlog\n');
+        return `---\ntitle: "${safeTitle}"\ntaskId: ${taskId}\ncreated: ${created}\nmodified: ${modified}\nday: "[[${dayStr}]]"\narea: DIWA_TASKS\nstatus: ${status}\n${bucketLine}focus: false\ndue: ${dueYaml}\ncontext:\n${contextYaml}\ntags:\n${contextYaml}\n${projectLine}${recurrenceLine}${parentLine}${priorityLine}${energyLine}---\n`;
     }
 
     // sec-006: Strip characters that break YAML string values
@@ -260,6 +261,8 @@ export class VaultService {
         try {
             await this.app.fileManager.processFrontMatter(file, (fm) => {
                 fm['status'] = done ? 'done' : 'open';
+                fm['bucket'] = done ? 'done' : 'backlog';
+                if (done) fm['focus'] = false;
                 fm['modified'] = this.formatDateTime(new Date());
             });
         } catch (e) {
@@ -299,6 +302,9 @@ export class VaultService {
         status:     string;
         contexts:   string[];
         project:    string | null;
+        bucketStatus?: 'backlog' | 'active' | 'done' | null;
+        focus?: boolean | null;
+        bodyText?: string;
     }): Promise<boolean> {
         const file = this.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) { new Notice('Task file not found.'); return false; }
@@ -316,6 +322,14 @@ export class VaultService {
                 fm['tags']     = safeContexts;
                 fm['due']      = updates.dueDate ? `[[${updates.dueDate}]]` : '';
                 fm['status']   = updates.status;
+                if (updates.bucketStatus !== undefined) {
+                    if (updates.bucketStatus !== null) fm['bucket'] = updates.bucketStatus;
+                    else delete fm['bucket'];
+                }
+                if (updates.focus !== undefined) {
+                    if (updates.focus !== null) fm['focus'] = updates.focus;
+                    else delete fm['focus'];
+                }
                 if (updates.priority !== null) { fm['priority'] = updates.priority; }
                 else { delete fm['priority']; }
                 if (updates.energy !== null) { fm['energy'] = updates.energy; }
@@ -334,7 +348,8 @@ export class VaultService {
             const existing     = content.slice(bodyStart);
             const replyIdx     = existing.indexOf('\n## [[');
             const replySuffix  = replyIdx !== -1 ? existing.slice(replyIdx) : '';
-            await this.app.vault.modify(file, content.slice(0, bodyStart) + updates.title + '\n' + replySuffix);
+            const bodyText = (updates.bodyText ?? updates.title).trim();
+            await this.app.vault.modify(file, content.slice(0, bodyStart) + bodyText + '\n' + replySuffix);
             return true;
         } catch (e) {
             console.error('[DIWA VaultService]', e);

@@ -315,6 +315,12 @@ export class IndexService {
             energy: fm.energy || undefined,
             recurrence: fm.recurrence || undefined,
             recurrenceParentId: fm.recurrenceParentId || undefined,
+            bucketStatus: (['backlog', 'active', 'done'].includes(String(fm.bucket)))
+                ? String(fm.bucket) as 'backlog' | 'active' | 'done'
+                : undefined,
+            focus: typeof fm.focus === 'boolean'
+                ? fm.focus
+                : (String(fm.focus).toLowerCase() === 'true' ? true : undefined),
             // Unified task model fields — gracefully absent on legacy tasks
             taskId: fm.taskId ? String(fm.taskId) : undefined,
             origin: fm.origin === 'thought' ? 'thought' : (fm.origin === 'direct' ? 'direct' : undefined),

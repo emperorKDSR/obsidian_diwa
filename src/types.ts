@@ -133,6 +133,8 @@ export interface TaskEntry {
     energy?: 'high' | 'medium' | 'low';
     recurrence?: RecurrenceRule;
     recurrenceParentId?: string;
+    bucketStatus?: TaskBucketStatus;
+    focus?: boolean;
     // Unified task model fields — absent on legacy tasks; treat as defaults below
     taskId?: string;                        // stable ID stored in frontmatter
     origin?: 'thought' | 'direct';         // how the task was created
@@ -146,6 +148,7 @@ export interface TaskEntry {
 }
 
 export type RecurrenceRule = 'daily' | 'weekly' | 'biweekly' | 'monthly';
+export type TaskBucketStatus = 'backlog' | 'active' | 'done';
 
 /**
  * Unified task object — represents both tasks created from thoughts and

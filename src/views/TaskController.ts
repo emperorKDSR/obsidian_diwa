@@ -1,6 +1,6 @@
 import { moment, TFile } from 'obsidian';
 import type DiwaPlugin from '../main';
-import type { TaskEntry } from '../types';
+import type { TaskBucketStatus, TaskEntry } from '../types';
 
 export interface TaskPanePort {
     paneId: string;
@@ -13,6 +13,25 @@ export interface TaskPanePort {
 
 function getTaskKey(task: TaskEntry): string {
     return task.taskId?.trim() || task.filePath;
+}
+
+function resolveTaskBucket(task: TaskEntry): TaskBucketStatus {
+    if (task.bucketStatus) return task.bucketStatus;
+    if (task.status === 'done' || task.lifecycleStatus === 'done') return 'done';
+    if (task.status === 'waiting' || task.lifecycleStatus === 'active') return 'active';
+    return 'backlog';
+}
+
+function mapBucketToStatus(bucket: TaskBucketStatus): TaskEntry['status'] {
+    if (bucket === 'done') return 'done';
+    if (bucket === 'active') return 'waiting';
+    return 'open';
+}
+
+function mapBucketToLifecycle(bucket: TaskBucketStatus): TaskEntry['lifecycleStatus'] {
+    if (bucket === 'done') return 'done';
+    if (bucket === 'active') return 'active';
+    return 'planned';
 }
 
 export class TaskController {
@@ -81,39 +100,62 @@ export class TaskController {
         for (const pane of this.paneRegistry.values()) pane.removeTask(resolved.taskKey, resolved.filePath);
     }
 
+    getTask(taskId: string): TaskEntry | null {
+        return this.resolveTaskRecord(taskId)?.task ?? null;
+    }
+
+    async moveTaskToBucket(
+        taskId: string,
+        bucket: TaskBucketStatus,
+        options?: { focus?: boolean }
+    ): Promise<boolean> {
+        const resolved = this.resolveTaskRecord(taskId);
+        if (!resolved) {
+            console.warn('[DIWA TaskController] moveTaskToBucket called for unknown task', { taskId, bucket });
+            return false;
+        }
+        const task = this.plugin.index.taskIndex.get(resolved.filePath) ?? resolved.task;
+        const nextBucket = bucket;
+        const nextFocus = nextBucket === 'done'
+            ? false
+            : (options?.focus ?? task.focus ?? false);
+        const now = Date.now();
+        const isoNow = new Date(now).toISOString();
+        const updatedTask: TaskEntry = {
+            ...task,
+            bucketStatus: nextBucket,
+            focus: nextFocus,
+            status: mapBucketToStatus(nextBucket),
+            lifecycleStatus: mapBucketToLifecycle(nextBucket),
+            modified: moment(now).format('YYYY-MM-DD HH:mm:ss'),
+            updatedAt: isoNow,
+            completedAt: nextBucket === 'done' ? isoNow : undefined,
+            lastUpdate: now,
+        };
+        return this.persistTask(updatedTask);
+    }
+
+    async setTaskFocus(taskId: string, focus: boolean): Promise<boolean> {
+        const resolved = this.resolveTaskRecord(taskId);
+        if (!resolved) {
+            console.warn('[DIWA TaskController] setTaskFocus called for unknown task', { taskId, focus });
+            return false;
+        }
+        const task = this.plugin.index.taskIndex.get(resolved.filePath) ?? resolved.task;
+        const bucket = resolveTaskBucket(task) === 'done' ? 'active' : resolveTaskBucket(task);
+        return this.moveTaskToBucket(getTaskKey(task), bucket, { focus });
+    }
+
     async toggleTask(taskId: string): Promise<boolean> {
         const resolved = this.resolveTaskRecord(taskId);
         if (!resolved) {
             console.warn('[DIWA TaskController] toggleTask called for unknown task', { taskId });
             return false;
         }
-
         const task = this.plugin.index.taskIndex.get(resolved.filePath) ?? resolved.task;
-        const nextStatus: TaskEntry['status'] = task.status === 'done' ? 'open' : 'done';
-        this.plugin.refreshCoordinator.suppressNotifyRefresh(800);
-        const ok = await this.plugin.vault.updateTaskEntry(task.filePath, {
-            title: task.title,
-            dueDate: task.due || null,
-            recurrence: task.recurrence || null,
-            priority: task.priority || null,
-            energy: task.energy || null,
-            status: nextStatus,
-            contexts: task.context || [],
-            project: task.project || null,
-        });
-        if (!ok) return false;
-
-        const now = Date.now();
-        const updatedTask: TaskEntry = {
-            ...task,
-            status: nextStatus,
-            modified: moment(now).format('YYYY-MM-DD HH:mm:ss'),
-            lastUpdate: now,
-        };
-        this.updateTask(updatedTask);
-        await this.reindexTask(task.filePath);
-        await this.reconcileTask(task.filePath, nextStatus, updatedTask);
-        return true;
+        const currentBucket = resolveTaskBucket(task);
+        const nextBucket: TaskBucketStatus = currentBucket === 'done' ? 'backlog' : 'done';
+        return this.moveTaskToBucket(taskId, nextBucket, { focus: false });
     }
 
     async reconcileTask(
@@ -158,6 +200,28 @@ export class TaskController {
     private async reindexTask(filePath: string): Promise<void> {
         const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
         if (file instanceof TFile) await this.plugin.refreshCoordinator.reindexFile(file);
+    }
+
+    private async persistTask(task: TaskEntry): Promise<boolean> {
+        this.plugin.refreshCoordinator.suppressNotifyRefresh(800);
+        const ok = await this.plugin.vault.updateTaskEntry(task.filePath, {
+            title: task.title,
+            bodyText: task.body || task.title,
+            dueDate: task.due || null,
+            recurrence: task.recurrence || null,
+            priority: task.priority || null,
+            energy: task.energy || null,
+            status: task.status,
+            contexts: task.context || [],
+            project: task.project || null,
+            bucketStatus: task.bucketStatus ?? null,
+            focus: task.focus ?? null,
+        });
+        if (!ok) return false;
+        this.updateTask(task);
+        await this.reindexTask(task.filePath);
+        await this.reconcileTask(task.filePath, task.status, task);
+        return true;
     }
 
     private getIndexSnapshot(): TaskEntry[] {

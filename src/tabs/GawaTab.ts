@@ -2,7 +2,7 @@ import { Notice, Platform, TFile, moment, setIcon } from 'obsidian';
 import type { DiwaView } from '../view';
 import { BaseTab } from './BaseTab';
 import { EditEntryModal } from '../modals/EditEntryModal';
-import type { TaskEntry } from '../types';
+import type { TaskBucketStatus, TaskEntry } from '../types';
 import { isTablet, parseContextString } from '../utils';
 import { TaskController } from '../views/TaskController';
 import { TaskPane, type TaskPaneHost, type TaskFilterFn, type TaskSortFn } from '../views/DesktopTaskPane';
@@ -14,6 +14,8 @@ interface PaneConfig {
     baseFilterFn: TaskFilterFn;
     filterFn: TaskFilterFn;
     sortFn?: TaskSortFn;
+    bucketOnDrop: TaskBucketStatus;
+    focusOnDrop?: boolean;
 }
 
 type MobileTabId = 'inbox' | 'today' | 'focus' | 'projects';
@@ -206,6 +208,10 @@ export class GawaTab extends BaseTab {
             baseFilterFn: config.baseFilterFn,
             filterFn: config.filterFn,
             sortFn: config.sortFn,
+            allowDragDrop: true,
+            bucketOnDrop: config.bucketOnDrop,
+            focusOnDrop: config.focusOnDrop,
+            showBucketActions: true,
         });
         this._paneMap.set(config.paneId, pane);
         this._taskController.registerPane(pane);
@@ -310,7 +316,9 @@ export class GawaTab extends BaseTab {
             paneId: 'gawa-inbox',
             title: 'INBOX',
             emptyMessage: 'Inbox is clear.',
-            baseFilterFn: (task) => task.status !== 'done',
+            bucketOnDrop: 'backlog',
+            focusOnDrop: false,
+            baseFilterFn: (task) => this.getBucketStatus(task) === 'backlog',
             filterFn: (task) => !task.project && !task.due,
         };
     }
@@ -320,7 +328,9 @@ export class GawaTab extends BaseTab {
             paneId: 'gawa-projects',
             title: 'PROJECTS',
             emptyMessage: 'No project tasks.',
-            baseFilterFn: (task) => task.status !== 'done',
+            bucketOnDrop: 'backlog',
+            focusOnDrop: false,
+            baseFilterFn: (task) => this.getBucketStatus(task) === 'backlog',
             filterFn: (task) => !!task.project,
         };
     }
@@ -330,7 +340,9 @@ export class GawaTab extends BaseTab {
             paneId: 'gawa-today',
             title: 'TODAY',
             emptyMessage: 'Nothing due today.',
-            baseFilterFn: (task) => task.status !== 'done',
+            bucketOnDrop: 'active',
+            focusOnDrop: false,
+            baseFilterFn: (task) => this.getBucketStatus(task) !== 'done',
             filterFn: (task) => this.isTodayOrOverdue(task),
             sortFn: (a, b) => {
                 if (a.due && b.due) return a.due.localeCompare(b.due);
@@ -346,7 +358,9 @@ export class GawaTab extends BaseTab {
             paneId: 'gawa-backlog',
             title: 'BACKLOG',
             emptyMessage: 'Backlog is empty.',
-            baseFilterFn: (task) => task.status === 'open' || task.status === 'waiting' || task.status === 'someday',
+            bucketOnDrop: 'backlog',
+            focusOnDrop: false,
+            baseFilterFn: (task) => this.getBucketStatus(task) === 'backlog',
             filterFn: (task) => !this.isTodayOrOverdue(task),
         };
     }
@@ -356,11 +370,10 @@ export class GawaTab extends BaseTab {
             paneId: 'gawa-focus',
             title: 'FOCUS',
             emptyMessage: 'No focus candidates.',
-            baseFilterFn: (task) => task.status !== 'done',
-            filterFn: (task) => {
-                const priority = this.getPriorityScore(task.priority);
-                return task.status === 'waiting' || this.isTodayOrOverdue(task) || priority >= 3;
-            },
+            bucketOnDrop: 'active',
+            focusOnDrop: true,
+            baseFilterFn: (task) => this.getBucketStatus(task) !== 'done',
+            filterFn: (task) => this.isFocusTask(task),
             sortFn: (a, b) => {
                 const aPriority = this.getPriorityScore(a.priority);
                 const bPriority = this.getPriorityScore(b.priority);
@@ -378,7 +391,9 @@ export class GawaTab extends BaseTab {
             paneId: 'gawa-active',
             title: 'ACTIVE',
             emptyMessage: 'No active tasks.',
-            baseFilterFn: (task) => task.status === 'waiting',
+            bucketOnDrop: 'active',
+            focusOnDrop: false,
+            baseFilterFn: (task) => this.getBucketStatus(task) === 'active',
             filterFn: () => true,
             sortFn: (a, b) => (b.lastUpdate || 0) - (a.lastUpdate || 0),
         };
@@ -396,5 +411,19 @@ export class GawaTab extends BaseTab {
         if (priority === 'medium') return 2;
         if (priority === 'low') return 1;
         return 0;
+    }
+
+    private getBucketStatus(task: TaskEntry): TaskBucketStatus {
+        if (task.bucketStatus) return task.bucketStatus;
+        if (task.status === 'done' || task.lifecycleStatus === 'done') return 'done';
+        if (task.status === 'waiting' || task.lifecycleStatus === 'active') return 'active';
+        return 'backlog';
+    }
+
+    private isFocusTask(task: TaskEntry): boolean {
+        if (task.focus) return true;
+        if (this.getBucketStatus(task) === 'done') return false;
+        const priority = this.getPriorityScore(task.priority);
+        return this.isTodayOrOverdue(task) || priority >= 3;
     }
 }
