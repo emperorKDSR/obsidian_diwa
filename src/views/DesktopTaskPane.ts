@@ -759,8 +759,8 @@ export class TaskPane implements TaskPanePort {
 export class TaskItemView {
     rootEl: HTMLElement;
     private headerEl: HTMLElement;
+    private metaEl: HTMLElement;
     private checkboxEl: HTMLElement;
-    private contentEl: HTMLElement;
     private titleEl: HTMLElement;
     private dueEl: HTMLElement | null = null;
     private quickActionsEl: HTMLElement | null = null;
@@ -799,8 +799,7 @@ export class TaskItemView {
             void this.handleToggle();
         });
 
-        this.contentEl = mainEl.createEl('div', { cls: 'diwa-dh-task-content' });
-        this.titleEl = this.contentEl.createEl('span', { cls: 'diwa-dh-task-title' });
+        this.titleEl = mainEl.createEl('div', { cls: 'diwa-dh-task-title' });
         if (this.showBucketActions) {
             this.quickActionsEl = actionsEl.createEl('div', { cls: 'diwa-dh-task-quick-actions' });
             this.activateBtnEl = this.quickActionsEl.createEl('button', {
@@ -865,6 +864,8 @@ export class TaskItemView {
             if (e.key !== 'Delete') return;
             this.hooks.onDelete?.(getTaskKey(this.currentTask));
         });
+        this.metaEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-meta' });
+        this.metaEl.style.display = 'none';
 
         this.applyTask(task, true);
     }
@@ -979,6 +980,7 @@ export class TaskItemView {
         this.rootEl.addClass('is-editing');
         this.view._taskPending++;
         this.headerEl.style.display = 'none';
+        this.metaEl.style.display = 'none';
 
         let editContexts = [...(task.context || [])];
         let editDueDate: string | null = task.due || null;
@@ -1019,6 +1021,7 @@ export class TaskItemView {
             this.view._taskPending = Math.max(0, this.view._taskPending - 1);
             if (restore) {
                 this.headerEl.style.display = '';
+                this.syncMetaVisibility(!!this.currentTask.due);
             }
         };
 
@@ -1052,6 +1055,7 @@ export class TaskItemView {
                 console.error('[DIWA TaskPane] Error updating task', e);
                 new Notice('Error updating task', 2000);
                 this.headerEl.style.display = '';
+                this.syncMetaVisibility(!!this.currentTask.due);
             }
         };
 
@@ -1106,12 +1110,18 @@ export class TaskItemView {
                 this.dueEl.remove();
                 this.dueEl = null;
             }
+            this.syncMetaVisibility(false);
             return;
         }
         const dueM = moment(due, 'YYYY-MM-DD');
-        if (!this.dueEl) this.dueEl = this.contentEl.createEl('span', { cls: 'diwa-dh-task-due' });
+        if (!this.dueEl) this.dueEl = this.metaEl.createEl('div', { cls: 'diwa-dh-task-due' });
         this.dueEl.setText(isOverdue ? dueM.format('MMM D') : dueM.fromNow());
         this.dueEl.toggleClass('is-overdue', isOverdue);
+        this.syncMetaVisibility(true);
+    }
+
+    private syncMetaVisibility(visible: boolean): void {
+        this.metaEl.style.display = visible ? '' : 'none';
     }
 
     private isOverdue(due: string): boolean {
