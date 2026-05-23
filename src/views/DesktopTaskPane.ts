@@ -758,6 +758,7 @@ export class TaskPane implements TaskPanePort {
 
 export class TaskItemView {
     rootEl: HTMLElement;
+    private headerEl: HTMLElement;
     private checkboxEl: HTMLElement;
     private contentEl: HTMLElement;
     private titleEl: HTMLElement;
@@ -788,16 +789,20 @@ export class TaskItemView {
         this.rootEl.addEventListener('dragstart', (event) => this.handleDragStart(event));
         this.rootEl.addEventListener('dragend', () => this.rootEl.removeClass('is-dragging'));
 
-        this.checkboxEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-checkbox' });
+        this.headerEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-header' });
+        const mainEl = this.headerEl.createEl('div', { cls: 'diwa-dh-task-main' });
+        const actionsEl = this.headerEl.createEl('div', { cls: 'diwa-dh-task-actions' });
+
+        this.checkboxEl = mainEl.createEl('div', { cls: 'diwa-dh-task-checkbox' });
         this.checkboxEl.addEventListener('click', (e) => {
             e.stopPropagation();
             void this.handleToggle();
         });
 
-        this.contentEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-content' });
+        this.contentEl = mainEl.createEl('div', { cls: 'diwa-dh-task-content' });
         this.titleEl = this.contentEl.createEl('span', { cls: 'diwa-dh-task-title' });
         if (this.showBucketActions) {
-            this.quickActionsEl = this.contentEl.createEl('div', { cls: 'diwa-dh-task-quick-actions' });
+            this.quickActionsEl = actionsEl.createEl('div', { cls: 'diwa-dh-task-quick-actions' });
             this.activateBtnEl = this.quickActionsEl.createEl('button', {
                 cls: 'diwa-dh-task-quick-btn',
                 attr: { title: 'Move to Active', 'aria-label': 'Move to Active' }
@@ -829,7 +834,7 @@ export class TaskItemView {
             });
         }
 
-        this.editBtnEl = this.rootEl.createEl('button', {
+        this.editBtnEl = actionsEl.createEl('button', {
             cls: 'diwa-dh-task-edit-btn',
             attr: { title: 'Edit task', 'aria-label': 'Edit task' }
         });
@@ -960,7 +965,11 @@ export class TaskItemView {
     private handleClick(event: MouseEvent): void {
         const target = event.target as HTMLElement | null;
         if (!target) return;
-        if (target.closest('.diwa-dh-task-checkbox') || target.closest('.diwa-dh-task-edit-btn')) return;
+        if (
+            target.closest('.diwa-dh-task-checkbox')
+            || target.closest('.diwa-dh-task-edit-btn')
+            || target.closest('.diwa-dh-task-actions')
+        ) return;
         this.hooks.onClick?.(this.currentTask);
     }
 
@@ -969,9 +978,7 @@ export class TaskItemView {
         const task = this.currentTask;
         this.rootEl.addClass('is-editing');
         this.view._taskPending++;
-        this.checkboxEl.style.display = 'none';
-        this.contentEl.style.display = 'none';
-        this.editBtnEl.style.display = 'none';
+        this.headerEl.style.display = 'none';
 
         let editContexts = [...(task.context || [])];
         let editDueDate: string | null = task.due || null;
@@ -1011,9 +1018,7 @@ export class TaskItemView {
             form.remove();
             this.view._taskPending = Math.max(0, this.view._taskPending - 1);
             if (restore) {
-                this.checkboxEl.style.display = '';
-                this.contentEl.style.display = '';
-                this.editBtnEl.style.display = '';
+                this.headerEl.style.display = '';
             }
         };
 
@@ -1046,9 +1051,7 @@ export class TaskItemView {
             } catch (e) {
                 console.error('[DIWA TaskPane] Error updating task', e);
                 new Notice('Error updating task', 2000);
-                this.checkboxEl.style.display = '';
-                this.contentEl.style.display = '';
-                this.editBtnEl.style.display = '';
+                this.headerEl.style.display = '';
             }
         };
 
@@ -1077,9 +1080,7 @@ export class TaskItemView {
 
         if (this.rootEl.hasClass('is-editing')) return;
 
-        if (force || this.checkboxEl.style.display === 'none') this.checkboxEl.style.display = '';
-        if (force || this.contentEl.style.display === 'none') this.contentEl.style.display = '';
-        if (force || this.editBtnEl.style.display === 'none') this.editBtnEl.style.display = '';
+        if (force || this.headerEl.style.display === 'none') this.headerEl.style.display = '';
         if (this.rootEl.hasClass('is-completing')) this.rootEl.removeClass('is-completing');
 
         const wasOverdue = this.isOverdue(prev.due);

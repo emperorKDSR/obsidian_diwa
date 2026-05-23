@@ -4388,16 +4388,47 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 
 /* ── Task item ─────────────────────────────────────────────────── */
 .diwa-dh-task-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 8px 14px;
+  display: block;
+  padding: 10px 12px;
   cursor: default;
   transition: background var(--diwa-dh-transition);
-  border-radius: 0;
+  border-radius: 8px;
 }
 .diwa-dh-task-item:hover { background: var(--diwa-dh-surface); }
 .diwa-dh-task-item.is-completing { opacity: 0.4; pointer-events: none; transition: opacity 0.25s; }
+
+.diwa-dh-task-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.diwa-dh-task-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.diwa-dh-task-actions {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-1px);
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.diwa-dh-task-item:hover .diwa-dh-task-actions,
+.diwa-dh-task-item:focus-within .diwa-dh-task-actions {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
 
 .diwa-dh-task-checkbox {
   flex-shrink: 0;
@@ -4405,7 +4436,6 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   height: 16px;
   border-radius: 50%;
   border: 1.5px solid var(--text-faint);
-  margin-top: 2px;
   cursor: pointer;
   transition: border-color var(--diwa-dh-transition), background var(--diwa-dh-transition), box-shadow var(--diwa-dh-transition);
 }
@@ -4442,7 +4472,6 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 }
 .diwa-dh-task-due.is-overdue { color: var(--text-error, #e53e3e); font-weight: 600; }
 .diwa-dh-task-edit-btn {
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4454,11 +4483,8 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   border-radius: 6px;
   color: var(--text-faint);
   cursor: pointer;
-  opacity: 0;
-  margin-left: auto;
   transition: opacity 0.15s, color 0.15s, background 0.15s;
 }
-.diwa-dh-task-item:hover .diwa-dh-task-edit-btn { opacity: 1; }
 .diwa-dh-task-edit-btn:hover { color: var(--diwa-dh-accent); background: rgba(124,58,237,0.10); }
 .diwa-dh-task-edit-btn svg { width: 12px; height: 12px; }
 
@@ -6474,8 +6500,6 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 }
 
 .diwa-gawa-pane-shell .diwa-dh-task-item {
-  align-items: center;
-  gap: 10px;
   padding: 8px 12px;
   border-radius: 8px;
 }
@@ -6489,7 +6513,8 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 }
 
 .diwa-gawa-pane-shell .diwa-dh-task-content {
-  justify-content: center;
+  justify-content: flex-start;
+  gap: 2px;
 }
 
 .diwa-gawa-pane-shell .diwa-dh-task-title {
@@ -6677,9 +6702,7 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 .diwa-gawa-pane-shell .diwa-dh-task-item,
 .diwa-gawa-mobile-pane-shell .diwa-dh-task-item {
   min-height: 32px;
-  display: flex;
-  align-items: center;
-  gap: var(--gawa-space-2);
+  display: block;
   padding: var(--gawa-space-2) var(--gawa-space-3);
   border-radius: var(--gawa-radius-sm);
   border: 0;
@@ -6693,6 +6716,16 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 .diwa-gawa-mobile-pane-shell .diwa-dh-task-item:hover,
 .diwa-gawa-interactive:hover {
   background: var(--gawa-color-hover);
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-header,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-header {
+  gap: var(--gawa-space-2);
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-actions,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-actions {
+  gap: 4px;
 }
 
 .diwa-gawa-mobile-tab-btn {
@@ -6778,7 +6811,6 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-top: 4px;
 }
 
 .diwa-dh-task-quick-btn {
