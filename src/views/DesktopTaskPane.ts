@@ -1150,7 +1150,7 @@ export class TaskItemView {
             this.view._taskPending = Math.max(0, this.view._taskPending - 1);
             if (restore) {
                 this.headerEl.style.display = '';
-                this.syncMetaVisibility(true);
+                this.syncMetaVisibility(this.hasVisibleMetadata(this.currentTask));
             }
         };
 
@@ -1184,7 +1184,7 @@ export class TaskItemView {
                 console.error('[DIWA TaskPane] Error updating task', e);
                 new Notice('Error updating task', 2000);
                 this.headerEl.style.display = '';
-                this.syncMetaVisibility(true);
+                this.syncMetaVisibility(this.hasVisibleMetadata(this.currentTask));
             }
         };
 
@@ -1258,24 +1258,36 @@ export class TaskItemView {
             });
         }
 
-        const projectLabel = task.project?.trim() ? `#${task.project}` : '#project';
-        this.projectChipEl.setText(projectLabel);
-        this.projectChipEl.toggleClass('is-empty', !task.project?.trim());
-
-        let dueLabel = '@date';
-        if (task.due) {
-            const dueMoment = moment(task.due, 'YYYY-MM-DD', true);
-            dueLabel = dueMoment.isValid() ? `@${dueMoment.format('MMM D')}` : `@${task.due}`;
+        const projectName = task.project?.trim() || '';
+        const hasProject = projectName.length > 0;
+        if (hasProject) {
+            this.projectChipEl.setText(`#${projectName}`);
+            this.projectChipEl.style.display = '';
+        } else {
+            this.projectChipEl.style.display = 'none';
         }
-        this.dueChipEl.setText(dueLabel);
-        this.dueChipEl.toggleClass('is-empty', !task.due);
-        this.dueChipEl.toggleClass('is-overdue', !!task.due && isOverdue);
 
-        this.syncMetaVisibility(true);
+        const hasDue = !!task.due;
+        if (hasDue) {
+            const dueMoment = moment(task.due, 'YYYY-MM-DD', true);
+            const dueLabel = dueMoment.isValid() ? `@${dueMoment.format('MMM D')}` : `@${task.due}`;
+            this.dueChipEl.setText(dueLabel);
+            this.dueChipEl.style.display = '';
+            this.dueChipEl.toggleClass('is-overdue', isOverdue);
+        } else {
+            this.dueChipEl.style.display = 'none';
+            this.dueChipEl.removeClass('is-overdue');
+        }
+
+        this.syncMetaVisibility(hasProject || hasDue);
     }
 
     private syncMetaVisibility(visible: boolean): void {
         this.metaEl.style.display = visible ? '' : 'none';
+    }
+
+    private hasVisibleMetadata(task: TaskEntry): boolean {
+        return !!(task.project?.trim() || task.due);
     }
 
     private isOverdue(due: string): boolean {

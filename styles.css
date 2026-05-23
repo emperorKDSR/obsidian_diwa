@@ -4480,12 +4480,10 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   cursor: text;
 }
 .diwa-dh-task-meta {
+  display: block;
+  width: 100%;
   margin-top: 2px;
   min-width: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
   font-size: 11px;
   color: var(--text-muted);
   line-height: 1.3;
@@ -4495,9 +4493,11 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 }
 .diwa-dh-task-chip {
   display: inline-flex;
+  vertical-align: top;
   align-items: center;
   height: 18px;
   padding: 0 8px;
+  margin: 2px 6px 0 0;
   border: none;
   border-radius: 999px;
   background: color-mix(in srgb, var(--background-modifier-hover) 70%, transparent);
@@ -4511,15 +4511,8 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   background: color-mix(in srgb, var(--background-modifier-hover) 92%, transparent);
   color: var(--text-normal);
 }
-.diwa-dh-task-chip.is-empty {
-  opacity: 0.58;
-}
 .diwa-dh-task-chip.is-overdue {
   color: var(--text-error, #e53e3e);
-}
-.diwa-dh-task-item:not(:hover):not(:focus-within) .diwa-dh-task-chip.is-empty {
-  opacity: 0;
-  pointer-events: none;
 }
 
 .diwa-dh-inline-popover {
@@ -6990,6 +6983,8 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 
 .diwa-gawa-pane-shell .diwa-dh-task-meta,
 .diwa-gawa-mobile-pane-shell .diwa-dh-task-meta {
+  display: block;
+  margin-top: 2px;
   font-size: 11px;
   line-height: 1.3;
   color: var(--text-muted);
