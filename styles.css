@@ -4683,6 +4683,22 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   font-size: 12px;
 }
 
+.task-thought-icon {
+  opacity: 0.58;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.1;
+  padding: 2px 4px;
+}
+
+.task-thought-icon:hover,
+.task-thought-icon.is-active {
+  opacity: 1;
+  color: var(--text-normal);
+}
+
 .diwa-dh-task-thought-input:focus {
   outline: none;
   border-color: var(--interactive-accent);
@@ -4698,6 +4714,24 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   border-radius: 10px;
   background: color-mix(in srgb, var(--background-primary) 95%, var(--background-secondary) 5%);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+}
+
+.thought-popover {
+  max-width: 280px;
+  width: 280px;
+  max-height: 300px;
+  border: none;
+  background: color-mix(in srgb, var(--background-secondary) 24%, var(--background-primary) 76%);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.14);
+}
+
+.thought-popover-title {
+  margin-bottom: 6px;
+}
+
+.thought-popover .thought-list {
+  max-height: 220px;
+  overflow-y: auto;
 }
 
 .diwa-dh-inline-popover-search,
