@@ -293,8 +293,11 @@ export class DesktopHubView extends ItemView {
             const feedWrap = parent.createEl('div', { cls: 'diwa-dh-feed-wrap' });
             this._feedEl = feedWrap.createEl('div', { cls: 'diwa-dh-feed-list' });
             this._feedEmptyEl = feedWrap.createEl('div', { cls: 'diwa-dh-feed-empty', text: 'Nothing captured yet.' });
-            this.scheduleFeedRefresh();
         }
+        // Always schedule a refresh — on first open the index may not be ready yet;
+        // subsequent renderView() calls (e.g. after onLayoutReady hydrates the index)
+        // must also repopulate the feed. RAF debounce makes extra calls free.
+        this.scheduleFeedRefresh();
     }
 
     private renderContextFilter(parent: HTMLElement) {
