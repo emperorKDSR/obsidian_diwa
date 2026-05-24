@@ -32,7 +32,7 @@ export class FocusService {
         let tasks = this.taskRepo.getAllTasks().slice();
 
         if (!includeDone) {
-            tasks = tasks.filter((task) => task.status !== 'done' && task.lifecycleStatus !== 'done' && task.bucketStatus !== 'done');
+            tasks = tasks.filter((task) => !this.isDoneTask(task));
         }
 
         if (contexts?.length) {
@@ -41,24 +41,15 @@ export class FocusService {
         }
 
         const today = moment().startOf('day');
-        const isOverdue = (task: TaskEntry): boolean => {
-            if (!task.due?.trim()) return false;
-            const due = moment(task.due, 'YYYY-MM-DD', true);
-            return due.isValid() && due.isBefore(today, 'day');
-        };
-        const isDueToday = (task: TaskEntry): boolean => {
-            if (!task.due?.trim()) return false;
-            const due = moment(task.due, 'YYYY-MM-DD', true);
-            return due.isValid() && due.isSame(today, 'day');
-        };
-        const isPinned = (task: TaskEntry): boolean => !!task.focus;
-
-        const overdue = includeOverdue ? tasks.filter(isOverdue) : [];
-        const dueToday = includeDueToday ? tasks.filter((task) => isDueToday(task) && !isOverdue(task)) : [];
-        const pinned = includePinned ? tasks.filter((task) => isPinned(task) && !isOverdue(task) && !isDueToday(task)) : [];
-
-        const rest = tasks
-            .filter((task) => !overdue.includes(task) && !dueToday.includes(task) && !pinned.includes(task))
+        const deduped = tasks
+            .filter((task) => {
+                const isPinned = includePinned && !!task.focus;
+                const dueState = this.getDueState(task, today);
+                const isUrgent = (includeOverdue && dueState === 'overdue')
+                    || (includeDueToday && dueState === 'today');
+                const isPriority = this.getPriorityScore(task.priority) >= 3;
+                return isPinned || isUrgent || isPriority;
+            })
             .sort((left, right) => {
                 const leftPriority = this.getPriorityScore(left.priority);
                 const rightPriority = this.getPriorityScore(right.priority);
@@ -70,16 +61,34 @@ export class FocusService {
                 if (leftDue) return -1;
                 if (rightDue) return 1;
 
+                const leftUpdate = left.lastUpdate || 0;
+                const rightUpdate = right.lastUpdate || 0;
+                if (leftUpdate !== rightUpdate) return rightUpdate - leftUpdate;
                 return (right.modified || '').localeCompare(left.modified || '');
             });
-
-        const deduped = Array.from(new Map([...overdue, ...dueToday, ...pinned, ...rest]
-            .map((task) => [task.taskId?.trim() || task.id || task.filePath, task])).values());
 
         if (typeof limit === 'number') {
             return deduped.slice(0, Math.max(0, limit));
         }
         return deduped;
+    }
+
+    private isDoneTask(task: TaskEntry): boolean {
+        return task.status === 'done'
+            || task.state === 'done'
+            || task.bucketStatus === 'done'
+            || task.lifecycleStatus === 'done'
+            || !!task.completedAt;
+    }
+
+    private getDueState(task: TaskEntry, today: ReturnType<typeof moment>): 'none' | 'today' | 'overdue' | 'future' {
+        const dueRaw = task.due?.trim();
+        if (!dueRaw) return 'none';
+        const due = moment(dueRaw, 'YYYY-MM-DD', true);
+        if (!due.isValid()) return 'none';
+        if (due.isBefore(today, 'day')) return 'overdue';
+        if (due.isSame(today, 'day')) return 'today';
+        return 'future';
     }
 
     private getPriorityScore(priority: TaskEntry['priority']): number {

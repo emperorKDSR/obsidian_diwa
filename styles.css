@@ -7736,6 +7736,17 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   margin-top: 2px;
 }
 
+.diwa-gawa-desktop.is-tablet .diwa-dh-task-checkbox,
+.diwa-tablet-shell .diwa-gawa-cb {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50% !important;
+  box-sizing: border-box;
+}
+
 .diwa-gawa-mobile-pane-shell .diwa-dh-task-edit-btn {
   width: 28px;
   height: 28px;
