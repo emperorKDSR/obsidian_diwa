@@ -4267,6 +4267,144 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   transition: background 0.15s;
 }
 .diwa-dh-chip:hover { background: rgba(124,58,237,0.22); }
+/* ── Center Feed (DesktopHubView) ─────────────── */
+.diwa-dh-ctx-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.diwa-dh-ctx-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.diwa-dh-ctx-chip {
+  padding: 3px 11px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 500;
+  border: 1px solid var(--background-modifier-border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.diwa-dh-ctx-chip:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.diwa-dh-ctx-chip.is-active {
+  background: rgba(124,58,237,0.12);
+  color: var(--diwa-dh-accent);
+  border-color: rgba(124,58,237,0.35);
+}
+.diwa-dh-scope-pills {
+  display: flex;
+  gap: 4px;
+}
+.diwa-dh-scope-pill {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 500;
+  border: 1px solid var(--background-modifier-border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.diwa-dh-scope-pill:hover { background: var(--background-modifier-hover); }
+.diwa-dh-scope-pill.is-active {
+  background: var(--background-modifier-active-hover);
+  color: var(--text-normal);
+  border-color: var(--background-modifier-border-hover);
+}
+
+.diwa-dh-feed-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 32px 48px;
+}
+.diwa-dh-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.diwa-dh-feed-empty {
+  padding: 32px 0;
+  font-size: 13px;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+/* Thought rows */
+.diwa-dh-thought-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  cursor: default;
+}
+.diwa-dh-thought-row:hover { background: var(--background-modifier-hover); border-radius: 6px; padding-left: 8px; padding-right: 8px; margin: 0 -8px; }
+.diwa-dh-thought-row-left {
+  flex: 0 0 auto;
+  min-width: 48px;
+  padding-top: 2px;
+}
+.diwa-dh-thought-row-time {
+  font-size: 11px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.diwa-dh-thought-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.diwa-dh-thought-row-text {
+  font-size: 13.5px;
+  color: var(--text-normal);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.diwa-dh-thought-row-ctx {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.diwa-dh-thought-ctx-badge {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  background: var(--background-secondary);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.diwa-dh-thought-row-archive {
+  flex: 0 0 auto;
+  opacity: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-faint);
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: opacity 0.15s, color 0.12s;
+}
+.diwa-dh-thought-row:hover .diwa-dh-thought-row-archive { opacity: 1; }
+.diwa-dh-thought-row-archive:hover { color: var(--text-accent); background: var(--background-modifier-hover); }
+.diwa-dh-thought-row-archive svg { width: 13px; height: 13px; }
+
 
 /* ── Today Feed (Timeline) ────────────────────── */
 .diwa-dh-feed {

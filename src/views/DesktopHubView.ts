@@ -7,7 +7,7 @@ import {
     SETTINGS_ICON_ID, TIMELINE_ICON_ID, JOURNAL_ICON_ID, COMPASS_ICON_ID,
 } from '../constants';
 import { attachInlineTriggers, isTablet } from '../utils';
-import type { TaskEntry } from '../types';
+import type { TaskEntry, ThoughtEntry } from '../types';
 import { DesktopTaskPaneView } from './DesktopTaskPane';
 import { TaskController } from './TaskController';
 import { ThoughtController } from './ThoughtController';
@@ -37,6 +37,15 @@ export class DesktopHubView extends ItemView {
     private _captureInputEl: HTMLTextAreaElement | null = null;
     private _captureHintEl: HTMLElement | null = null;
 
+    // Feed state
+    private _feedEl: HTMLElement | null = null;
+    private _feedEmptyEl: HTMLElement | null = null;
+    private _feedScope: 'today' | 'all' = 'today';
+    private _activeContext: string = 'all';
+    private _feedRowMap = new Map<string, { rootEl: HTMLElement; textEl: HTMLElement; timeEl: HTMLElement; ctxEl: HTMLElement; sig: string }>();
+    private _thoughtUnsubscribe: (() => void) | null = null;
+    private _feedRafId: number | null = null;
+
     constructor(leaf: WorkspaceLeaf, plugin: DiwaPlugin) {
         super(leaf);
         this.plugin = plugin;
@@ -63,11 +72,17 @@ export class DesktopHubView extends ItemView {
         // Hide Obsidian's leaf header
         const header = this.containerEl.children[0] as HTMLElement;
         if (header) header.style.display = 'none';
+        this._thoughtUnsubscribe = this._thoughtController.subscribe(() => {
+            this.scheduleFeedRefresh();
+        });
         this.renderView();
     }
 
     async onClose() {
         this._closed = true;
+        this._thoughtUnsubscribe?.();
+        this._thoughtUnsubscribe = null;
+        if (this._feedRafId !== null) { cancelAnimationFrame(this._feedRafId); this._feedRafId = null; }
         this.resetLayoutRefs();
     }
 
@@ -166,6 +181,9 @@ export class DesktopHubView extends ItemView {
         this._captureSectionEl = null;
         this._captureInputEl = null;
         this._captureHintEl = null;
+        this._feedEl = null;
+        this._feedEmptyEl = null;
+        this._feedRowMap.clear();
     }
 
     // ── Top Bar ───────────────────────────────────────────────────────────────
@@ -269,7 +287,164 @@ export class DesktopHubView extends ItemView {
         if (!this._captureSectionEl || !parent.contains(this._captureSectionEl)) {
             this._captureSectionEl = parent.createEl('div', { cls: 'diwa-dh-capture-section' });
             this.renderCapture(this._captureSectionEl);
+            this.renderContextFilter(this._captureSectionEl);
         }
+        if (!this._feedEl || !parent.contains(this._feedEl)) {
+            const feedWrap = parent.createEl('div', { cls: 'diwa-dh-feed-wrap' });
+            this._feedEl = feedWrap.createEl('div', { cls: 'diwa-dh-feed-list' });
+            this._feedEmptyEl = feedWrap.createEl('div', { cls: 'diwa-dh-feed-empty', text: 'Nothing captured yet.' });
+            this.scheduleFeedRefresh();
+        }
+    }
+
+    private renderContextFilter(parent: HTMLElement) {
+        const bar = parent.createEl('div', { cls: 'diwa-dh-ctx-filter-bar' });
+
+        const chipsEl = bar.createEl('div', { cls: 'diwa-dh-ctx-chips' });
+        const scopeEl = bar.createEl('div', { cls: 'diwa-dh-scope-pills' });
+
+        const renderChips = () => {
+            chipsEl.empty();
+            const contexts = this.plugin.settings.contexts ?? [];
+            const all = ['all', ...contexts];
+            for (const ctx of all) {
+                const label = ctx === 'all' ? 'All' : `#${ctx}`;
+                const chip = chipsEl.createEl('button', {
+                    cls: `diwa-dh-ctx-chip${this._activeContext === ctx ? ' is-active' : ''}`,
+                    text: label,
+                    attr: { type: 'button' },
+                });
+                chip.addEventListener('click', () => {
+                    this._activeContext = ctx;
+                    renderChips();
+                    this.scheduleFeedRefresh();
+                });
+            }
+        };
+        renderChips();
+
+        const scopes: Array<{ key: 'today' | 'all'; label: string }> = [
+            { key: 'today', label: 'Today' },
+            { key: 'all', label: 'All' },
+        ];
+        for (const s of scopes) {
+            const btn = scopeEl.createEl('button', {
+                cls: `diwa-dh-scope-pill${this._feedScope === s.key ? ' is-active' : ''}`,
+                text: s.label,
+                attr: { type: 'button' },
+            });
+            btn.addEventListener('click', () => {
+                this._feedScope = s.key;
+                for (const el of Array.from(scopeEl.querySelectorAll<HTMLElement>('.diwa-dh-scope-pill'))) {
+                    el.toggleClass('is-active', el.textContent === s.label);
+                }
+                this.scheduleFeedRefresh();
+            });
+        }
+    }
+
+    // ── Feed ──────────────────────────────────────────────────────────────────
+    private scheduleFeedRefresh(): void {
+        if (this._feedRafId !== null) return;
+        this._feedRafId = window.requestAnimationFrame(() => {
+            this._feedRafId = null;
+            this.patchFeed();
+        });
+    }
+
+    private patchFeed(): void {
+        if (!this._feedEl || this._closed) return;
+
+        const today = new Date().toISOString().slice(0, 10);
+        let thoughts = this._thoughtController.getAllThoughts().filter(t => !t.archived);
+
+        if (this._activeContext !== 'all') {
+            const ctxLow = this._activeContext.toLowerCase();
+            thoughts = thoughts.filter(t => (t.context ?? []).some(c => c.toLowerCase() === ctxLow));
+        }
+        if (this._feedScope === 'today') {
+            thoughts = thoughts.filter(t => t.day === today);
+        }
+
+        // Newest first
+        thoughts = [...thoughts].sort((a, b) => (b.created ?? '').localeCompare(a.created ?? ''));
+
+        const seen = new Set<string>();
+        for (const thought of thoughts) {
+            const id = thought.id || thought.filePath;
+            seen.add(id);
+            const sig = `${thought.created}|${thought.modified}|${thought.updatedAt}|${(thought.context ?? []).join(',')}|${thought.body || thought.content || thought.title}`;
+
+            let row = this._feedRowMap.get(id);
+            if (!row) {
+                const rootEl = this._feedEl.createEl('div', { cls: 'diwa-dh-thought-row' });
+                rootEl.dataset.id = id;
+                const leftEl = rootEl.createEl('div', { cls: 'diwa-dh-thought-row-left' });
+                const timeEl = leftEl.createEl('span', { cls: 'diwa-dh-thought-row-time' });
+                const bodyEl = rootEl.createEl('div', { cls: 'diwa-dh-thought-row-body' });
+                const textEl = bodyEl.createEl('div', { cls: 'diwa-dh-thought-row-text' });
+                const ctxEl = bodyEl.createEl('div', { cls: 'diwa-dh-thought-row-ctx' });
+                const archiveBtn = rootEl.createEl('button', {
+                    cls: 'diwa-dh-thought-row-archive',
+                    attr: { type: 'button', title: 'Archive', 'aria-label': 'Archive' },
+                }) as HTMLButtonElement;
+                setIcon(archiveBtn, 'archive');
+                archiveBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const t = this._thoughtController.getThought(id);
+                    if (t) await this._thoughtController.setArchived(id, true);
+                });
+                row = { rootEl, textEl, timeEl, ctxEl, sig: '' };
+                this._feedRowMap.set(id, row);
+            }
+
+            if (row.sig !== sig) {
+                row.timeEl.setText(this.formatThoughtTime(thought));
+                row.textEl.setText(thought.body || thought.content || thought.title || '');
+                row.ctxEl.empty();
+                for (const ctx of (thought.context ?? [])) {
+                    row.ctxEl.createEl('span', { cls: 'diwa-dh-thought-ctx-badge', text: `#${ctx}` });
+                }
+                row.sig = sig;
+            }
+        }
+
+        // Remove rows no longer in set
+        for (const [id, row] of this._feedRowMap) {
+            if (!seen.has(id)) {
+                row.rootEl.remove();
+                this._feedRowMap.delete(id);
+            }
+        }
+
+        // Enforce display order
+        thoughts.forEach((t, i) => {
+            const row = this._feedRowMap.get(t.id || t.filePath);
+            if (!row) return;
+            if (this._feedEl!.children[i] !== row.rootEl) {
+                this._feedEl!.insertBefore(row.rootEl, this._feedEl!.children[i] ?? null);
+            }
+        });
+
+        const hasVisible = seen.size > 0;
+        if (this._feedEmptyEl) {
+            this._feedEmptyEl.style.display = hasVisible ? 'none' : '';
+            if (!hasVisible) {
+                this._feedEmptyEl.setText(
+                    this._feedScope === 'today' ? 'Nothing captured today.' : 'No thoughts yet.'
+                );
+            }
+        }
+    }
+
+    private formatThoughtTime(t: ThoughtEntry): string {
+        if (!t.created) return '';
+        const today = new Date().toISOString().slice(0, 10);
+        const isToday = t.day === today;
+        const timeStr = (t.created ?? '').slice(11, 16); // "HH:mm"
+        if (isToday) return timeStr;
+        const dateStr = (t.created ?? '').slice(5, 10).replace('-', '/'); // "MM/DD"
+        return `${dateStr} ${timeStr}`;
     }
 
     private renderCapture(parent: HTMLElement) {
