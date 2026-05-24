@@ -20,8 +20,23 @@ export class ThoughtController {
     private initialized = false;
     private updatingThoughtPaths = new Set<string>();
 
+    // Index-ready gate: views must await readyPromise before first render
+    private _ready = false;
+    private _resolveReady!: () => void;
+    readonly readyPromise: Promise<void>;
+
     constructor(private plugin: DiwaPlugin) {
         this.thoughtIndex = new ThoughtIndex();
+        this.readyPromise = new Promise<void>(resolve => { this._resolveReady = resolve; });
+    }
+
+    isReady(): boolean { return this._ready; }
+
+    markReady(): void {
+        if (!this._ready) {
+            this._ready = true;
+            this._resolveReady();
+        }
     }
 
     subscribe(listener: (thought: ThoughtEntry) => void): () => void {

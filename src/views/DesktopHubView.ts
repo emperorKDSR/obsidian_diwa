@@ -40,10 +40,16 @@ export class DesktopHubView extends ItemView {
     // Feed state
     private _feedEl: HTMLElement | null = null;
     private _feedEmptyEl: HTMLElement | null = null;
+    private _feedLoadingEl: HTMLElement | null = null;
+    private _feedWrapEl: HTMLElement | null = null;
+    private _scrollSentinelEl: HTMLElement | null = null;
+    private _scrollObserver: IntersectionObserver | null = null;
     private _activeContext: string = 'all';
     private _feedRowMap = new Map<string, { rootEl: HTMLElement; textEl: HTMLElement; timeEl: HTMLElement; ctxEl: HTMLElement; sig: string }>();
+    private _sortedThoughts: ThoughtEntry[] = [];
+    private _visibleCount: number = 50;
     private _thoughtUnsubscribe: (() => void) | null = null;
-    private _feedRafId: number | null = null;
+    private _feedDebounceTimer: number | null = null;
 
     // Topbar guard: only rebuild when focus mode changes or topbar is new
     private _topBarFocusMode: boolean | null = null;
@@ -79,19 +85,20 @@ export class DesktopHubView extends ItemView {
             this.scheduleFeedRefresh();
         });
         this.renderView();
-        // Safety net: re-kick the feed after onLayoutReady has had time to hydrate the thought index.
-        // The initial renderView() fires before the index is populated; this catches the case where
-        // the 400ms notifyRefresh debounce doesn't trigger a second renderView().
-        setTimeout(() => {
+        // Wait for the index to be fully ready before the first real feed render.
+        // This eliminates the race condition where the view renders before buildIndices() completes.
+        this._thoughtController.readyPromise.then(() => {
             if (!this._closed) this.scheduleFeedRefresh();
-        }, 900);
+        });
     }
 
     async onClose() {
         this._closed = true;
         this._thoughtUnsubscribe?.();
         this._thoughtUnsubscribe = null;
-        if (this._feedRafId !== null) { cancelAnimationFrame(this._feedRafId); this._feedRafId = null; }
+        if (this._feedDebounceTimer !== null) { clearTimeout(this._feedDebounceTimer); this._feedDebounceTimer = null; }
+        this._scrollObserver?.disconnect();
+        this._scrollObserver = null;
         this.resetLayoutRefs();
     }
 
@@ -202,7 +209,12 @@ export class DesktopHubView extends ItemView {
         this._captureHintEl = null;
         this._feedEl = null;
         this._feedEmptyEl = null;
+        this._feedLoadingEl = null;
+        this._feedWrapEl = null;
+        this._scrollSentinelEl = null;
         this._feedRowMap.clear();
+        this._sortedThoughts = [];
+        this._visibleCount = 50;
         this._topBarFocusMode = null;
         this._focusBtnEl = null;
     }
@@ -313,13 +325,26 @@ export class DesktopHubView extends ItemView {
         }
         if (!this._feedEl || !parent.contains(this._feedEl)) {
             const feedWrap = parent.createEl('div', { cls: 'diwa-dh-feed-wrap' });
+            this._feedWrapEl = feedWrap;
+            this._feedLoadingEl = feedWrap.createEl('div', { cls: 'diwa-dh-feed-loading', text: 'Loading thoughts…' });
             this._feedEl = feedWrap.createEl('div', { cls: 'diwa-dh-feed-list' });
-            this._feedEmptyEl = feedWrap.createEl('div', { cls: 'diwa-dh-feed-empty', text: 'Nothing captured yet.' });
+            this._feedEmptyEl = feedWrap.createEl('div', { cls: 'diwa-dh-feed-empty' });
+            this._scrollSentinelEl = feedWrap.createEl('div', { cls: 'diwa-dh-scroll-sentinel' });
+            this.mountScrollObserver();
         }
-        // Always schedule a refresh — on first open the index may not be ready yet;
-        // subsequent renderView() calls (e.g. after onLayoutReady hydrates the index)
-        // must also repopulate the feed. RAF debounce makes extra calls free.
         this.scheduleFeedRefresh();
+    }
+
+    private mountScrollObserver(): void {
+        if (!this._scrollSentinelEl || !this._feedWrapEl) return;
+        this._scrollObserver?.disconnect();
+        this._scrollObserver = new IntersectionObserver((entries) => {
+            if (entries[0]?.isIntersecting && !this._closed) {
+                this._visibleCount += 30;
+                this.patchFeed();
+            }
+        }, { root: this._feedWrapEl, rootMargin: '120px' });
+        this._scrollObserver.observe(this._scrollSentinelEl);
     }
 
     private renderContextFilter(parent: HTMLElement) {
@@ -339,6 +364,7 @@ export class DesktopHubView extends ItemView {
                 });
                 chip.addEventListener('click', () => {
                     this._activeContext = ctx;
+                    this._visibleCount = 50; // reset pagination on filter change
                     renderChips();
                     this.patchFeed();
                 });
@@ -349,32 +375,46 @@ export class DesktopHubView extends ItemView {
 
     // ── Feed ──────────────────────────────────────────────────────────────────
     private scheduleFeedRefresh(): void {
-        // Cancel any pending RAF and requeue — ensures latest state always wins.
-        if (this._feedRafId !== null) cancelAnimationFrame(this._feedRafId);
-        this._feedRafId = window.requestAnimationFrame(() => {
-            this._feedRafId = null;
-            this.patchFeed();
-        });
+        if (this._feedDebounceTimer !== null) clearTimeout(this._feedDebounceTimer);
+        this._feedDebounceTimer = window.setTimeout(() => {
+            this._feedDebounceTimer = null;
+            if (!this._closed) this.patchFeed();
+        }, 75);
     }
 
     private patchFeed(): void {
         if (!this._feedEl || this._closed) return;
 
-        let thoughts = this._thoughtController.getAllThoughts().filter(t => !t.archived);
+        // Show loading state until the index is fully hydrated
+        if (!this._thoughtController.isReady()) {
+            if (this._feedLoadingEl) this._feedLoadingEl.style.display = '';
+            if (this._feedEmptyEl) this._feedEmptyEl.style.display = 'none';
+            return;
+        }
+        if (this._feedLoadingEl) this._feedLoadingEl.style.display = 'none';
+
+        const allThoughts = this._thoughtController.getAllThoughts();
+        let thoughts = allThoughts.filter(t => !t.archived);
 
         if (this._activeContext !== 'all') {
             const ctxLow = this._activeContext.toLowerCase();
             thoughts = thoughts.filter(t => (t.context ?? []).some(c => c.toLowerCase() === ctxLow));
         }
 
-        // Newest first
-        thoughts = [...thoughts].sort((a, b) => (b.created ?? '').localeCompare(a.created ?? ''));
+        // Stable sort: newest first using numeric timestamp (avoids Date-object/string ambiguity)
+        thoughts = [...thoughts].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
 
+        console.log('[FEED] total:', allThoughts.length, 'filtered:', thoughts.length);
+
+        this._sortedThoughts = thoughts;
+        const visibleThoughts = thoughts.slice(0, this._visibleCount);
+
+        // Diff render: add/update visible rows, remove rows no longer visible
         const seen = new Set<string>();
-        for (const thought of thoughts) {
+        for (const thought of visibleThoughts) {
             const id = thought.id || thought.filePath;
             seen.add(id);
-            const sig = `${thought.created}|${thought.modified}|${thought.updatedAt}|${(thought.context ?? []).join(',')}|${thought.body || thought.content || thought.title}`;
+            const sig = `${thought.createdAt}|${thought.updatedAt}|${(thought.context ?? []).join(',')}|${thought.body || thought.content || thought.title}`;
 
             let row = this._feedRowMap.get(id);
             if (!row) {
@@ -410,7 +450,7 @@ export class DesktopHubView extends ItemView {
             }
         }
 
-        // Remove rows no longer in set
+        // Remove rows that are no longer in the visible window
         for (const [id, row] of this._feedRowMap) {
             if (!seen.has(id)) {
                 row.rootEl.remove();
@@ -418,8 +458,8 @@ export class DesktopHubView extends ItemView {
             }
         }
 
-        // Enforce display order
-        thoughts.forEach((t, i) => {
+        // Enforce display order (newest first)
+        visibleThoughts.forEach((t, i) => {
             const row = this._feedRowMap.get(t.id || t.filePath);
             if (!row) return;
             if (this._feedEl!.children[i] !== row.rootEl) {
@@ -427,11 +467,16 @@ export class DesktopHubView extends ItemView {
             }
         });
 
-        const hasVisible = seen.size > 0;
+        // Empty state differentiation
         if (this._feedEmptyEl) {
+            const hasVisible = seen.size > 0;
             this._feedEmptyEl.style.display = hasVisible ? 'none' : '';
             if (!hasVisible) {
-                this._feedEmptyEl.setText('No thoughts yet.');
+                if (allThoughts.filter(t => !t.archived).length === 0) {
+                    this._feedEmptyEl.setText('No thoughts yet. Capture your first one above.');
+                } else {
+                    this._feedEmptyEl.setText('No thoughts in this context.');
+                }
             }
         }
     }

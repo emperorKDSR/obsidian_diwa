@@ -93,6 +93,7 @@ export default class DiwaPlugin extends Plugin {
         if (!this.thoughtController) {
             this.thoughtController = new ThoughtController(this);
             this.thoughtController.hydrateFromIndex(Array.from(this.index?.thoughtIndex?.values() ?? []));
+            this.thoughtController.markReady();
             console.warn('[DIWA] ThoughtController was missing and has been re-created');
         }
         return this.thoughtController;
@@ -157,6 +158,7 @@ export default class DiwaPlugin extends Plugin {
                 this.getTaskController().addTask(task);
             });
             this.getThoughtController().hydrateFromIndex(Array.from(this.index.thoughtIndex.values()));
+            this.getThoughtController().markReady();
             console.log('Tasks loaded:', normalizedTasks.length);
             console.log('TaskIndex:', this.taskIndex);
             this.logTaskControllerPanes();
