@@ -50,6 +50,9 @@ export class DesktopHubView extends ItemView {
     private _visibleCount: number = 50;
     private _thoughtUnsubscribe: (() => void) | null = null;
     private _feedDebounceTimer: number | null = null;
+    private _renderVersion: number = 0;
+    private _isFeedRendering: boolean = false;
+    private _pendingFeedRender: boolean = false;
 
     // Topbar guard: only rebuild when focus mode changes or topbar is new
     private _topBarFocusMode: boolean | null = null;
@@ -97,6 +100,8 @@ export class DesktopHubView extends ItemView {
         this._thoughtUnsubscribe?.();
         this._thoughtUnsubscribe = null;
         if (this._feedDebounceTimer !== null) { clearTimeout(this._feedDebounceTimer); this._feedDebounceTimer = null; }
+        this._pendingFeedRender = false;
+        this._isFeedRendering = false;
         this._scrollObserver?.disconnect();
         this._scrollObserver = null;
         this.resetLayoutRefs();
@@ -215,6 +220,9 @@ export class DesktopHubView extends ItemView {
         this._feedRowMap.clear();
         this._sortedThoughts = [];
         this._visibleCount = 50;
+        this._renderVersion = 0;
+        this._pendingFeedRender = false;
+        this._isFeedRendering = false;
         this._topBarFocusMode = null;
         this._focusBtnEl = null;
     }
@@ -341,7 +349,7 @@ export class DesktopHubView extends ItemView {
         this._scrollObserver = new IntersectionObserver((entries) => {
             if (entries[0]?.isIntersecting && !this._closed && this._visibleCount < this._sortedThoughts.length) {
                 this._visibleCount += 30;
-                this.patchFeed();
+                this.scheduleFeedRefresh();
             }
         }, { root: this._feedWrapEl, rootMargin: '120px' });
         this._scrollObserver.observe(this._scrollSentinelEl);
@@ -366,7 +374,7 @@ export class DesktopHubView extends ItemView {
                     this._activeContext = ctx;
                     this._visibleCount = 50; // reset pagination on filter change
                     renderChips();
-                    this.patchFeed();
+                    this.scheduleFeedRefresh();
                 });
             }
         };
@@ -375,15 +383,39 @@ export class DesktopHubView extends ItemView {
 
     // ── Feed ──────────────────────────────────────────────────────────────────
     private scheduleFeedRefresh(): void {
+        const version = ++this._renderVersion;
         if (this._feedDebounceTimer !== null) clearTimeout(this._feedDebounceTimer);
         this._feedDebounceTimer = window.setTimeout(() => {
             this._feedDebounceTimer = null;
-            if (!this._closed) this.patchFeed();
+            this.executeFeedRender(version);
         }, 75);
     }
 
-    private patchFeed(): void {
+    private executeFeedRender(version: number): void {
+        if (this._closed || version !== this._renderVersion) return;
+        if (this._isFeedRendering) {
+            this._pendingFeedRender = true;
+            return;
+        }
+
+        this._isFeedRendering = true;
+        try {
+            this.patchFeed(version);
+        } finally {
+            this._isFeedRendering = false;
+            if (this._pendingFeedRender) {
+                this._pendingFeedRender = false;
+                const latestVersion = this._renderVersion;
+                if (!this._closed && latestVersion !== version) {
+                    this.executeFeedRender(latestVersion);
+                }
+            }
+        }
+    }
+
+    private patchFeed(version: number): void {
         if (!this._feedEl || this._closed) return;
+        if (version !== this._renderVersion) return;
 
         // Show loading state until the index is fully hydrated
         if (!this._thoughtController.isReady()) {
@@ -393,7 +425,17 @@ export class DesktopHubView extends ItemView {
         }
         if (this._feedLoadingEl) this._feedLoadingEl.style.display = 'none';
 
-        const allThoughts = this._thoughtController.getAllThoughts();
+        const allThoughts = this._thoughtController.getAllThoughts().map((thought) => ({
+            ...thought,
+            context: [...(thought.context ?? [])],
+            allDates: [...(thought.allDates ?? [])],
+            tags: [...(thought.tags ?? [])],
+            wikilinks: [...(thought.wikilinks ?? [])],
+            links: {
+                tasks: [...(thought.links?.tasks ?? [])],
+                thoughts: [...(thought.links?.thoughts ?? [])],
+            },
+        }));
         let thoughts = allThoughts.filter(t => !t.archived);
 
         if (this._activeContext !== 'all') {
@@ -408,6 +450,7 @@ export class DesktopHubView extends ItemView {
 
         this._sortedThoughts = thoughts;
         const visibleThoughts = thoughts.slice(0, this._visibleCount);
+        if (version !== this._renderVersion || this._closed) return;
 
         // Diff render: add/update visible rows, remove rows no longer visible
         const seen = new Set<string>();
@@ -449,6 +492,7 @@ export class DesktopHubView extends ItemView {
                 row.sig = sig;
             }
         }
+        if (version !== this._renderVersion || this._closed) return;
 
         // Remove rows that are no longer in the visible window
         for (const [id, row] of this._feedRowMap) {
@@ -457,6 +501,7 @@ export class DesktopHubView extends ItemView {
                 this._feedRowMap.delete(id);
             }
         }
+        if (version !== this._renderVersion || this._closed) return;
 
         // Enforce display order (newest first)
         visibleThoughts.forEach((t, i) => {
@@ -468,6 +513,7 @@ export class DesktopHubView extends ItemView {
                 this._feedEl!.insertBefore(row.rootEl, this._feedEl!.children[i] ?? null);
             }
         });
+        if (version !== this._renderVersion || this._closed) return;
 
         // Empty state differentiation
         if (this._feedEmptyEl) {
