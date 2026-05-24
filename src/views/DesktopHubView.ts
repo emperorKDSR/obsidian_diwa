@@ -6,7 +6,7 @@ import {
     PF_ICON_ID, SYNTHESIS_ICON_ID, AI_CHAT_ICON_ID, REVIEW_ICON_ID,
     SETTINGS_ICON_ID, TIMELINE_ICON_ID, JOURNAL_ICON_ID, COMPASS_ICON_ID,
 } from '../constants';
-import { attachInlineTriggers } from '../utils';
+import { attachInlineTriggers, isTablet } from '../utils';
 import type { ThoughtEntry, TaskEntry } from '../types';
 import type { DiwaView } from '../view';
 import { DesktopTaskPaneView } from './DesktopTaskPane';
@@ -142,7 +142,7 @@ export class DesktopHubView extends ItemView {
     }
 
     private isMobile(): boolean {
-        return this.plugin.isMobile();
+        return this.plugin.isMobile() && !isTablet();
     }
 
     private async applyDesktopLayout(root: HTMLElement): Promise<void> {
