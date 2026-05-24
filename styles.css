@@ -4270,7 +4270,7 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 .diwa-dh-chip:hover { background: rgba(124,58,237,0.22); }
 /* ── Center Feed (DesktopHubView) ─────────────── */
 .diwa-dh-ctx-filter-bar {
-  display: flex;
+  display: none !important;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
@@ -4278,12 +4278,13 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   flex-wrap: wrap;
 }
 .diwa-dh-ctx-chips {
-  display: flex;
+  display: none !important;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
 }
 .diwa-dh-ctx-chip {
+  display: none !important;
   padding: 3px 11px;
   border-radius: 20px;
   font-size: 11.5px;
