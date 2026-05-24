@@ -133,12 +133,21 @@ export class DesktopHubView extends ItemView {
 
         const root = this.containerEl.children[1] as HTMLElement;
         root.addClass('diwa-dh-root');
+        root.addClass('diwa-workspace-root');
+        root.removeClass('diwa-skin--desktop');
+        root.removeClass('diwa-skin--tablet');
+        root.removeClass('diwa-skin--mobile');
+        root.addClass(this.getWorkspaceSkinClass());
 
         if (this.isMobile()) {
             await this.applyMobileLayout(root);
             return;
         }
         await this.applyDesktopLayout(root);
+    }
+
+    protected getWorkspaceSkinClass(): string {
+        return 'diwa-skin--desktop';
     }
 
     private isMobile(): boolean {

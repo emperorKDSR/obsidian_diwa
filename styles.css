@@ -526,6 +526,10 @@
     margin-bottom: 8px;
 }
 
+.diwa-workspace-root.diwa-skin--desktop {
+    width: 100%;
+}
+
 .diwa-workspace-root.diwa-skin--tablet {
     width: 100%;
 }
