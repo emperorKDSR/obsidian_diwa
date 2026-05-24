@@ -36,6 +36,9 @@ export class DesktopHubView extends ItemView {
     private _captureSectionEl: HTMLElement | null = null;
     private _captureInputEl: HTMLTextAreaElement | null = null;
     private _captureHintEl: HTMLElement | null = null;
+    private _feedSearchSectionEl: HTMLElement | null = null;
+    private _feedSearchInputEl: HTMLInputElement | null = null;
+    private _feedSearchQuery: string = '';
 
     // Feed state
     private _feedEl: HTMLElement | null = null;
@@ -211,6 +214,8 @@ export class DesktopHubView extends ItemView {
         this._captureSectionEl = null;
         this._captureInputEl = null;
         this._captureHintEl = null;
+        this._feedSearchSectionEl = null;
+        this._feedSearchInputEl = null;
         this._feedEl = null;
         this._feedEmptyEl = null;
         this._feedLoadingEl = null;
@@ -335,6 +340,14 @@ export class DesktopHubView extends ItemView {
             this.renderCapture(this._captureSectionEl);
         }
 
+        if (!this._feedSearchSectionEl || !parent.contains(this._feedSearchSectionEl)) {
+            this._feedSearchSectionEl = parent.createEl('div', { cls: 'diwa-dh-feed-search-section' });
+            if (this._feedWrapEl && parent.contains(this._feedWrapEl)) {
+                parent.insertBefore(this._feedSearchSectionEl, this._feedWrapEl);
+            }
+            this.renderFeedSearch(this._feedSearchSectionEl);
+        }
+
         if (!this._feedEl || !parent.contains(this._feedEl)) {
             this._scrollObserver?.disconnect();
             this._scrollObserver = null;
@@ -429,6 +442,11 @@ export class DesktopHubView extends ItemView {
         // Stable sort: newest first using numeric timestamp (avoids Date-object/string ambiguity)
         thoughts = [...thoughts].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
 
+        const searchQuery = this._feedSearchQuery.trim().toLowerCase();
+        if (searchQuery) {
+            thoughts = thoughts.filter((thought) => this.matchesThoughtSearch(thought, searchQuery));
+        }
+
         console.log('[FEED] total:', allThoughts.length, 'filtered:', thoughts.length);
 
         this._sortedThoughts = thoughts;
@@ -503,9 +521,17 @@ export class DesktopHubView extends ItemView {
             const hasVisible = seen.size > 0;
             this._feedEmptyEl.style.display = hasVisible ? 'none' : '';
             if (!hasVisible) {
-                this._feedEmptyEl.setText('No thoughts yet. Capture your first one above.');
+                this._feedEmptyEl.setText(searchQuery ? 'No thoughts match your search.' : 'No thoughts yet. Capture your first one above.');
             }
         }
+    }
+
+    private matchesThoughtSearch(thought: ThoughtEntry, query: string): boolean {
+        const searchText = [thought.title, thought.body, thought.content]
+            .filter((value): value is string => typeof value === 'string' && value.length > 0)
+            .join('\n')
+            .toLowerCase();
+        return searchText.includes(query);
     }
 
     private formatThoughtTime(t: ThoughtEntry): string {
@@ -617,6 +643,38 @@ export class DesktopHubView extends ItemView {
                     textarea.disabled = false;
                 }
             });
+        }
+    }
+
+    private renderFeedSearch(parent: HTMLElement): void {
+        if (!this._feedSearchInputEl) {
+            parent.empty();
+            const searchWrap = parent.createEl('div', { cls: 'diwa-dh-feed-search-wrap' });
+            const searchIcon = searchWrap.createEl('span', { cls: 'diwa-dh-feed-search-icon' });
+            setIcon(searchIcon, 'search');
+            const input = searchWrap.createEl('input', {
+                cls: 'diwa-dh-feed-search-input',
+                attr: {
+                    type: 'search',
+                    placeholder: 'Search thoughts...',
+                    'aria-label': 'Search thoughts',
+                },
+            }) as HTMLInputElement;
+
+            input.value = this._feedSearchQuery;
+            input.addEventListener('input', () => {
+                const nextQuery = input.value;
+                if (nextQuery === this._feedSearchQuery) return;
+                this._feedSearchQuery = nextQuery;
+                this._visibleCount = 50;
+                this.scheduleFeedRefresh();
+            });
+
+            this._feedSearchInputEl = input;
+        }
+
+        if (this._feedSearchInputEl.value !== this._feedSearchQuery) {
+            this._feedSearchInputEl.value = this._feedSearchQuery;
         }
     }
 
