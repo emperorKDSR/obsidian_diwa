@@ -32,7 +32,10 @@
   max-width: 20px !important;
   max-height: 20px !important;
   aspect-ratio: 1 / 1 !important;
-  flex: 0 0 auto;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  padding: 0 !important;
+  flex: 0 0 20px;
   border-radius: 50% !important;
 }
 .is-tablet .diwa-tactical-checkbox {
@@ -8554,11 +8557,16 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   height: var(--diwa-cb-size);
   min-width: var(--diwa-cb-size);
   min-height: var(--diwa-cb-size);
+  aspect-ratio: 1 / 1;
+  flex: 0 0 auto;
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
   border-radius: 999px;
   border: 2px solid var(--background-modifier-border);
   background: transparent;
   color: transparent;
-  display: inline-flex;
+  display: flex;
 }
 
 /* Tablet: force compact circle — overrides var(--diwa-cb-size) and any browser button min-height */
@@ -8570,11 +8578,14 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   max-width: 24px !important;
   max-height: 24px !important;
   aspect-ratio: 1 / 1 !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  padding: 0 !important;
+  flex: 0 0 24px;
   border-radius: 50% !important;
   box-sizing: border-box !important;
   align-self: flex-start;
-  flex-shrink: 0;
-  display: inline-flex;
+  display: flex;
 }
 
 .diwa-mobile-task-row.is-compact {

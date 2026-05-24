@@ -8,7 +8,10 @@ export type ShellPlatform = 'mobile' | 'tablet' | 'desktop';
 export function getPlatform(app: App): ShellPlatform {
     const isMobile = (app as { isMobile?: boolean }).isMobile ?? false;
     if (!isMobile) return 'desktop';
-    return window.innerWidth >= 768 ? 'tablet' : 'mobile';
+    // Use screen short-edge (same logic as isTablet() in utils.ts) to avoid
+    // false-mobile detection when window.innerWidth < 768 (e.g. split pane)
+    const shortEdge = Math.min(screen.width, screen.height);
+    return shortEdge >= 768 ? 'tablet' : 'mobile';
 }
 
 export class DiwaMobileShell {
