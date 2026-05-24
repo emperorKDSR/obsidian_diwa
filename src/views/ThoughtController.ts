@@ -153,6 +153,8 @@ export class ThoughtController {
         const content = (thought.content ?? thought.body ?? thought.title ?? '').trim();
         if (!content) return null;
         try {
+            // Suppress vault-event re-renders while we write and persist the file
+            this.plugin.refreshCoordinator.suppressNotifyRefresh(1200);
             const created = await this.plugin.vault.createThoughtFile(
                 content,
                 thought.context ?? [],
