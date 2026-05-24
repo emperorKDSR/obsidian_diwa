@@ -44,7 +44,6 @@ export class DesktopHubView extends ItemView {
     private _feedWrapEl: HTMLElement | null = null;
     private _scrollSentinelEl: HTMLElement | null = null;
     private _scrollObserver: IntersectionObserver | null = null;
-    private _activeContext: string = 'all';
     private _feedRowMap = new Map<string, { rootEl: HTMLElement; textEl: HTMLElement; timeEl: HTMLElement; ctxEl: HTMLElement; sig: string }>();
     private _sortedThoughts: ThoughtEntry[] = [];
     private _visibleCount: number = 50;
@@ -329,7 +328,6 @@ export class DesktopHubView extends ItemView {
         if (!this._captureSectionEl || !parent.contains(this._captureSectionEl)) {
             this._captureSectionEl = parent.createEl('div', { cls: 'diwa-dh-capture-section' });
             this.renderCapture(this._captureSectionEl);
-            this.renderContextFilter(this._captureSectionEl);
         }
         if (!this._feedEl || !parent.contains(this._feedEl)) {
             const feedWrap = parent.createEl('div', { cls: 'diwa-dh-feed-wrap' });
@@ -353,32 +351,6 @@ export class DesktopHubView extends ItemView {
             }
         }, { root: this._feedWrapEl, rootMargin: '120px' });
         this._scrollObserver.observe(this._scrollSentinelEl);
-    }
-
-    private renderContextFilter(parent: HTMLElement) {
-        const bar = parent.createEl('div', { cls: 'diwa-dh-ctx-filter-bar' });
-        const chipsEl = bar.createEl('div', { cls: 'diwa-dh-ctx-chips' });
-
-        const renderChips = () => {
-            chipsEl.empty();
-            const contexts = this.plugin.settings.contexts ?? [];
-            const all = ['all', ...contexts];
-            for (const ctx of all) {
-                const label = ctx === 'all' ? 'All' : `#${ctx}`;
-                const chip = chipsEl.createEl('button', {
-                    cls: `diwa-dh-ctx-chip${this._activeContext === ctx ? ' is-active' : ''}`,
-                    text: label,
-                    attr: { type: 'button' },
-                });
-                chip.addEventListener('click', () => {
-                    this._activeContext = ctx;
-                    this._visibleCount = 50; // reset pagination on filter change
-                    renderChips();
-                    this.scheduleFeedRefresh();
-                });
-            }
-        };
-        renderChips();
     }
 
     // ── Feed ──────────────────────────────────────────────────────────────────
@@ -437,11 +409,6 @@ export class DesktopHubView extends ItemView {
             },
         }));
         let thoughts = allThoughts.filter(t => !t.archived);
-
-        if (this._activeContext !== 'all') {
-            const ctxLow = this._activeContext.toLowerCase();
-            thoughts = thoughts.filter(t => (t.context ?? []).some(c => c.toLowerCase() === ctxLow));
-        }
 
         // Stable sort: newest first using numeric timestamp (avoids Date-object/string ambiguity)
         thoughts = [...thoughts].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
