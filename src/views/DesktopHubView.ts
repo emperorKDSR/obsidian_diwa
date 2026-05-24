@@ -379,7 +379,7 @@ export class DesktopHubView extends ItemView {
         }
 
         if (!this._contextFilterSectionEl || !parent.contains(this._contextFilterSectionEl)) {
-            this._contextFilterSectionEl = parent.createEl('div', { cls: 'diwa-dh-feed-search-section' });
+            this._contextFilterSectionEl = parent.createEl('div', { cls: 'diwa-dh-feed-context-section' });
         }
         this.renderContextFilter(this._contextFilterSectionEl);
 
@@ -664,23 +664,20 @@ export class DesktopHubView extends ItemView {
         }
 
         const chipRow = parent.createEl('div', {
-            cls: 'diwa-dh-chip-row',
+            cls: 'diwa-dh-feed-contexts',
             attr: { 'aria-label': 'Thought context filters' },
         });
 
         for (const context of ['all', ...contexts]) {
             const isActive = this._activeContext.toLowerCase() === context.toLowerCase();
             const chip = chipRow.createEl('button', {
-                cls: `diwa-dh-chip${isActive ? ' is-active' : ''}`,
+                cls: `diwa-dh-feed-context-btn${isActive ? ' is-active' : ''}`,
                 text: context === 'all' ? 'All' : `#${context}`,
                 attr: {
                     type: 'button',
                     'aria-pressed': isActive ? 'true' : 'false',
                 },
             }) as HTMLButtonElement;
-            chip.style.border = 'none';
-            chip.style.background = isActive ? 'rgba(124,58,237,0.22)' : 'rgba(124,58,237,0.1)';
-            chip.style.boxShadow = isActive ? 'inset 0 0 0 1px rgba(124,58,237,0.14)' : 'none';
 
             chip.addEventListener('click', () => {
                 if (this._activeContext.toLowerCase() === context.toLowerCase()) return;

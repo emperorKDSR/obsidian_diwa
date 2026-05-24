@@ -503,6 +503,9 @@
     box-shadow: 0 0 0 1px rgba(124,58,237,0.08);
 }
 
+.diwa-dh-feed-context-section {
+    flex-shrink: 0;
+}
 /* Overlay pointer-event guards */
 .focus-panel,
 .diwa-thought-focus-panel.is-hidden {
