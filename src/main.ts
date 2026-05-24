@@ -10,6 +10,7 @@ import { TabletHubView } from './views/TabletHubView';
 import { SearchView } from './views/SearchView';
 import { DiwaSettingTab } from './settings';
 import { EditEntryModal } from './modals/EditEntryModal';
+import { EditTaskModal } from './modals/EditTaskModal';
 import { MobilePostComposerModal } from './modals/MobilePostComposerModal';
 import { ConfirmModal } from './modals/ConfirmModal';
 
@@ -729,6 +730,22 @@ export default class DiwaPlugin extends Plugin {
         );
         menu.addItem((item) =>
             item
+                .setTitle('Convert to Task')
+                .setIcon('check-square')
+                .onClick(() => {
+                    void this.handleConvertThought(thought);
+                }),
+        );
+        menu.addItem((item) =>
+            item
+                .setTitle('Convert & Edit')
+                .setIcon('pencil')
+                .onClick(() => {
+                    void this.handleConvertThought(thought, true);
+                }),
+        );
+        menu.addItem((item) =>
+            item
                 .setTitle('Archive')
                 .setIcon('archive')
                 .onClick(() => { void this.archiveThought(thought); }),
@@ -743,6 +760,50 @@ export default class DiwaPlugin extends Plugin {
             x: Math.round(window.innerWidth / 2),
             y: Math.round(window.innerHeight - 100),
         });
+    }
+
+    private async handleConvertThought(thought: ThoughtEntry, openEditor = false): Promise<void> {
+        const thoughtId = (thought.id || thought.filePath || '').trim();
+        if (!thoughtId) {
+            console.error('[DIWA] Cannot convert thought: missing thought id/path', thought);
+            new Notice('Failed to convert thought', 1800);
+            return;
+        }
+
+        const controller = this.getTaskController();
+        console.debug('[DIWA] Converting thought -> task', thoughtId);
+
+        try {
+            const ok = await controller.convertThoughtToTask(thoughtId);
+            if (!ok) {
+                new Notice('Failed to convert thought', 1800);
+                return;
+            }
+            new Notice('Converted to task', 1200);
+            if (openEditor) {
+                this.openConvertedTaskEditor(thoughtId);
+            }
+            this.notifyRefresh('all');
+        } catch (error) {
+            console.error(error);
+            new Notice('Failed to convert thought', 1800);
+        }
+    }
+
+    private openConvertedTaskEditor(thoughtId: string): void {
+        const linked = this.getTaskController().getLinkedTasksForThought(thoughtId).slice();
+        if (linked.length === 0) return;
+        linked.sort((left, right) => (right.modified || '').localeCompare(left.modified || ''));
+        const task = linked[0];
+        new EditTaskModal(
+            this.app,
+            task,
+            this.vault,
+            this.index,
+            () => {
+                void this.getTaskController().reconcileTask(task.filePath, undefined, task);
+            },
+        ).open();
     }
 
     private async openThoughtNote(thought: ThoughtEntry): Promise<void> {
