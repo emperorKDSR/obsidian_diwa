@@ -79,6 +79,12 @@ export class DesktopHubView extends ItemView {
         pinBtnEl: HTMLButtonElement;
         archiveBtnEl: HTMLButtonElement;
         signature: string;
+        /** Broad key covering all props that affect row rendering — skips full refresh when unchanged */
+        renderKey: string;
+        /** Tracks which contexts the row was last built for — gates button recreation */
+        contextsKey: string;
+        /** Tracks pinned/archived state — gates setIcon calls */
+        stateKey: string;
     }>();
     private _feedRefreshRaf: number | null = null;
     private _contextSelectionGuardUntil = 0;
@@ -856,6 +862,9 @@ export class DesktopHubView extends ItemView {
             pinBtnEl: pinBtn,
             archiveBtnEl: archiveBtn,
             signature: '',
+            renderKey: '',
+            contextsKey: '',
+            stateKey: '',
         };
     }
 
@@ -983,6 +992,14 @@ export class DesktopHubView extends ItemView {
         return true;
     }
 
+    /** Cheaply syncs the is-active CSS class on context buttons — no DOM rebuild. */
+    private updateRowContextHighlight(row: { contextsEl: HTMLElement }): void {
+        const activeCtx = this._activeContextTab.toLowerCase();
+        for (const btn of Array.from(row.contextsEl.querySelectorAll<HTMLElement>('.diwa-dh-feed-context-btn'))) {
+            btn.toggleClass('is-active', btn.dataset.ctx === activeCtx);
+        }
+    }
+
     private async refreshThoughtRow(row: {
         rootEl: HTMLElement;
         contextsEl: HTMLElement;
@@ -997,6 +1014,8 @@ export class DesktopHubView extends ItemView {
         pinBtnEl: HTMLButtonElement;
         archiveBtnEl: HTMLButtonElement;
         signature: string;
+        contextsKey: string;
+        stateKey: string;
     }, thought: ThoughtEntry): Promise<void> {
         const today = moment().format('YYYY-MM-DD');
         const isToday = thought.day === today;
@@ -1006,49 +1025,60 @@ export class DesktopHubView extends ItemView {
                 : moment(thought.created, 'YYYY-MM-DD HH:mm:ss').format('MMM D · HH:mm'))
             : '';
         row.timeEl.setText(ts);
-        row.contextsEl.empty();
+
+        // Rebuild context buttons only when the thought's contexts actually changed
         const contexts = (thought.context ?? []).map((ctx) => ctx.trim()).filter(Boolean);
-        for (const ctx of contexts) {
-            const activeCtx = this._activeContextTab.toLowerCase();
-            const button = row.contextsEl.createEl('button', {
-                cls: `diwa-dh-feed-context-btn${activeCtx === ctx.toLowerCase() ? ' is-active' : ''}`,
-                text: `#${ctx}`,
-                attr: { type: 'button', 'aria-label': `Filter by ${ctx}` },
-            });
-            const selectContext = () => {
-                if (this._activeContextTab.toLowerCase() === ctx.toLowerCase()) return;
-                this._activeContextTab = ctx;
-                if (this._contextTabsHostEl) {
-                    this._contextTabsHostEl.empty();
-                    this.renderContextTabs(this._contextTabsHostEl);
-                }
-                this.requestThoughtFeedRefresh();
-            };
-            button.addEventListener('pointerdown', (event) => {
-                this._contextSelectionGuardUntil = Date.now() + 350;
-                event.preventDefault();
-                event.stopPropagation();
-            });
-            button.addEventListener('click', (event) => {
-                event.stopPropagation();
-                event.preventDefault();
-                this._contextSelectionGuardUntil = Date.now() + 350;
-                selectContext();
-            });
-            button.addEventListener('keydown', (event: KeyboardEvent) => {
-                if (event.key !== 'Enter' && event.key !== ' ') return;
-                event.preventDefault();
-                event.stopPropagation();
-                this._contextSelectionGuardUntil = Date.now() + 350;
-                selectContext();
-            });
+        const contextsKey = contexts.join(',');
+        if (row.contextsKey !== contextsKey) {
+            row.contextsEl.empty();
+            for (const ctx of contexts) {
+                const button = row.contextsEl.createEl('button', {
+                    cls: 'diwa-dh-feed-context-btn',
+                    text: `#${ctx}`,
+                    attr: { type: 'button', 'aria-label': `Filter by ${ctx}`, 'data-ctx': ctx.toLowerCase() },
+                });
+                const selectContext = () => {
+                    if (this._activeContextTab.toLowerCase() === ctx.toLowerCase()) return;
+                    this._activeContextTab = ctx;
+                    if (this._contextTabsHostEl) {
+                        this._contextTabsHostEl.empty();
+                        this.renderContextTabs(this._contextTabsHostEl);
+                    }
+                    this.requestThoughtFeedRefresh();
+                };
+                button.addEventListener('pointerdown', (event) => {
+                    this._contextSelectionGuardUntil = Date.now() + 350;
+                    event.preventDefault();
+                    event.stopPropagation();
+                });
+                button.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    this._contextSelectionGuardUntil = Date.now() + 350;
+                    selectContext();
+                });
+                button.addEventListener('keydown', (event: KeyboardEvent) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this._contextSelectionGuardUntil = Date.now() + 350;
+                    selectContext();
+                });
+            }
+            row.contextsKey = contextsKey;
         }
-        row.pinBtnEl.setAttr('title', thought.pinned ? 'Unpin thought' : 'Pin thought');
-        row.pinBtnEl.setAttr('aria-label', thought.pinned ? 'Unpin thought' : 'Pin thought');
-        setIcon(row.pinBtnEl, thought.pinned ? 'pin-off' : 'pin');
-        row.archiveBtnEl.setAttr('title', thought.archived ? 'Unarchive thought' : 'Archive thought');
-        row.archiveBtnEl.setAttr('aria-label', thought.archived ? 'Unarchive thought' : 'Archive thought');
-        setIcon(row.archiveBtnEl, thought.archived ? 'archive-restore' : 'archive');
+
+        // Update pin/archive icons only when state actually changed
+        const stateKey = `${thought.pinned}|${thought.archived}`;
+        if (row.stateKey !== stateKey) {
+            row.pinBtnEl.setAttr('title', thought.pinned ? 'Unpin thought' : 'Pin thought');
+            row.pinBtnEl.setAttr('aria-label', thought.pinned ? 'Unpin thought' : 'Pin thought');
+            setIcon(row.pinBtnEl, thought.pinned ? 'pin-off' : 'pin');
+            row.archiveBtnEl.setAttr('title', thought.archived ? 'Unarchive thought' : 'Archive thought');
+            row.archiveBtnEl.setAttr('aria-label', thought.archived ? 'Unarchive thought' : 'Archive thought');
+            setIcon(row.archiveBtnEl, thought.archived ? 'archive-restore' : 'archive');
+            row.stateKey = stateKey;
+        }
 
         const signature = `${thought.modified}|${thought.updatedAt}|${thought.body || thought.content || thought.title}`;
         if (row.signature !== signature) {
@@ -1166,7 +1196,16 @@ export class DesktopHubView extends ItemView {
                 this._thoughtRowMap.set(thoughtId, row);
             }
             row.rootEl.dataset.thoughtId = thoughtId;
-            await this.refreshThoughtRow(row, thought);
+
+            // Broad key — covers everything that changes row appearance except active context tab
+            const renderKey = `${thought.modified}|${thought.updatedAt}|${thought.pinned}|${thought.archived}|${(thought.context ?? []).join(',')}|${thought.links?.tasks?.length ?? 0}|${thought.links?.thoughts?.length ?? 0}`;
+            if (row.renderKey !== renderKey) {
+                await this.refreshThoughtRow(row, thought);
+                row.renderKey = renderKey;
+            }
+            // Always sync active-context highlight cheaply (just a CSS class toggle, no DOM rebuild)
+            this.updateRowContextHighlight(row);
+
             sectionListEl.appendChild(row.rootEl);
         }
 
