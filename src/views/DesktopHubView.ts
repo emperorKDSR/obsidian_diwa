@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Platform, moment, setIcon, Notice, ViewStateResult, MarkdownRenderer } from 'obsidian';
+import { ItemView, WorkspaceLeaf, moment, setIcon, Notice, ViewStateResult, MarkdownRenderer } from 'obsidian';
 import type DiwaPlugin from '../main';
 import {
     VIEW_TYPE_DIWA,
@@ -146,15 +146,6 @@ export class DesktopHubView extends ItemView {
     }
 
     private async applyDesktopLayout(root: HTMLElement): Promise<void> {
-        if (!Platform.isDesktop) {
-            this.resetLayoutRefs();
-            root.empty();
-            root.createEl('div', {
-                text: '⊕ DIWA Desktop Hub requires a desktop environment.',
-                attr: { style: 'color: var(--text-muted); font-size: 0.9em; text-align: center; margin-top: 80px; padding: 24px;' }
-            });
-            return;
-        }
         this._wrapEl?.removeClass('is-mobile-layout');
 
         if (!this._wrapEl || !root.contains(this._wrapEl)) {
