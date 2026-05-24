@@ -8530,6 +8530,22 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   display: inline-flex;
 }
 
+/* Tablet: force compact circle — overrides var(--diwa-cb-size) and any browser button min-height */
+.diwa-tablet-shell .diwa-task-row--mobile .diwa-task-cb {
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  max-width: 24px !important;
+  max-height: 24px !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 50% !important;
+  box-sizing: border-box !important;
+  align-self: flex-start;
+  flex-shrink: 0;
+  display: inline-flex;
+}
+
 .diwa-mobile-task-row.is-compact {
   padding: 10px;
 }
