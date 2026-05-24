@@ -93,7 +93,7 @@ export class DesktopHubView extends ItemView {
     }
 
     getViewType(): string { return VIEW_TYPE_DESKTOP_HUB; }
-    getDisplayText(): string { return 'DIWA Desktop Hub'; }
+    getDisplayText(): string { return 'Diwa Workspace'; }
     getIcon(): string { return 'layout-dashboard'; }
 
     getState(): Record<string, unknown> {

@@ -248,13 +248,12 @@ export default class DiwaPlugin extends Plugin {
 		addIcon(SETTINGS_ICON_ID, SETTINGS_ICON_SVG);
         addIcon(DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG);
 
-        this.addRibbonIcon(DESKTOP_HUB_ICON_ID, 'DIWA Hub', () => {
-            if (isTablet()) this.activateTabletHub();
-            else if (Platform.isMobile) this.activateMobileHub();
-            else this.activateDesktopHub();
+        this.addRibbonIcon(DESKTOP_HUB_ICON_ID, 'Diwa Workspace', () => {
+            void this.activateWorkspace();
         });
 
         this.addCommand({ id: 'open-diwa-desktop-hub', name: 'DIWA: Open Desktop Hub', icon: DESKTOP_HUB_ICON_ID, callback: () => { this.activateDesktopHub(); } });
+        this.addCommand({ id: 'diwa-open-workspace', name: 'Diwa Workspace', icon: DESKTOP_HUB_ICON_ID, callback: () => { this.activateWorkspace(); } });
         this.addCommand({ id: 'open-diwa-mobile-hub',  name: 'DIWA: Open Mobile Hub',  icon: 'smartphone', callback: () => { this.activateMobileHub(); } });
         this.addCommand({ id: 'open-diwa-mobile-gawa', name: 'DIWA: Open Mobile Gawa', icon: 'check-square-2', callback: () => { this.activateMobileGawa(); } });
         this.addCommand({ id: 'open-diwa-tablet-hub',  name: 'DIWA: Open Tablet Hub',  icon: 'tablet',     callback: () => { this.activateTabletHub(); } });
@@ -300,6 +299,10 @@ export default class DiwaPlugin extends Plugin {
         await this.saveSettings();
     }
 
+    async activateWorkspace() {
+        await this.activateDesktopHub();
+    }
+
     async activateDesktopHub() {
         const { workspace } = this.app;
         // Reuse an existing Desktop Hub leaf if already open
@@ -308,12 +311,7 @@ export default class DiwaPlugin extends Plugin {
             workspace.revealLeaf(existing[0]);
             return;
         }
-        // On desktop: open as a new window pane; on mobile: show notice
-        if (!Platform.isDesktop) {
-            new Notice('DIWA Desktop Hub is available on desktop only.', 2500);
-            return;
-        }
-        const leaf = workspace.getLeaf('window');
+        const leaf = Platform.isDesktop ? workspace.getLeaf('window') : workspace.getLeaf(false);
         if (leaf) {
             await leaf.setViewState({ type: VIEW_TYPE_DESKTOP_HUB, active: true });
             workspace.revealLeaf(leaf);
