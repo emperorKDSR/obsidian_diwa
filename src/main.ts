@@ -125,6 +125,7 @@ export default class DiwaPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
         this.applyMobileCssVars();
+        this.applyDeviceBodyClasses();
 
         // Initialize Services
         this.ai = new AiService(this.app, this.settings);
@@ -489,6 +490,17 @@ export default class DiwaPlugin extends Plugin {
             ? Math.max(0, Math.min(100, this.settings.mobileBottomBarHeight))
             : 56;
         document.documentElement.style.setProperty('--diwa-host-bottombar', `${value}px`);
+    }
+
+    /** Apply explicit device-mode body classes for clean CSS targeting.
+     *  Architecture: phone → .is-mobile only
+     *                tablet → .is-mobile + .is-tablet (Obsidian sets is-mobile for all mobile)
+     *                desktop → .is-desktop
+     *  body.is-tablet lets .is-tablet CSS rules override .is-mobile rules for tablets. */
+    private applyDeviceBodyClasses(): void {
+        const tablet = isTablet();
+        document.body.toggleClass('is-tablet', tablet);
+        document.body.toggleClass('is-desktop', !Platform.isMobile);
     }
 
 	notifyRefresh(scope: RefreshScope = 'all'): void {
