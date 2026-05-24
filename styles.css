@@ -8549,3 +8549,25 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   color: var(--text-muted);
   line-height: 1.4;
 }
+
+.diwa-thought-card {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--background-secondary-alt);
+  border: 1px solid var(--background-modifier-border-faint);
+}
+
+.diwa-thought-content {
+  font-size: 0.95em;
+  line-height: 1.6;
+}
+
+.diwa-thought-content a {
+  color: var(--link-color);
+  text-decoration: underline;
+}
+
+.is-mobile .diwa-thought-card:hover {
+  transform: none;
+  box-shadow: var(--diwa-shadow);
+}
