@@ -22,6 +22,7 @@ export class ThoughtController {
 
     // Index-ready gate: views must await readyPromise before first render
     private _ready = false;
+    private _isIndexing = false;
     private _resolveReady!: () => void;
     readonly readyPromise: Promise<void>;
 
@@ -31,6 +32,17 @@ export class ThoughtController {
     }
 
     isReady(): boolean { return this._ready; }
+
+    /** Call before bulk index load. Suppresses all listener notifications. */
+    beginIndexing(): void {
+        this._isIndexing = true;
+    }
+
+    /** Call after bulk index load completes. Releases the ready gate. */
+    endIndexing(): void {
+        this._isIndexing = false;
+        this.markReady();
+    }
 
     markReady(): void {
         if (!this._ready) {
@@ -47,6 +59,7 @@ export class ThoughtController {
     }
 
     private notifyUpdate(thought: ThoughtEntry): void {
+        if (this._isIndexing) return; // suppress during bulk index load
         for (const listener of this.listeners) {
             try {
                 listener(thought);
@@ -70,9 +83,6 @@ export class ThoughtController {
         if (this.initialized && thoughts.length === 0) return;
         const normalized = thoughts.map((thought) => this.normalizeThought(thought));
         this.thoughtIndex.set(normalized);
-        for (const thought of normalized) {
-            this.plugin.index.thoughtIndex.set(thought.filePath, thought);
-        }
         this.initialized = true;
     }
 

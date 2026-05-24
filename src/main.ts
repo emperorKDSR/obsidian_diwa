@@ -92,8 +92,9 @@ export default class DiwaPlugin extends Plugin {
     getThoughtController(): ThoughtController {
         if (!this.thoughtController) {
             this.thoughtController = new ThoughtController(this);
+            this.thoughtController.beginIndexing();
             this.thoughtController.hydrateFromIndex(Array.from(this.index?.thoughtIndex?.values() ?? []));
-            this.thoughtController.markReady();
+            this.thoughtController.endIndexing();
             console.warn('[DIWA] ThoughtController was missing and has been re-created');
         }
         return this.thoughtController;
@@ -151,6 +152,7 @@ export default class DiwaPlugin extends Plugin {
         };
 
         this.app.workspace.onLayoutReady(async () => {
+            this.thoughtController.beginIndexing(); // suppress notifications during bulk load
             await this.index.buildIndices();
             const normalizedTasks = this.normalizeIndexedTasks(Array.from(this.index.taskIndex.values()));
             this.taskIndex.set(normalizedTasks);
@@ -158,7 +160,7 @@ export default class DiwaPlugin extends Plugin {
                 this.getTaskController().addTask(task);
             });
             this.getThoughtController().hydrateFromIndex(Array.from(this.index.thoughtIndex.values()));
-            this.getThoughtController().markReady();
+            this.getThoughtController().endIndexing(); // releases ready gate, resolves readyPromise
             console.log('Tasks loaded:', normalizedTasks.length);
             console.log('TaskIndex:', this.taskIndex);
             this.logTaskControllerPanes();

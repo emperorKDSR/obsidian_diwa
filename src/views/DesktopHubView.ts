@@ -331,15 +331,15 @@ export class DesktopHubView extends ItemView {
             this._feedEmptyEl = feedWrap.createEl('div', { cls: 'diwa-dh-feed-empty' });
             this._scrollSentinelEl = feedWrap.createEl('div', { cls: 'diwa-dh-scroll-sentinel' });
             this.mountScrollObserver();
+            // Initial render triggered via readyPromise.then() in onOpen — do not call here.
         }
-        this.scheduleFeedRefresh();
     }
 
     private mountScrollObserver(): void {
         if (!this._scrollSentinelEl || !this._feedWrapEl) return;
         this._scrollObserver?.disconnect();
         this._scrollObserver = new IntersectionObserver((entries) => {
-            if (entries[0]?.isIntersecting && !this._closed) {
+            if (entries[0]?.isIntersecting && !this._closed && this._visibleCount < this._sortedThoughts.length) {
                 this._visibleCount += 30;
                 this.patchFeed();
             }
@@ -412,8 +412,8 @@ export class DesktopHubView extends ItemView {
         // Diff render: add/update visible rows, remove rows no longer visible
         const seen = new Set<string>();
         for (const thought of visibleThoughts) {
-            const id = thought.id || thought.filePath;
-            seen.add(id);
+            const id = thought.id ?? thought.filePath; // normalizeThought always sets id, fallback for safety
+            if (!id) continue;
             const sig = `${thought.createdAt}|${thought.updatedAt}|${(thought.context ?? []).join(',')}|${thought.body || thought.content || thought.title}`;
 
             let row = this._feedRowMap.get(id);
@@ -460,7 +460,9 @@ export class DesktopHubView extends ItemView {
 
         // Enforce display order (newest first)
         visibleThoughts.forEach((t, i) => {
-            const row = this._feedRowMap.get(t.id || t.filePath);
+            const id = t.id ?? t.filePath;
+            if (!id) return;
+            const row = this._feedRowMap.get(id);
             if (!row) return;
             if (this._feedEl!.children[i] !== row.rootEl) {
                 this._feedEl!.insertBefore(row.rootEl, this._feedEl!.children[i] ?? null);
