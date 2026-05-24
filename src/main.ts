@@ -118,6 +118,7 @@ export default class DiwaPlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
+        this.applyMobileCssVars();
 
         // Initialize Services
         this.ai = new AiService(this.app, this.settings);
@@ -449,6 +450,10 @@ export default class DiwaPlugin extends Plugin {
         if (!Array.isArray(this.settings.hiddenContexts)) {
             this.settings.hiddenContexts = [];
         }
+        const mobileBottomBarHeight = Number(this.settings.mobileBottomBarHeight);
+        this.settings.mobileBottomBarHeight = Number.isFinite(mobileBottomBarHeight)
+            ? Math.max(0, Math.min(100, mobileBottomBarHeight))
+            : 56;
         this.settingsInitialized = true;
 	}
 
@@ -461,7 +466,15 @@ export default class DiwaPlugin extends Plugin {
 	    if (this.taskLink) this.taskLink.updateSettings(this.settings);
 	    if (this.taskReflection) this.taskReflection.updateSettings(this.settings);
 	    if (this.refreshCoordinator) this.refreshCoordinator.updateSettings(this.settings);
+        this.applyMobileCssVars();
 	}
+
+    private applyMobileCssVars(): void {
+        const value = Number.isFinite(this.settings.mobileBottomBarHeight)
+            ? Math.max(0, Math.min(100, this.settings.mobileBottomBarHeight))
+            : 56;
+        document.documentElement.style.setProperty('--diwa-host-bottombar', `${value}px`);
+    }
 
 	notifyRefresh(scope: RefreshScope = 'all'): void {
 	    this.refreshCoordinator.notifyRefresh(scope);

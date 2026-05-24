@@ -29,6 +29,19 @@ export class DiwaSettingTab extends PluginSettingTab {
         containerEl.createEl('h3', { text: 'Formats' });
 		new Setting(containerEl).setName('Date Format').setDesc('moment.js format for dates.').addText(text => text.setPlaceholder('YYYY-MM-DD').setValue(this.plugin.settings.dateFormat).onChange(async (value) => { this.plugin.settings.dateFormat = value; await this.plugin.saveSettings(); this.plugin.notifyRefresh(); }));
 		new Setting(containerEl).setName('Time Format').setDesc('moment.js format for time.').addText(text => text.setPlaceholder('HH:mm').setValue(this.plugin.settings.timeFormat).onChange(async (value) => { this.plugin.settings.timeFormat = value; await this.plugin.saveSettings(); this.plugin.notifyRefresh(); }));
+        new Setting(containerEl)
+            .setName('Mobile bottom bar height')
+            .setDesc('Height (px) reserved for Obsidian mobile bottom toolbar so DIWA tabs stay visible above it.')
+            .addSlider((slider) => {
+                slider
+                    .setLimits(0, 100, 1)
+                    .setDynamicTooltip()
+                    .setValue(this.plugin.settings.mobileBottomBarHeight ?? 56)
+                    .onChange(async (value) => {
+                        this.plugin.settings.mobileBottomBarHeight = value;
+                        await this.plugin.saveSettings();
+                    });
+            });
 
         containerEl.createEl('h3', { text: 'AI Configuration' });
         containerEl.createEl('p', {

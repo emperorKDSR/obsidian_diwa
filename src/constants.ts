@@ -204,6 +204,7 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
     reviewsFolder: '000 Bin/DIWA Reviews',
     reminderHabitsEnabled: true,
     reminderTasksEnabled: true,
+    mobileBottomBarHeight: 56,
     peopleFolder: '000 Bin/DIWA People',
     legacyMigrated: false,
     ai: {
