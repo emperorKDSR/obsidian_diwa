@@ -96,7 +96,7 @@ export class DiwaMobileShell {
         const focus = wrap.createDiv('diwa-mobile-focus');
         focus.createDiv({ cls: 'diwa-mobile-section-title', text: 'Today Focus' });
         const focusList = focus.createDiv('diwa-mobile-focus-list');
-        const tasks = this.plugin.getTopTasks(3);
+        const tasks = this.plugin.getTodayFocusTasks();
         if (tasks.length === 0) {
             focusList.createDiv({ cls: 'diwa-mobile-empty', text: 'No priority tasks yet.' });
         } else {
@@ -107,17 +107,17 @@ export class DiwaMobileShell {
 
         wrap.createDiv({
             cls: 'diwa-mobile-nav-hint',
-            text: 'Use the bottom tabs to jump between Tasks, Thoughts, and AI.',
+            text: 'Use the tabs to jump between Gawa, Diwa, and AI.',
         });
     }
 
     private renderTasks(container: HTMLElement): void {
         const wrap = container.createDiv('diwa-mobile-list-wrap');
-        wrap.createDiv({ cls: 'diwa-mobile-section-title', text: 'Tasks' });
-        const list = wrap.createDiv('diwa-mobile-list');
-        const tasks = this.plugin.getAllTasks();
+        wrap.createDiv({ cls: 'diwa-mobile-section-title', text: 'Gawa' });
+        const list = wrap.createDiv('diwa-mobile-list diwa-gawa-list');
+        const tasks = this.plugin.getAllTasks().filter((task) => !this.isTaskDone(task));
         if (tasks.length === 0) {
-            list.createDiv({ cls: 'diwa-mobile-empty', text: 'No tasks available.' });
+            list.createDiv({ cls: 'diwa-mobile-empty', text: 'No open tasks available.' });
             return;
         }
         tasks.forEach((task: TaskEntry) => {
@@ -125,9 +125,21 @@ export class DiwaMobileShell {
         });
     }
 
+    private isTaskDone(task: TaskEntry): boolean {
+        const status = String(task.status || '').toLowerCase();
+        const state = String(task.state || '').toLowerCase();
+        const bucket = String(task.bucketStatus || '').toLowerCase();
+        const lifecycle = String(task.lifecycleStatus || '').toLowerCase();
+        return status === 'done'
+            || state === 'done'
+            || bucket === 'done'
+            || lifecycle === 'done'
+            || !!task.completedAt;
+    }
+
     private renderThoughts(container: HTMLElement): void {
         const wrap = container.createDiv('diwa-thoughts-wrap');
-        wrap.createDiv({ cls: 'diwa-mobile-section-title', text: 'Thoughts' });
+        wrap.createDiv({ cls: 'diwa-mobile-section-title', text: 'Diwa' });
         const contexts = this.plugin.getContexts();
         this.renderContextBar(wrap, contexts);
         const thoughts = this.filterThoughts(this.plugin.getAllThoughts(), this.activeContexts);
@@ -229,8 +241,8 @@ export class DiwaMobileShell {
         const bar = container.createDiv('diwa-tablet-tabs');
         const items: Array<{ id: MobileView; label: string }> = [
             { id: 'home', label: 'Home' },
-            { id: 'tasks', label: 'Tasks' },
-            { id: 'thoughts', label: 'Thoughts' },
+            { id: 'tasks', label: 'Gawa' },
+            { id: 'thoughts', label: 'Diwa' },
             { id: 'ai', label: 'AI' },
         ];
 
@@ -248,8 +260,8 @@ export class DiwaMobileShell {
     private renderBottomNav(container: HTMLElement): void {
         const items: Array<{ id: MobileView; label: string }> = [
             { id: 'home', label: 'Home' },
-            { id: 'tasks', label: 'Tasks' },
-            { id: 'thoughts', label: 'Thoughts' },
+            { id: 'tasks', label: 'Gawa' },
+            { id: 'thoughts', label: 'Diwa' },
             { id: 'ai', label: 'AI' },
         ];
 

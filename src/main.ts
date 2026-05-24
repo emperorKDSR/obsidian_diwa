@@ -20,6 +20,7 @@ import { VaultService } from './services/VaultService';
 import { IndexService } from './services/IndexService';
 import { TaskLinkService } from './services/TaskLinkService';
 import { TaskReflectionService } from './services/TaskReflectionService';
+import { FocusService } from './services/FocusService';
 import { RefreshCoordinator, type RefreshScope } from './application/RefreshCoordinator';
 import { TaskController } from './views/TaskController';
 import { ThoughtController } from './views/ThoughtController';
@@ -75,6 +76,9 @@ export default class DiwaPlugin extends Plugin {
     taskLink: TaskLinkService;
     taskReflection: TaskReflectionService;
     refreshCoordinator: RefreshCoordinator;
+    services?: {
+        focus: FocusService;
+    };
 
     getTaskController(): TaskController {
         if (!this.controller) {
@@ -138,6 +142,11 @@ export default class DiwaPlugin extends Plugin {
         this.taskLink = new TaskLinkService(this.app, this.settings, this.index);
         this.taskReflection = new TaskReflectionService(this.app, this.settings, this.index);
         this.refreshCoordinator = new RefreshCoordinator(this.app, this.settings, this.index);
+        this.services = {
+            focus: new FocusService({
+                getAllTasks: () => this.getAllTasks(),
+            }),
+        };
 
         this.app.workspace.onLayoutReady(async () => {
             await this.index.buildIndices();
@@ -592,18 +601,21 @@ export default class DiwaPlugin extends Plugin {
         return tasks;
     }
 
+    getTodayFocusTasks(limit?: number): TaskEntry[] {
+        if (!this.services?.focus) {
+            this.services = {
+                focus: new FocusService({
+                    getAllTasks: () => this.getAllTasks(),
+                }),
+            };
+        }
+        return this.services.focus.getTodayFocus({
+            limit,
+        });
+    }
+
     getTopTasks(limit = 3): TaskEntry[] {
-        const tasks = this.getAllTasks()
-            .filter((task) => task.status !== 'done')
-            .sort((left, right) => {
-                const leftDue = left.due?.trim() || '';
-                const rightDue = right.due?.trim() || '';
-                if (leftDue && rightDue) return leftDue.localeCompare(rightDue);
-                if (leftDue) return -1;
-                if (rightDue) return 1;
-                return (right.modified || '').localeCompare(left.modified || '');
-            });
-        return tasks.slice(0, Math.max(0, limit));
+        return this.getTodayFocusTasks(limit);
     }
 
     getAllThoughts(): ThoughtEntry[] {
@@ -627,32 +639,66 @@ export default class DiwaPlugin extends Plugin {
         options: { mobile?: boolean; compact?: boolean } = {},
     ): HTMLElement {
         const taskId = task.taskId?.trim() || task.filePath;
-        const done = task.status === 'done';
-        const row = parent.createDiv('diwa-mobile-task-row');
+        const done = task.status === 'done'
+            || task.state === 'done'
+            || task.bucketStatus === 'done'
+            || task.lifecycleStatus === 'done'
+            || !!task.completedAt;
+        const row = parent.createDiv('diwa-task-row diwa-task-row--mobile');
         if (done) row.addClass('is-done');
         if (options.compact) row.addClass('is-compact');
 
         const toggleBtn = row.createEl('button', {
-            cls: 'diwa-mobile-task-toggle',
-            attr: { type: 'button', 'aria-label': done ? 'Mark task as open' : 'Mark task as done' },
+            cls: 'diwa-task-cb',
+            attr: {
+                type: 'button',
+                role: 'checkbox',
+                'aria-checked': done ? 'true' : 'false',
+                'aria-label': done ? 'Mark task as open' : 'Mark task as done',
+            },
         });
-        setIcon(toggleBtn, done ? 'check-circle-2' : 'circle');
+        const renderCheckboxState = (isDone: boolean): void => {
+            toggleBtn.empty();
+            toggleBtn.setAttr('aria-checked', isDone ? 'true' : 'false');
+            toggleBtn.toggleClass('is-checked', isDone);
+            if (!isDone) return;
+            const checkIcon = toggleBtn.createSpan('diwa-task-cb-icon');
+            setIcon(checkIcon, 'check');
+        };
+        renderCheckboxState(done);
+
         toggleBtn.addEventListener('click', async (event) => {
             event.preventDefault();
             event.stopPropagation();
+            const nextDone = !row.hasClass('is-done');
+            row.toggleClass('is-done', nextDone);
+            renderCheckboxState(nextDone);
             const ok = await this.getTaskController().toggleTask(taskId);
-            if (!ok) new Notice('Could not update task status', 1500);
+            if (!ok) {
+                row.toggleClass('is-done', done);
+                renderCheckboxState(done);
+                new Notice('Could not update task status', 1500);
+            }
             this.notifyRefresh('tasks');
         });
 
-        const main = row.createDiv('diwa-mobile-task-main');
+        const main = row.createDiv('diwa-task-body');
         const title = (task.title || task.body || 'Untitled task').trim();
-        main.createDiv({ cls: 'diwa-mobile-task-title', text: title });
+        main.createDiv({ cls: 'diwa-task-title', text: title });
         if (!options.compact) {
-            const metaBits = [`Status ${String(task.status || 'open').toUpperCase()}`];
-            if (task.due?.trim()) metaBits.push(`Due ${task.due.trim()}`);
-            if (task.context?.length) metaBits.push(task.context.map((ctx) => `#${ctx}`).join(' '));
-            main.createDiv({ cls: 'diwa-mobile-task-meta', text: metaBits.join(' · ') });
+            const meta = main.createDiv('diwa-task-meta');
+            if (done) meta.createDiv({ cls: 'diwa-chip is-done', text: 'Done' });
+            if (task.due?.trim()) {
+                meta.createDiv({ cls: 'diwa-chip', text: `Due ${task.due.trim()}` });
+            }
+            if (task.context?.length) {
+                task.context
+                    .map((ctx) => String(ctx || '').trim())
+                    .filter(Boolean)
+                    .forEach((ctx) => {
+                        meta.createDiv({ cls: 'diwa-chip', text: `#${ctx}` });
+                    });
+            }
         }
 
         row.addEventListener('click', async () => {
