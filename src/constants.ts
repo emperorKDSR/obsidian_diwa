@@ -207,7 +207,6 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
     mobileBottomBarHeight: 56,
     peopleFolder: '000 Bin/DIWA People',
     legacyMigrated: false,
-    enableFeedSuggestions: false,
     ai: {
         enabled: false,
         model: 'gpt-4o-mini',

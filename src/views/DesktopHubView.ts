@@ -271,28 +271,6 @@ export class DesktopHubView extends ItemView {
         }
 
         const right = bar.createEl('div', { cls: 'diwa-dh-topbar-right' });
-        const aiModeWrap = right.createEl('label', {
-            cls: 'diwa-dh-ai-mode',
-            attr: { style: 'display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:12px;' },
-        });
-        aiModeWrap.createEl('span', { text: 'AI Mode:' });
-        const aiModeSelect = aiModeWrap.createEl('select', {
-            cls: 'diwa-dh-ai-mode-select',
-            attr: { style: 'padding:4px 8px;border-radius:6px;' },
-        }) as HTMLSelectElement;
-        const modeOptions: Array<{ value: 'off' | 'assist' | 'active'; label: string }> = [
-            { value: 'off', label: 'Off' },
-            { value: 'assist', label: 'Assist' },
-            { value: 'active', label: 'Active' },
-        ];
-        for (const option of modeOptions) {
-            aiModeSelect.createEl('option', { value: option.value, text: option.label });
-        }
-        aiModeSelect.value = this.plugin.aiMode;
-        aiModeSelect.addEventListener('change', () => {
-            const nextMode = aiModeSelect.value as 'off' | 'assist' | 'active';
-            this.plugin.setAIMode(nextMode);
-        });
 
         const focusBtn = right.createEl('button', {
             cls: `diwa-dh-focus-btn${this.isFocusMode ? ' is-active' : ''}`,

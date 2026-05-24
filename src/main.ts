@@ -453,7 +453,7 @@ export default class DiwaPlugin extends Plugin {
         this.settings.ai.enabled = this.settings.ai.enabled ?? false;
         this.settings.ai.enableSuggestions = this.settings.ai.enableSuggestions ?? false;
         this.settings.ai.enableSummaries = this.settings.ai.enableSummaries !== false;
-        this.settings.enableFeedSuggestions = this.settings.enableFeedSuggestions ?? false;
+        // enableFeedSuggestions removed — no migration needed
         if (typeof this.settings.ai.model !== 'string' || !this.settings.ai.model.trim()) {
             this.settings.ai.model = DEFAULT_SETTINGS.ai.model;
         }

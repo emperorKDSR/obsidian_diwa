@@ -78,7 +78,6 @@ export interface DiwaSettings {
     legacyMigrated?: boolean;
     peopleFolder: string;
     contextOrder: string[];
-    enableFeedSuggestions: boolean;
     ai: AISettingsConfig;
 }
 
