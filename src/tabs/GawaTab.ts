@@ -660,6 +660,23 @@ export class GawaTab extends BaseTab {
     }
 
     private createFocusPaneConfig(): PaneConfig {
+        let focusIndex = new Map<string, number>();
+        let focusSignature = '';
+        const resolveFocusIndex = (): Map<string, number> => {
+            const focusTasks = this.plugin.getTodayFocusTasks();
+            const signature = focusTasks
+                .map((task) => this.getTaskIdentity(task))
+                .join('|');
+            if (signature === focusSignature) return focusIndex;
+
+            focusSignature = signature;
+            focusIndex = new Map<string, number>();
+            focusTasks.forEach((task, idx) => {
+                focusIndex.set(this.getTaskIdentity(task), idx);
+            });
+            return focusIndex;
+        };
+
         return {
             paneId: 'gawa-focus',
             title: 'FOCUS',
@@ -667,15 +684,11 @@ export class GawaTab extends BaseTab {
             bucketOnDrop: 'active',
             focusOnDrop: true,
             baseFilterFn: (task) => this.getBucketStatus(task) !== 'done',
-            filterFn: (task) => this.isFocusTask(task),
+            filterFn: (task) => resolveFocusIndex().has(this.getTaskIdentity(task)),
             sortFn: (a, b) => {
-                const aPriority = this.getPriorityScore(a.priority);
-                const bPriority = this.getPriorityScore(b.priority);
-                if (aPriority !== bPriority) return bPriority - aPriority;
-                if (a.due && b.due) return a.due.localeCompare(b.due);
-                if (a.due && !b.due) return -1;
-                if (!a.due && b.due) return 1;
-                return (b.lastUpdate || 0) - (a.lastUpdate || 0);
+                const index = resolveFocusIndex();
+                return (index.get(this.getTaskIdentity(a)) ?? Number.MAX_SAFE_INTEGER)
+                    - (index.get(this.getTaskIdentity(b)) ?? Number.MAX_SAFE_INTEGER);
             },
         };
     }
@@ -700,13 +713,6 @@ export class GawaTab extends BaseTab {
         return due.isSameOrBefore(moment().startOf('day'), 'day');
     }
 
-    private getPriorityScore(priority: TaskEntry['priority']): number {
-        if (priority === 'high') return 3;
-        if (priority === 'medium') return 2;
-        if (priority === 'low') return 1;
-        return 0;
-    }
-
     private getBucketStatus(task: TaskEntry): TaskBucketStatus {
         const legacyState = String(task.state || '').toLowerCase();
         if (task.bucketStatus) return task.bucketStatus;
@@ -715,10 +721,7 @@ export class GawaTab extends BaseTab {
         return 'backlog';
     }
 
-    private isFocusTask(task: TaskEntry): boolean {
-        if (task.focus) return true;
-        if (this.getBucketStatus(task) === 'done') return false;
-        const priority = this.getPriorityScore(task.priority);
-        return this.isTodayOrOverdue(task) || priority >= 3;
+    private getTaskIdentity(task: TaskEntry): string {
+        return task.taskId?.trim() || task.id || task.filePath;
     }
 }

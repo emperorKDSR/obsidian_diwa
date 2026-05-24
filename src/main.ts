@@ -20,6 +20,7 @@ import { VaultService } from './services/VaultService';
 import { IndexService } from './services/IndexService';
 import { TaskLinkService } from './services/TaskLinkService';
 import { TaskReflectionService } from './services/TaskReflectionService';
+import { FocusService } from './services/FocusService';
 import { RefreshCoordinator, type RefreshScope } from './application/RefreshCoordinator';
 import { TaskController } from './views/TaskController';
 import { ThoughtController } from './views/ThoughtController';
@@ -75,6 +76,9 @@ export default class DiwaPlugin extends Plugin {
     taskLink: TaskLinkService;
     taskReflection: TaskReflectionService;
     refreshCoordinator: RefreshCoordinator;
+    services?: {
+        focus: FocusService;
+    };
 
     getTaskController(): TaskController {
         if (!this.controller) {
@@ -138,6 +142,11 @@ export default class DiwaPlugin extends Plugin {
         this.taskLink = new TaskLinkService(this.app, this.settings, this.index);
         this.taskReflection = new TaskReflectionService(this.app, this.settings, this.index);
         this.refreshCoordinator = new RefreshCoordinator(this.app, this.settings, this.index);
+        this.services = {
+            focus: new FocusService({
+                getAllTasks: () => this.getAllTasks(),
+            }),
+        };
 
         this.app.workspace.onLayoutReady(async () => {
             await this.index.buildIndices();
@@ -592,18 +601,21 @@ export default class DiwaPlugin extends Plugin {
         return tasks;
     }
 
+    getTodayFocusTasks(limit?: number): TaskEntry[] {
+        if (!this.services?.focus) {
+            this.services = {
+                focus: new FocusService({
+                    getAllTasks: () => this.getAllTasks(),
+                }),
+            };
+        }
+        return this.services.focus.getTodayFocus({
+            limit,
+        });
+    }
+
     getTopTasks(limit = 3): TaskEntry[] {
-        const tasks = this.getAllTasks()
-            .filter((task) => task.status !== 'done')
-            .sort((left, right) => {
-                const leftDue = left.due?.trim() || '';
-                const rightDue = right.due?.trim() || '';
-                if (leftDue && rightDue) return leftDue.localeCompare(rightDue);
-                if (leftDue) return -1;
-                if (rightDue) return 1;
-                return (right.modified || '').localeCompare(left.modified || '');
-            });
-        return tasks.slice(0, Math.max(0, limit));
+        return this.getTodayFocusTasks(limit);
     }
 
     getAllThoughts(): ThoughtEntry[] {
@@ -633,15 +645,22 @@ export default class DiwaPlugin extends Plugin {
         if (options.compact) row.addClass('is-compact');
 
         const toggleBtn = row.createEl('button', {
-            cls: 'diwa-mobile-task-toggle',
+            cls: 'diwa-mobile-task-toggle diwa-mobile-task-cb',
             attr: { type: 'button', 'aria-label': done ? 'Mark task as open' : 'Mark task as done' },
         });
         setIcon(toggleBtn, done ? 'check-circle-2' : 'circle');
         toggleBtn.addEventListener('click', async (event) => {
             event.preventDefault();
             event.stopPropagation();
+            const nextDone = !row.hasClass('is-done');
+            row.toggleClass('is-done', nextDone);
+            setIcon(toggleBtn, nextDone ? 'check-circle-2' : 'circle');
             const ok = await this.getTaskController().toggleTask(taskId);
-            if (!ok) new Notice('Could not update task status', 1500);
+            if (!ok) {
+                row.toggleClass('is-done', done);
+                setIcon(toggleBtn, done ? 'check-circle-2' : 'circle');
+                new Notice('Could not update task status', 1500);
+            }
             this.notifyRefresh('tasks');
         });
 

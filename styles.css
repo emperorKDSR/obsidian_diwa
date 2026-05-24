@@ -8430,12 +8430,16 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 .diwa-mobile-task-row {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 12px;
   min-height: 48px;
-  padding: 10px 12px;
+  padding: 12px;
   border-radius: 12px;
   border: 1px solid var(--background-modifier-border-faint);
   background: var(--background-secondary);
+}
+
+.diwa-mobile-task-row.is-done {
+  opacity: 0.55;
 }
 
 .diwa-mobile-task-row.is-done .diwa-mobile-task-title {
@@ -8457,6 +8461,20 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.diwa-mobile-task-cb {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--background-modifier-border);
+}
+
+.diwa-mobile-task-row.is-done .diwa-mobile-task-cb {
+  background: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+  color: var(--text-on-accent);
 }
 
 .diwa-mobile-task-main {
