@@ -1983,7 +1983,16 @@ export class TaskItemView {
                 const nextDue = picker.value.trim() || null;
                 void this.applyInlineMetadata({ dueDate: nextDue });
             });
-            setTimeout(() => picker.focus(), 30);
+            setTimeout(() => {
+                picker.focus();
+                if (typeof picker.showPicker === 'function') {
+                    try {
+                        picker.showPicker();
+                    } catch {
+                        // ignore — some platforms require a direct user gesture
+                    }
+                }
+            }, 30);
         });
     }
 
@@ -1996,10 +2005,27 @@ export class TaskItemView {
         requestAnimationFrame(() => {
             if (!this.popoverEl || this.popoverEl !== popover || this.destroyed) return;
             const rootRect = this.rootEl.getBoundingClientRect();
+            const listRect = this.rootEl
+                .closest('.diwa-dh-task-list')
+                ?.getBoundingClientRect() ?? rootRect;
             const anchorRect = anchor.getBoundingClientRect();
             const maxLeft = Math.max(8, rootRect.width - popover.offsetWidth - 8);
             const left = Math.min(Math.max(8, anchorRect.left - rootRect.left), maxLeft);
-            const top = anchorRect.bottom - rootRect.top + 6;
+            const gap = 6;
+            const margin = 8;
+            const belowTop = anchorRect.bottom - rootRect.top + gap;
+            const aboveTop = anchorRect.top - rootRect.top - popover.offsetHeight - gap;
+            const minTop = listRect.top - rootRect.top + margin;
+            const maxTop = listRect.bottom - rootRect.top - popover.offsetHeight - margin;
+            const fitsBelow = belowTop <= maxTop;
+            const fitsAbove = aboveTop >= minTop;
+            let top = belowTop;
+            if (!fitsBelow && fitsAbove) top = aboveTop;
+            if (maxTop >= minTop) {
+                top = Math.min(Math.max(top, minTop), maxTop);
+            } else {
+                top = minTop;
+            }
             popover.style.left = `${left}px`;
             popover.style.top = `${top}px`;
         });
