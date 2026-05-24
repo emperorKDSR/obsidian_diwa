@@ -46,6 +46,10 @@ export class DesktopHubView extends ItemView {
     private _thoughtUnsubscribe: (() => void) | null = null;
     private _feedRafId: number | null = null;
 
+    // Topbar guard: only rebuild when focus mode changes or topbar is new
+    private _topBarFocusMode: boolean | null = null;
+    private _focusBtnEl: HTMLButtonElement | null = null;
+
     constructor(leaf: WorkspaceLeaf, plugin: DiwaPlugin) {
         super(leaf);
         this.plugin = plugin;
@@ -122,9 +126,19 @@ export class DesktopHubView extends ItemView {
 
         this._wrapEl?.toggleClass('is-focus-mode', this.isFocusMode);
 
+        // Only rebuild topbar when focus mode changes or topbar is new.
+        // Rebuilding on every vault event causes DOM thrash and perceived sluggishness.
         if (this._topBarEl) {
-            this._topBarEl.empty();
-            this.renderTopBar(this._topBarEl);
+            if (this._topBarFocusMode !== this.isFocusMode) {
+                this._topBarEl.empty();
+                this._focusBtnEl = null;
+                this.renderTopBar(this._topBarEl);
+                this._topBarFocusMode = this.isFocusMode;
+            } else if (this._focusBtnEl) {
+                // Just sync button state without full rebuild
+                this._focusBtnEl.toggleClass('is-active', this.isFocusMode);
+                this._focusBtnEl.title = this.isFocusMode ? 'Exit Focus Mode' : 'Enter Focus Mode';
+            }
         }
 
         if (this._centerEl) {
@@ -184,6 +198,8 @@ export class DesktopHubView extends ItemView {
         this._feedEl = null;
         this._feedEmptyEl = null;
         this._feedRowMap.clear();
+        this._topBarFocusMode = null;
+        this._focusBtnEl = null;
     }
 
     // ── Top Bar ───────────────────────────────────────────────────────────────
@@ -211,7 +227,7 @@ export class DesktopHubView extends ItemView {
         const focusBtn = right.createEl('button', {
             cls: `diwa-dh-focus-btn${this.isFocusMode ? ' is-active' : ''}`,
             attr: { title: this.isFocusMode ? 'Exit Focus Mode' : 'Enter Focus Mode' }
-        });
+        }) as HTMLButtonElement;
         const focusIcon = focusBtn.createDiv({ cls: 'diwa-dh-focus-btn-icon' });
         setIcon(focusIcon, 'lucide-target');
         focusBtn.createSpan({ text: this.isFocusMode ? 'EXIT FOCUS' : 'FOCUS MODE' });
@@ -219,6 +235,7 @@ export class DesktopHubView extends ItemView {
             this.isFocusMode = !this.isFocusMode;
             this.renderView();
         });
+        this._focusBtnEl = focusBtn;
     }
 
     // ── LEFT Sidebar ──────────────────────────────────────────────────────────
@@ -320,7 +337,8 @@ export class DesktopHubView extends ItemView {
                 chip.addEventListener('click', () => {
                     this._activeContext = ctx;
                     renderChips();
-                    this.scheduleFeedRefresh();
+                    // Call patchFeed() directly for instant response on user interaction
+                    this.patchFeed();
                 });
             }
         };
@@ -341,14 +359,16 @@ export class DesktopHubView extends ItemView {
                 for (const el of Array.from(scopeEl.querySelectorAll<HTMLElement>('.diwa-dh-scope-pill'))) {
                     el.toggleClass('is-active', el.textContent === s.label);
                 }
-                this.scheduleFeedRefresh();
+                // Call patchFeed() directly for instant response on user interaction
+                this.patchFeed();
             });
         }
     }
 
     // ── Feed ──────────────────────────────────────────────────────────────────
     private scheduleFeedRefresh(): void {
-        if (this._feedRafId !== null) return;
+        // Cancel any pending RAF and requeue — ensures latest state always wins.
+        if (this._feedRafId !== null) cancelAnimationFrame(this._feedRafId);
         this._feedRafId = window.requestAnimationFrame(() => {
             this._feedRafId = null;
             this.patchFeed();
