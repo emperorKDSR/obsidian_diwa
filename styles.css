@@ -4359,7 +4359,7 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   word-break: break-word;
 }
 .diwa-dh-thought-row-ctx {
-  display: flex;
+  display: none;
   flex-wrap: wrap;
   gap: 4px;
 }
@@ -5785,6 +5785,7 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 }
 
 .diwa-edit-chip-row {
+  display: none;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;

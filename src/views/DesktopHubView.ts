@@ -425,7 +425,7 @@ export class DesktopHubView extends ItemView {
         for (const thought of visibleThoughts) {
             const id = thought.id ?? thought.filePath; // normalizeThought always sets id, fallback for safety
             if (!id) continue;
-            const sig = `${thought.createdAt}|${thought.updatedAt}|${(thought.context ?? []).join(',')}|${thought.body || thought.content || thought.title}`;
+            const sig = `${thought.createdAt}|${thought.updatedAt}|${thought.body || thought.content || thought.title}`;
 
             let row = this._feedRowMap.get(id);
             if (!row) {
@@ -447,6 +447,7 @@ export class DesktopHubView extends ItemView {
                     if (t) await this._thoughtController.setArchived(id, true);
                 });
                 row = { rootEl, textEl, timeEl, ctxEl, sig: '' };
+                row.ctxEl.style.display = 'none';
                 this._feedRowMap.set(id, row);
             }
 
@@ -454,9 +455,7 @@ export class DesktopHubView extends ItemView {
                 row.timeEl.setText(this.formatThoughtTime(thought));
                 row.textEl.setText(thought.body || thought.content || thought.title || '');
                 row.ctxEl.empty();
-                for (const ctx of (thought.context ?? [])) {
-                    row.ctxEl.createEl('span', { cls: 'diwa-dh-thought-ctx-badge', text: `#${ctx}` });
-                }
+                row.ctxEl.style.display = 'none';
                 row.sig = sig;
             }
         }
@@ -488,11 +487,7 @@ export class DesktopHubView extends ItemView {
             const hasVisible = seen.size > 0;
             this._feedEmptyEl.style.display = hasVisible ? 'none' : '';
             if (!hasVisible) {
-                if (allThoughts.filter(t => !t.archived).length === 0) {
-                    this._feedEmptyEl.setText('No thoughts yet. Capture your first one above.');
-                } else {
-                    this._feedEmptyEl.setText('No thoughts in this context.');
-                }
+                this._feedEmptyEl.setText('No thoughts yet. Capture your first one above.');
             }
         }
     }
