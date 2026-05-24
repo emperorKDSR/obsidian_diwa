@@ -626,36 +626,41 @@ export class DesktopHubView extends ItemView {
             thoughts = thoughts.filter(t => t.context.some(c => c.toLowerCase() === ctxLow));
             if (this._feedScope === 'today') thoughts = thoughts.filter(t => t.day === today);
         }
-        const pinned = thoughts.filter((t) => t.pinned === true && !t.archived);
+        // SIMPLIFIED: only show non-archived, non-pinned thoughts
         const recent = thoughts.filter((t) => !t.archived && !t.pinned);
-        const archived = thoughts.filter((t) => !!t.archived);
+        // const pinned = thoughts.filter((t) => t.pinned === true && !t.archived);
+        // const archived = thoughts.filter((t) => !!t.archived);
+
+        // Hide pinned and archived sections
+        if (this._feedPinnedListEl?.parentElement) this._feedPinnedListEl.parentElement.style.display = 'none';
+        if (this._feedArchivedListEl?.parentElement) this._feedArchivedListEl.parentElement.style.display = 'none';
 
         const setSectionTitle = (container: HTMLElement, title: string, count: number) => {
             const titleEl = container.parentElement?.querySelector('.diwa-dh-thought-section-title') as HTMLElement | null;
             if (titleEl) titleEl.setText(`${title} (${count})`);
         };
-        setSectionTitle(this._feedPinnedListEl, 'Pinned', pinned.length);
         setSectionTitle(this._feedRecentListEl, 'Recent', recent.length);
-        setSectionTitle(this._feedArchivedListEl, 'Archived', archived.length);
 
-        await this.patchThoughtSection(this._feedPinnedListEl, pinned);
         await this.patchThoughtSection(this._feedRecentListEl, recent);
-        await this.patchThoughtSection(this._feedArchivedListEl, archived);
+        // await this.patchThoughtSection(this._feedPinnedListEl, pinned);
+        // await this.patchThoughtSection(this._feedArchivedListEl, archived);
 
-        const visibleIds = new Set<string>([...pinned, ...recent, ...archived].map((thought) => thought.id || thought.filePath));
-        if (this.plugin.settings.enableFeedSuggestions) {
-            const visibleClusters = this._thoughtProcessor.clusterThoughts()
-                .map((cluster) => ({
-                    ...cluster,
-                    thoughts: cluster.thoughts.filter((thought) => visibleIds.has(thought.id || thought.filePath)),
-                }))
-                .filter((cluster) => cluster.thoughts.length > 1);
-            this.renderClusters(visibleClusters);
-        } else {
-            this.renderClusters([]);
-        }
+        const visibleIds = new Set<string>(recent.map((thought) => thought.id || thought.filePath));
+        // Thought processing disabled — clusterThoughts commented out
+        // if (this.plugin.settings.enableFeedSuggestions) {
+        //     const visibleClusters = this._thoughtProcessor.clusterThoughts()
+        //         .map((cluster) => ({
+        //             ...cluster,
+        //             thoughts: cluster.thoughts.filter((thought) => visibleIds.has(thought.id || thought.filePath)),
+        //         }))
+        //         .filter((cluster) => cluster.thoughts.length > 1);
+        //     this.renderClusters(visibleClusters);
+        // } else {
+        //     this.renderClusters([]);
+        // }
+        this.renderClusters([]);
 
-        const hasVisible = pinned.length + recent.length > 0;
+        const hasVisible = recent.length > 0;
         this._feedEmptyEl.style.display = hasVisible ? 'none' : '';
         if (!hasVisible) {
             this._feedEmptyEl.setText(ctx === 'all' ? 'Nothing captured yet — your mind is clear.' : `No thoughts tagged #${ctx}${this._feedScope === 'today' ? ' today' : ''}.`);
@@ -1087,54 +1092,27 @@ export class DesktopHubView extends ItemView {
             this.hydrateWikiLinks(row.textEl);
             row.signature = signature;
         }
-        const linkedTasks = this._taskController.getLinkedTasksForThought(thought.filePath);
-        row.linkedTaskIconEl.setText(`🔗 ${linkedTasks.length}`);
-        row.linkedTaskIconEl.style.display = linkedTasks.length > 0 ? '' : 'none';
+        // Thought processing disabled — O(n) scans commented out for performance
+        // const linkedTasks = this._taskController.getLinkedTasksForThought(thought.filePath);
+        // row.linkedTaskIconEl.setText(`🔗 ${linkedTasks.length}`);
+        row.linkedTaskIconEl.style.display = 'none';
 
-        const linkedThoughts = Array.from(new Set((thought.links?.thoughts ?? []).filter(Boolean)));
-        row.linkedThoughtIconEl.setText(`💬 ${linkedThoughts.length}`);
-        row.linkedThoughtIconEl.style.display = linkedThoughts.length > 0 ? '' : 'none';
+        // const linkedThoughts = Array.from(new Set((thought.links?.thoughts ?? []).filter(Boolean)));
+        // row.linkedThoughtIconEl.setText(`💬 ${linkedThoughts.length}`);
+        row.linkedThoughtIconEl.style.display = 'none';
 
-        const shouldSuggestTask = this._thoughtProcessor.suggestTask(thought);
-        row.suggestionTaskEl.style.display = shouldSuggestTask ? '' : 'none';
+        // const shouldSuggestTask = this._thoughtProcessor.suggestTask(thought);
+        row.suggestionTaskEl.style.display = 'none';
 
-        if (this.plugin.settings.enableFeedSuggestions) {
-            const suggestedLinks = await this._thoughtProcessor.suggestLinks(thought);
-            if (suggestedLinks.length > 0) {
-                const labels = suggestedLinks
-                    .map((entry) => this.thoughtSnippet(entry))
-                    .filter(Boolean)
-                    .slice(0, 3);
-                row.suggestionLinksEl.empty();
-                row.suggestionLinksEl.createEl('div', { text: 'Suggested Links' });
-                for (const label of labels) {
-                    row.suggestionLinksEl.createEl('div', { text: `• ${label}` });
-                }
-                row.suggestionLinksEl.style.display = '';
-            } else {
-                row.suggestionLinksEl.empty();
-                row.suggestionLinksEl.style.display = 'none';
-            }
-
-            const recallHints = this._thoughtProcessor.recall(thought)
-                .map((entry) => this.thoughtSnippet(entry))
-                .filter(Boolean)
-                .slice(0, 3);
-            if (recallHints.length > 0) {
-                row.suggestionRecallEl.empty();
-                row.suggestionRecallEl.createEl('div', { text: 'Related Past Thoughts' });
-                for (const label of recallHints) {
-                    row.suggestionRecallEl.createEl('div', { text: `• ${label}` });
-                }
-                row.suggestionRecallEl.style.display = '';
-            } else {
-                row.suggestionRecallEl.empty();
-                row.suggestionRecallEl.style.display = 'none';
-            }
-        } else {
-            row.suggestionLinksEl.style.display = 'none';
-            row.suggestionRecallEl.style.display = 'none';
-        }
+        // suggestLinks, recall, clusterThoughts disabled
+        row.suggestionLinksEl.style.display = 'none';
+        row.suggestionRecallEl.style.display = 'none';
+        // if (this.plugin.settings.enableFeedSuggestions) {
+        //     const suggestedLinks = await this._thoughtProcessor.suggestLinks(thought);
+        //     ...
+        //     const recallHints = this._thoughtProcessor.recall(thought)
+        //     ...
+        // }
     }
 
     private moveThoughtToCorrectSection(thought: ThoughtEntry): void {
