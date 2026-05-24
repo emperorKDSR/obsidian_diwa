@@ -137,7 +137,6 @@ export class VoiceMemoModal extends Modal {
                 const filename = `voice-${moment().format('YYYYMMDD-HHmmss')}.${ext}`;
                 const file = await this.app.vault.createBinary(`${folderPath}/${filename}`, arrayBuffer);
                 
-                new Notice(`Voice note saved: ${filename}`);
                 this.isRecording = false;
                 stream?.getTracks().forEach(track => track.stop());
                 
@@ -159,7 +158,6 @@ export class VoiceMemoModal extends Modal {
             }, 1000);
 
         } catch (err) {
-            new Notice('Microphone access denied.');
             console.error(err);
         } finally {
             // sec-016: Stop mic tracks if setup failed before recording started

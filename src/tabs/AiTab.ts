@@ -90,7 +90,6 @@ export class AiTab extends BaseTab {
         webToggle.addEventListener('click', () => {
             this.view.webSearchEnabled = !this.view.webSearchEnabled;
             webToggle.toggleClass('is-active', this.view.webSearchEnabled);
-            new Notice(this.view.webSearchEnabled ? 'Web search enabled' : 'Web search disabled');
         });
 
         // Settings gear
@@ -139,7 +138,6 @@ export class AiTab extends BaseTab {
         const attachIcon = attachBtn.createEl('span');
         setIcon(attachIcon, 'lucide-paperclip');
         attachBtn.addEventListener('click', () => {
-            new Notice('Drag a file from your vault sidebar to attach it, or type @filename in the chat.');
         });
 
         const textArea = inputArea.createEl('textarea', {

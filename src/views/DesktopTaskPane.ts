@@ -250,10 +250,8 @@ export class DesktopTaskPaneView implements TaskPanePort {
                 this.controller.addTask(optimisticTask);
                 await this.view.plugin.refreshCoordinator.reindexFile(created);
                 void this.controller.reconcileTask(created.path, 'open', optimisticTask);
-                new Notice('✓ Task added', 1000);
             } catch (e) {
                 console.error('[DIWA TaskPane] Error saving task', e);
-                new Notice('Error saving task', 2000);
             }
         };
 
@@ -301,10 +299,8 @@ export class DesktopTaskPaneView implements TaskPanePort {
                             this.controller.syncFromIndex();
                         }
                         resetQuickInput();
-                        new Notice('✓ Task added', 1000);
                     } catch (error) {
                         console.error('[DIWA TaskPane] Error saving structured task', error);
-                        new Notice('Error saving task', 2000);
                     }
                 },
                 seededText
@@ -1071,7 +1067,6 @@ class ThoughtOverlay {
                     if (!currentTaskId) return;
                     const ok = await this.taskController.unlinkThoughtFromTask(thought.filePath, currentTaskId);
                     if (!ok) {
-                        new Notice('Error unlinking thought', 2000);
                         return;
                     }
                     this.render();
@@ -1320,11 +1315,9 @@ export class TaskItemView {
         try {
             const ok = await action();
             if (!ok) {
-                new Notice('Error updating task', 2000);
             }
         } catch (error) {
             console.error('[DIWA TaskPane] Error updating task state', error);
-            new Notice('Error updating task', 2000);
         } finally {
             this.rootEl.removeClass('is-completing');
         }
@@ -1485,10 +1478,8 @@ export class TaskItemView {
                 this.controller.updateTask(updatedTask);
                 await this.reindexTask(task.filePath);
                 void this.controller.reconcileTask(task.filePath, updatedTask.status, updatedTask);
-                new Notice('✓ Task updated', 1000);
             } catch (e) {
                 console.error('[DIWA TaskPane] Error updating task', e);
-                new Notice('Error updating task', 2000);
                 this.headerEl.style.display = '';
                 this.syncMetaVisibility(this.hasVisibleMetadata(this.currentTask));
             }
@@ -1763,7 +1754,6 @@ export class TaskItemView {
         try {
             const ok = await this.controller.createThoughtFromTask(getTaskKey(this.currentTask), thoughtText);
             if (!ok) {
-                new Notice('Error linking thought', 2000);
                 return false;
             }
             const latestTask = this.controller.getTask(getTaskKey(this.currentTask));
@@ -1772,7 +1762,6 @@ export class TaskItemView {
             return true;
         } catch (error) {
             console.error('[DIWA TaskPane] Error creating thought from task', error);
-            new Notice('Error linking thought', 2000);
             return false;
         }
     }
@@ -1813,7 +1802,6 @@ export class TaskItemView {
     private async linkExistingThought(thoughtId: string): Promise<void> {
         const ok = await this.controller.linkThoughtToTask(thoughtId, getTaskKey(this.currentTask));
         if (!ok) {
-            new Notice('Error linking thought', 2000);
             return;
         }
         this.closeInlinePopover();
@@ -1825,7 +1813,6 @@ export class TaskItemView {
     private async unlinkThought(thoughtId: string): Promise<boolean> {
         const ok = await this.controller.unlinkThoughtFromTask(thoughtId, getTaskKey(this.currentTask));
         if (!ok) {
-            new Notice('Error unlinking thought', 2000);
             return false;
         }
         const latestTask = this.controller.getTask(getTaskKey(this.currentTask));
@@ -2071,7 +2058,6 @@ export class TaskItemView {
         const source = this.currentTask;
         const bodyText = (source.body || source.title || '').trim();
         if (!bodyText) {
-            new Notice('Task is empty, cannot duplicate', 1500);
             return;
         }
 
@@ -2098,10 +2084,8 @@ export class TaskItemView {
             } else {
                 this.controller.syncFromIndex();
             }
-            new Notice('Task duplicated', 1000);
         } catch (error) {
             console.error('[DIWA TaskPane] Error duplicating task', error);
-            new Notice('Error duplicating task', 2000);
         } finally {
             this.rootEl.removeClass('is-completing');
         }
@@ -2115,13 +2099,11 @@ export class TaskItemView {
         try {
             const ok = await this.controller.updateTaskMetadata(getTaskKey(this.currentTask), updates);
             if (!ok) {
-                new Notice('Error updating task', 2000);
                 return;
             }
             this.flashUpdate();
         } catch (error) {
             console.error('[DIWA TaskPane] Error updating task metadata', error);
-            new Notice('Error updating task', 2000);
         } finally {
             this.rootEl.removeClass('is-completing');
         }

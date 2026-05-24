@@ -503,12 +503,10 @@ export class DesktopHubView extends ItemView {
                 try {
                     const created = await this._thoughtController.addThought({ content: raw, context: [] });
                     if (!created) {
-                        new Notice('Error saving thought — please try again', 2500);
                         return;
                     }
                     textarea.value = '';
                     autosize();
-                    new Notice('✦ Thought saved', 1200);
                 } finally {
                     this._capturePending = Math.max(0, this._capturePending - 1);
                     textarea.disabled = false;

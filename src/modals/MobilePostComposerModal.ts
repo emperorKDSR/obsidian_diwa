@@ -312,18 +312,15 @@ export class MobilePostComposerModal extends Modal {
                     context: this.contexts,
                     topic: this.topic.trim() || undefined,
                 });
-                new Notice('✦ Thought updated', 1200);
             } else {
                 await this.plugin.getThoughtController().addThought({
                     content: text,
                     context: this.contexts,
                     topic: this.topic.trim() || undefined,
                 });
-                new Notice('✦ Thought saved', 1200);
             }
             this.close();
         } catch {
-            new Notice('Error saving thought — please try again', 2500);
         }
     }
 

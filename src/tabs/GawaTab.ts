@@ -216,10 +216,8 @@ export class GawaTab extends BaseTab {
                     this._taskController.syncFromIndex();
                 }
                 input.value = '';
-                new Notice('Task added', 900);
             } catch (error) {
                 console.error('[DIWA GAWA] Failed fast capture task', error);
-                new Notice('Error creating task', 2000);
             } finally {
                 input.disabled = false;
                 input.focus();
@@ -361,7 +359,6 @@ export class GawaTab extends BaseTab {
                 }
             } catch (error) {
                 console.error('[DIWA GAWA] Failed inbox inline capture', error);
-                new Notice('Error creating task', 2000);
             } finally {
                 input.disabled = false;
                 input.focus();
@@ -478,10 +475,8 @@ export class GawaTab extends BaseTab {
             } else {
                 this._taskController.syncFromIndex();
             }
-            new Notice('Task added', 1000);
         } catch (error) {
             console.error('[DIWA GAWA] Failed to create task', error);
-            new Notice('Error creating task', 2000);
         }
     }
 

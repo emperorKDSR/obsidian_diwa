@@ -293,10 +293,8 @@ export class JournalTab extends BaseTab {
             textarea.value = textarea.value.substring(0, start) + link + textarea.value.substring(end);
             textarea.setSelectionRange(start + link.length, start + link.length);
             textarea.dispatchEvent(new Event('input'));
-            new Notice('📎 Image attached', 1200);
         } catch (e) {
             console.error('[DIWA] Compose attachment failed:', e);
-            new Notice('Failed to attach image.', 2000);
         }
     }
 

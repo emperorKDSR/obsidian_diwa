@@ -219,9 +219,7 @@ export function attachMediaPasteHandler(
             const filename = await saveFile(file);
             if (filename) {
                 insertAtCursor(`![[${filename}]]`);
-                new Notice(`📎 Saved: ${filename}`);
             } else {
-                new Notice('⚠ Failed to save attachment — check console');
             }
         }
     });
@@ -243,7 +241,6 @@ export function attachMediaPasteHandler(
             const filename = await saveFile(files[i]);
             if (filename) {
                 insertAtCursor(`![[${filename}]]`);
-                new Notice(`📎 Saved: ${filename}`);
             }
         }
     });

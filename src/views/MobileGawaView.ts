@@ -108,7 +108,6 @@ export class MobileGawaView extends ItemView {
             const ok = await this.plugin.getTaskController().toggleTask(taskId);
             this._togglingTaskIds.delete(taskId);
             if (!ok) {
-                new Notice('Could not update task status', 1600);
             }
             await this.renderView();
         });

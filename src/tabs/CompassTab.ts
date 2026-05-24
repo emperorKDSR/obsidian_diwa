@@ -69,7 +69,6 @@ export class CompassTab extends BaseTab {
                 this.settings.northStarGoals = [...currentGoals];
                 await this.plugin.saveSettings();
                 await this.vault.saveCompassData(quarterId, currentGoals, currentMission);
-                new Notice('Vision updated');
             });
         }
 
@@ -110,7 +109,6 @@ export class CompassTab extends BaseTab {
             this.settings.lifeMission = currentMission;
             await this.plugin.saveSettings();
             await this.vault.saveCompassData(quarterId, currentGoals, currentMission);
-            new Notice('Mission saved');
         });
     }
 }

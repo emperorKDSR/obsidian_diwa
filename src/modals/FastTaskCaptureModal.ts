@@ -349,7 +349,6 @@ export class FastTaskCaptureModal extends Modal {
     private async createWithTarget(target: TaskTarget): Promise<void> {
         const capture = this.resolveCapture();
         if (!capture.cleanText) {
-            new Notice('Task text is required', 1200);
             return;
         }
         const status: 'open' | 'waiting' = target === 'backlog' ? 'open' : 'waiting';
@@ -369,7 +368,6 @@ export class FastTaskCaptureModal extends Modal {
             this.close();
         } catch (error) {
             console.error('[DIWA FastTaskCaptureModal] create failed', error);
-            new Notice('Error creating task', 2000);
         }
     }
 }

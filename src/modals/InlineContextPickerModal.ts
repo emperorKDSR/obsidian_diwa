@@ -130,7 +130,7 @@ export class InlineContextPickerModal extends Modal {
 
             const doCreate = async () => {
                 const val = newInput.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-                if (!val) { new Notice('Invalid context name.'); return; }
+                if (!val) { return; }
                 if (!this.plugin.settings.contexts.includes(val)) {
                     this.plugin.settings.contexts.push(val);
                     await this.plugin.saveSettings();

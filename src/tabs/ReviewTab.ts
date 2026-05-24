@@ -452,7 +452,6 @@ export class ReviewTab extends BaseTab {
                             // Brief delay for index to catch up via file watcher
                             setTimeout(() => renderPlan(), 300);
                         } catch (err: any) {
-                            new Notice('Failed to create task: ' + (err?.message || 'Unknown error'));
                             quickInput.disabled = false;
                             submitBtn.disabled = false;
                         }
@@ -807,9 +806,7 @@ export class ReviewTab extends BaseTab {
                 copyBtn.addEventListener('click', async () => {
                     try {
                         await navigator.clipboard.writeText(this.view.weeklyAiReport || '');
-                        new Notice('Copied to clipboard');
                     } catch {
-                        new Notice('Could not copy — select the text manually');
                     }
                 });
 

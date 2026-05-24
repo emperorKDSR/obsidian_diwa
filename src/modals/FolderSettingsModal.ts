@@ -133,7 +133,6 @@ export class FolderSettingsModal extends Modal {
         });
         doneBtn.addEventListener('click', () => {
             this.close();
-            new Notice('Folder configuration updated.');
         });
     }
 

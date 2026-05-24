@@ -80,7 +80,6 @@ export class TaskLinkService {
     async addThoughtToExistingTask(taskId: string, thoughtId: string): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(taskId);
         if (!(file instanceof TFile)) {
-            new Notice('Task file not found.');
             return;
         }
 
@@ -103,7 +102,6 @@ export class TaskLinkService {
             });
         } catch (e) {
             console.error('[DIWA TaskLinkService] addThoughtToExistingTask:', e);
-            new Notice('Could not update task.');
         }
     }
 
@@ -117,7 +115,6 @@ export class TaskLinkService {
     async linkTaskToThought(taskId: string, thoughtId: string): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(thoughtId);
         if (!(file instanceof TFile)) {
-            new Notice('Thought file not found.');
             return;
         }
 
@@ -133,7 +130,6 @@ export class TaskLinkService {
             });
         } catch (e) {
             console.error('[DIWA TaskLinkService] linkTaskToThought:', e);
-            new Notice('Could not update thought.');
         }
     }
 
@@ -179,7 +175,6 @@ export class TaskLinkService {
     ): Promise<void> {
         const file = await this._resolveTaskFile(taskIdOrPath);
         if (!file) {
-            new Notice('Task not found.');
             return;
         }
 
@@ -204,7 +199,6 @@ export class TaskLinkService {
             });
         } catch (e) {
             console.error('[DIWA TaskLinkService] updateTaskState:', e);
-            new Notice('Could not update task state.');
         }
     }
 
@@ -288,7 +282,6 @@ export class TaskLinkService {
             return path;
         } catch (e) {
             console.error('[DIWA TaskLinkService] _writeTaskFile:', e);
-            new Notice('Could not create task file.');
             throw e;
         }
     }

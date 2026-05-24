@@ -108,7 +108,6 @@ export class AiSettingsModal extends Modal {
         });
         doneBtn.addEventListener('click', () => {
             this.close();
-            new Notice('AI configuration updated.');
         });
     }
 

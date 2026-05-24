@@ -92,11 +92,9 @@ export class SettingsTab extends BaseTab {
                     });
                     const ok = reply.trim().toUpperCase().includes('OK');
                     status.setText(ok ? 'Connected successfully.' : `Connected. Model replied: ${reply.slice(0, 80)}`);
-                    new Notice(ok ? 'AI connection successful.' : 'AI connected with unexpected response.');
                 } catch (error) {
                     const message = error instanceof Error ? error.message : String(error);
                     status.setText(`Connection failed: ${message}`);
-                    new Notice(`AI connection failed: ${message}`, 6000);
                 } finally {
                     btn.disabled = false;
                     btn.setText('Test AI Connection');

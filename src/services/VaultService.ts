@@ -121,7 +121,6 @@ export class VaultService {
             return file;
         } catch (e) {
             console.error('[DIWA VaultService]', e);
-            new Notice(VaultService.toUserMessage(e));
             throw e;
         }
     }
@@ -189,7 +188,6 @@ export class VaultService {
             await this.app.vault.modify(file, newContent);
         } catch (e) {
             console.error('[DIWA VaultService]', e);
-            new Notice(VaultService.toUserMessage(e));
         }
     }
 
@@ -217,7 +215,6 @@ export class VaultService {
             });
         } catch (e) {
             console.error('[DIWA VaultService]', e);
-            new Notice(VaultService.toUserMessage(e));
         }
     }
 
@@ -251,7 +248,6 @@ export class VaultService {
             await this.app.vault.modify(file, content.slice(0, fmEnd + 5) + newText + '\n');
         } catch (e) {
             console.error('[DIWA VaultService]', e);
-            new Notice(VaultService.toUserMessage(e));
         }
     }
 
@@ -267,7 +263,6 @@ export class VaultService {
             });
         } catch (e) {
             console.error('[DIWA VaultService]', e);
-            new Notice(VaultService.toUserMessage(e));
         }
     }
 
@@ -279,7 +274,7 @@ export class VaultService {
                 fm['due'] = dueDate ? `[[${dueDate}]]` : '';
                 fm['modified'] = this.formatDateTime(new Date());
             });
-        } catch (e) { console.error('[DIWA VaultService]', e); new Notice(VaultService.toUserMessage(e)); }
+        } catch (e) { console.error('[DIWA VaultService]', e); }
     }
 
     async updateTaskTitle(filePath: string, newTitle: string): Promise<void> {
@@ -290,7 +285,7 @@ export class VaultService {
                 fm['title'] = this.sanitizeYamlString(newTitle);
                 fm['modified'] = this.formatDateTime(new Date());
             });
-        } catch (e) { console.error('[DIWA VaultService]', e); new Notice(VaultService.toUserMessage(e)); }
+        } catch (e) { console.error('[DIWA VaultService]', e); }
     }
 
     async updateTaskEntry(filePath: string, updates: {
@@ -307,7 +302,7 @@ export class VaultService {
         bodyText?: string;
     }): Promise<boolean> {
         const file = this.app.vault.getAbstractFileByPath(filePath);
-        if (!(file instanceof TFile)) { new Notice('Task file not found.'); return false; }
+        if (!(file instanceof TFile)) { return false; }
         try {
             const now    = new Date();
             const nowStr = this.formatDateTime(now);
@@ -353,7 +348,6 @@ export class VaultService {
             return true;
         } catch (e) {
             console.error('[DIWA VaultService]', e);
-            new Notice(VaultService.toUserMessage(e));
             return false;
         }
     }
@@ -369,10 +363,8 @@ export class VaultService {
         try {
             const trashPath = `${trashFolder}/${file.basename}_${Date.now()}.md`;
             await this.app.vault.rename(file, trashPath);
-            new Notice('Moved to trash.');
         } catch (e) {
             console.error('[DIWA VaultService]', e);
-            new Notice(VaultService.toUserMessage(e));
         }
     }
 
@@ -398,7 +390,6 @@ export class VaultService {
             catch { failed.push(fp); }
         }
         if (failed.length > 0) {
-            new Notice(`Merged ✓ — but ${failed.length} source note(s) could not be trashed.`, 3000);
         }
         return newFile;
     }
@@ -425,7 +416,6 @@ export class VaultService {
             return true;
         } catch (e) {
             console.error('[DIWA VaultService]', e);
-            new Notice(VaultService.toUserMessage(e));
             return false;
         }
     }
@@ -560,7 +550,6 @@ export class VaultService {
         const notesLine = notes.trim() ? `\n- **Notes:** ${notes.trim()}` : '';
         const record = `\n\n## Payment: ${paymentDate}\n- **Paid On:** ${paymentDate}\n- **Next Due:** ${nextDueDate}${notesLine}\n`;
         await this.app.vault.modify(file, current + record);
-        new Notice(`Payment recorded for ${file.basename}. Next due: ${nextDueDate}`);
     }
 
     /** Save a weekly review to {reviewsFolder}/Weekly/YYYY-Www.md */

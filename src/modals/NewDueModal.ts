@@ -58,7 +58,7 @@ export class NewDueModal extends Modal {
         cancelBtn.onclick = () => this.close();
         saveBtn.onclick = async () => {
             const name = nameInput.value.trim();
-            if (!name) { new Notice('Name is required'); return; }
+            if (!name) { return; }
             
             try {
                 const folder = folderInput.value.trim().replace(/\/$/, '');
@@ -69,7 +69,6 @@ export class NewDueModal extends Modal {
                 }
 
                 if (this.app.vault.getAbstractFileByPath(fileP)) {
-                    new Notice('A file with this name already exists');
                     return;
                 }
 
@@ -84,11 +83,9 @@ amount: ${aInput.value || '0.00'}
 ${notesArea.value}
 `;
                 await this.app.vault.create(fileP, content);
-                new Notice(`Created ${name}`);
                 this.onSubmit();
                 this.close();
             } catch (e: any) {
-                new Notice(`Error creating payable: ${e.message}`);
             }
         };
 

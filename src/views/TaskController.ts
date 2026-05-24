@@ -212,13 +212,11 @@ export class TaskController {
 
         const existingLinkedTasks = this.getLinkedTasksForThought(resolvedThought.filePath);
         if (existingLinkedTasks.length > 0) {
-            new Notice('Thought already linked to a task', 1600);
             return true;
         }
 
         const sourceText = (resolvedThought.thought.body || resolvedThought.thought.title || '').trim();
         if (!sourceText) {
-            new Notice('Thought is empty, cannot convert', 1800);
             return false;
         }
 
@@ -586,7 +584,6 @@ export class TaskController {
         if (action === 'focus' && nextState === 'focus' && currentState !== 'focus') {
             const focusedCount = this.getFocusedTaskCount(getTaskKey(task));
             if (focusedCount >= MAX_FOCUS_TASKS) {
-                new Notice(`Focus is limited to ${MAX_FOCUS_TASKS} tasks.`, 1800);
                 return false;
             }
         }

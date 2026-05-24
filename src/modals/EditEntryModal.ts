@@ -235,7 +235,7 @@ export class EditEntryModal extends Modal {
             const energy = this.currentMode === 'task' ? this.currentEnergy : null;
             const status = this.currentMode === 'task' ? this.currentStatus : 'open';
             this.onSave(text, contexts, due, this.currentProject, recur, priority, energy, status);
-            if (this.stayOpen) { textArea.value = ''; textArea.focus(); new Notice('Capture saved.'); }
+            if (this.stayOpen) { textArea.value = ''; textArea.focus(); }
             else this.close();
         };
         saveBtn.addEventListener('click', handleSave);
@@ -797,7 +797,7 @@ export class EditEntryModal extends Modal {
             const energy = this.currentMode === 'task' ? this.currentEnergy : null;
             const status = this.currentMode === 'task' ? this.currentStatus : 'open';
             this.onSave(text, contexts, due, this.currentProject, recur, priority, energy, status);
-            if (this.stayOpen) { textArea.value = ''; textArea.focus(); new Notice('Capture saved.'); }
+            if (this.stayOpen) { textArea.value = ''; textArea.focus(); }
             else this.close();
         };
         cancelBtn.addEventListener('click', () => this.close());

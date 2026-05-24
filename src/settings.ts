@@ -72,10 +72,8 @@ export class DiwaSettingTab extends PluginSettingTab {
             found.forEach(c => { if (!this.plugin.settings.contexts.includes(c)) { this.plugin.settings.contexts.push(c); added++; } });
             if (added > 0) {
                 await this.plugin.saveSettings();
-                new Notice(`Found and added ${added} new contexts.`);
                 this.display();
             } else {
-                new Notice('No new contexts found.');
             }
         }));
 

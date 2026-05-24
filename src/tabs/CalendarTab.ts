@@ -272,7 +272,6 @@ export class CalendarTab extends BaseTab {
                     quickAdd.remove();
                     setTimeout(() => this.render(renderContainer), 300);
                 } catch (err: any) {
-                    new Notice('Failed to create task: ' + (err?.message || 'Unknown error'));
                     quickInput.disabled = false;
                     submitBtn.disabled = false;
                 }

@@ -64,9 +64,7 @@ export class ExportTab extends BaseTab {
             const folder = (this.settings.thoughtsFolder || '000 Bin/DIWA').replace(/\\/g, '/');
             const path = `${folder}/DIWA_Export_Thoughts.csv`;
             await this._writeFile(path, content);
-            new Notice(`Exported ${thoughts.length} thoughts to thoughts folder ✓`);
         } catch (e) {
-            new Notice(`Export failed: ${e.message}`);
         } finally {
             btn.disabled = false;
             btn.textContent = 'Export as CSV';
@@ -94,9 +92,7 @@ export class ExportTab extends BaseTab {
             const folder = (this.settings.tasksFolder || '000 Bin/DIWA Gawa').replace(/\\/g, '/');
             const path = `${folder}/DIWA_Export_Tasks.csv`;
             await this._writeFile(path, content);
-            new Notice(`Exported ${tasks.length} tasks to tasks folder ✓`);
         } catch (e) {
-            new Notice(`Export failed: ${e.message}`);
         } finally {
             btn.disabled = false;
             btn.textContent = 'Export as CSV';
@@ -128,9 +124,7 @@ export class ExportTab extends BaseTab {
             const fileName = `DIWA_Backup_${dateStr}.json`;
             const path = `${folder}/${fileName}`;
             await this._writeFile(path, content);
-            new Notice(`Backup created: ${fileName} ✓`);
         } catch (e) {
-            new Notice(`Backup failed: ${e.message}`);
         } finally {
             btn.disabled = false;
             btn.textContent = 'Create Backup';

@@ -291,7 +291,6 @@ export class VoiceTab extends BaseTab {
                     this.setState('reviewing', { transcript: text, clipFile: file, durationMs: 0, clipFileName: file.name });
                 } catch (e: any) {
                     console.error('[DIWA VoiceTab]', e);
-                    new Notice('Transcription failed. Check the Gemini API key in settings.');
                     transcribeBtn.setText('Transcribe');
                     transcribeBtn.disabled = false;
                 }
@@ -363,7 +362,6 @@ export class VoiceTab extends BaseTab {
                     await this.processRecording(blob, ext, durationMs);
                 } catch (e: any) {
                     console.error('[DIWA VoiceTab] processRecording', e);
-                    new Notice('Recording saved but could not process. Check console.');
                     this.setState('idle');
                 }
             };
@@ -381,7 +379,6 @@ export class VoiceTab extends BaseTab {
             const friendly = (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError')
                 ? 'Microphone access denied — allow permission in your OS settings.'
                 : 'Could not start recording. Ensure a microphone is connected.';
-            new Notice(friendly);
         }
     }
 
@@ -413,7 +410,6 @@ export class VoiceTab extends BaseTab {
             console.error('[DIWA VoiceTab] transcription', e);
             const clipFile = this.app.vault.getAbstractFileByPath(`${folder}/${filename}`) as TFile | null;
             this.setState('reviewing', { transcript: '', clipFile, durationMs, clipFileName: filename });
-            new Notice('Auto-transcription failed — edit transcript manually or retry.');
         }
     }
 
@@ -426,7 +422,7 @@ export class VoiceTab extends BaseTab {
 
     private async saveAsThought() {
         const text = this.getTranscript().trim();
-        if (!text) { new Notice('Transcript is empty — nothing to save.'); return; }
+        if (!text) { return; }
         this.haptic('success');
         await this.plugin.getThoughtController().addThought({ content: text, context: [] });
         this.showToast('✦ Saved as Thought');
@@ -436,7 +432,7 @@ export class VoiceTab extends BaseTab {
 
     private async createTask() {
         const text = this.getTranscript().trim();
-        if (!text) { new Notice('Transcript is empty — nothing to save.'); return; }
+        if (!text) { return; }
         this.haptic('success');
         await this.vault.createTaskFile(text, []);
         this.showToast('✓ Task created');
@@ -479,7 +475,7 @@ export class VoiceTab extends BaseTab {
         if (file instanceof TFile) {
             const src = this.app.vault.getResourcePath(file);
             const audio = new Audio(src);
-            audio.play().catch(() => new Notice('Could not play audio.'));
+            audio.play().catch(() => {});
         }
     }
 

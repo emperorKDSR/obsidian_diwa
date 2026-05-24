@@ -111,7 +111,6 @@ export class TaskReflectionService {
             file = await this.app.vault.create(path, frontmatter + body);
         } catch (e) {
             console.error('[DIWA TaskReflectionService] generateTaskReflection:', e);
-            new Notice('Could not create reflection note.');
             return null;
         }
 

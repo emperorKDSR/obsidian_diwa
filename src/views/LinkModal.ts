@@ -378,7 +378,7 @@ export class LinkModal {
         if (!this.activeContext) return false;
         if (this.activeContext.taskId) {
             const ok = await this.taskController.createThoughtFromTask(this.activeContext.taskId, content);
-            if (!ok) new Notice('Could not add linked thought', 1800);
+            if (!ok)
             return ok;
         }
         if (this.activeContext.thoughtId) {
@@ -389,11 +389,10 @@ export class LinkModal {
                 project: source?.project,
             });
             if (!created) {
-                new Notice('Could not add linked thought', 1800);
                 return false;
             }
             const ok = await this.thoughtController.linkThoughtToThought(this.activeContext.thoughtId, created.filePath);
-            if (!ok) new Notice('Could not link thought', 1800);
+            if (!ok)
             return ok;
         }
         return false;
@@ -410,7 +409,6 @@ export class LinkModal {
         await this.plugin.refreshCoordinator.reindexFile(created);
         const indexedTask = this.plugin.index.taskIndex.get(created.path);
         if (!indexedTask) {
-            new Notice('Could not add linked task', 1800);
             return false;
         }
         this.taskController.addTask(indexedTask);
@@ -418,7 +416,7 @@ export class LinkModal {
 
         if (this.activeContext.thoughtId) {
             const ok = await this.taskController.linkThoughtToTask(this.activeContext.thoughtId, newTaskId);
-            if (!ok) new Notice('Could not link task', 1800);
+            if (!ok)
             return ok;
         }
 
@@ -430,7 +428,6 @@ export class LinkModal {
                 linkedAny = linkedAny || linked;
             }
             if (thoughts.length > 0 && !linkedAny) {
-                new Notice('Could not link task', 1800);
                 return false;
             }
             return true;

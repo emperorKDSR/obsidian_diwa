@@ -109,7 +109,6 @@ export class BaseTab {
                     content: lines.join('\n'),
                     context: entry.context,
                 });
-                new Notice(isChecked ? 'Task completed' : 'Task reopened');
             });
         });
     }
@@ -213,19 +212,16 @@ export class BaseTab {
         this.renderActionButton(actions, ICON_ARROW_RIGHT, 'Convert to Task', () => {
             new ConvertToTaskModal(this.app, entry.body, entry.context, async (title, dueDate) => {
                 if (!title) {
-                    new Notice('Task title is required.');
                     return;
                 }
 
                 const taskLink = this.plugin.taskLink;
                 if (!taskLink) {
-                    new Notice('Task support is not ready.');
                     return;
                 }
 
                 const task = await taskLink.createTaskFromThought(entry.filePath, title);
                 if (!task.filePath) {
-                    new Notice('Could not create task.');
                     return;
                 }
 

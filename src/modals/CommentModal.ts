@@ -155,7 +155,7 @@ export class CommentModal extends Modal {
 
         const handleSave = async () => {
             const text = textArea.value.trim();
-            if (!text) { new Notice('Please enter a comment'); return; }
+            if (!text) { return; }
             saveBtn.disabled = true;
             saveBtn.setText('Saving...');
             await this.onSave(text);

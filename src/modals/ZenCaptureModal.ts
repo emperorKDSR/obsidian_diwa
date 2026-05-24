@@ -139,12 +139,10 @@ export class ZenCaptureModal extends Modal {
         if (!text) return;
         try {
             await this.plugin.getThoughtController().addThought({ content: text, context: this.contexts });
-            new Notice('✦ Thought saved');
             this.plugin.zenCaptureDraft = '';
             this.close();
         } catch (e) {
             console.error('[DIWA] Zen Capture save failed:', e);
-            new Notice('Failed to save thought');
         }
     }
 

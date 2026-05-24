@@ -176,7 +176,6 @@ export class ThoughtController {
             }
         } catch (error) {
             console.error('[DIWA ThoughtController] addThought failed', error);
-            new Notice('Error saving thought', 2000);
             return null;
         }
     }
@@ -217,7 +216,6 @@ export class ThoughtController {
             return this.upsertThought(merged);
         } catch (error) {
             console.error('[DIWA ThoughtController] updateThought failed', error);
-            new Notice('Error updating thought', 2000);
             return null;
         } finally {
             this.updatingThoughtPaths.delete(existing.filePath);
@@ -236,7 +234,6 @@ export class ThoughtController {
             return this.syncIndexedThought(thought.filePath);
         } catch (error) {
             console.error('[DIWA ThoughtController] assignThoughtContext failed', error);
-            new Notice('Error updating thought context', 2000);
             return null;
         }
     }
@@ -254,7 +251,6 @@ export class ThoughtController {
             return this.syncIndexedThought(thought.filePath);
         } catch (error) {
             console.error('[DIWA ThoughtController] setSynthesized failed', error);
-            new Notice('Failed to update archived state.', 2000);
             return null;
         }
     }

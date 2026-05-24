@@ -104,7 +104,6 @@ export class PaymentModal extends Modal {
                 this.onPaymentSaved();
                 this.close();
             } catch (e: any) {
-                new Notice('Payment save failed: ' + e.message);
             }
         };
 

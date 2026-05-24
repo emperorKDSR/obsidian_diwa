@@ -301,7 +301,6 @@ export default class DiwaPlugin extends Plugin {
                 }
             }
             await vault.rename(file, path + '.bak');
-            new Notice(`Migrated legacy ${isTask ? 'tasks' : 'thoughts'}.`);
         };
         await migrateFile(thoughtsPath, false);
         await migrateFile(tasksPath, true);
@@ -349,7 +348,6 @@ export default class DiwaPlugin extends Plugin {
         const existing = workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB);
         if (existing.length > 0) { workspace.revealLeaf(existing[0]); return; }
         if (!Platform.isMobile || isTablet()) {
-            new Notice('DIWA Mobile Hub is available on phones only.', 2500);
             return;
         }
         const leaf = workspace.getLeaf(false);
@@ -361,7 +359,6 @@ export default class DiwaPlugin extends Plugin {
         const existing = workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB);
         if (existing.length > 0) { workspace.revealLeaf(existing[0]); return; }
         if (!isTablet()) {
-            new Notice('DIWA Tablet Hub is available on tablets only.', 2500);
             return;
         }
         const leaf = workspace.getLeaf(false);
@@ -373,7 +370,6 @@ export default class DiwaPlugin extends Plugin {
         const existing = workspace.getLeavesOfType(VIEW_TYPE_MOBILE_GAWA);
         if (existing.length > 0) { workspace.revealLeaf(existing[0]); return; }
         if (!Platform.isMobile || isTablet()) {
-            new Notice('DIWA Mobile Gawa is available on phones only.', 2500);
             return;
         }
         const leaf = workspace.getLeaf(false);
@@ -393,7 +389,6 @@ export default class DiwaPlugin extends Plugin {
     async activateSearchView() {
         const { workspace } = this.app;
         if (!Platform.isDesktop) {
-            new Notice('DIWA Search is only available on desktop.', 2500);
             return;
         }
         const existing = workspace.getLeavesOfType(VIEW_TYPE_SEARCH);
@@ -691,7 +686,6 @@ export default class DiwaPlugin extends Plugin {
             if (!ok) {
                 row.toggleClass('is-done', done);
                 renderCheckboxState(done);
-                new Notice('Could not update task status', 1500);
             }
             this.notifyRefresh('tasks');
         });
@@ -830,7 +824,6 @@ export default class DiwaPlugin extends Plugin {
         const thoughtId = (thought.id || thought.filePath || '').trim();
         if (!thoughtId) {
             console.error('[DIWA] Cannot convert thought: missing thought id/path', thought);
-            new Notice('Failed to convert thought', 1800);
             return;
         }
 
@@ -840,17 +833,14 @@ export default class DiwaPlugin extends Plugin {
         try {
             const ok = await controller.convertThoughtToTask(thoughtId);
             if (!ok) {
-                new Notice('Failed to convert thought', 1800);
                 return;
             }
-            new Notice('Converted to task', 1200);
             if (openEditor) {
                 this.openConvertedTaskEditor(thoughtId);
             }
             this.notifyRefresh('all');
         } catch (error) {
             console.error(error);
-            new Notice('Failed to convert thought', 1800);
         }
     }
 
@@ -958,7 +948,6 @@ export default class DiwaPlugin extends Plugin {
             const completed = this.index.habitStatusIndex ?? [];
             const incomplete = allHabits.filter(h => !completed.includes(h.id));
             if (incomplete.length > 0) {
-                new Notice(`🌿 DIWA: ${incomplete.length} habit${incomplete.length > 1 ? 's' : ''} pending today`, 5000);
             }
         }
 
@@ -969,7 +958,6 @@ export default class DiwaPlugin extends Plugin {
                 if (t.status !== 'done' && t.due === today) dueCount++;
             }
             if (dueCount > 0) {
-                new Notice(`✅ DIWA: ${dueCount} task${dueCount > 1 ? 's' : ''} due today`, 5000);
             }
         }
     }

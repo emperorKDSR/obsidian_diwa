@@ -174,7 +174,6 @@ export class SynthesisTab extends BaseTab {
         btn.addEventListener('click', async () => {
             const file = this.app.vault.getAbstractFileByPath(filePath);
             if (!(file instanceof TFile)) {
-                new Notice('Note file not found.');
                 return;
             }
             const leaf = this.app.workspace.getLeaf('window') ?? this.app.workspace.getLeaf(false);
@@ -209,7 +208,6 @@ export class SynthesisTab extends BaseTab {
             } catch (e) {
                 check.checked = !next;
                 console.error('[DIWA SynthesisTab] Failed to update synthesized flag', e);
-                new Notice('Failed to update archived state.');
             } finally {
                 check.disabled = false;
             }
@@ -249,7 +247,6 @@ export class SynthesisTab extends BaseTab {
                 await this.refreshAfterMutation(thought.filePath);
             } catch (e) {
                 console.error('[DIWA SynthesisTab] Failed to update context', e);
-                new Notice('Failed to update context.');
                 select.value = current;
             } finally {
                 select.disabled = false;
@@ -300,7 +297,6 @@ export class SynthesisTab extends BaseTab {
                 await this.refreshAfterMutation(thought.filePath);
             } catch (e) {
                 console.error('[DIWA SynthesisTab] Failed to update topic', e);
-                new Notice('Failed to update topic.');
             } finally {
                 input.disabled = false;
             }

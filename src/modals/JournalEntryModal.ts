@@ -408,10 +408,8 @@ export class JournalEntryModal extends Modal {
                 img.onload = () => URL.revokeObjectURL(objUrl);
             }
 
-            new Notice('📎 Image attached', 1200);
         } catch (e) {
             console.error('[DIWA] Journal attachment save failed:', e);
-            new Notice('Failed to attach image.', 2000);
         }
     }
 

@@ -112,7 +112,6 @@ export class AiService {
     // ai-04: Resolve model ID against allowlist, show Notice if falling back
     private static resolveModel(rawId: string, fallback: string): string {
         if (STABLE_GEMINI_MODELS.has(rawId)) return rawId;
-        new Notice(`MINA: Model "${rawId}" is not supported. Falling back to ${fallback}. Update in AI Config.`);
         return fallback;
     }
 

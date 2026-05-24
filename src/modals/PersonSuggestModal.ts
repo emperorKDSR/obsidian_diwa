@@ -90,10 +90,8 @@ export class PersonSuggestModal extends SuggestModal<PersonItem> {
                 file = await this.app.vault.create(path, content);
             }
 
-            new Notice(`Created person: ${name}`);
             this.onChoose(file as TFile);
         } catch (e: any) {
-            new Notice(`Failed to create person: ${e?.message || 'Unknown error'}`);
         }
     }
 }

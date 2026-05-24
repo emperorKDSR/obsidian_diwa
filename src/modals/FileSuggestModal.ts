@@ -60,7 +60,6 @@ export class FileSuggestModal extends SuggestModal<FileOrCreate> {
                 const newFile = await this.app.vault.create(path, '');
                 this.onChoose(newFile);
             } catch (e: any) {
-                new Notice(`Could not create note: ${e.message}`);
             }
         } else {
             this.onChoose(item);
