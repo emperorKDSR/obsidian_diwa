@@ -148,7 +148,23 @@ export class MobileGawaView extends ItemView {
 
     private matchTaskFilter(task: TaskEntry): boolean {
         if (this._taskFilter === 'all') return true;
-        if (this._taskFilter === 'open') return task.status === 'open' || task.status === 'someday';
-        return task.status === this._taskFilter;
+        const status = String(task.status || '').toLowerCase();
+        const isDone = this.isTaskDone(task);
+        if (this._taskFilter === 'open') return !isDone && (status === 'open' || status === 'someday' || status === 'waiting');
+        if (this._taskFilter === 'waiting') return !isDone && status === 'waiting';
+        if (this._taskFilter === 'done') return isDone;
+        return false;
+    }
+
+    private isTaskDone(task: TaskEntry): boolean {
+        const status = String(task.status || '').toLowerCase();
+        const state = String(task.state || '').toLowerCase();
+        const bucket = String(task.bucketStatus || '').toLowerCase();
+        const lifecycle = String(task.lifecycleStatus || '').toLowerCase();
+        return status === 'done'
+            || state === 'done'
+            || bucket === 'done'
+            || lifecycle === 'done'
+            || !!task.completedAt;
     }
 }

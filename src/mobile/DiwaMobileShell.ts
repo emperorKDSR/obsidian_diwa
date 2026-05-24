@@ -115,9 +115,7 @@ export class DiwaMobileShell {
         const wrap = container.createDiv('diwa-mobile-list-wrap');
         wrap.createDiv({ cls: 'diwa-mobile-section-title', text: 'Gawa' });
         const list = wrap.createDiv('diwa-mobile-list');
-        const tasks = this.plugin.getAllTasks().filter(
-            (task) => task.status !== 'done' && task.lifecycleStatus !== 'done' && task.bucketStatus !== 'done',
-        );
+        const tasks = this.plugin.getAllTasks().filter((task) => !this.isTaskDone(task));
         if (tasks.length === 0) {
             list.createDiv({ cls: 'diwa-mobile-empty', text: 'No open tasks available.' });
             return;
@@ -125,6 +123,18 @@ export class DiwaMobileShell {
         tasks.forEach((task: TaskEntry) => {
             this.plugin.renderTaskRow(list, task, { mobile: true });
         });
+    }
+
+    private isTaskDone(task: TaskEntry): boolean {
+        const status = String(task.status || '').toLowerCase();
+        const state = String(task.state || '').toLowerCase();
+        const bucket = String(task.bucketStatus || '').toLowerCase();
+        const lifecycle = String(task.lifecycleStatus || '').toLowerCase();
+        return status === 'done'
+            || state === 'done'
+            || bucket === 'done'
+            || lifecycle === 'done'
+            || !!task.completedAt;
     }
 
     private renderThoughts(container: HTMLElement): void {
