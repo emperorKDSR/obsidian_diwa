@@ -329,6 +329,7 @@ export class DesktopHubView extends ItemView {
             this._captureSectionEl = parent.createEl('div', { cls: 'diwa-dh-capture-section' });
             this.renderCapture(this._captureSectionEl);
         }
+        this._captureSectionEl?.querySelectorAll('.diwa-dh-ctx-filter-bar, .diwa-dh-ctx-chips').forEach((el) => el.remove());
         if (!this._feedEl || !parent.contains(this._feedEl)) {
             const feedWrap = parent.createEl('div', { cls: 'diwa-dh-feed-wrap' });
             this._feedWrapEl = feedWrap;
