@@ -40,7 +40,6 @@ export class DesktopHubView extends ItemView {
     // Feed state
     private _feedEl: HTMLElement | null = null;
     private _feedEmptyEl: HTMLElement | null = null;
-    private _feedScope: 'today' | 'all' = 'today';
     private _activeContext: string = 'all';
     private _feedRowMap = new Map<string, { rootEl: HTMLElement; textEl: HTMLElement; timeEl: HTMLElement; ctxEl: HTMLElement; sig: string }>();
     private _thoughtUnsubscribe: (() => void) | null = null;
@@ -325,9 +324,7 @@ export class DesktopHubView extends ItemView {
 
     private renderContextFilter(parent: HTMLElement) {
         const bar = parent.createEl('div', { cls: 'diwa-dh-ctx-filter-bar' });
-
         const chipsEl = bar.createEl('div', { cls: 'diwa-dh-ctx-chips' });
-        const scopeEl = bar.createEl('div', { cls: 'diwa-dh-scope-pills' });
 
         const renderChips = () => {
             chipsEl.empty();
@@ -343,32 +340,11 @@ export class DesktopHubView extends ItemView {
                 chip.addEventListener('click', () => {
                     this._activeContext = ctx;
                     renderChips();
-                    // Call patchFeed() directly for instant response on user interaction
                     this.patchFeed();
                 });
             }
         };
         renderChips();
-
-        const scopes: Array<{ key: 'today' | 'all'; label: string }> = [
-            { key: 'today', label: 'Today' },
-            { key: 'all', label: 'All' },
-        ];
-        for (const s of scopes) {
-            const btn = scopeEl.createEl('button', {
-                cls: `diwa-dh-scope-pill${this._feedScope === s.key ? ' is-active' : ''}`,
-                text: s.label,
-                attr: { type: 'button' },
-            });
-            btn.addEventListener('click', () => {
-                this._feedScope = s.key;
-                for (const el of Array.from(scopeEl.querySelectorAll<HTMLElement>('.diwa-dh-scope-pill'))) {
-                    el.toggleClass('is-active', el.textContent === s.label);
-                }
-                // Call patchFeed() directly for instant response on user interaction
-                this.patchFeed();
-            });
-        }
     }
 
     // ── Feed ──────────────────────────────────────────────────────────────────
@@ -384,16 +360,11 @@ export class DesktopHubView extends ItemView {
     private patchFeed(): void {
         if (!this._feedEl || this._closed) return;
 
-        const now = new Date();
-        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         let thoughts = this._thoughtController.getAllThoughts().filter(t => !t.archived);
 
         if (this._activeContext !== 'all') {
             const ctxLow = this._activeContext.toLowerCase();
             thoughts = thoughts.filter(t => (t.context ?? []).some(c => c.toLowerCase() === ctxLow));
-        }
-        if (this._feedScope === 'today') {
-            thoughts = thoughts.filter(t => t.day === today);
         }
 
         // Newest first
@@ -460,9 +431,7 @@ export class DesktopHubView extends ItemView {
         if (this._feedEmptyEl) {
             this._feedEmptyEl.style.display = hasVisible ? 'none' : '';
             if (!hasVisible) {
-                this._feedEmptyEl.setText(
-                    this._feedScope === 'today' ? 'Nothing captured today.' : 'No thoughts yet.'
-                );
+                this._feedEmptyEl.setText('No thoughts yet.');
             }
         }
     }
@@ -471,9 +440,8 @@ export class DesktopHubView extends ItemView {
         if (!t.created) return '';
         const now = new Date();
         const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        const isToday = t.day === today;
         const timeStr = (t.created ?? '').slice(11, 16); // "HH:mm"
-        if (isToday) return timeStr;
+        if (t.day === today) return timeStr;
         const dateStr = (t.created ?? '').slice(5, 10).replace('-', '/'); // "MM/DD"
         return `${dateStr} ${timeStr}`;
     }
