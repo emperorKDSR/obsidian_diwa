@@ -3,24 +3,56 @@ import type { TaskEntry, ThoughtEntry } from '../types';
 import type DiwaPlugin from '../main';
 
 type MobileView = 'home' | 'tasks' | 'thoughts' | 'ai';
+export type ShellPlatform = 'mobile' | 'tablet' | 'desktop';
+
+export function getPlatform(app: App): ShellPlatform {
+    const isMobile = (app as { isMobile?: boolean }).isMobile ?? false;
+    if (!isMobile) return 'desktop';
+    return window.innerWidth >= 768 ? 'tablet' : 'mobile';
+}
 
 export class DiwaMobileShell {
     private activeView: MobileView = 'home';
     private activeContexts: Set<string> = new Set();
+    private selectedThought: ThoughtEntry | null = null;
     private hostEl: HTMLElement | null = null;
+    private platform: Exclude<ShellPlatform, 'desktop'>;
 
-    constructor(private app: App, private plugin: DiwaPlugin) {}
+    constructor(
+        private app: App,
+        private plugin: DiwaPlugin,
+        options: { platform?: Exclude<ShellPlatform, 'desktop'> } = {},
+    ) {
+        this.platform = options.platform ?? 'mobile';
+    }
+
+    public setPlatform(platform: Exclude<ShellPlatform, 'desktop'>): void {
+        this.platform = platform;
+    }
 
     public render(container: HTMLElement): void {
         this.hostEl = container;
         container.empty();
 
-        const shell = container.createDiv('diwa-mobile-shell');
-        const content = shell.createDiv('diwa-mobile-content');
-        const nav = shell.createDiv('diwa-mobile-nav');
+        const shellClass = this.platform === 'tablet'
+            ? 'diwa-mobile-shell diwa-tablet-shell'
+            : 'diwa-mobile-shell';
+        const shell = container.createDiv(shellClass);
 
+        if (this.platform === 'tablet') {
+            this.renderTopTabs(shell);
+        }
+
+        const contentClass = this.platform === 'tablet'
+            ? 'diwa-content-tablet'
+            : 'diwa-mobile-content';
+        const content = shell.createDiv(contentClass);
         this.renderActiveView(content);
-        this.renderBottomNav(nav);
+
+        if (this.platform === 'tablet') {
+            return;
+        }
+        this.renderBottomNav(shell.createDiv('diwa-mobile-nav'));
     }
 
     private renderActiveView(container: HTMLElement): void {
@@ -98,15 +130,15 @@ export class DiwaMobileShell {
         wrap.createDiv({ cls: 'diwa-mobile-section-title', text: 'Thoughts' });
         const contexts = this.plugin.getContexts();
         this.renderContextBar(wrap, contexts);
-        const list = wrap.createDiv('diwa-thought-list');
         const thoughts = this.filterThoughts(this.plugin.getAllThoughts(), this.activeContexts);
-        if (thoughts.length === 0) {
-            list.createDiv({ cls: 'diwa-mobile-empty', text: 'No thoughts available.' });
+
+        if (this.platform === 'tablet') {
+            this.renderTabletThoughtsLayout(wrap, thoughts);
             return;
         }
-        thoughts.forEach((thought: ThoughtEntry) => {
-            this.plugin.renderThoughtCard(list, thought, { mobile: true });
-        });
+
+        const list = wrap.createDiv('diwa-thought-list');
+        this.renderThoughtList(list, thoughts, false);
     }
 
     private filterThoughts(thoughts: ThoughtEntry[], activeContexts: Set<string>): ThoughtEntry[] {
@@ -149,9 +181,68 @@ export class DiwaMobileShell {
         new MobileContextPickerModal(this.app, contexts, this.activeContexts, () => this.refreshView()).open();
     }
 
+    private renderThoughtList(container: HTMLElement, thoughts: ThoughtEntry[], selectable: boolean): void {
+        if (thoughts.length === 0) {
+            container.createDiv({ cls: 'diwa-mobile-empty', text: 'No thoughts available.' });
+            return;
+        }
+        thoughts.forEach((thought: ThoughtEntry) => {
+            const card = this.plugin.renderThoughtCard(container, thought, { mobile: true });
+            if (!selectable) return;
+            if (this.selectedThought && (this.selectedThought.id || this.selectedThought.filePath) === (thought.id || thought.filePath)) {
+                card.addClass('is-selected');
+            }
+            card.addEventListener('click', (event) => {
+                const target = event.target as HTMLElement | null;
+                if (target?.closest('a')) return;
+                this.selectedThought = thought;
+                this.refreshView();
+            });
+        });
+    }
+
+    private renderTabletThoughtsLayout(container: HTMLElement, thoughts: ThoughtEntry[]): void {
+        const layout = container.createDiv('diwa-tablet-split');
+        const left = layout.createDiv('diwa-tablet-left');
+        const right = layout.createDiv('diwa-tablet-right');
+        const list = left.createDiv('diwa-thought-list');
+
+        this.renderThoughtList(list, thoughts, true);
+        if (thoughts.length === 0) {
+            right.createDiv({ cls: 'diwa-mobile-empty', text: 'Select a thought to preview.' });
+            return;
+        }
+
+        const selectedId = this.selectedThought?.id || this.selectedThought?.filePath || '';
+        const resolved = thoughts.find((thought) => (thought.id || thought.filePath) === selectedId) ?? thoughts[0];
+        this.selectedThought = resolved;
+        right.createDiv({ cls: 'diwa-mobile-section-title', text: 'Preview' });
+        this.plugin.renderThoughtCard(right, resolved, { mobile: true });
+    }
+
     private renderAI(container: HTMLElement): void {
         const wrap = container.createDiv('diwa-mobile-ai');
         this.plugin.renderAIView(wrap);
+    }
+
+    private renderTopTabs(container: HTMLElement): void {
+        const bar = container.createDiv('diwa-tablet-tabs');
+        const items: Array<{ id: MobileView; label: string }> = [
+            { id: 'home', label: 'Home' },
+            { id: 'tasks', label: 'Tasks' },
+            { id: 'thoughts', label: 'Thoughts' },
+            { id: 'ai', label: 'AI' },
+        ];
+
+        items.forEach((item) => {
+            const tab = bar.createDiv('diwa-tab');
+            tab.setText(item.label);
+            if (this.activeView === item.id) tab.addClass('is-active');
+            tab.addEventListener('click', () => {
+                this.activeView = item.id;
+                this.refreshView();
+            });
+        });
     }
 
     private renderBottomNav(container: HTMLElement): void {

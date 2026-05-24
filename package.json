@@ -1,6 +1,6 @@
 {
   "name": "diwa",
-  "version": "7.3.4",
+  "version": "7.3.5",
   "description": "diwa: Quickly capture thoughts and tasks to a file.",
   "main": "main.js",
   "scripts": {

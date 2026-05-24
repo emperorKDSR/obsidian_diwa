@@ -1,8 +1,7 @@
-import { ItemView, Platform, WorkspaceLeaf } from 'obsidian';
+import { ItemView, WorkspaceLeaf } from 'obsidian';
 import { VIEW_TYPE_MOBILE_HUB } from '../constants';
 import type DiwaPlugin from '../main';
-import { isTablet } from '../utils';
-import { DiwaMobileShell } from '../mobile/DiwaMobileShell';
+import { DiwaMobileShell, getPlatform } from '../mobile/DiwaMobileShell';
 
 export class MobileHubView extends ItemView {
     private shell: DiwaMobileShell;
@@ -11,7 +10,7 @@ export class MobileHubView extends ItemView {
     constructor(leaf: WorkspaceLeaf, plugin: DiwaPlugin) {
         super(leaf);
         this.plugin = plugin;
-        this.shell = new DiwaMobileShell(this.app, plugin);
+        this.shell = new DiwaMobileShell(this.app, plugin, { platform: 'mobile' });
     }
 
     getViewType(): string { return VIEW_TYPE_MOBILE_HUB; }
@@ -34,16 +33,17 @@ export class MobileHubView extends ItemView {
         root.empty();
         root.addClass('diwa-mobile-shell-root');
 
-        if (!Platform.isMobile || isTablet()) {
+        const platform = getPlatform(this.app);
+        if (platform === 'desktop') {
             root.createEl('div', {
-                text: 'DIWA Mobile Shell is available on phones only.',
+                text: 'DIWA Mobile Shell is available on mobile devices only.',
                 attr: {
                     style: 'color: var(--text-muted); font-size: 0.9em; text-align: center; margin-top: 80px; padding: 24px;',
                 },
             });
             return;
         }
-
+        this.shell.setPlatform(platform);
         this.shell.render(root);
     }
 }

@@ -312,7 +312,11 @@ export default class DiwaPlugin extends Plugin {
     }
 
     async activateDesktopHub() {
-        if (Platform.isMobile && !isTablet()) {
+        if (Platform.isMobile) {
+            if (isTablet()) {
+                await this.activateTabletHub();
+                return;
+            }
             await this.activateMobileHub();
             return;
         }

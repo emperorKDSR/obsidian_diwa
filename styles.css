@@ -8657,3 +8657,58 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   color: var(--text-on-accent);
   font-weight: 700;
 }
+
+.diwa-tablet-shell {
+  padding: 16px;
+}
+
+.diwa-content-tablet {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.diwa-tablet-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.diwa-tab {
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--background-secondary-alt);
+  border: 1px solid var(--background-modifier-border-faint);
+}
+
+.diwa-tab.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+.diwa-tablet-split {
+  display: flex;
+  gap: 16px;
+}
+
+.diwa-tablet-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.diwa-tablet-right {
+  width: 380px;
+  border-left: 1px solid var(--background-modifier-border);
+  padding-left: 12px;
+}
+
+.diwa-tablet-left .diwa-thought-card.is-selected {
+  border-color: var(--interactive-accent);
+}
+
+@media (max-width: 768px) {
+  .diwa-tablet-tabs {
+    display: none;
+  }
+}

@@ -1,5 +1,5 @@
 import { App, Notice, TFile } from 'obsidian';
-import { VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_DIWA, VIEW_TYPE_MOBILE_HUB } from '../constants';
+import { VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_DIWA, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB } from '../constants';
 import type { DiwaSettings } from '../types';
 import { DesktopHubView } from '../views/DesktopHubView';
 import { DiwaView } from '../view';
@@ -89,6 +89,13 @@ export class RefreshCoordinator {
             }
             const mobileHubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB);
             for (const leaf of mobileHubLeaves) {
+                const view = leaf.view as MobileHubView;
+                if (view && typeof view.renderView === 'function') {
+                    view.renderView();
+                }
+            }
+            const tabletHubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB);
+            for (const leaf of tabletHubLeaves) {
                 const view = leaf.view as MobileHubView;
                 if (view && typeof view.renderView === 'function') {
                     view.renderView();
