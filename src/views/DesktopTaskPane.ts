@@ -1998,34 +1998,30 @@ export class TaskItemView {
 
     private openInlinePopover(anchor: HTMLElement, render: (popover: HTMLElement) => void): void {
         this.closeInlinePopover();
-        const popover = this.rootEl.createEl('div', { cls: 'diwa-dh-inline-popover' });
+        // Append to body so the popover is not clipped by any scroll-container ancestor.
+        const popover = document.body.createEl('div', { cls: 'diwa-dh-inline-popover' });
         this.popoverEl = popover;
         render(popover);
 
         requestAnimationFrame(() => {
             if (!this.popoverEl || this.popoverEl !== popover || this.destroyed) return;
-            const rootRect = this.rootEl.getBoundingClientRect();
-            const listRect = this.rootEl
-                .closest('.diwa-dh-task-list')
-                ?.getBoundingClientRect() ?? rootRect;
             const anchorRect = anchor.getBoundingClientRect();
-            const maxLeft = Math.max(8, rootRect.width - popover.offsetWidth - 8);
-            const left = Math.min(Math.max(8, anchorRect.left - rootRect.left), maxLeft);
+            const popoverW = popover.offsetWidth;
+            const popoverH = popover.offsetHeight;
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
             const gap = 6;
             const margin = 8;
-            const belowTop = anchorRect.bottom - rootRect.top + gap;
-            const aboveTop = anchorRect.top - rootRect.top - popover.offsetHeight - gap;
-            const minTop = listRect.top - rootRect.top + margin;
-            const maxTop = listRect.bottom - rootRect.top - popover.offsetHeight - margin;
-            const fitsBelow = belowTop <= maxTop;
-            const fitsAbove = aboveTop >= minTop;
-            let top = belowTop;
-            if (!fitsBelow && fitsAbove) top = aboveTop;
-            if (maxTop >= minTop) {
-                top = Math.min(Math.max(top, minTop), maxTop);
-            } else {
-                top = minTop;
+            // Prefer below anchor; fall back to above if it would overflow the viewport bottom.
+            let top = anchorRect.bottom + gap;
+            if (top + popoverH > vh - margin) {
+                const aboveTop = anchorRect.top - popoverH - gap;
+                top = aboveTop >= margin ? aboveTop : vh - popoverH - margin;
             }
+            // Left-align with anchor; clamp to viewport edges.
+            let left = anchorRect.left;
+            if (left + popoverW > vw - margin) left = vw - popoverW - margin;
+            if (left < margin) left = margin;
             popover.style.left = `${left}px`;
             popover.style.top = `${top}px`;
         });

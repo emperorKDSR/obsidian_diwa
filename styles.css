@@ -5009,8 +5009,8 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 }
 
 .diwa-dh-inline-popover {
-  position: absolute;
-  z-index: 40;
+  position: fixed;
+  z-index: 9999;
   min-width: 210px;
   max-width: 260px;
   padding: 8px;
