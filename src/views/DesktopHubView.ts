@@ -637,13 +637,17 @@ export class DesktopHubView extends ItemView {
         await this.patchThoughtSection(this._feedArchivedListEl, archived);
 
         const visibleIds = new Set<string>([...pinned, ...recent, ...archived].map((thought) => thought.id || thought.filePath));
-        const visibleClusters = this._thoughtProcessor.clusterThoughts()
-            .map((cluster) => ({
-                ...cluster,
-                thoughts: cluster.thoughts.filter((thought) => visibleIds.has(thought.id || thought.filePath)),
-            }))
-            .filter((cluster) => cluster.thoughts.length > 1);
-        this.renderClusters(visibleClusters);
+        if (this.plugin.settings.enableFeedSuggestions) {
+            const visibleClusters = this._thoughtProcessor.clusterThoughts()
+                .map((cluster) => ({
+                    ...cluster,
+                    thoughts: cluster.thoughts.filter((thought) => visibleIds.has(thought.id || thought.filePath)),
+                }))
+                .filter((cluster) => cluster.thoughts.length > 1);
+            this.renderClusters(visibleClusters);
+        } else {
+            this.renderClusters([]);
+        }
 
         const hasVisible = pinned.length + recent.length > 0;
         this._feedEmptyEl.style.display = hasVisible ? 'none' : '';
@@ -1064,36 +1068,41 @@ export class DesktopHubView extends ItemView {
         const shouldSuggestTask = this._thoughtProcessor.suggestTask(thought);
         row.suggestionTaskEl.style.display = shouldSuggestTask ? '' : 'none';
 
-        const suggestedLinks = await this._thoughtProcessor.suggestLinks(thought);
-        if (suggestedLinks.length > 0) {
-            const labels = suggestedLinks
+        if (this.plugin.settings.enableFeedSuggestions) {
+            const suggestedLinks = await this._thoughtProcessor.suggestLinks(thought);
+            if (suggestedLinks.length > 0) {
+                const labels = suggestedLinks
+                    .map((entry) => this.thoughtSnippet(entry))
+                    .filter(Boolean)
+                    .slice(0, 3);
+                row.suggestionLinksEl.empty();
+                row.suggestionLinksEl.createEl('div', { text: 'Suggested Links' });
+                for (const label of labels) {
+                    row.suggestionLinksEl.createEl('div', { text: `• ${label}` });
+                }
+                row.suggestionLinksEl.style.display = '';
+            } else {
+                row.suggestionLinksEl.empty();
+                row.suggestionLinksEl.style.display = 'none';
+            }
+
+            const recallHints = this._thoughtProcessor.recall(thought)
                 .map((entry) => this.thoughtSnippet(entry))
                 .filter(Boolean)
                 .slice(0, 3);
-            row.suggestionLinksEl.empty();
-            row.suggestionLinksEl.createEl('div', { text: 'Suggested Links' });
-            for (const label of labels) {
-                row.suggestionLinksEl.createEl('div', { text: `• ${label}` });
+            if (recallHints.length > 0) {
+                row.suggestionRecallEl.empty();
+                row.suggestionRecallEl.createEl('div', { text: 'Related Past Thoughts' });
+                for (const label of recallHints) {
+                    row.suggestionRecallEl.createEl('div', { text: `• ${label}` });
+                }
+                row.suggestionRecallEl.style.display = '';
+            } else {
+                row.suggestionRecallEl.empty();
+                row.suggestionRecallEl.style.display = 'none';
             }
-            row.suggestionLinksEl.style.display = '';
         } else {
-            row.suggestionLinksEl.empty();
             row.suggestionLinksEl.style.display = 'none';
-        }
-
-        const recallHints = this._thoughtProcessor.recall(thought)
-            .map((entry) => this.thoughtSnippet(entry))
-            .filter(Boolean)
-            .slice(0, 3);
-        if (recallHints.length > 0) {
-            row.suggestionRecallEl.empty();
-            row.suggestionRecallEl.createEl('div', { text: 'Related Past Thoughts' });
-            for (const label of recallHints) {
-                row.suggestionRecallEl.createEl('div', { text: `• ${label}` });
-            }
-            row.suggestionRecallEl.style.display = '';
-        } else {
-            row.suggestionRecallEl.empty();
             row.suggestionRecallEl.style.display = 'none';
         }
     }

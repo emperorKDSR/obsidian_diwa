@@ -449,9 +449,11 @@ export default class DiwaPlugin extends Plugin {
         this.settings = Object.assign({}, DEFAULT_SETTINGS);
         if (loadedData) Object.assign(this.settings, loadedData);
         this.settings.ai = Object.assign({}, DEFAULT_SETTINGS.ai, this.settings.ai ?? {});
-        this.settings.ai.enabled = this.settings.ai.enabled !== false;
-        this.settings.ai.enableSuggestions = this.settings.ai.enableSuggestions !== false;
+        // Use ?? so saved values are respected; new installs default to false
+        this.settings.ai.enabled = this.settings.ai.enabled ?? false;
+        this.settings.ai.enableSuggestions = this.settings.ai.enableSuggestions ?? false;
         this.settings.ai.enableSummaries = this.settings.ai.enableSummaries !== false;
+        this.settings.enableFeedSuggestions = this.settings.enableFeedSuggestions ?? false;
         if (typeof this.settings.ai.model !== 'string' || !this.settings.ai.model.trim()) {
             this.settings.ai.model = DEFAULT_SETTINGS.ai.model;
         }

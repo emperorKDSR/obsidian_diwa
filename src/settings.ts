@@ -43,6 +43,26 @@ export class DiwaSettingTab extends PluginSettingTab {
                     });
             });
 
+        containerEl.createEl('h3', { text: 'Feed Intelligence' });
+        new Setting(containerEl)
+            .setName('Feed Suggestions')
+            .setDesc('Show related thought suggestions and recall hints in the feed. Disable for faster navigation (recommended).')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.enableFeedSuggestions ?? false)
+                .onChange(async (value) => {
+                    this.plugin.settings.enableFeedSuggestions = value;
+                    await this.plugin.saveSettings();
+                }));
+        new Setting(containerEl)
+            .setName('AI Mode')
+            .setDesc('Use AI (Gemini/GPT) to power feed suggestions and thought analysis. Requires a valid API key and Feed Suggestions to be on.')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.ai.enabled ?? false)
+                .onChange(async (value) => {
+                    this.plugin.settings.ai.enabled = value;
+                    await this.plugin.saveSettings();
+                }));
+
         containerEl.createEl('h3', { text: 'AI Configuration' });
         containerEl.createEl('p', {
             text: 'Populate only these fields: API key, model, and temperature.',
