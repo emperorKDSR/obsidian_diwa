@@ -5382,6 +5382,7 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 }
 
 .diwa-dh-focus-panel-host {
+  display: none;
   width: min(360px, 36%);
   min-width: 280px;
   flex: 0 0 auto;
