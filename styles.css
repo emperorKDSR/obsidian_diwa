@@ -4687,6 +4687,7 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 
 /* ── RIGHT Panel ───────────────────────────────────────────────── */
 .diwa-dh-right {
+  display: none;
   flex-shrink: 0;
   width: var(--diwa-dh-right-w);
   min-width: 0;
