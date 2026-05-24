@@ -56,9 +56,11 @@ export class DesktopHubView extends ItemView {
     private _captureSectionEl: HTMLElement | null = null;
     private _captureInputEl: HTMLTextAreaElement | null = null;
     private _captureHintEl: HTMLElement | null = null;
+    private _contextFilterSectionEl: HTMLElement | null = null;
     private _feedSearchSectionEl: HTMLElement | null = null;
     private _feedSearchInputEl: HTMLInputElement | null = null;
     private _feedSearchQuery: string = '';
+    private _activeContext: string = 'all';
 
     // Feed state
     private _feedEl: HTMLElement | null = null;
@@ -97,11 +99,19 @@ export class DesktopHubView extends ItemView {
     getIcon(): string { return 'layout-dashboard'; }
 
     getState(): Record<string, unknown> {
-        return { isFocusMode: this.isFocusMode };
+        return {
+            isFocusMode: this.isFocusMode,
+            activeContext: this._activeContext,
+        };
     }
 
     async setState(state: any, result: ViewStateResult): Promise<void> {
         if (state?.isFocusMode !== undefined) this.isFocusMode = !!state.isFocusMode;
+        if (typeof state?.activeContext === 'string' && state.activeContext.trim()) {
+            this._activeContext = state.activeContext.trim();
+        } else {
+            this._activeContext = 'all';
+        }
         await super.setState(state, result);
         this.renderView();
     }
@@ -241,6 +251,7 @@ export class DesktopHubView extends ItemView {
         this._captureSectionEl = null;
         this._captureInputEl = null;
         this._captureHintEl = null;
+        this._contextFilterSectionEl = null;
         this._feedSearchSectionEl = null;
         this._feedSearchInputEl = null;
         this._feedEl = null;
@@ -367,13 +378,15 @@ export class DesktopHubView extends ItemView {
             this.renderCapture(this._captureSectionEl);
         }
 
+        if (!this._contextFilterSectionEl || !parent.contains(this._contextFilterSectionEl)) {
+            this._contextFilterSectionEl = parent.createEl('div', { cls: 'diwa-dh-feed-search-section' });
+        }
+        this.renderContextFilter(this._contextFilterSectionEl);
+
         if (!this._feedSearchSectionEl || !parent.contains(this._feedSearchSectionEl)) {
             this._feedSearchSectionEl = parent.createEl('div', { cls: 'diwa-dh-feed-search-section' });
-            if (this._feedWrapEl && parent.contains(this._feedWrapEl)) {
-                parent.insertBefore(this._feedSearchSectionEl, this._feedWrapEl);
-            }
-            this.renderFeedSearch(this._feedSearchSectionEl);
         }
+        this.renderFeedSearch(this._feedSearchSectionEl);
 
         if (!this._feedEl || !parent.contains(this._feedEl)) {
             this._scrollObserver?.disconnect();
@@ -394,6 +407,11 @@ export class DesktopHubView extends ItemView {
             this._scrollSentinelEl = feedWrap.createEl('div', { cls: 'diwa-dh-scroll-sentinel' });
             this.mountScrollObserver();
             this.scheduleFeedRefresh();
+        }
+
+        for (const section of [this._captureSectionEl, this._contextFilterSectionEl, this._feedSearchSectionEl, this._feedWrapEl]) {
+            if (!section || !parent.contains(section) || parent.lastElementChild === section) continue;
+            parent.appendChild(section);
         }
     }
 
@@ -447,6 +465,9 @@ export class DesktopHubView extends ItemView {
         if (this._feedPopoverAnchorEl && !this._feedPopoverAnchorEl.isConnected) {
             this.closeFeedPopover();
         }
+        if (this._contextFilterSectionEl) {
+            this.renderContextFilter(this._contextFilterSectionEl);
+        }
 
         // Show loading state until the index is fully hydrated
         if (!this._thoughtController.isReady()) {
@@ -468,6 +489,10 @@ export class DesktopHubView extends ItemView {
             },
         }));
         let thoughts = allThoughts.filter(t => !t.archived);
+        const activeContext = this._activeContext.trim().toLowerCase();
+        if (activeContext && activeContext !== 'all') {
+            thoughts = thoughts.filter((thought) => (thought.context ?? []).some((ctx) => ctx.toLowerCase() === activeContext));
+        }
 
         // Stable sort: newest first using numeric timestamp (avoids Date-object/string ambiguity)
         thoughts = [...thoughts].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
@@ -615,8 +640,55 @@ export class DesktopHubView extends ItemView {
             const hasVisible = seen.size > 0;
             this._feedEmptyEl.style.display = hasVisible ? 'none' : '';
             if (!hasVisible) {
-                this._feedEmptyEl.setText(searchQuery ? 'No thoughts match your search.' : 'No thoughts yet. Capture your first one above.');
+                const hasNonArchivedThoughts = allThoughts.some((thought) => !thought.archived);
+                if (!hasNonArchivedThoughts) {
+                    this._feedEmptyEl.setText('No thoughts yet. Capture your first one above.');
+                } else if (searchQuery && activeContext !== 'all') {
+                    this._feedEmptyEl.setText('No thoughts match your current filters.');
+                } else if (searchQuery) {
+                    this._feedEmptyEl.setText('No thoughts match your search.');
+                } else if (activeContext !== 'all') {
+                    this._feedEmptyEl.setText('No thoughts in this context.');
+                } else {
+                    this._feedEmptyEl.setText('No thoughts yet. Capture your first one above.');
+                }
             }
+        }
+    }
+
+    private renderContextFilter(parent: HTMLElement): void {
+        parent.empty();
+        const contexts = this.plugin.getContexts();
+        if (this._activeContext !== 'all' && !contexts.some((ctx) => ctx.toLowerCase() === this._activeContext.toLowerCase())) {
+            this._activeContext = 'all';
+        }
+
+        const chipRow = parent.createEl('div', {
+            cls: 'diwa-dh-chip-row',
+            attr: { 'aria-label': 'Thought context filters' },
+        });
+
+        for (const context of ['all', ...contexts]) {
+            const isActive = this._activeContext.toLowerCase() === context.toLowerCase();
+            const chip = chipRow.createEl('button', {
+                cls: `diwa-dh-chip${isActive ? ' is-active' : ''}`,
+                text: context === 'all' ? 'All' : `#${context}`,
+                attr: {
+                    type: 'button',
+                    'aria-pressed': isActive ? 'true' : 'false',
+                },
+            }) as HTMLButtonElement;
+            chip.style.border = 'none';
+            chip.style.background = isActive ? 'rgba(124,58,237,0.22)' : 'rgba(124,58,237,0.1)';
+            chip.style.boxShadow = isActive ? 'inset 0 0 0 1px rgba(124,58,237,0.14)' : 'none';
+
+            chip.addEventListener('click', () => {
+                if (this._activeContext.toLowerCase() === context.toLowerCase()) return;
+                this._activeContext = context;
+                this._visibleCount = 50;
+                this.renderContextFilter(parent);
+                this.scheduleFeedRefresh();
+            });
         }
     }
 
