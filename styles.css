@@ -7747,6 +7747,42 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   box-sizing: border-box;
 }
 
+.diwa-gawa-desktop.is-tablet .diwa-dh-task-checkbox {
+  position: relative;
+  margin-top: 0;
+  background: transparent;
+  border: 2px solid var(--background-modifier-border);
+}
+
+.diwa-gawa-desktop.is-tablet .diwa-dh-task-checkbox::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.diwa-gawa-desktop.is-tablet .diwa-dh-task-item.is-done .diwa-dh-task-checkbox {
+  border-color: var(--interactive-accent);
+  background: var(--interactive-accent);
+}
+
+.diwa-gawa-desktop.is-tablet .diwa-dh-task-item.is-done .diwa-dh-task-checkbox::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 6px;
+  border-left: 2px solid var(--text-on-accent);
+  border-bottom: 2px solid var(--text-on-accent);
+  transform: translate(-50%, -60%) rotate(-45deg);
+  pointer-events: none;
+}
+
 .diwa-gawa-mobile-pane-shell .diwa-dh-task-edit-btn {
   width: 28px;
   height: 28px;
