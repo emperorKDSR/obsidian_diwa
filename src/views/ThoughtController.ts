@@ -50,7 +50,9 @@ export class ThoughtController {
     }
 
     setThoughts(thoughts: ThoughtEntry[]): void {
-        if (this.initialized) return;
+        // Allow re-hydration if the incoming set is non-empty — the controller may have
+        // been created (and initialized with an empty index) before buildIndices() ran.
+        if (this.initialized && thoughts.length === 0) return;
         const normalized = thoughts.map((thought) => this.normalizeThought(thought));
         this.thoughtIndex.set(normalized);
         for (const thought of normalized) {
