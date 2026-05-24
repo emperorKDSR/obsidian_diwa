@@ -12,6 +12,26 @@ import { DesktopTaskPaneView } from './DesktopTaskPane';
 import { TaskController } from './TaskController';
 import { ThoughtController } from './ThoughtController';
 
+interface FeedRowRef {
+    rootEl: HTMLElement;
+    textEl: HTMLElement;
+    timeEl: HTMLElement;
+    ctxEl: HTMLElement;
+    actionsEl: HTMLElement;
+    editBtn: HTMLButtonElement;
+    pinBtn: HTMLButtonElement;
+    convertBtn: HTMLButtonElement;
+    linkTaskBtn: HTMLButtonElement;
+    linkThoughtBtn: HTMLButtonElement;
+    archiveBtn: HTMLButtonElement;
+    sig: string;
+    renderToken: number;
+}
+
+function getTaskKey(task: TaskEntry): string {
+    return task.taskId?.trim() || task.filePath;
+}
+
 export class DesktopHubView extends ItemView {
     plugin: DiwaPlugin;
     isFocusMode: boolean = true;
@@ -47,7 +67,7 @@ export class DesktopHubView extends ItemView {
     private _feedWrapEl: HTMLElement | null = null;
     private _scrollSentinelEl: HTMLElement | null = null;
     private _scrollObserver: IntersectionObserver | null = null;
-    private _feedRowMap = new Map<string, { rootEl: HTMLElement; textEl: HTMLElement; timeEl: HTMLElement; ctxEl: HTMLElement; sig: string; renderToken: number }>();
+    private _feedRowMap = new Map<string, FeedRowRef>();
     private _sortedThoughts: ThoughtEntry[] = [];
     private _visibleCount: number = 50;
     private _thoughtUnsubscribe: (() => void) | null = null;
@@ -55,6 +75,11 @@ export class DesktopHubView extends ItemView {
     private _renderVersion: number = 0;
     private _isFeedRendering: boolean = false;
     private _pendingFeedRender: boolean = false;
+    private _feedPopoverEl: HTMLElement | null = null;
+    private _feedPopoverAnchorEl: HTMLElement | null = null;
+    private _feedPopoverOutsideHandler: ((event: MouseEvent) => void) | null = null;
+    private _feedPopoverEscapeHandler: ((event: KeyboardEvent) => void) | null = null;
+    private _feedPopoverWin: Window | null = null;
 
     // Topbar guard: only rebuild when focus mode changes or topbar is new
     private _topBarFocusMode: boolean | null = null;
@@ -106,6 +131,7 @@ export class DesktopHubView extends ItemView {
         this._isFeedRendering = false;
         this._scrollObserver?.disconnect();
         this._scrollObserver = null;
+        this.closeFeedPopover();
         this.resetLayoutRefs();
     }
 
@@ -205,6 +231,7 @@ export class DesktopHubView extends ItemView {
 
     private resetLayoutRefs(): void {
         this._taskPaneView?.destroy();
+        this.closeFeedPopover();
         this._wrapEl = null;
         this._topBarEl = null;
         this._sidebarEl = null;
@@ -417,6 +444,9 @@ export class DesktopHubView extends ItemView {
     private patchFeed(version: number): void {
         if (!this._feedEl || this._closed) return;
         if (version !== this._renderVersion) return;
+        if (this._feedPopoverAnchorEl && !this._feedPopoverAnchorEl.isConnected) {
+            this.closeFeedPopover();
+        }
 
         // Show loading state until the index is fully hydrated
         if (!this._thoughtController.isReady()) {
@@ -459,7 +489,16 @@ export class DesktopHubView extends ItemView {
             const id = thought.id ?? thought.filePath; // normalizeThought always sets id, fallback for safety
             if (!id) continue;
             seen.add(id);
-            const sig = `${thought.createdAt}|${thought.updatedAt}|${thought.body || thought.content || thought.title}`;
+            const sig = [
+                thought.createdAt ?? '',
+                thought.updatedAt ?? '',
+                thought.modified ?? '',
+                thought.pinned ? '1' : '0',
+                thought.archived ? '1' : '0',
+                thought.body || thought.content || thought.title || '',
+                (thought.links?.tasks ?? []).join('|'),
+                (thought.links?.thoughts ?? []).join('|'),
+            ].join('¦');
 
             let row = this._feedRowMap.get(id);
             if (!row) {
@@ -470,21 +509,73 @@ export class DesktopHubView extends ItemView {
                 const bodyEl = rootEl.createEl('div', { cls: 'diwa-dh-thought-row-body' });
                 const textEl = bodyEl.createEl('div', { cls: 'diwa-dh-thought-row-text' });
                 const ctxEl = bodyEl.createEl('div', { cls: 'diwa-dh-thought-row-ctx' });
+                const actionsEl = rootEl.createEl('div', { cls: 'diwa-dh-thought-row-actions' });
+                const editBtn = this.createThoughtActionButton(actionsEl, 'pencil', 'Edit thought', 'diwa-dh-thought-row-action--edit');
+                const pinBtn = this.createThoughtActionButton(actionsEl, 'pin', 'Pin thought', 'diwa-dh-thought-row-action--pin');
+                const convertBtn = this.createThoughtActionButton(actionsEl, 'list-todo', 'Convert to task', 'diwa-dh-thought-row-action--convert');
+                const linkTaskBtn = this.createThoughtActionButton(actionsEl, 'link', 'Link to task', 'diwa-dh-thought-row-action--link-task');
+                const linkThoughtBtn = this.createThoughtActionButton(actionsEl, 'git-merge', 'Link to thought', 'diwa-dh-thought-row-action--link-thought');
                 const archiveBtn = rootEl.createEl('button', {
-                    cls: 'diwa-dh-thought-row-archive',
+                    cls: 'diwa-dh-thought-row-archive diwa-dh-thought-row-action diwa-dh-thought-row-action--archive',
                     attr: { type: 'button', title: 'Archive', 'aria-label': 'Archive' },
                 }) as HTMLButtonElement;
                 setIcon(archiveBtn, 'archive');
+                editBtn.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const currentThought = this._thoughtController.getThought(id);
+                    if (!currentThought) return;
+                    this.plugin.editThought(currentThought);
+                });
+                pinBtn.addEventListener('click', async (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const currentThought = this._thoughtController.getThought(id);
+                    if (!currentThought) return;
+                    await this._thoughtController.setPinned(id, !currentThought.pinned);
+                });
+                convertBtn.addEventListener('click', async (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (convertBtn.disabled) return;
+                    await this._taskController.convertThoughtToTask(id);
+                });
+                linkTaskBtn.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.openTaskLinkPicker(linkTaskBtn, id);
+                });
+                linkThoughtBtn.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.openThoughtLinkPicker(linkThoughtBtn, id);
+                });
                 archiveBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     const t = this._thoughtController.getThought(id);
                     if (t) await this._thoughtController.setArchived(id, true);
                 });
-                row = { rootEl, textEl, timeEl, ctxEl, sig: '', renderToken: 0 };
+                row = {
+                    rootEl,
+                    textEl,
+                    timeEl,
+                    ctxEl,
+                    actionsEl,
+                    editBtn,
+                    pinBtn,
+                    convertBtn,
+                    linkTaskBtn,
+                    linkThoughtBtn,
+                    archiveBtn,
+                    sig: '',
+                    renderToken: 0,
+                };
                 row.ctxEl.style.display = 'none';
                 this._feedRowMap.set(id, row);
             }
 
+            this.syncThoughtRowActions(thought, row);
             if (row.sig !== sig) {
                 row.timeEl.setText(this.formatThoughtTime(thought));
                 this.renderThoughtRowMarkdown(id, thought, row, sig, version);
@@ -498,6 +589,9 @@ export class DesktopHubView extends ItemView {
         // Remove rows that are no longer in the visible window
         for (const [id, row] of this._feedRowMap) {
             if (!seen.has(id)) {
+                if (row.rootEl.contains(this._feedPopoverAnchorEl)) {
+                    this.closeFeedPopover();
+                }
                 row.rootEl.remove();
                 this._feedRowMap.delete(id);
             }
@@ -547,7 +641,7 @@ export class DesktopHubView extends ItemView {
     private renderThoughtRowMarkdown(
         id: string,
         thought: ThoughtEntry,
-        row: { rootEl: HTMLElement; textEl: HTMLElement; timeEl: HTMLElement; ctxEl: HTMLElement; sig: string; renderToken: number },
+        row: FeedRowRef,
         sig: string,
         version: number,
     ): void {
@@ -575,6 +669,272 @@ export class DesktopHubView extends ItemView {
                     console.error('[DesktopHubView] Failed to render thought markdown.', error);
                 }
             });
+    }
+
+    private createThoughtActionButton(parent: HTMLElement, icon: string, title: string, modifierClass: string): HTMLButtonElement {
+        const button = parent.createEl('button', {
+            cls: `diwa-dh-thought-row-action ${modifierClass}`,
+            attr: {
+                type: 'button',
+                title,
+                'aria-label': title,
+            },
+        }) as HTMLButtonElement;
+        setIcon(button, icon);
+        return button;
+    }
+
+    private syncThoughtRowActions(thought: ThoughtEntry, row: FeedRowRef): void {
+        const linkedTaskCount = this._taskController.getLinkedTasksForThought(thought.filePath).length
+            || (thought.links?.tasks ?? []).filter((value) => value.trim().length > 0).length;
+        const linkedThoughtCount = this.getLinkedThoughtRefs(thought).size;
+        const hasLinkedTasks = linkedTaskCount > 0;
+        const hasLinkedThoughts = linkedThoughtCount > 0;
+
+        row.pinBtn.title = thought.pinned ? 'Unpin thought' : 'Pin thought';
+        row.pinBtn.setAttr('aria-label', row.pinBtn.title);
+        row.pinBtn.setAttr('aria-pressed', thought.pinned ? 'true' : 'false');
+        row.pinBtn.toggleClass('is-active', !!thought.pinned);
+        row.pinBtn.toggleClass('is-pinned', !!thought.pinned);
+
+        row.convertBtn.disabled = hasLinkedTasks;
+        row.convertBtn.title = hasLinkedTasks ? 'Already linked to a task' : 'Convert to task';
+        row.convertBtn.setAttr('aria-label', row.convertBtn.title);
+        row.convertBtn.toggleClass('is-active', hasLinkedTasks);
+        row.convertBtn.toggleClass('is-disabled', hasLinkedTasks);
+
+        row.linkTaskBtn.title = hasLinkedTasks ? `Link to task (${linkedTaskCount} linked)` : 'Link to task';
+        row.linkTaskBtn.setAttr('aria-label', row.linkTaskBtn.title);
+        row.linkTaskBtn.toggleClass('is-active', hasLinkedTasks);
+        row.linkTaskBtn.toggleClass('is-linked', hasLinkedTasks);
+
+        row.linkThoughtBtn.title = hasLinkedThoughts ? `Link to thought (${linkedThoughtCount} linked)` : 'Link to thought';
+        row.linkThoughtBtn.setAttr('aria-label', row.linkThoughtBtn.title);
+        row.linkThoughtBtn.toggleClass('is-active', hasLinkedThoughts);
+        row.linkThoughtBtn.toggleClass('is-linked', hasLinkedThoughts);
+    }
+
+    private getLinkedTaskRefs(thought: ThoughtEntry): Set<string> {
+        const refs = new Set<string>((thought.links?.tasks ?? []).map((value) => value.trim()).filter(Boolean));
+        for (const task of this._taskController.getLinkedTasksForThought(thought.filePath)) {
+            refs.add(task.filePath);
+            refs.add(getTaskKey(task));
+        }
+        return refs;
+    }
+
+    private getLinkedThoughtRefs(thought: ThoughtEntry): Set<string> {
+        const refs = new Set<string>((thought.links?.thoughts ?? []).map((value) => value.trim()).filter(Boolean));
+        refs.delete(thought.filePath);
+        refs.delete((thought.id || '').trim());
+        return refs;
+    }
+
+    private openTaskLinkPicker(anchor: HTMLElement, thoughtId: string): void {
+        if (this._feedPopoverEl && this._feedPopoverAnchorEl === anchor) {
+            this.closeFeedPopover();
+            return;
+        }
+        const currentThought = this._thoughtController.getThought(thoughtId);
+        if (!currentThought) return;
+        const linkedTaskRefs = this.getLinkedTaskRefs(currentThought);
+        const tasks = this._taskController.getAllTasks()
+            .slice()
+            .sort((left, right) => (right.lastUpdate ?? 0) - (left.lastUpdate ?? 0));
+
+        this.openFeedPopover(anchor, (popover) => {
+            const search = popover.createEl('input', {
+                cls: 'diwa-dh-inline-popover-search',
+                attr: {
+                    type: 'text',
+                    placeholder: 'Link task...',
+                    spellcheck: 'false',
+                },
+            }) as HTMLInputElement;
+            const list = popover.createEl('div', { cls: 'diwa-dh-inline-popover-list' });
+
+            const renderOptions = (query: string) => {
+                const q = query.trim().toLowerCase();
+                list.empty();
+                let visibleCount = 0;
+
+                for (const task of tasks) {
+                    if (linkedTaskRefs.has(task.filePath) || linkedTaskRefs.has(getTaskKey(task))) continue;
+                    const haystack = `${task.title} ${task.body}`.toLowerCase();
+                    if (q && !haystack.includes(q)) continue;
+                    const option = list.createEl('button', {
+                        cls: 'diwa-dh-inline-option',
+                        text: this.taskSnippet(task),
+                        attr: { type: 'button' },
+                    });
+                    option.addEventListener('click', () => {
+                        void this.linkThoughtToTask(thoughtId, getTaskKey(task));
+                    });
+                    visibleCount++;
+                }
+
+                if (visibleCount === 0) {
+                    list.createEl('div', {
+                        cls: 'diwa-dh-inline-empty',
+                        text: q ? 'No matching tasks' : 'No available tasks',
+                    });
+                }
+            };
+
+            renderOptions('');
+            search.addEventListener('input', () => renderOptions(search.value));
+            window.setTimeout(() => search.focus(), 30);
+        });
+    }
+
+    private openThoughtLinkPicker(anchor: HTMLElement, thoughtId: string): void {
+        if (this._feedPopoverEl && this._feedPopoverAnchorEl === anchor) {
+            this.closeFeedPopover();
+            return;
+        }
+        const currentThought = this._thoughtController.getThought(thoughtId);
+        if (!currentThought) return;
+        const linkedThoughtRefs = this.getLinkedThoughtRefs(currentThought);
+        const thoughts = this._thoughtController.getAllThoughts()
+            .filter((thought) => !thought.archived)
+            .slice()
+            .sort((left, right) => (right.updatedAt ?? right.createdAt ?? 0) - (left.updatedAt ?? left.createdAt ?? 0));
+
+        this.openFeedPopover(anchor, (popover) => {
+            const search = popover.createEl('input', {
+                cls: 'diwa-dh-inline-popover-search',
+                attr: {
+                    type: 'text',
+                    placeholder: 'Link thought...',
+                    spellcheck: 'false',
+                },
+            }) as HTMLInputElement;
+            const list = popover.createEl('div', { cls: 'diwa-dh-inline-popover-list' });
+
+            const renderOptions = (query: string) => {
+                const q = query.trim().toLowerCase();
+                list.empty();
+                let visibleCount = 0;
+
+                for (const candidate of thoughts) {
+                    const candidateId = candidate.filePath;
+                    if (candidateId === currentThought.filePath) continue;
+                    if (linkedThoughtRefs.has(candidateId) || linkedThoughtRefs.has((candidate.id || '').trim())) continue;
+                    const haystack = `${candidate.title} ${candidate.body}`.toLowerCase();
+                    if (q && !haystack.includes(q)) continue;
+                    const option = list.createEl('button', {
+                        cls: 'diwa-dh-inline-option',
+                        text: this.thoughtSnippet(candidate),
+                        attr: { type: 'button' },
+                    });
+                    option.addEventListener('click', () => {
+                        void this.linkThoughtToThought(currentThought.filePath, candidateId);
+                    });
+                    visibleCount++;
+                }
+
+                if (visibleCount === 0) {
+                    list.createEl('div', {
+                        cls: 'diwa-dh-inline-empty',
+                        text: q ? 'No matching thoughts' : 'No available thoughts',
+                    });
+                }
+            };
+
+            renderOptions('');
+            search.addEventListener('input', () => renderOptions(search.value));
+            window.setTimeout(() => search.focus(), 30);
+        });
+    }
+
+    private openFeedPopover(anchor: HTMLElement, render: (popover: HTMLElement) => void): void {
+        this.closeFeedPopover();
+        const doc = anchor.ownerDocument;
+        const win = doc.defaultView;
+        if (!win) return;
+
+        const popover = doc.body.createEl('div', { cls: 'diwa-dh-inline-popover' });
+        this._feedPopoverEl = popover;
+        this._feedPopoverAnchorEl = anchor;
+        this._feedPopoverWin = win;
+        render(popover);
+
+        win.requestAnimationFrame(() => {
+            if (!this._feedPopoverEl || this._feedPopoverEl !== popover || !anchor.isConnected) return;
+            const anchorRect = anchor.getBoundingClientRect();
+            const popoverW = popover.offsetWidth;
+            const popoverH = popover.offsetHeight;
+            const vw = win.innerWidth;
+            const vh = win.innerHeight;
+            const gap = 6;
+            const margin = 8;
+            let top = anchorRect.bottom + gap;
+            if (top + popoverH > vh - margin) {
+                const aboveTop = anchorRect.top - popoverH - gap;
+                top = aboveTop >= margin ? aboveTop : vh - popoverH - margin;
+            }
+            let left = anchorRect.left;
+            if (left + popoverW > vw - margin) left = vw - popoverW - margin;
+            if (left < margin) left = margin;
+            popover.style.left = `${left}px`;
+            popover.style.top = `${top}px`;
+        });
+
+        this._feedPopoverOutsideHandler = (event: MouseEvent) => {
+            const target = event.target as Node | null;
+            if (!target) return;
+            if (popover.contains(target) || anchor.contains(target)) return;
+            this.closeFeedPopover();
+        };
+        this._feedPopoverEscapeHandler = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            this.closeFeedPopover();
+            anchor.focus();
+        };
+        win.addEventListener('mousedown', this._feedPopoverOutsideHandler, true);
+        win.addEventListener('keydown', this._feedPopoverEscapeHandler, true);
+    }
+
+    private closeFeedPopover(): void {
+        if (this._feedPopoverOutsideHandler) {
+            this._feedPopoverWin?.removeEventListener('mousedown', this._feedPopoverOutsideHandler, true);
+            this._feedPopoverOutsideHandler = null;
+        }
+        if (this._feedPopoverEscapeHandler) {
+            this._feedPopoverWin?.removeEventListener('keydown', this._feedPopoverEscapeHandler, true);
+            this._feedPopoverEscapeHandler = null;
+        }
+        this._feedPopoverEl?.remove();
+        this._feedPopoverEl = null;
+        this._feedPopoverAnchorEl = null;
+        this._feedPopoverWin = null;
+    }
+
+    private async linkThoughtToTask(thoughtId: string, taskId: string): Promise<void> {
+        const ok = await this._taskController.linkThoughtToTask(thoughtId, taskId);
+        if (!ok) return;
+        this.closeFeedPopover();
+    }
+
+    private async linkThoughtToThought(sourceId: string, targetId: string): Promise<void> {
+        const ok = await this._thoughtController.linkThoughtToThought(sourceId, targetId);
+        if (!ok) return;
+        this.closeFeedPopover();
+    }
+
+    private thoughtSnippet(thought: ThoughtEntry): string {
+        const fallback = thought.filePath.split('/').pop() || thought.filePath;
+        const raw = (thought.body || thought.title || fallback).split('\n').find((line) => line.trim()) || fallback;
+        const cleaned = raw.trim();
+        return cleaned.length > 72 ? `${cleaned.slice(0, 69)}...` : cleaned;
+    }
+
+    private taskSnippet(task: TaskEntry): string {
+        const fallback = task.filePath.split('/').pop() || task.filePath;
+        const raw = (task.title || task.body || fallback).split('\n').find((line) => line.trim()) || fallback;
+        const cleaned = raw.trim();
+        return cleaned.length > 72 ? `${cleaned.slice(0, 69)}...` : cleaned;
     }
 
     private renderCapture(parent: HTMLElement) {

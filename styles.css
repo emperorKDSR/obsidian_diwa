@@ -4425,20 +4425,150 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   border-left: 2px solid var(--diwa-dh-accent);
   opacity: 0.85;
 }
-.diwa-dh-thought-row-archive {
+.diwa-dh-thought-row-actions,
+.diwa-dh-thought-row-action-group,
+.diwa-dh-thought-row-action-bar {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  padding-left: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(2px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.diwa-dh-thought-row-body > .diwa-dh-thought-row-actions,
+.diwa-dh-thought-row-body > .diwa-dh-thought-row-action-group,
+.diwa-dh-thought-row-body > .diwa-dh-thought-row-action-bar {
+  margin-left: 0;
+  padding-left: 0;
+  padding-top: 2px;
+  align-self: flex-end;
+}
+.diwa-dh-thought-row:hover .diwa-dh-thought-row-actions,
+.diwa-dh-thought-row:hover .diwa-dh-thought-row-action-group,
+.diwa-dh-thought-row:hover .diwa-dh-thought-row-action-bar,
+.diwa-dh-thought-row:focus-within .diwa-dh-thought-row-actions,
+.diwa-dh-thought-row:focus-within .diwa-dh-thought-row-action-group,
+.diwa-dh-thought-row:focus-within .diwa-dh-thought-row-action-bar {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+.diwa-dh-thought-row-archive,
+.diwa-dh-thought-action,
+.diwa-dh-thought-row-action,
+.diwa-dh-thought-row-actions > button,
+.diwa-dh-thought-row-action-group > button,
+.diwa-dh-thought-row-action-bar > button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
   opacity: 0;
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   cursor: pointer;
   color: var(--text-faint);
-  padding: 2px 4px;
-  border-radius: 4px;
-  transition: opacity 0.15s, color 0.12s;
+  padding: 0;
+  border-radius: 6px;
+  box-shadow: none;
+  transition: opacity 0.15s ease, color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
 }
-.diwa-dh-thought-row:hover .diwa-dh-thought-row-archive { opacity: 1; }
-.diwa-dh-thought-row-archive:hover { color: var(--text-accent); background: var(--background-modifier-hover); }
-.diwa-dh-thought-row-archive svg { width: 13px; height: 13px; }
+.diwa-dh-thought-row:hover .diwa-dh-thought-row-archive,
+.diwa-dh-thought-row:hover .diwa-dh-thought-action,
+.diwa-dh-thought-row:hover .diwa-dh-thought-row-action,
+.diwa-dh-thought-row:focus-within .diwa-dh-thought-row-archive,
+.diwa-dh-thought-row:focus-within .diwa-dh-thought-action,
+.diwa-dh-thought-row:focus-within .diwa-dh-thought-row-action,
+.diwa-dh-thought-row:hover .diwa-dh-thought-row-actions > button,
+.diwa-dh-thought-row:hover .diwa-dh-thought-row-action-group > button,
+.diwa-dh-thought-row:hover .diwa-dh-thought-row-action-bar > button,
+.diwa-dh-thought-row:focus-within .diwa-dh-thought-row-actions > button,
+.diwa-dh-thought-row:focus-within .diwa-dh-thought-row-action-group > button,
+.diwa-dh-thought-row:focus-within .diwa-dh-thought-row-action-bar > button {
+  opacity: 1;
+}
+.diwa-dh-thought-row-archive:hover,
+.diwa-dh-thought-row-archive:focus-visible,
+.diwa-dh-thought-action:hover,
+.diwa-dh-thought-action:focus-visible,
+.diwa-dh-thought-row-action:hover,
+.diwa-dh-thought-row-action:focus-visible,
+.diwa-dh-thought-row-actions > button:hover,
+.diwa-dh-thought-row-actions > button:focus-visible,
+.diwa-dh-thought-row-action-group > button:hover,
+.diwa-dh-thought-row-action-group > button:focus-visible,
+.diwa-dh-thought-row-action-bar > button:hover,
+.diwa-dh-thought-row-action-bar > button:focus-visible {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+  border-color: var(--background-modifier-border);
+  outline: none;
+}
+.diwa-dh-thought-row-archive:focus-visible,
+.diwa-dh-thought-action:focus-visible,
+.diwa-dh-thought-row-action:focus-visible,
+.diwa-dh-thought-row-actions > button:focus-visible,
+.diwa-dh-thought-row-action-group > button:focus-visible,
+.diwa-dh-thought-row-action-bar > button:focus-visible {
+  box-shadow: 0 0 0 1px rgba(var(--interactive-accent-rgb), 0.3);
+}
+.diwa-dh-thought-row-archive:active,
+.diwa-dh-thought-action:active,
+.diwa-dh-thought-row-action:active,
+.diwa-dh-thought-row-actions > button:active,
+.diwa-dh-thought-row-action-group > button:active,
+.diwa-dh-thought-row-action-bar > button:active {
+  transform: translateY(1px);
+  background: var(--background-modifier-active-hover, var(--background-modifier-hover));
+}
+.diwa-dh-thought-action.is-active,
+.diwa-dh-thought-action[aria-pressed='true'],
+.diwa-dh-thought-action.is-pinned,
+.diwa-dh-thought-action.is-linked,
+.diwa-dh-thought-row-action.is-active,
+.diwa-dh-thought-row-action[aria-pressed='true'],
+.diwa-dh-thought-row-action.is-pinned,
+.diwa-dh-thought-row-action.is-linked,
+.diwa-dh-thought-row-actions > button.is-active,
+.diwa-dh-thought-row-actions > button[aria-pressed='true'],
+.diwa-dh-thought-row-action-group > button.is-active,
+.diwa-dh-thought-row-action-group > button[aria-pressed='true'],
+.diwa-dh-thought-row-action-bar > button.is-active,
+.diwa-dh-thought-row-action-bar > button[aria-pressed='true'] {
+  opacity: 1;
+  color: var(--text-accent);
+  background: rgba(var(--interactive-accent-rgb), 0.12);
+  border-color: rgba(var(--interactive-accent-rgb), 0.18);
+}
+.diwa-dh-thought-action:disabled,
+.diwa-dh-thought-action.is-disabled,
+.diwa-dh-thought-row-action:disabled,
+.diwa-dh-thought-row-action.is-disabled,
+.diwa-dh-thought-row-actions > button:disabled,
+.diwa-dh-thought-row-actions > button.is-disabled,
+.diwa-dh-thought-row-action-group > button:disabled,
+.diwa-dh-thought-row-action-group > button.is-disabled,
+.diwa-dh-thought-row-action-bar > button:disabled,
+.diwa-dh-thought-row-action-bar > button.is-disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+.diwa-dh-thought-row-archive svg,
+.diwa-dh-thought-action svg,
+.diwa-dh-thought-row-action svg,
+.diwa-dh-thought-row-actions > button svg,
+.diwa-dh-thought-row-action-group > button svg,
+.diwa-dh-thought-row-action-bar > button svg {
+  width: 14px;
+  height: 14px;
+}
 
 
 /* ── Today Feed (Timeline) ────────────────────── */

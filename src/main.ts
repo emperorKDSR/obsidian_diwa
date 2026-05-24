@@ -870,7 +870,7 @@ export default class DiwaPlugin extends Plugin {
         await this.app.workspace.getLeaf(false).openFile(file);
     }
 
-    private editThought(thought: ThoughtEntry): void {
+    editThought(thought: ThoughtEntry): void {
         const content = (thought.body || thought.content || '').trim();
         if (Platform.isMobile && !isTablet()) {
             new MobilePostComposerModal(this.app, this, {
