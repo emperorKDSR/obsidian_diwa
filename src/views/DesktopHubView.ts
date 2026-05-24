@@ -80,6 +80,12 @@ export class DesktopHubView extends ItemView {
             this.scheduleFeedRefresh();
         });
         this.renderView();
+        // Safety net: re-kick the feed after onLayoutReady has had time to hydrate the thought index.
+        // The initial renderView() fires before the index is populated; this catches the case where
+        // the 400ms notifyRefresh debounce doesn't trigger a second renderView().
+        setTimeout(() => {
+            if (!this._closed) this.scheduleFeedRefresh();
+        }, 900);
     }
 
     async onClose() {
@@ -378,7 +384,8 @@ export class DesktopHubView extends ItemView {
     private patchFeed(): void {
         if (!this._feedEl || this._closed) return;
 
-        const today = new Date().toISOString().slice(0, 10);
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         let thoughts = this._thoughtController.getAllThoughts().filter(t => !t.archived);
 
         if (this._activeContext !== 'all') {
@@ -462,7 +469,8 @@ export class DesktopHubView extends ItemView {
 
     private formatThoughtTime(t: ThoughtEntry): string {
         if (!t.created) return '';
-        const today = new Date().toISOString().slice(0, 10);
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         const isToday = t.day === today;
         const timeStr = (t.created ?? '').slice(11, 16); // "HH:mm"
         if (isToday) return timeStr;
