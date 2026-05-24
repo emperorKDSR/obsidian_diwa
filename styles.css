@@ -4190,6 +4190,16 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   display: flex;
   flex-direction: column;
 }
+.diwa-dh-wip {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  color: var(--text-muted);
+  font-size: 14px;
+  text-transform: lowercase;
+}
 .diwa-dh-center-inner {
   width: 100%;
   max-width: none;

@@ -325,21 +325,21 @@ export class DesktopHubView extends ItemView {
 
     // ── CENTER Column ─────────────────────────────────────────────────────────
     private renderCenter(parent: HTMLElement) {
-        if (!this._captureSectionEl || !parent.contains(this._captureSectionEl)) {
-            this._captureSectionEl = parent.createEl('div', { cls: 'diwa-dh-capture-section' });
-            this.renderCapture(this._captureSectionEl);
-        }
-        this._captureSectionEl?.querySelectorAll('.diwa-dh-ctx-filter-bar, .diwa-dh-ctx-chips').forEach((el) => el.remove());
-        if (!this._feedEl || !parent.contains(this._feedEl)) {
-            const feedWrap = parent.createEl('div', { cls: 'diwa-dh-feed-wrap' });
-            this._feedWrapEl = feedWrap;
-            this._feedLoadingEl = feedWrap.createEl('div', { cls: 'diwa-dh-feed-loading', text: 'Loading thoughts…' });
-            this._feedEl = feedWrap.createEl('div', { cls: 'diwa-dh-feed-list' });
-            this._feedEmptyEl = feedWrap.createEl('div', { cls: 'diwa-dh-feed-empty' });
-            this._scrollSentinelEl = feedWrap.createEl('div', { cls: 'diwa-dh-scroll-sentinel' });
-            this.mountScrollObserver();
-            // Initial render triggered via readyPromise.then() in onOpen — do not call here.
-        }
+        this._scrollObserver?.disconnect();
+        this._scrollObserver = null;
+        this._captureSectionEl = null;
+        this._captureInputEl = null;
+        this._captureHintEl = null;
+        this._feedEl = null;
+        this._feedEmptyEl = null;
+        this._feedLoadingEl = null;
+        this._feedWrapEl = null;
+        this._scrollSentinelEl = null;
+        this._feedRowMap.clear();
+        this._sortedThoughts = [];
+
+        parent.empty();
+        parent.createEl('div', { cls: 'diwa-dh-wip', text: 'work in progress' });
     }
 
     private mountScrollObserver(): void {
