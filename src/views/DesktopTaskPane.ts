@@ -30,6 +30,7 @@ export interface TaskPaneOptions {
     paneId?: string;
     hooks?: TaskItemHooks;
     plugins?: TaskPanePlugin[];
+    layoutVariant?: 'default' | 'workspace-right';
     filterFn?: TaskFilterFn | null;
     baseFilterFn?: TaskFilterFn;
     sortFn?: TaskSortFn | null;
@@ -101,6 +102,7 @@ export class DesktopTaskPaneView implements TaskPanePort {
     readonly paneId: string;
     private listView: TaskPane | null = null;
     private mounted = false;
+    private captureSurfaceEl: HTMLElement | null = null;
 
     constructor(
         private view: TaskPaneHost,
@@ -117,12 +119,52 @@ export class DesktopTaskPaneView implements TaskPanePort {
             return;
         }
 
+        const shell = this.rootEl.createEl('aside', {
+            cls: 'diwa-dh-task-pane-shell',
+            attr: { 'aria-label': 'Task workspace' },
+        });
+
         if (this.options.showQuickInput !== false) {
-            this.renderTaskQuickInput(this.rootEl);
+            this.captureSurfaceEl = shell.createEl('section', {
+                cls: 'diwa-dh-task-capture-surface',
+                attr: {
+                    'data-capture-state': 'empty',
+                    'data-has-contexts': 'false',
+                    'data-has-due': 'false',
+                },
+            });
+            const captureHeader = this.captureSurfaceEl.createEl('header', {
+                cls: 'diwa-dh-task-capture-header',
+            });
+            captureHeader.createEl('span', {
+                cls: 'diwa-dh-task-capture-eyebrow',
+                text: 'Task capture',
+            });
+            const captureHeading = captureHeader.createEl('div', {
+                cls: 'diwa-dh-task-capture-heading',
+            });
+            captureHeading.createEl('h2', {
+                cls: 'diwa-dh-task-capture-title',
+                text: 'Add the next task',
+            });
+            captureHeading.createEl('p', {
+                cls: 'diwa-dh-task-capture-summary',
+                text: 'Quick capture with optional contexts and due date',
+            });
+            const captureBody = this.captureSurfaceEl.createEl('div', {
+                cls: 'diwa-dh-task-capture-body',
+            });
+            this.renderTaskQuickInput(captureBody, this.captureSurfaceEl);
         }
-        this.listView = new TaskPane(this.view, this.rootEl, this.controller, {
+
+        const feedSurface = shell.createEl('section', {
+            cls: 'diwa-dh-task-feed-surface',
+            attr: { 'data-task-state': 'empty' },
+        });
+        this.listView = new TaskPane(this.view, feedSurface, this.controller, {
             ...this.options,
             paneId: this.paneId,
+            layoutVariant: 'workspace-right',
         });
         this.mounted = true;
         this.controller.registerPane(this);
@@ -164,10 +206,12 @@ export class DesktopTaskPaneView implements TaskPanePort {
         this.controller.unregisterPane(this.paneId, this);
         this.listView?.destroy();
         this.listView = null;
+        this.rootEl.empty();
         this.mounted = false;
+        this.captureSurfaceEl = null;
     }
 
-    private renderTaskQuickInput(parent: HTMLElement): void {
+    private renderTaskQuickInput(parent: HTMLElement, captureSurfaceEl?: HTMLElement): void {
         const section = parent.createEl('div', { cls: 'diwa-dh-task-input-section' });
         section.addEventListener('click', (e) => {
             if (e.target !== textarea) textarea.focus();
@@ -184,13 +228,21 @@ export class DesktopTaskPaneView implements TaskPanePort {
             chip.addEventListener('click', () => {
                 contexts = contexts.filter(c => c !== tag);
                 chip.remove();
+                syncCaptureSurfaceState();
             });
+            syncCaptureSurfaceState();
         };
 
         const textarea = section.createEl('textarea', {
             cls: 'diwa-dh-task-textarea',
             attr: { placeholder: 'Add a task… (Enter save, Ctrl/Cmd+Enter refine)', rows: '1' }
         }) as HTMLTextAreaElement;
+        const footer = section.createEl('div', { cls: 'diwa-dh-task-capture-footer' });
+        const draftSummaryEl = footer.createEl('span', { cls: 'diwa-dh-task-capture-draft' });
+        footer.createEl('span', {
+            cls: 'diwa-dh-task-capture-shortcuts',
+            text: 'Enter save • Ctrl/Cmd+Enter refine',
+        });
 
         const syncHeight = () => {
             textarea.style.height = 'auto';
@@ -198,8 +250,29 @@ export class DesktopTaskPaneView implements TaskPanePort {
             textarea.style.height = `${textarea.scrollHeight}px`;
         };
 
+        const updateCaptureSummary = () => {
+            const parts: string[] = [];
+            if (textarea.value.trim()) parts.push('Draft ready');
+            if (contexts.length) parts.push(`${contexts.length} context${contexts.length === 1 ? '' : 's'}`);
+            if (dueDate) {
+                const parsedDue = moment(dueDate, 'YYYY-MM-DD', true);
+                parts.push(`Due ${parsedDue.isValid() ? parsedDue.format('MMM D') : dueDate}`);
+            }
+            draftSummaryEl.setText(parts.join(' • ') || 'Quick add with optional contexts or due date');
+        };
+
+        const syncCaptureSurfaceState = () => {
+            updateCaptureSummary();
+            if (!captureSurfaceEl) return;
+            const hasDraft = textarea.value.trim().length > 0 || contexts.length > 0 || !!dueDate;
+            captureSurfaceEl.setAttr('data-capture-state', hasDraft ? 'draft' : 'empty');
+            captureSurfaceEl.setAttr('data-has-contexts', contexts.length > 0 ? 'true' : 'false');
+            captureSurfaceEl.setAttr('data-has-due', dueDate ? 'true' : 'false');
+        };
+
         const syncTaskPendingState = () => {
             this.view._taskPending = textarea.value.trim().length > 0 ? 1 : 0;
+            syncCaptureSurfaceState();
         };
 
         textarea.addEventListener('focus', () => {
@@ -216,7 +289,10 @@ export class DesktopTaskPaneView implements TaskPanePort {
         attachInlineTriggers(
             this.view.app,
             textarea,
-            (d) => { dueDate = d; },
+            (d) => {
+                dueDate = d;
+                syncCaptureSurfaceState();
+            },
             (tag) => addChip(tag),
             () => (this.view.plugin.settings.contexts ?? []).filter((c: string) => !contexts.includes(c)),
             this.view.plugin.settings.peopleFolder,
@@ -235,6 +311,7 @@ export class DesktopTaskPaneView implements TaskPanePort {
             contexts = [];
             dueDate = null;
             chipRow.empty();
+            syncCaptureSurfaceState();
         };
 
         const saveTask = async () => {
@@ -319,6 +396,8 @@ export class DesktopTaskPaneView implements TaskPanePort {
                 textarea.blur();
             }
         });
+
+        syncCaptureSurfaceState();
     }
 
     private async buildOptimisticTask(
@@ -365,6 +444,7 @@ export class TaskPane implements TaskPanePort {
     private pillUpcomingEl: HTMLElement | null = null;
     private pillAllEl: HTMLElement | null = null;
     private countEl: HTMLElement;
+    private summaryEl: HTMLElement | null = null;
     private emptyEl: HTMLElement;
     listEl: HTMLElement;
     taskMap = new Map<string, TaskItemView>();
@@ -381,6 +461,7 @@ export class TaskPane implements TaskPanePort {
     private readonly bucketOnDrop?: TaskBucketStatus;
     private readonly focusOnDrop?: boolean;
     private readonly allowDragDrop: boolean;
+    private readonly layoutVariant: 'default' | 'workspace-right';
     private readonly hooks: TaskItemHooks;
     readonly paneId: string;
     private pendingSnapshot: TaskEntry[] | null = null;
@@ -402,6 +483,7 @@ export class TaskPane implements TaskPanePort {
         this.bucketOnDrop = options.bucketOnDrop;
         this.focusOnDrop = options.focusOnDrop;
         this.allowDragDrop = options.allowDragDrop ?? false;
+        this.layoutVariant = options.layoutVariant ?? 'default';
         this.customFilter = options.filterFn ?? null;
         this.baseFilter = options.baseFilterFn ?? ((task) =>
             task.status === 'open'
@@ -412,15 +494,46 @@ export class TaskPane implements TaskPanePort {
         this.sortComparator = options.sortFn ?? null;
         this.presetFilter = options.presetFilter ?? this.view._taskFilter ?? 'upcoming';
         for (const plugin of options.plugins ?? []) this.pluginMap.set(plugin.id, plugin);
-        this.rootEl = parent.createEl('div', { cls: 'diwa-dh-task-list-section' });
+        this.rootEl = parent.createEl(this.layoutVariant === 'workspace-right' ? 'section' : 'div', {
+            cls: 'diwa-dh-task-list-section',
+        });
         this.rootEl.setAttr('data-task-pane-id', this.paneId);
+        this.rootEl.setAttr('data-task-pane-variant', this.layoutVariant);
+        if (this.layoutVariant === 'workspace-right') {
+            this.rootEl.addClass('diwa-dh-task-feed-panel');
+        }
 
-        const header = this.rootEl.createEl('div', { cls: 'diwa-dh-task-list-header' });
-        header.createEl('span', { text: this.title, cls: 'diwa-dh-task-list-title' });
-        this.countEl = header.createEl('span', { cls: 'diwa-dh-task-count' });
+        const header = this.rootEl.createEl(this.layoutVariant === 'workspace-right' ? 'header' : 'div', {
+            cls: this.layoutVariant === 'workspace-right'
+                ? 'diwa-dh-task-list-header diwa-dh-task-feed-header'
+                : 'diwa-dh-task-list-header',
+        });
+        let filterParent = header;
+        if (this.layoutVariant === 'workspace-right') {
+            const heading = header.createEl('div', { cls: 'diwa-dh-task-feed-heading' });
+            heading.createEl('span', {
+                cls: 'diwa-dh-task-feed-eyebrow',
+                text: 'Task feed',
+            });
+            const titleRow = heading.createEl('div', { cls: 'diwa-dh-task-feed-title-row' });
+            titleRow.createEl('h2', {
+                text: this.title,
+                cls: 'diwa-dh-task-list-title diwa-dh-task-feed-title',
+            });
+            this.countEl = titleRow.createEl('span', {
+                cls: 'diwa-dh-task-count diwa-dh-task-feed-count',
+            });
+            this.summaryEl = heading.createEl('p', {
+                cls: 'diwa-dh-task-feed-summary',
+            });
+            filterParent = header.createEl('div', { cls: 'diwa-dh-task-feed-controls' });
+        } else {
+            header.createEl('span', { text: this.title, cls: 'diwa-dh-task-list-title' });
+            this.countEl = header.createEl('span', { cls: 'diwa-dh-task-count' });
+        }
 
         if (this.showFilterPills) {
-            const filterGroup = header.createEl('div', { cls: 'diwa-dh-task-filter' });
+            const filterGroup = filterParent.createEl('div', { cls: 'diwa-dh-task-filter' });
             this.pillUpcomingEl = filterGroup.createEl('button', {
                 text: '2 DAYS',
                 cls: 'diwa-dh-task-filter-pill',
@@ -439,8 +552,12 @@ export class TaskPane implements TaskPanePort {
             options.inlineContentRenderer(inlineContent);
         }
 
-        this.emptyEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-empty' });
-        this.listEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-list' });
+        const bodyParent = this.layoutVariant === 'workspace-right'
+            ? this.rootEl.createEl('div', { cls: 'diwa-dh-task-feed-body' })
+            : this.rootEl;
+
+        this.emptyEl = bodyParent.createEl('div', { cls: 'diwa-dh-task-empty' });
+        this.listEl = bodyParent.createEl('div', { cls: 'diwa-dh-task-list' });
         if (this.allowDragDrop && this.bucketOnDrop) {
             this.rootEl.setAttr('data-drop-bucket', this.bucketOnDrop);
             this.rootEl.addEventListener('dragenter', (event) => this.handleDragEnter(event));
@@ -615,6 +732,7 @@ export class TaskPane implements TaskPanePort {
     private updateFilterButtons(): void {
         this.pillUpcomingEl?.toggleClass('is-active', this.presetFilter === 'upcoming');
         this.pillAllEl?.toggleClass('is-active', this.presetFilter === 'all');
+        this.rootEl.setAttr('data-task-filter', this.presetFilter);
     }
 
     private compareTasks(a: TaskEntry, b: TaskEntry): number {
@@ -771,6 +889,12 @@ export class TaskPane implements TaskPanePort {
 
     private updateEmptyState(count: number): void {
         this.countEl.setText(String(count));
+        this.summaryEl?.setText(this.describeFeedState(count));
+        this.rootEl.setAttr('data-task-state', count > 0 ? 'populated' : 'empty');
+        const feedSurface = this.rootEl.parentElement;
+        if (feedSurface?.hasClass('diwa-dh-task-feed-surface')) {
+            feedSurface.setAttr('data-task-state', count > 0 ? 'populated' : 'empty');
+        }
         if (count > 0) {
             this.emptyEl.style.display = 'none';
             this.listEl.style.display = '';
@@ -786,6 +910,17 @@ export class TaskPane implements TaskPanePort {
         }
         this.emptyEl.style.display = '';
         this.listEl.style.display = 'none';
+    }
+
+    private describeFeedState(count: number): string {
+        if (this.presetFilter === 'upcoming') {
+            return count > 0
+                ? `${count} task${count === 1 ? '' : 's'} due in the next 2 days`
+                : 'Only tasks due in the next 2 days appear here';
+        }
+        return count > 0
+            ? `${count} open task${count === 1 ? '' : 's'} in the current view`
+            : 'All open tasks are cleared from this view';
     }
 
     private reorderRows(orderedIds: string[]): void {
@@ -1084,6 +1219,8 @@ export class TaskItemView {
     private metaEl: HTMLElement;
     private thoughtIconEl: HTMLButtonElement;
     private taskLinkIconEl: HTMLButtonElement;
+    private thoughtCountEl: HTMLElement;
+    private taskLinkCountEl: HTMLElement;
     private checkboxEl: HTMLElement;
     private titleEl: HTMLElement;
     private projectChipEl: HTMLButtonElement | null = null;
@@ -1195,6 +1332,11 @@ export class TaskItemView {
                 type: 'button',
             },
         }) as HTMLButtonElement;
+        safeSetIcon(this.thoughtIconEl, 'lucide-messages-square', 'message-square');
+        this.thoughtCountEl = this.thoughtIconEl.createEl('span', {
+            cls: 'diwa-dh-task-link-count',
+            text: '0',
+        });
         this.thoughtIconEl.addEventListener('click', (event) => {
             event.stopPropagation();
             this.toggleThoughtList();
@@ -1206,8 +1348,12 @@ export class TaskItemView {
                 'aria-label': 'Linked items',
                 type: 'button',
             },
-            text: '🔗 0',
         }) as HTMLButtonElement;
+        safeSetIcon(this.taskLinkIconEl, 'lucide-link-2', 'link-2');
+        this.taskLinkCountEl = this.taskLinkIconEl.createEl('span', {
+            cls: 'diwa-dh-task-link-count',
+            text: '0',
+        });
         this.taskLinkIconEl.addEventListener('click', (event) => {
             event.stopPropagation();
             this.openLinkModal();
@@ -1667,11 +1813,11 @@ export class TaskItemView {
     private updateThoughtToggleLabel(): void {
         const count = this.linkedThoughtIds.length;
         const label = `${count} ${count === 1 ? 'thought' : 'thoughts'}`;
-        this.thoughtIconEl.setText(`💬 ${count}`);
+        this.thoughtCountEl.setText(String(count));
         this.thoughtIconEl.setAttr('title', `Linked thoughts (${label})`);
         this.thoughtIconEl.setAttr('aria-label', `Linked thoughts (${label})`);
         const taskCount = this.getRelatedTaskCount();
-        this.taskLinkIconEl.setText(`🔗 ${taskCount}`);
+        this.taskLinkCountEl.setText(String(taskCount));
         this.taskLinkIconEl.setAttr('title', `Linked tasks (${taskCount})`);
         this.taskLinkIconEl.setAttr('aria-label', `Linked tasks (${taskCount})`);
         const visible = count > 0 || taskCount > 0;
