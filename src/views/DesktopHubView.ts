@@ -86,6 +86,8 @@ export class DesktopHubView extends ItemView {
         /** Tracks pinned/archived state — gates setIcon calls */
         stateKey: string;
     }>();
+    private _cachedFeedThoughts: ThoughtEntry[] | null = null;
+    private _feedCacheDirty = true;
     private _feedRefreshRaf: number | null = null;
     private _contextSelectionGuardUntil = 0;
 
@@ -243,6 +245,8 @@ export class DesktopHubView extends ItemView {
         this._feedClustersListEl = null;
         this._feedEmptyEl = null;
         this._thoughtRowMap.clear();
+        this._cachedFeedThoughts = null;
+        this._feedCacheDirty = true;
         this.closeThoughtLinkPopover();
         if (this._feedRefreshRaf !== null) {
             window.cancelAnimationFrame(this._feedRefreshRaf);
@@ -594,9 +598,17 @@ export class DesktopHubView extends ItemView {
         }
 
         const hasQuery = this._thoughtSearchQuery.trim().length > 0;
-        let thoughts = hasQuery
-            ? this._thoughtController.searchThoughts(this._thoughtSearchQuery)
-            : this._thoughtProcessor.getTopThoughts(500);
+        let thoughts: ThoughtEntry[];
+        if (hasQuery) {
+            thoughts = this._thoughtController.searchThoughts(this._thoughtSearchQuery);
+        } else {
+            // Only re-sort when thoughts have actually changed; context/scope switches reuse the cache
+            if (this._feedCacheDirty || this._cachedFeedThoughts === null) {
+                this._cachedFeedThoughts = this._thoughtProcessor.getTopThoughts(500);
+                this._feedCacheDirty = false;
+            }
+            thoughts = this._cachedFeedThoughts;
+        }
         if (ctx === 'all') {
             thoughts = thoughts.filter(t => t.day === today);
         } else {
@@ -1123,6 +1135,7 @@ export class DesktopHubView extends ItemView {
     }
 
     private async updateThoughtInUI(thought: ThoughtEntry): Promise<void> {
+        this._feedCacheDirty = true; // invalidate sorted cache — thought changed
         this.ensureFeedStructure();
         if (!this._feedPinnedListEl || !this._feedRecentListEl || !this._feedArchivedListEl) return;
         const thoughtId = thought.id || thought.filePath;
@@ -1162,7 +1175,10 @@ export class DesktopHubView extends ItemView {
             // Always sync active-context highlight cheaply (just a CSS class toggle, no DOM rebuild)
             this.updateRowContextHighlight(row);
 
-            sectionListEl.appendChild(row.rootEl);
+            // Only move DOM node when needed — skipping this on stable rows eliminates reflow
+            if (row.rootEl.parentElement !== sectionListEl) {
+                sectionListEl.appendChild(row.rootEl);
+            }
         }
 
         const sectionIds = new Set(thoughts.map((thought) => thought.id || thought.filePath));

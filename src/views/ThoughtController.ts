@@ -281,7 +281,8 @@ export class ThoughtController {
     }
 
     getAllThoughts(): ThoughtEntry[] {
-        return this.thoughtIndex.getAll().map((thought) => this.normalizeThought(thought));
+        // Thoughts are normalized at write time (upsertThought/setThoughts) — return directly
+        return this.thoughtIndex.getAll();
     }
 
     getThoughtsForTask(taskIdOrPath: string): ThoughtEntry[] {
