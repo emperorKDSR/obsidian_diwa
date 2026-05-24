@@ -4268,42 +4268,6 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   transition: background 0.15s;
 }
 .diwa-dh-chip:hover { background: rgba(124,58,237,0.22); }
-/* ── Center Feed (DesktopHubView) ─────────────── */
-.diwa-dh-ctx-filter-bar {
-  display: none !important;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 10px;
-  flex-wrap: wrap;
-}
-.diwa-dh-ctx-chips {
-  display: none !important;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.diwa-dh-ctx-chip {
-  display: none !important;
-  padding: 3px 11px;
-  border-radius: 20px;
-  font-size: 11.5px;
-  font-weight: 500;
-  border: 1px solid var(--background-modifier-border);
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
-}
-.diwa-dh-ctx-chip:hover {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-.diwa-dh-ctx-chip.is-active {
-  background: rgba(124,58,237,0.12);
-  color: var(--diwa-dh-accent);
-  border-color: rgba(124,58,237,0.35);
-}
 .diwa-dh-feed-wrap {
   display: flex;
   flex-direction: column;
@@ -4358,18 +4322,6 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
-}
-.diwa-dh-thought-row-ctx {
-  display: none;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.diwa-dh-thought-ctx-badge {
-  font-size: 10.5px;
-  color: var(--text-muted);
-  background: var(--background-secondary);
-  border-radius: 4px;
-  padding: 1px 5px;
 }
 .diwa-dh-thought-row-archive {
   flex: 0 0 auto;
