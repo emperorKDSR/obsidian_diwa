@@ -138,6 +138,7 @@ export class DesktopHubView extends ItemView {
         root.removeClass('diwa-skin--tablet');
         root.removeClass('diwa-skin--mobile');
         root.addClass(this.getWorkspaceSkinClass());
+        root.toggleClass('is-tablet', isTablet());
 
         if (this.isMobile()) {
             await this.applyMobileLayout(root);
