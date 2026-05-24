@@ -639,39 +639,69 @@ export default class DiwaPlugin extends Plugin {
         options: { mobile?: boolean; compact?: boolean } = {},
     ): HTMLElement {
         const taskId = task.taskId?.trim() || task.filePath;
-        const done = task.status === 'done';
-        const row = parent.createDiv('diwa-mobile-task-row');
+        const done = task.status === 'done'
+            || task.state === 'done'
+            || task.bucketStatus === 'done'
+            || task.lifecycleStatus === 'done'
+            || !!task.completedAt;
+        const row = parent.createDiv('diwa-gawa-row');
         if (done) row.addClass('is-done');
         if (options.compact) row.addClass('is-compact');
 
         const toggleBtn = row.createEl('button', {
-            cls: 'diwa-mobile-task-toggle diwa-mobile-task-cb',
-            attr: { type: 'button', 'aria-label': done ? 'Mark task as open' : 'Mark task as done' },
+            cls: 'diwa-gawa-cb',
+            attr: {
+                type: 'button',
+                role: 'checkbox',
+                'aria-checked': done ? 'true' : 'false',
+                'aria-label': done ? 'Mark task as open' : 'Mark task as done',
+            },
         });
-        setIcon(toggleBtn, done ? 'check-circle-2' : 'circle');
+        const renderCheckboxState = (isDone: boolean): void => {
+            toggleBtn.empty();
+            toggleBtn.setAttr('aria-checked', isDone ? 'true' : 'false');
+            toggleBtn.toggleClass('is-checked', isDone);
+            if (!isDone) return;
+            const checkIcon = toggleBtn.createSpan('diwa-gawa-cb-icon');
+            setIcon(checkIcon, 'check');
+        };
+        renderCheckboxState(done);
+
         toggleBtn.addEventListener('click', async (event) => {
             event.preventDefault();
             event.stopPropagation();
             const nextDone = !row.hasClass('is-done');
             row.toggleClass('is-done', nextDone);
-            setIcon(toggleBtn, nextDone ? 'check-circle-2' : 'circle');
+            renderCheckboxState(nextDone);
             const ok = await this.getTaskController().toggleTask(taskId);
             if (!ok) {
                 row.toggleClass('is-done', done);
-                setIcon(toggleBtn, done ? 'check-circle-2' : 'circle');
+                renderCheckboxState(done);
                 new Notice('Could not update task status', 1500);
             }
             this.notifyRefresh('tasks');
         });
 
-        const main = row.createDiv('diwa-mobile-task-main');
+        const main = row.createDiv('diwa-gawa-body');
         const title = (task.title || task.body || 'Untitled task').trim();
-        main.createDiv({ cls: 'diwa-mobile-task-title', text: title });
+        main.createDiv({ cls: 'diwa-gawa-title', text: title });
         if (!options.compact) {
-            const metaBits = [`Status ${String(task.status || 'open').toUpperCase()}`];
-            if (task.due?.trim()) metaBits.push(`Due ${task.due.trim()}`);
-            if (task.context?.length) metaBits.push(task.context.map((ctx) => `#${ctx}`).join(' '));
-            main.createDiv({ cls: 'diwa-mobile-task-meta', text: metaBits.join(' · ') });
+            const meta = main.createDiv('diwa-gawa-meta');
+            meta.createDiv({
+                cls: `diwa-gawa-chip ${done ? 'is-done' : 'is-open'}`,
+                text: done ? 'Done' : 'Open',
+            });
+            if (task.due?.trim()) {
+                meta.createDiv({ cls: 'diwa-gawa-chip', text: `Due ${task.due.trim()}` });
+            }
+            if (task.context?.length) {
+                task.context
+                    .map((ctx) => String(ctx || '').trim())
+                    .filter(Boolean)
+                    .forEach((ctx) => {
+                        meta.createDiv({ cls: 'diwa-gawa-chip', text: `#${ctx}` });
+                    });
+            }
         }
 
         row.addEventListener('click', async () => {
