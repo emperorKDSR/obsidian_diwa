@@ -644,12 +644,12 @@ export default class DiwaPlugin extends Plugin {
             || task.bucketStatus === 'done'
             || task.lifecycleStatus === 'done'
             || !!task.completedAt;
-        const row = parent.createDiv('diwa-gawa-row');
+        const row = parent.createDiv('diwa-task-row diwa-task-row--mobile');
         if (done) row.addClass('is-done');
         if (options.compact) row.addClass('is-compact');
 
         const toggleBtn = row.createEl('button', {
-            cls: 'diwa-gawa-cb',
+            cls: 'diwa-task-cb',
             attr: {
                 type: 'button',
                 role: 'checkbox',
@@ -662,7 +662,7 @@ export default class DiwaPlugin extends Plugin {
             toggleBtn.setAttr('aria-checked', isDone ? 'true' : 'false');
             toggleBtn.toggleClass('is-checked', isDone);
             if (!isDone) return;
-            const checkIcon = toggleBtn.createSpan('diwa-gawa-cb-icon');
+            const checkIcon = toggleBtn.createSpan('diwa-task-cb-icon');
             setIcon(checkIcon, 'check');
         };
         renderCheckboxState(done);
@@ -682,21 +682,21 @@ export default class DiwaPlugin extends Plugin {
             this.notifyRefresh('tasks');
         });
 
-        const main = row.createDiv('diwa-gawa-body');
+        const main = row.createDiv('diwa-task-body');
         const title = (task.title || task.body || 'Untitled task').trim();
-        main.createDiv({ cls: 'diwa-gawa-title', text: title });
+        main.createDiv({ cls: 'diwa-task-title', text: title });
         if (!options.compact) {
-            const meta = main.createDiv('diwa-gawa-meta');
-            if (done) meta.createDiv({ cls: 'diwa-gawa-chip is-done', text: 'Done' });
+            const meta = main.createDiv('diwa-task-meta');
+            if (done) meta.createDiv({ cls: 'diwa-chip is-done', text: 'Done' });
             if (task.due?.trim()) {
-                meta.createDiv({ cls: 'diwa-gawa-chip', text: `Due ${task.due.trim()}` });
+                meta.createDiv({ cls: 'diwa-chip', text: `Due ${task.due.trim()}` });
             }
             if (task.context?.length) {
                 task.context
                     .map((ctx) => String(ctx || '').trim())
                     .filter(Boolean)
                     .forEach((ctx) => {
-                        meta.createDiv({ cls: 'diwa-gawa-chip', text: `#${ctx}` });
+                        meta.createDiv({ cls: 'diwa-chip', text: `#${ctx}` });
                     });
             }
         }

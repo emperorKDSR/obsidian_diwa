@@ -96,7 +96,7 @@ export class DiwaMobileShell {
         const focus = wrap.createDiv('diwa-mobile-focus');
         focus.createDiv({ cls: 'diwa-mobile-section-title', text: 'Today Focus' });
         const focusList = focus.createDiv('diwa-mobile-focus-list');
-        const tasks = this.plugin.getTodayFocusTasks(3);
+        const tasks = this.plugin.getTodayFocusTasks();
         if (tasks.length === 0) {
             focusList.createDiv({ cls: 'diwa-mobile-empty', text: 'No priority tasks yet.' });
         } else {
