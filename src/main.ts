@@ -17,7 +17,6 @@ import { IndexService } from './services/IndexService';
 import { TaskLinkService } from './services/TaskLinkService';
 import { TaskReflectionService } from './services/TaskReflectionService';
 import { RefreshCoordinator, type RefreshScope } from './application/RefreshCoordinator';
-import { SearchModal } from './modals/SearchModal';
 import { TaskController } from './views/TaskController';
 import { ThoughtController } from './views/ThoughtController';
 import { ThoughtProcessor } from './views/ThoughtProcessor';
@@ -252,13 +251,9 @@ export default class DiwaPlugin extends Plugin {
             void this.activateWorkspace();
         });
 
-        this.addCommand({ id: 'open-diwa-desktop-hub', name: 'DIWA: Open Desktop Hub', icon: DESKTOP_HUB_ICON_ID, callback: () => { this.activateDesktopHub(); } });
         this.addCommand({ id: 'diwa-open-workspace', name: 'Diwa Workspace', icon: DESKTOP_HUB_ICON_ID, callback: () => { this.activateWorkspace(); } });
-        this.addCommand({ id: 'open-diwa-mobile-hub',  name: 'DIWA: Open Mobile Hub',  icon: 'smartphone', callback: () => { this.activateMobileHub(); } });
         this.addCommand({ id: 'open-diwa-mobile-gawa', name: 'DIWA: Open Mobile Gawa', icon: 'check-square-2', callback: () => { this.activateMobileGawa(); } });
-        this.addCommand({ id: 'open-diwa-tablet-hub',  name: 'DIWA: Open Tablet Hub',  icon: 'tablet',     callback: () => { this.activateTabletHub(); } });
         this.addCommand({ id: 'diwa-open-gawa', name: 'DIWA: Gawa', icon: 'check-square-2', callback: () => { this.activateGawa(); } });
-        this.addCommand({ id: 'diwa-global-search', name: 'DIWA: Global Search', icon: 'lucide-search', hotkeys: [{ modifiers: ['Mod', 'Shift'], key: 'f' }], callback: () => { new SearchModal(this.app, this).open(); } });
 
 		this.addSettingTab(new DiwaSettingTab(this.app, this));
         if (!this.settings.legacyMigrated) {
