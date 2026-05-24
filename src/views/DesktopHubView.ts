@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, setIcon, Notice, ViewStateResult } from 'obsidian';
+import { ItemView, WorkspaceLeaf, setIcon, Notice, ViewStateResult, MarkdownRenderer } from 'obsidian';
 import type DiwaPlugin from '../main';
 import {
     VIEW_TYPE_DIWA,
@@ -44,7 +44,7 @@ export class DesktopHubView extends ItemView {
     private _feedWrapEl: HTMLElement | null = null;
     private _scrollSentinelEl: HTMLElement | null = null;
     private _scrollObserver: IntersectionObserver | null = null;
-    private _feedRowMap = new Map<string, { rootEl: HTMLElement; textEl: HTMLElement; timeEl: HTMLElement; ctxEl: HTMLElement; sig: string }>();
+    private _feedRowMap = new Map<string, { rootEl: HTMLElement; textEl: HTMLElement; timeEl: HTMLElement; ctxEl: HTMLElement; sig: string; renderToken: number }>();
     private _sortedThoughts: ThoughtEntry[] = [];
     private _visibleCount: number = 50;
     private _thoughtUnsubscribe: (() => void) | null = null;
@@ -462,14 +462,14 @@ export class DesktopHubView extends ItemView {
                     const t = this._thoughtController.getThought(id);
                     if (t) await this._thoughtController.setArchived(id, true);
                 });
-                row = { rootEl, textEl, timeEl, ctxEl, sig: '' };
+                row = { rootEl, textEl, timeEl, ctxEl, sig: '', renderToken: 0 };
                 row.ctxEl.style.display = 'none';
                 this._feedRowMap.set(id, row);
             }
 
             if (row.sig !== sig) {
                 row.timeEl.setText(this.formatThoughtTime(thought));
-                row.textEl.setText(thought.body || thought.content || thought.title || '');
+                this.renderThoughtRowMarkdown(id, thought, row, sig, version);
                 row.ctxEl.empty();
                 row.ctxEl.style.display = 'none';
                 row.sig = sig;
@@ -516,6 +516,39 @@ export class DesktopHubView extends ItemView {
         if (t.day === today) return timeStr;
         const dateStr = (t.created ?? '').slice(5, 10).replace('-', '/'); // "MM/DD"
         return `${dateStr} ${timeStr}`;
+    }
+
+    private renderThoughtRowMarkdown(
+        id: string,
+        thought: ThoughtEntry,
+        row: { rootEl: HTMLElement; textEl: HTMLElement; timeEl: HTMLElement; ctxEl: HTMLElement; sig: string; renderToken: number },
+        sig: string,
+        version: number,
+    ): void {
+        const markdown = thought.body || thought.content || thought.title || '';
+        const renderToken = row.renderToken + 1;
+        row.renderToken = renderToken;
+        row.textEl.setText(markdown);
+
+        if (!markdown.trim()) return;
+
+        const stagedEl = document.createElement('div');
+        void MarkdownRenderer.render(this.app, markdown, stagedEl, thought.filePath || '', this)
+            .then(() => {
+                if (this._closed || version !== this._renderVersion) return;
+                const currentRow = this._feedRowMap.get(id);
+                if (!currentRow || currentRow !== row) return;
+                if (currentRow.sig !== sig || currentRow.renderToken !== renderToken) return;
+                currentRow.textEl.empty();
+                while (stagedEl.firstChild) {
+                    currentRow.textEl.appendChild(stagedEl.firstChild);
+                }
+            })
+            .catch((error) => {
+                if (!this._closed) {
+                    console.error('[DesktopHubView] Failed to render thought markdown.', error);
+                }
+            });
     }
 
     private renderCapture(parent: HTMLElement) {

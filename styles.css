@@ -4333,6 +4333,38 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   white-space: pre-wrap;
   word-break: break-word;
 }
+.diwa-dh-thought-row-text > .markdown-rendered,
+.diwa-dh-thought-row-text .markdown-preview-view {
+  font-size: inherit;
+  color: inherit;
+  padding: 0;
+  white-space: normal;
+}
+.diwa-dh-thought-row-text > :first-child { margin-top: 0; }
+.diwa-dh-thought-row-text > :last-child { margin-bottom: 0; }
+.diwa-dh-thought-row-text p { margin: 0 0 4px 0; }
+.diwa-dh-thought-row-text h1,
+.diwa-dh-thought-row-text h2,
+.diwa-dh-thought-row-text h3,
+.diwa-dh-thought-row-text h4,
+.diwa-dh-thought-row-text h5,
+.diwa-dh-thought-row-text h6 {
+  margin: 0 0 4px 0;
+  font-size: inherit;
+  line-height: 1.35;
+}
+.diwa-dh-thought-row-text ul,
+.diwa-dh-thought-row-text ol { margin: 4px 0 4px 18px; padding: 0; }
+.diwa-dh-thought-row-text li { margin: 2px 0; }
+.diwa-dh-thought-row-text .task-list-item { display: flex; align-items: baseline; gap: 6px; }
+.diwa-dh-thought-row-text .task-list-item-checkbox { width: 13px; height: 13px; flex-shrink: 0; cursor: default; }
+.diwa-dh-thought-row-text code { font-size: 0.82em; }
+.diwa-dh-thought-row-text blockquote {
+  margin: 4px 0 4px 8px;
+  padding-left: 8px;
+  border-left: 2px solid var(--diwa-dh-accent);
+  opacity: 0.85;
+}
 .diwa-dh-thought-row-archive {
   flex: 0 0 auto;
   opacity: 0;
