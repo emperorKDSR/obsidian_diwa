@@ -609,6 +609,13 @@ export default class DiwaPlugin extends Plugin {
         return thoughts;
     }
 
+    getContexts(): string[] {
+        const contexts = (this.settings.contexts ?? [])
+            .map((ctx) => String(ctx || '').trim())
+            .filter(Boolean);
+        return Array.from(new Set(contexts)).sort((left, right) => left.localeCompare(right));
+    }
+
     renderTaskRow(
         parent: HTMLElement,
         task: TaskEntry,

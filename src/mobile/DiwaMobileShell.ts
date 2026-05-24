@@ -1,4 +1,4 @@
-import { App } from 'obsidian';
+import { App, Modal } from 'obsidian';
 import type { TaskEntry, ThoughtEntry } from '../types';
 import type DiwaPlugin from '../main';
 
@@ -6,6 +6,7 @@ type MobileView = 'home' | 'tasks' | 'thoughts' | 'ai';
 
 export class DiwaMobileShell {
     private activeView: MobileView = 'home';
+    private activeContexts: Set<string> = new Set();
     private hostEl: HTMLElement | null = null;
 
     constructor(private app: App, private plugin: DiwaPlugin) {}
@@ -43,6 +44,10 @@ export class DiwaMobileShell {
 
     private switchView(view: MobileView): void {
         this.activeView = view;
+        this.refreshView();
+    }
+
+    private refreshView(): void {
         if (this.hostEl) this.render(this.hostEl);
     }
 
@@ -89,10 +94,12 @@ export class DiwaMobileShell {
     }
 
     private renderThoughts(container: HTMLElement): void {
-        const wrap = container.createDiv('diwa-mobile-list-wrap');
+        const wrap = container.createDiv('diwa-thoughts-wrap');
         wrap.createDiv({ cls: 'diwa-mobile-section-title', text: 'Thoughts' });
-        const list = wrap.createDiv('diwa-mobile-list');
-        const thoughts = this.plugin.getAllThoughts();
+        const contexts = this.plugin.getContexts();
+        this.renderContextBar(wrap, contexts);
+        const list = wrap.createDiv('diwa-thought-list');
+        const thoughts = this.filterThoughts(this.plugin.getAllThoughts(), this.activeContexts);
         if (thoughts.length === 0) {
             list.createDiv({ cls: 'diwa-mobile-empty', text: 'No thoughts available.' });
             return;
@@ -100,6 +107,46 @@ export class DiwaMobileShell {
         thoughts.forEach((thought: ThoughtEntry) => {
             this.plugin.renderThoughtCard(list, thought, { mobile: true });
         });
+    }
+
+    private filterThoughts(thoughts: ThoughtEntry[], activeContexts: Set<string>): ThoughtEntry[] {
+        if (activeContexts.size === 0) return thoughts;
+        return thoughts.filter((thought) => (thought.context ?? []).some((ctx) => activeContexts.has(ctx)));
+    }
+
+    private renderContextBar(container: HTMLElement, contexts: string[]): void {
+        const bar = container.createDiv('diwa-context-bar');
+
+        const allChip = bar.createDiv('diwa-chip');
+        allChip.setText('All');
+        if (this.activeContexts.size === 0) {
+            allChip.addClass('is-active');
+        }
+        allChip.addEventListener('click', () => {
+            this.activeContexts.clear();
+            this.refreshView();
+        });
+
+        contexts.forEach((ctx) => {
+            const chip = bar.createDiv('diwa-chip');
+            chip.setText(ctx);
+            if (this.activeContexts.has(ctx)) {
+                chip.addClass('is-active');
+            }
+            chip.addEventListener('click', () => {
+                if (this.activeContexts.has(ctx)) this.activeContexts.delete(ctx);
+                else this.activeContexts.add(ctx);
+                this.refreshView();
+            });
+        });
+
+        const more = bar.createDiv('diwa-chip diwa-chip-add');
+        more.setText('+');
+        more.addEventListener('click', () => this.openContextPicker(contexts));
+    }
+
+    private openContextPicker(contexts: string[]): void {
+        new MobileContextPickerModal(this.app, contexts, this.activeContexts, () => this.refreshView()).open();
     }
 
     private renderAI(container: HTMLElement): void {
@@ -127,6 +174,48 @@ export class DiwaMobileShell {
             }
 
             btn.addEventListener('click', () => this.switchView(item.id));
+        });
+    }
+}
+
+class MobileContextPickerModal extends Modal {
+    constructor(
+        app: App,
+        private contexts: string[],
+        private activeContexts: Set<string>,
+        private onApply: () => void,
+    ) {
+        super(app);
+    }
+
+    onOpen(): void {
+        const { contentEl } = this;
+        this.modalEl.addClass('diwa-context-modal');
+        contentEl.empty();
+
+        const wrap = contentEl.createDiv('diwa-context-picker');
+        wrap.createDiv({ cls: 'diwa-context-picker-title', text: 'Filter contexts' });
+        const list = wrap.createDiv('diwa-context-picker-list');
+
+        this.contexts.forEach((ctx) => {
+            const row = list.createDiv('diwa-context-row');
+            const checkbox = row.createEl('input', { attr: { type: 'checkbox' } }) as HTMLInputElement;
+            checkbox.checked = this.activeContexts.has(ctx);
+            checkbox.addEventListener('change', () => {
+                if (checkbox.checked) this.activeContexts.add(ctx);
+                else this.activeContexts.delete(ctx);
+            });
+            row.createDiv({ cls: 'diwa-context-row-label', text: ctx });
+        });
+
+        const apply = wrap.createEl('button', {
+            cls: 'diwa-btn-primary',
+            text: 'Apply',
+            attr: { type: 'button' },
+        });
+        apply.addEventListener('click', () => {
+            this.onApply();
+            this.close();
         });
     }
 }
