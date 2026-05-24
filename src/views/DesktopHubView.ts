@@ -440,6 +440,7 @@ export class DesktopHubView extends ItemView {
         for (const thought of visibleThoughts) {
             const id = thought.id ?? thought.filePath; // normalizeThought always sets id, fallback for safety
             if (!id) continue;
+            seen.add(id);
             const sig = `${thought.createdAt}|${thought.updatedAt}|${thought.body || thought.content || thought.title}`;
 
             let row = this._feedRowMap.get(id);
