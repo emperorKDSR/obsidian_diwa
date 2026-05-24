@@ -8450,13 +8450,26 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 .diwa-mobile-task-toggle {
   min-width: 44px;
   min-height: 44px;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
   margin: -4px 0;
+  padding: 0;
   border: none;
+  border-radius: 50%;
   background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
   color: var(--text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.diwa-mobile-task-toggle .svg-icon,
+.diwa-mobile-task-toggle svg {
+  width: 18px;
+  height: 18px;
 }
 
 .diwa-mobile-task-main {
