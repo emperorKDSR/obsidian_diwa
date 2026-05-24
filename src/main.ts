@@ -1,7 +1,7 @@
-import { Plugin, TFile, Notice, WorkspaceLeaf, Platform, moment, addIcon } from 'obsidian';
+import { Plugin, TFile, Notice, WorkspaceLeaf, Platform, moment, addIcon, setIcon } from 'obsidian';
 import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, AI_CHAT_ICON_ID, AI_CHAT_ICON_SVG, TIMELINE_ICON_ID, TIMELINE_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, VOICE_ICON_ID, VOICE_ICON_SVG, PROJECT_ICON_ID, PROJECT_ICON_SVG, SYNTHESIS_ICON_ID, SYNTHESIS_ICON_SVG, COMPASS_ICON_ID, COMPASS_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_SEARCH, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_MOBILE_GAWA, VIEW_TYPE_TABLET_HUB } from './constants';
-import { DiwaSettings, TaskEntry } from './types';
-import { isTablet } from './utils';
+import { DiwaSettings, TaskEntry, ThoughtEntry } from './types';
+import { isTablet, parseContextString } from './utils';
 import { DiwaView } from './view';
 import { DesktopHubView } from './views/DesktopHubView';
 import { MobileHubView } from './views/MobileHubView';
@@ -9,6 +9,8 @@ import { MobileGawaView } from './views/MobileGawaView';
 import { TabletHubView } from './views/TabletHubView';
 import { SearchView } from './views/SearchView';
 import { DiwaSettingTab } from './settings';
+import { EditEntryModal } from './modals/EditEntryModal';
+import { MobilePostComposerModal } from './modals/MobilePostComposerModal';
 
 import { AiService } from './services/AiService';
 import { AIProcessor } from './services/AIProcessor';
@@ -295,10 +297,22 @@ export default class DiwaPlugin extends Plugin {
     }
 
     async activateWorkspace() {
+        if (Platform.isMobile && !isTablet()) {
+            await this.activateMobileHub();
+            return;
+        }
+        if (isTablet()) {
+            await this.activateTabletHub();
+            return;
+        }
         await this.activateDesktopHub();
     }
 
     async activateDesktopHub() {
+        if (Platform.isMobile && !isTablet()) {
+            await this.activateMobileHub();
+            return;
+        }
         const { workspace } = this.app;
         // Reuse an existing Desktop Hub leaf if already open
         const existing = workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB);
@@ -526,6 +540,166 @@ export default class DiwaPlugin extends Plugin {
 
     getProjects(): string[] {
         return this.index ? this.index.getProjects() : [];
+    }
+
+    openCaptureModal(): void {
+        if (Platform.isMobile && !isTablet()) {
+            new MobilePostComposerModal(this.app, this).open();
+            return;
+        }
+
+        new EditEntryModal(
+            this.app,
+            this,
+            '',
+            '',
+            null,
+            false,
+            async (text, contexts) => {
+                const content = text.trim();
+                if (!content) return;
+                await this.getThoughtController().addThought({
+                    content,
+                    context: parseContextString(contexts),
+                });
+            },
+            'Capture',
+        ).open();
+    }
+
+    getAllTasks(): TaskEntry[] {
+        const tasks = this.getTaskController().getAllTasks().slice();
+        tasks.sort((left, right) => (right.modified || '').localeCompare(left.modified || ''));
+        return tasks;
+    }
+
+    getTopTasks(limit = 3): TaskEntry[] {
+        const tasks = this.getAllTasks()
+            .filter((task) => task.status !== 'done')
+            .sort((left, right) => {
+                const leftDue = left.due?.trim() || '';
+                const rightDue = right.due?.trim() || '';
+                if (leftDue && rightDue) return leftDue.localeCompare(rightDue);
+                if (leftDue) return -1;
+                if (rightDue) return 1;
+                return (right.modified || '').localeCompare(left.modified || '');
+            });
+        return tasks.slice(0, Math.max(0, limit));
+    }
+
+    getAllThoughts(): ThoughtEntry[] {
+        const thoughts = this.getThoughtController()
+            .getAllThoughts()
+            .filter((thought) => !thought.archived);
+        thoughts.sort((left, right) => (right.modified || '').localeCompare(left.modified || ''));
+        return thoughts;
+    }
+
+    renderTaskRow(
+        parent: HTMLElement,
+        task: TaskEntry,
+        options: { mobile?: boolean; compact?: boolean } = {},
+    ): HTMLElement {
+        const taskId = task.taskId?.trim() || task.filePath;
+        const done = task.status === 'done';
+        const row = parent.createDiv('diwa-mobile-task-row');
+        if (done) row.addClass('is-done');
+        if (options.compact) row.addClass('is-compact');
+
+        const toggleBtn = row.createEl('button', {
+            cls: 'diwa-mobile-task-toggle',
+            attr: { type: 'button', 'aria-label': done ? 'Mark task as open' : 'Mark task as done' },
+        });
+        setIcon(toggleBtn, done ? 'check-circle-2' : 'circle');
+        toggleBtn.addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const ok = await this.getTaskController().toggleTask(taskId);
+            if (!ok) new Notice('Could not update task status', 1500);
+            this.notifyRefresh('tasks');
+        });
+
+        const main = row.createDiv('diwa-mobile-task-main');
+        const title = (task.title || task.body || 'Untitled task').trim();
+        main.createDiv({ cls: 'diwa-mobile-task-title', text: title });
+        if (!options.compact) {
+            const metaBits = [`Status ${String(task.status || 'open').toUpperCase()}`];
+            if (task.due?.trim()) metaBits.push(`Due ${task.due.trim()}`);
+            if (task.context?.length) metaBits.push(task.context.map((ctx) => `#${ctx}`).join(' '));
+            main.createDiv({ cls: 'diwa-mobile-task-meta', text: metaBits.join(' · ') });
+        }
+
+        row.addEventListener('click', async () => {
+            const file = this.app.vault.getAbstractFileByPath(task.filePath);
+            if (file instanceof TFile) {
+                await this.app.workspace.getLeaf(false).openFile(file);
+            }
+        });
+
+        return row;
+    }
+
+    renderThoughtCard(
+        parent: HTMLElement,
+        thought: ThoughtEntry,
+        options: { mobile?: boolean } = {},
+    ): HTMLElement {
+        const card = parent.createDiv('diwa-mobile-thought-card');
+        const title = (thought.title || '').trim() || 'Untitled thought';
+        const body = (thought.body || thought.content || '').trim();
+        const preview = body.length > 220 ? `${body.slice(0, 217)}...` : body;
+
+        card.createDiv({ cls: 'diwa-mobile-thought-title', text: title });
+        if (preview) {
+            card.createDiv({ cls: 'diwa-mobile-thought-body', text: preview });
+        }
+        const tags = (thought.context ?? []).map((ctx) => `#${ctx}`).join(' ');
+        const metaBits = [thought.day].filter(Boolean);
+        if (tags) metaBits.push(tags);
+        if (metaBits.length > 0) {
+            card.createDiv({ cls: 'diwa-mobile-thought-meta', text: metaBits.join(' · ') });
+        }
+
+        const openBtn = card.createEl('button', {
+            cls: 'diwa-mobile-thought-open-btn',
+            text: 'Open note',
+            attr: { type: 'button' },
+        });
+        openBtn.addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const file = this.app.vault.getAbstractFileByPath(thought.filePath);
+            if (file instanceof TFile) await this.app.workspace.getLeaf(false).openFile(file);
+        });
+
+        if (options.mobile) card.addClass('is-mobile');
+        return card;
+    }
+
+    renderAIView(container: HTMLElement): void {
+        container.empty();
+        const card = container.createDiv('diwa-mobile-ai-card');
+        card.createDiv({ cls: 'diwa-mobile-ai-title', text: 'DIWA AI' });
+        card.createDiv({
+            cls: 'diwa-mobile-ai-subtitle',
+            text: 'Use AI chat for synthesis, planning, and recall based on your vault context.',
+        });
+
+        const openAiBtn = card.createEl('button', {
+            cls: 'diwa-mobile-ai-open-btn',
+            text: 'Open AI Chat',
+            attr: { type: 'button' },
+        });
+        openAiBtn.addEventListener('click', () => {
+            void this.activateView('diwa-ai');
+        });
+
+        const captureBtn = card.createEl('button', {
+            cls: 'diwa-mobile-ai-capture-btn',
+            text: 'Capture First',
+            attr: { type: 'button' },
+        });
+        captureBtn.addEventListener('click', () => this.openCaptureModal());
     }
 
     private _checkReminders(): void {
