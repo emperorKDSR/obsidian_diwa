@@ -1107,6 +1107,7 @@ export class TaskItemView {
     private popoverEl: HTMLElement | null = null;
     private popoverOutsideHandler: ((event: MouseEvent) => void) | null = null;
     private popoverEscapeHandler: ((event: KeyboardEvent) => void) | null = null;
+    private popoverWin: Window | null = null;
     private linkedThoughtIds: string[] = [];
 
     constructor(
@@ -1998,18 +1999,22 @@ export class TaskItemView {
 
     private openInlinePopover(anchor: HTMLElement, render: (popover: HTMLElement) => void): void {
         this.closeInlinePopover();
-        // Append to body so the popover is not clipped by any scroll-container ancestor.
-        const popover = document.body.createEl('div', { cls: 'diwa-dh-inline-popover' });
+        // Use the element's own document/window so popovers open in the correct
+        // Obsidian window (e.g. when Gawa is in a pop-out window).
+        const win = this.rootEl.win;
+        const doc = this.rootEl.doc;
+        this.popoverWin = win;
+        const popover = doc.body.createEl('div', { cls: 'diwa-dh-inline-popover' });
         this.popoverEl = popover;
         render(popover);
 
-        requestAnimationFrame(() => {
+        win.requestAnimationFrame(() => {
             if (!this.popoverEl || this.popoverEl !== popover || this.destroyed) return;
             const anchorRect = anchor.getBoundingClientRect();
             const popoverW = popover.offsetWidth;
             const popoverH = popover.offsetHeight;
-            const vw = window.innerWidth;
-            const vh = window.innerHeight;
+            const vw = win.innerWidth;
+            const vh = win.innerHeight;
             const gap = 6;
             const margin = 8;
             // Prefer below anchor; fall back to above if it would overflow the viewport bottom.
@@ -2038,23 +2043,25 @@ export class TaskItemView {
             this.closeInlinePopover();
             this.rootEl.focus();
         };
-        window.addEventListener('mousedown', this.popoverOutsideHandler, true);
-        window.addEventListener('keydown', this.popoverEscapeHandler, true);
+        win.addEventListener('mousedown', this.popoverOutsideHandler, true);
+        win.addEventListener('keydown', this.popoverEscapeHandler, true);
     }
 
     private closeInlinePopover(): void {
+        const win = this.popoverWin;
         if (this.popoverOutsideHandler) {
-            window.removeEventListener('mousedown', this.popoverOutsideHandler, true);
+            win?.removeEventListener('mousedown', this.popoverOutsideHandler, true);
             this.popoverOutsideHandler = null;
         }
         if (this.popoverEscapeHandler) {
-            window.removeEventListener('keydown', this.popoverEscapeHandler, true);
+            win?.removeEventListener('keydown', this.popoverEscapeHandler, true);
             this.popoverEscapeHandler = null;
         }
         if (this.popoverEl) {
             this.popoverEl.remove();
             this.popoverEl = null;
         }
+        this.popoverWin = null;
     }
 
     private async duplicateCurrentTask(): Promise<void> {
