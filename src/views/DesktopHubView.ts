@@ -56,6 +56,7 @@ export class DesktopHubView extends ItemView {
     private _captureSectionEl: HTMLElement | null = null;
     private _captureInputEl: HTMLTextAreaElement | null = null;
     private _captureHintEl: HTMLElement | null = null;
+    private _feedSectionEl: HTMLElement | null = null;
     private _contextFilterSectionEl: HTMLElement | null = null;
     private _feedSearchSectionEl: HTMLElement | null = null;
     private _feedSearchInputEl: HTMLInputElement | null = null;
@@ -65,8 +66,14 @@ export class DesktopHubView extends ItemView {
     // Feed state
     private _feedEl: HTMLElement | null = null;
     private _feedEmptyEl: HTMLElement | null = null;
+    private _feedEmptyTitleEl: HTMLElement | null = null;
+    private _feedEmptyBodyEl: HTMLElement | null = null;
     private _feedLoadingEl: HTMLElement | null = null;
+    private _feedLoadingTitleEl: HTMLElement | null = null;
+    private _feedLoadingBodyEl: HTMLElement | null = null;
     private _feedWrapEl: HTMLElement | null = null;
+    private _feedHeaderCountEl: HTMLElement | null = null;
+    private _feedHeaderSubtitleEl: HTMLElement | null = null;
     private _scrollSentinelEl: HTMLElement | null = null;
     private _scrollObserver: IntersectionObserver | null = null;
     private _feedRowMap = new Map<string, FeedRowRef>();
@@ -251,13 +258,20 @@ export class DesktopHubView extends ItemView {
         this._captureSectionEl = null;
         this._captureInputEl = null;
         this._captureHintEl = null;
+        this._feedSectionEl = null;
         this._contextFilterSectionEl = null;
         this._feedSearchSectionEl = null;
         this._feedSearchInputEl = null;
         this._feedEl = null;
         this._feedEmptyEl = null;
+        this._feedEmptyTitleEl = null;
+        this._feedEmptyBodyEl = null;
         this._feedLoadingEl = null;
+        this._feedLoadingTitleEl = null;
+        this._feedLoadingBodyEl = null;
         this._feedWrapEl = null;
+        this._feedHeaderCountEl = null;
+        this._feedHeaderSubtitleEl = null;
         this._scrollSentinelEl = null;
         this._feedRowMap.clear();
         this._sortedThoughts = [];
@@ -378,41 +392,109 @@ export class DesktopHubView extends ItemView {
             this.renderCapture(this._captureSectionEl);
         }
 
-        if (!this._contextFilterSectionEl || !parent.contains(this._contextFilterSectionEl)) {
-            this._contextFilterSectionEl = parent.createEl('div', { cls: 'diwa-dh-feed-context-section' });
-        }
-        this.renderContextFilter(this._contextFilterSectionEl);
+        this.ensureFeedSection(parent);
 
-        if (!this._feedSearchSectionEl || !parent.contains(this._feedSearchSectionEl)) {
-            this._feedSearchSectionEl = parent.createEl('div', { cls: 'diwa-dh-feed-search-section' });
+        for (const section of [this._captureSectionEl, this._feedSectionEl]) {
+            if (!section || !parent.contains(section) || parent.lastElementChild === section) continue;
+            parent.appendChild(section);
         }
-        this.renderFeedSearch(this._feedSearchSectionEl);
+    }
 
-        if (!this._feedEl || !parent.contains(this._feedEl)) {
+    private ensureFeedSection(parent: HTMLElement): void {
+        if (!this._feedSectionEl || !parent.contains(this._feedSectionEl) || !this._feedEl) {
             this._scrollObserver?.disconnect();
             this._scrollObserver = null;
+            this._feedSectionEl = null;
+            this._contextFilterSectionEl = null;
+            this._feedSearchSectionEl = null;
+            this._feedSearchInputEl = null;
             this._feedEl = null;
             this._feedEmptyEl = null;
+            this._feedEmptyTitleEl = null;
+            this._feedEmptyBodyEl = null;
             this._feedLoadingEl = null;
+            this._feedLoadingTitleEl = null;
+            this._feedLoadingBodyEl = null;
             this._feedWrapEl = null;
+            this._feedHeaderCountEl = null;
+            this._feedHeaderSubtitleEl = null;
             this._scrollSentinelEl = null;
             this._feedRowMap.clear();
             this._sortedThoughts = [];
 
-            const feedWrap = parent.createEl('div', { cls: 'diwa-dh-feed-wrap' });
+            this._feedSectionEl = parent.createEl('section', {
+                cls: 'diwa-dh-feed-section',
+                attr: { 'aria-label': 'Thought feed' },
+            });
+
+            const header = this._feedSectionEl.createEl('div', { cls: 'diwa-dh-feed-section-header' });
+            const heading = header.createEl('div', { cls: 'diwa-dh-feed-section-heading' });
+            heading.createEl('span', { cls: 'diwa-dh-feed-section-eyebrow', text: 'Workspace feed' });
+            const titleRow = heading.createEl('div', { cls: 'diwa-dh-feed-section-title-row' });
+            titleRow.createEl('h2', { cls: 'diwa-dh-feed-section-title', text: 'Recent thoughts' });
+            this._feedHeaderCountEl = titleRow.createEl('span', {
+                cls: 'diwa-dh-feed-section-count',
+                text: 'Syncing…',
+            });
+            this._feedHeaderSubtitleEl = heading.createEl('p', {
+                cls: 'diwa-dh-feed-section-subtitle',
+                text: 'Refreshing your latest non-archived thoughts.',
+            });
+
+            const controls = this._feedSectionEl.createEl('div', { cls: 'diwa-dh-feed-controls' });
+            this._contextFilterSectionEl = controls.createEl('div', {
+                cls: 'diwa-dh-feed-context-section diwa-dh-feed-control diwa-dh-feed-control--contexts',
+            });
+            this._feedSearchSectionEl = controls.createEl('div', {
+                cls: 'diwa-dh-feed-search-section diwa-dh-feed-control diwa-dh-feed-control--search',
+            });
+
+            const feedWrap = this._feedSectionEl.createEl('div', { cls: 'diwa-dh-feed-wrap' });
             this._feedWrapEl = feedWrap;
-            this._feedLoadingEl = feedWrap.createEl('div', { cls: 'diwa-dh-feed-loading', text: 'Loading thoughts…' });
-            this._feedEl = feedWrap.createEl('div', { cls: 'diwa-dh-feed-list' });
-            this._feedEmptyEl = feedWrap.createEl('div', { cls: 'diwa-dh-feed-empty' });
+
+            this._feedLoadingEl = feedWrap.createEl('div', {
+                cls: 'diwa-dh-feed-loading',
+                attr: { 'aria-live': 'polite' },
+            });
+            const loadingSurface = this._feedLoadingEl.createEl('div', {
+                cls: 'diwa-dh-feed-state-surface diwa-dh-feed-state-surface--loading',
+            });
+            loadingSurface.createEl('span', { cls: 'diwa-dh-feed-state-eyebrow', text: 'Syncing' });
+            this._feedLoadingTitleEl = loadingSurface.createEl('div', {
+                cls: 'diwa-dh-feed-state-title',
+                text: 'Loading thoughts…',
+            });
+            this._feedLoadingBodyEl = loadingSurface.createEl('div', {
+                cls: 'diwa-dh-feed-state-body',
+                text: 'Pulling your workspace stream into view.',
+            });
+
+            this._feedEl = feedWrap.createEl('div', {
+                cls: 'diwa-dh-feed-list',
+                attr: {
+                    'aria-live': 'polite',
+                    role: 'list',
+                },
+            });
+
+            this._feedEmptyEl = feedWrap.createEl('div', {
+                cls: 'diwa-dh-feed-empty',
+                attr: { 'aria-live': 'polite' },
+            });
+            const emptySurface = this._feedEmptyEl.createEl('div', {
+                cls: 'diwa-dh-feed-state-surface diwa-dh-feed-state-surface--empty',
+            });
+            emptySurface.createEl('span', { cls: 'diwa-dh-feed-state-eyebrow', text: 'Feed' });
+            this._feedEmptyTitleEl = emptySurface.createEl('div', { cls: 'diwa-dh-feed-state-title' });
+            this._feedEmptyBodyEl = emptySurface.createEl('div', { cls: 'diwa-dh-feed-state-body' });
+
             this._scrollSentinelEl = feedWrap.createEl('div', { cls: 'diwa-dh-scroll-sentinel' });
             this.mountScrollObserver();
             this.scheduleFeedRefresh();
         }
 
-        for (const section of [this._captureSectionEl, this._contextFilterSectionEl, this._feedSearchSectionEl, this._feedWrapEl]) {
-            if (!section || !parent.contains(section) || parent.lastElementChild === section) continue;
-            parent.appendChild(section);
-        }
+        if (this._contextFilterSectionEl) this.renderContextFilter(this._contextFilterSectionEl);
+        if (this._feedSearchSectionEl) this.renderFeedSearch(this._feedSearchSectionEl);
     }
 
     private mountScrollObserver(): void {
@@ -471,11 +553,15 @@ export class DesktopHubView extends ItemView {
 
         // Show loading state until the index is fully hydrated
         if (!this._thoughtController.isReady()) {
+            this.updateFeedHeader(0, 0, 0, '', this._activeContext, true);
             if (this._feedLoadingEl) this._feedLoadingEl.style.display = '';
             if (this._feedEmptyEl) this._feedEmptyEl.style.display = 'none';
+            this._feedWrapEl?.toggleClass('is-loading', true);
+            this._feedWrapEl?.toggleClass('is-empty', false);
             return;
         }
         if (this._feedLoadingEl) this._feedLoadingEl.style.display = 'none';
+        this._feedWrapEl?.toggleClass('is-loading', false);
 
         const allThoughts = this._thoughtController.getAllThoughts().map((thought) => ({
             ...thought,
@@ -488,7 +574,8 @@ export class DesktopHubView extends ItemView {
                 thoughts: [...(thought.links?.thoughts ?? [])],
             },
         }));
-        let thoughts = allThoughts.filter(t => !t.archived);
+        const nonArchivedThoughts = allThoughts.filter((thought) => !thought.archived);
+        let thoughts = nonArchivedThoughts;
         const activeContext = this._activeContext.trim().toLowerCase();
         if (activeContext && activeContext !== 'all') {
             thoughts = thoughts.filter((thought) => (thought.context ?? []).some((ctx) => ctx.toLowerCase() === activeContext));
@@ -506,6 +593,7 @@ export class DesktopHubView extends ItemView {
 
         this._sortedThoughts = thoughts;
         const visibleThoughts = thoughts.slice(0, this._visibleCount);
+        this.updateFeedHeader(thoughts.length, nonArchivedThoughts.length, visibleThoughts.length, searchQuery, activeContext, false);
         if (version !== this._renderVersion || this._closed) return;
 
         // Diff render: add/update visible rows, remove rows no longer visible
@@ -521,6 +609,7 @@ export class DesktopHubView extends ItemView {
                 thought.pinned ? '1' : '0',
                 thought.archived ? '1' : '0',
                 thought.body || thought.content || thought.title || '',
+                (thought.context ?? []).join('|'),
                 (thought.links?.tasks ?? []).join('|'),
                 (thought.links?.thoughts ?? []).join('|'),
             ].join('¦');
@@ -529,11 +618,15 @@ export class DesktopHubView extends ItemView {
             if (!row) {
                 const rootEl = this._feedEl.createEl('div', { cls: 'diwa-dh-thought-row' });
                 rootEl.dataset.id = id;
+                rootEl.setAttr('role', 'listitem');
                 const leftEl = rootEl.createEl('div', { cls: 'diwa-dh-thought-row-left' });
-                const timeEl = leftEl.createEl('span', { cls: 'diwa-dh-thought-row-time' });
+                const metaEl = leftEl.createEl('div', { cls: 'diwa-dh-thought-row-meta' });
+                const timeEl = metaEl.createEl('span', { cls: 'diwa-dh-thought-row-time' });
                 const bodyEl = rootEl.createEl('div', { cls: 'diwa-dh-thought-row-body' });
-                const textEl = bodyEl.createEl('div', { cls: 'diwa-dh-thought-row-text' });
-                const ctxEl = bodyEl.createEl('div', { cls: 'diwa-dh-thought-row-ctx' });
+                const contentEl = bodyEl.createEl('div', { cls: 'diwa-dh-thought-row-content' });
+                const textEl = contentEl.createEl('div', { cls: 'diwa-dh-thought-row-text' });
+                const metaRailEl = bodyEl.createEl('div', { cls: 'diwa-dh-thought-row-meta-rail' });
+                const ctxEl = metaRailEl.createEl('div', { cls: 'diwa-dh-thought-row-ctx' });
                 const actionsEl = rootEl.createEl('div', { cls: 'diwa-dh-thought-row-actions' });
                 const editBtn = this.createThoughtActionButton(actionsEl, 'pencil', 'Edit thought', 'diwa-dh-thought-row-action--edit');
                 const pinBtn = this.createThoughtActionButton(actionsEl, 'pin', 'Pin thought', 'diwa-dh-thought-row-action--pin');
@@ -604,8 +697,7 @@ export class DesktopHubView extends ItemView {
             if (row.sig !== sig) {
                 row.timeEl.setText(this.formatThoughtTime(thought));
                 this.renderThoughtRowMarkdown(id, thought, row, sig, version);
-                row.ctxEl.empty();
-                row.ctxEl.style.display = 'none';
+                this.renderThoughtRowMeta(thought, row);
                 row.sig = sig;
             }
         }
@@ -639,21 +731,117 @@ export class DesktopHubView extends ItemView {
         if (this._feedEmptyEl) {
             const hasVisible = seen.size > 0;
             this._feedEmptyEl.style.display = hasVisible ? 'none' : '';
+            this._feedWrapEl?.toggleClass('is-empty', !hasVisible);
             if (!hasVisible) {
-                const hasNonArchivedThoughts = allThoughts.some((thought) => !thought.archived);
+                const hasNonArchivedThoughts = nonArchivedThoughts.length > 0;
                 if (!hasNonArchivedThoughts) {
-                    this._feedEmptyEl.setText('No thoughts yet. Capture your first one above.');
+                    this.setFeedEmptyState(
+                        'Nothing captured yet',
+                        'Your first thought will land here as soon as you save it above.',
+                    );
                 } else if (searchQuery && activeContext !== 'all') {
-                    this._feedEmptyEl.setText('No thoughts match your current filters.');
+                    this.setFeedEmptyState(
+                        'No matches in this lane',
+                        'Try another context or broaden the search to bring thoughts back into view.',
+                    );
                 } else if (searchQuery) {
-                    this._feedEmptyEl.setText('No thoughts match your search.');
+                    this.setFeedEmptyState(
+                        'No search matches',
+                        'Adjust the query to surface thoughts from the current stream.',
+                    );
                 } else if (activeContext !== 'all') {
-                    this._feedEmptyEl.setText('No thoughts in this context.');
+                    this.setFeedEmptyState(
+                        'This context is quiet',
+                        'Switch filters or capture a new thought to seed this context.',
+                    );
                 } else {
-                    this._feedEmptyEl.setText('No thoughts yet. Capture your first one above.');
+                    this.setFeedEmptyState(
+                        'Nothing captured yet',
+                        'Your first thought will land here as soon as you save it above.',
+                    );
                 }
             }
         }
+    }
+
+    private updateFeedHeader(
+        filteredCount: number,
+        totalNonArchived: number,
+        visibleCount: number,
+        searchQuery: string,
+        activeContext: string,
+        isLoading: boolean,
+    ): void {
+        if (this._feedHeaderCountEl) {
+            const countLabel = isLoading ? 'Syncing…' : `${filteredCount} ${filteredCount === 1 ? 'thought' : 'thoughts'}`;
+            this._feedHeaderCountEl.setText(countLabel);
+        }
+
+        if (!this._feedHeaderSubtitleEl) return;
+        if (isLoading) {
+            this._feedHeaderSubtitleEl.setText('Refreshing your latest non-archived thoughts.');
+            return;
+        }
+
+        const segments: string[] = [];
+        if (activeContext !== 'all') {
+            segments.push(`#${activeContext}`);
+        } else {
+            segments.push('All contexts');
+        }
+        if (searchQuery) {
+            const compactQuery = searchQuery.length > 32 ? `${searchQuery.slice(0, 29)}...` : searchQuery;
+            segments.push(`Search: "${compactQuery}"`);
+        } else {
+            segments.push('Search titles and markdown');
+        }
+        if (filteredCount > 0 && visibleCount < filteredCount) {
+            segments.push(`Showing ${visibleCount} of ${filteredCount}`);
+        } else if (filteredCount > 0 && totalNonArchived > filteredCount) {
+            segments.push(`Filtered from ${totalNonArchived}`);
+        } else {
+            segments.push('Latest non-archived thoughts');
+        }
+        this._feedHeaderSubtitleEl.setText(segments.join(' · '));
+    }
+
+    private setFeedEmptyState(title: string, body: string): void {
+        this._feedEmptyTitleEl?.setText(title);
+        this._feedEmptyBodyEl?.setText(body);
+    }
+
+    private renderThoughtRowMeta(thought: ThoughtEntry, row: FeedRowRef): void {
+        row.ctxEl.empty();
+
+        const metaItems: { text: string; cls: string }[] = [];
+        if (thought.pinned) {
+            metaItems.push({
+                text: 'Pinned',
+                cls: 'diwa-dh-thought-row-meta-pill diwa-dh-thought-row-meta-pill--pinned',
+            });
+        }
+
+        const contexts = [...new Set((thought.context ?? []).map((context) => context.trim()).filter(Boolean))];
+        for (const context of contexts.slice(0, 4)) {
+            metaItems.push({
+                text: `#${context}`,
+                cls: 'diwa-dh-thought-row-meta-pill diwa-dh-thought-row-meta-pill--context',
+            });
+        }
+        if (contexts.length > 4) {
+            metaItems.push({
+                text: `+${contexts.length - 4}`,
+                cls: 'diwa-dh-thought-row-meta-pill diwa-dh-thought-row-meta-pill--overflow',
+            });
+        }
+
+        row.ctxEl.style.display = metaItems.length > 0 ? '' : 'none';
+        metaItems.forEach((item) => {
+            row.ctxEl.createEl('span', {
+                cls: item.cls,
+                text: item.text,
+            });
+        });
     }
 
     private renderContextFilter(parent: HTMLElement): void {
@@ -663,7 +851,13 @@ export class DesktopHubView extends ItemView {
             this._activeContext = 'all';
         }
 
-        const chipRow = parent.createEl('div', {
+        const activeLabel = this._activeContext.toLowerCase() === 'all' ? 'All streams' : `#${this._activeContext}`;
+        const panel = parent.createEl('div', { cls: 'diwa-dh-feed-control-panel diwa-dh-feed-control-panel--contexts' });
+        const heading = panel.createEl('div', { cls: 'diwa-dh-feed-control-head' });
+        heading.createEl('span', { cls: 'diwa-dh-feed-control-eyebrow', text: 'Context' });
+        heading.createEl('span', { cls: 'diwa-dh-feed-control-summary', text: activeLabel });
+
+        const chipRow = panel.createEl('div', {
             cls: 'diwa-dh-feed-contexts',
             attr: { 'aria-label': 'Thought context filters' },
         });
@@ -759,6 +953,11 @@ export class DesktopHubView extends ItemView {
         const linkedThoughtCount = this.getLinkedThoughtRefs(thought).size;
         const hasLinkedTasks = linkedTaskCount > 0;
         const hasLinkedThoughts = linkedThoughtCount > 0;
+
+        row.rootEl.toggleClass('is-pinned', !!thought.pinned);
+        row.rootEl.toggleClass('has-linked-task', hasLinkedTasks);
+        row.rootEl.toggleClass('has-linked-thought', hasLinkedThoughts);
+        row.rootEl.setAttr('data-context-count', String((thought.context ?? []).filter((value) => value.trim().length > 0).length));
 
         row.pinBtn.title = thought.pinned ? 'Unpin thought' : 'Pin thought';
         row.pinBtn.setAttr('aria-label', row.pinBtn.title);
@@ -1009,12 +1208,34 @@ export class DesktopHubView extends ItemView {
     private renderCapture(parent: HTMLElement) {
         if (!this._captureInputEl) {
             parent.empty();
-            const capture = parent.createEl('div', { cls: 'diwa-dh-capture diwa-capture-bar' });
+            const panel = parent.createEl('section', {
+                cls: 'diwa-dh-capture-panel',
+                attr: { 'aria-label': 'Capture a thought' },
+            });
+            const panelHeader = panel.createEl('div', { cls: 'diwa-dh-capture-panel-header' });
+            panelHeader.createEl('span', { cls: 'diwa-dh-capture-eyebrow', text: 'Capture' });
+            const panelCopy = panelHeader.createEl('div', { cls: 'diwa-dh-capture-heading' });
+            panelCopy.createEl('div', { cls: 'diwa-dh-capture-title', text: 'Drop the next thought' });
+            panelCopy.createEl('div', {
+                cls: 'diwa-dh-capture-subtitle',
+                text: 'Quick capture feeds the stream below without leaving the workspace.',
+            });
+
+            const panelBody = panel.createEl('div', { cls: 'diwa-dh-capture-panel-body' });
+            const capture = panelBody.createEl('div', { cls: 'diwa-dh-capture' });
+            const hintId = `diwa-dh-capture-hint-${Date.now().toString(36)}`;
             const textarea = capture.createEl('textarea', {
                 cls: 'diwa-dh-capture-textarea',
-                attr: { rows: '2', placeholder: 'Think here...' },
+                attr: {
+                    rows: '2',
+                    placeholder: 'Think here...',
+                    'aria-describedby': hintId,
+                },
             }) as HTMLTextAreaElement;
-            const contextHint = capture.createEl('div', { cls: 'diwa-dh-capture-hint' });
+            const contextHint = capture.createEl('div', {
+                cls: 'diwa-dh-capture-hint',
+                attr: { id: hintId },
+            });
             this._captureInputEl = textarea;
             this._captureHintEl = contextHint;
             this._captureHintEl.setText('Enter → save  •  Shift+Enter → multiline');
@@ -1078,7 +1299,15 @@ export class DesktopHubView extends ItemView {
     private renderFeedSearch(parent: HTMLElement): void {
         if (!this._feedSearchInputEl) {
             parent.empty();
-            const searchWrap = parent.createEl('div', { cls: 'diwa-dh-feed-search-wrap' });
+            const searchPanel = parent.createEl('div', { cls: 'diwa-dh-feed-search-panel' });
+            const searchHeader = searchPanel.createEl('div', { cls: 'diwa-dh-feed-control-head' });
+            searchHeader.createEl('span', { cls: 'diwa-dh-feed-control-eyebrow', text: 'Search' });
+            searchHeader.createEl('span', {
+                cls: 'diwa-dh-feed-control-summary',
+                text: this._feedSearchQuery.trim() ? 'Query active' : 'Titles and markdown',
+            });
+
+            const searchWrap = searchPanel.createEl('div', { cls: 'diwa-dh-feed-search-wrap' });
             const searchIcon = searchWrap.createEl('span', { cls: 'diwa-dh-feed-search-icon' });
             setIcon(searchIcon, 'search');
             const input = searchWrap.createEl('input', {
@@ -1095,6 +1324,21 @@ export class DesktopHubView extends ItemView {
                 const nextQuery = input.value;
                 if (nextQuery === this._feedSearchQuery) return;
                 this._feedSearchQuery = nextQuery;
+                const summaryEl = parent.querySelector('.diwa-dh-feed-control-summary') as HTMLElement | null;
+                if (summaryEl) {
+                    summaryEl.setText(this._feedSearchQuery.trim() ? 'Query active' : 'Titles and markdown');
+                }
+                this._visibleCount = 50;
+                this.scheduleFeedRefresh();
+            });
+            input.addEventListener('keydown', (event: KeyboardEvent) => {
+                if (event.key !== 'Escape' || !input.value) return;
+                event.preventDefault();
+                input.value = '';
+                if (!this._feedSearchQuery) return;
+                this._feedSearchQuery = '';
+                const summaryEl = parent.querySelector('.diwa-dh-feed-control-summary') as HTMLElement | null;
+                if (summaryEl) summaryEl.setText('Titles and markdown');
                 this._visibleCount = 50;
                 this.scheduleFeedRefresh();
             });
@@ -1104,6 +1348,10 @@ export class DesktopHubView extends ItemView {
 
         if (this._feedSearchInputEl.value !== this._feedSearchQuery) {
             this._feedSearchInputEl.value = this._feedSearchQuery;
+        }
+        const searchSummary = parent.querySelector('.diwa-dh-feed-control-summary') as HTMLElement | null;
+        if (searchSummary) {
+            searchSummary.setText(this._feedSearchQuery.trim() ? 'Query active' : 'Titles and markdown');
         }
     }
 
