@@ -115,9 +115,11 @@ export class DiwaMobileShell {
         const wrap = container.createDiv('diwa-mobile-list-wrap');
         wrap.createDiv({ cls: 'diwa-mobile-section-title', text: 'Gawa' });
         const list = wrap.createDiv('diwa-mobile-list');
-        const tasks = this.plugin.getAllTasks();
+        const tasks = this.plugin.getAllTasks().filter(
+            (task) => task.status !== 'done' && task.lifecycleStatus !== 'done' && task.bucketStatus !== 'done',
+        );
         if (tasks.length === 0) {
-            list.createDiv({ cls: 'diwa-mobile-empty', text: 'No tasks available.' });
+            list.createDiv({ cls: 'diwa-mobile-empty', text: 'No open tasks available.' });
             return;
         }
         tasks.forEach((task: TaskEntry) => {
