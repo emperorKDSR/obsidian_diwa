@@ -4334,13 +4334,24 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   position: relative;
   transition: opacity 0.15s;
 }
-.diwa-dh-feed-item:hover { opacity: 0.88; }
+/* Actions overlay on hover — absolutely positioned so content fills full row width */
 .diwa-dh-feed-actions {
+  position: absolute;
+  right: 0;
+  top: 6px;
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-shrink: 0;
-  margin-top: 1px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  /* Fade left edge so buttons don't hard-cut over text */
+  background: linear-gradient(to right, transparent, var(--background-primary) 20px);
+  padding-left: 20px;
+}
+.diwa-dh-feed-item:hover .diwa-dh-feed-actions {
+  opacity: 1;
+  pointer-events: auto;
 }
 .diwa-dh-link-icons {
   display: flex;
