@@ -7868,7 +7868,6 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   opacity: 0.7;
 }
 
-.diwa-gawa-row,
 .diwa-gawa-pane-shell .diwa-dh-task-item,
 .diwa-gawa-mobile-pane-shell .diwa-dh-task-item {
   min-height: 32px;
@@ -8526,6 +8525,10 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 .diwa-gawa-chip.is-done {
   color: var(--interactive-accent);
   border-color: var(--interactive-accent);
+}
+
+.diwa-gawa-list {
+  gap: 10px;
 }
 
 .diwa-mobile-thought-card {

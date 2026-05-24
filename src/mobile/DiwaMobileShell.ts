@@ -114,7 +114,7 @@ export class DiwaMobileShell {
     private renderTasks(container: HTMLElement): void {
         const wrap = container.createDiv('diwa-mobile-list-wrap');
         wrap.createDiv({ cls: 'diwa-mobile-section-title', text: 'Gawa' });
-        const list = wrap.createDiv('diwa-mobile-list');
+        const list = wrap.createDiv('diwa-mobile-list diwa-gawa-list');
         const tasks = this.plugin.getAllTasks().filter((task) => !this.isTaskDone(task));
         if (tasks.length === 0) {
             list.createDiv({ cls: 'diwa-mobile-empty', text: 'No open tasks available.' });

@@ -687,10 +687,7 @@ export default class DiwaPlugin extends Plugin {
         main.createDiv({ cls: 'diwa-gawa-title', text: title });
         if (!options.compact) {
             const meta = main.createDiv('diwa-gawa-meta');
-            meta.createDiv({
-                cls: `diwa-gawa-chip ${done ? 'is-done' : 'is-open'}`,
-                text: done ? 'Done' : 'Open',
-            });
+            if (done) meta.createDiv({ cls: 'diwa-gawa-chip is-done', text: 'Done' });
             if (task.due?.trim()) {
                 meta.createDiv({ cls: 'diwa-gawa-chip', text: `Due ${task.due.trim()}` });
             }
