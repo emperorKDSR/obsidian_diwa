@@ -14248,6 +14248,9 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 .diwa-journal-composer__title,
 .diwa-journal-composer__body {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   border: 0;
   background: transparent;
   color: var(--text-normal);
@@ -14576,8 +14579,11 @@ body.is-tablet .diwa-journal-composer__footer {
 .diwa-journal-mobile {
   display: flex;
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
   min-height: 0;
   height: 100%;
+  box-sizing: border-box;
   padding: 0;
   background:
     radial-gradient(circle at top, color-mix(in srgb, var(--interactive-accent) 14%, transparent), transparent 58%),
@@ -14587,6 +14593,8 @@ body.is-tablet .diwa-journal-composer__footer {
 .diwa-journal-mobile__shell {
   display: flex;
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
   min-height: 0;
   height: 100%;
   overflow: hidden;
@@ -14596,18 +14604,18 @@ body.is-tablet .diwa-journal-composer__footer {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   position: sticky;
   top: 0;
   z-index: 4;
-  padding: max(env(safe-area-inset-top, 0px), 14px) 16px 12px;
+  padding: max(env(safe-area-inset-top, 0px), 12px) 14px 10px;
   background: color-mix(in srgb, var(--background-primary) 90%, transparent);
   backdrop-filter: blur(18px);
 }
 
 .diwa-journal-composer__mobile-dismiss,
 .diwa-journal-composer__mobile-dismiss-spacer {
-  min-width: 52px;
+  min-width: 48px;
 }
 
 .diwa-journal-composer__mobile-dismiss {
@@ -14624,7 +14632,7 @@ body.is-tablet .diwa-journal-composer__footer {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
 }
 
@@ -14637,7 +14645,7 @@ body.is-tablet .diwa-journal-composer__footer {
 }
 
 .diwa-journal-composer__mobile-meta {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
 }
 
@@ -14645,12 +14653,12 @@ body.is-tablet .diwa-journal-composer__footer {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  padding: 0 14px;
+  min-height: 40px;
+  padding: 0 12px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--background-secondary) 84%, transparent);
   color: var(--text-muted);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -14663,6 +14671,8 @@ body.is-tablet .diwa-journal-composer__footer {
 
 .diwa-journal-composer--mobile {
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
   min-height: 0;
   height: 100%;
   overflow: hidden;
@@ -14672,10 +14682,13 @@ body.is-tablet .diwa-journal-composer__footer {
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
   min-height: 0;
   height: 100%;
-  gap: 14px;
-  padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 10px);
+  box-sizing: border-box;
+  gap: 12px;
+  padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 8px);
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -14684,52 +14697,61 @@ body.is-tablet .diwa-journal-composer__footer {
 }
 
 .diwa-journal-composer--mobile .diwa-journal-composer__title {
-  padding: 0 16px;
-  font-size: clamp(1.65rem, 1.2rem + 2vw, 2.2rem);
+  padding: 0 12px;
+  font-size: clamp(1.55rem, 1.18rem + 1.6vw, 2rem);
 }
 
 .diwa-journal-composer--mobile .diwa-journal-composer__types {
-  padding: 0 16px 2px;
+  gap: 8px;
+  padding: 0 12px 2px;
 }
 
 .diwa-journal-composer--mobile .diwa-journal-composer__type-pill {
   min-height: 44px;
-  padding: 0 16px;
+  padding: 0 14px;
 }
 
 .diwa-journal-composer--mobile .diwa-journal-composer__body-wrap {
   display: flex;
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
   min-height: 0;
-  margin: 0 16px;
-  padding: 18px;
-  border-radius: 24px;
+  box-sizing: border-box;
+  min-height: clamp(300px, 42dvh, 560px);
+  margin: 0 12px;
+  padding: 20px 18px 22px;
+  border-radius: 22px;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0)),
     color-mix(in srgb, var(--background-primary) 95%, var(--background-secondary) 5%);
   border: 1px solid color-mix(in srgb, var(--background-modifier-border) 80%, transparent);
-  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 16px 38px rgba(15, 23, 42, 0.08);
   overflow: hidden;
 }
 
 .diwa-journal-composer--mobile .diwa-journal-composer__body {
   flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
   height: auto;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  font-size: 1rem;
-  line-height: 1.85;
+  font-size: 1.02rem;
+  line-height: 1.8;
 }
 
 .diwa-journal-composer__utility {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 0 16px;
-  padding: 14px 16px;
-  border-radius: 22px;
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  gap: 8px 10px;
+  margin: 0 12px;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 18px;
   background: color-mix(in srgb, var(--background-primary) 92%, var(--background-secondary) 8%);
   border: 1px solid color-mix(in srgb, var(--background-modifier-border) 82%, transparent);
 }
@@ -14737,35 +14759,51 @@ body.is-tablet .diwa-journal-composer__footer {
 .diwa-journal-composer__utility-copy {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
+  max-width: 11rem;
 }
 
 .diwa-journal-composer__utility-title {
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   font-weight: 800;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .diwa-journal-composer__utility-caption {
   color: var(--text-muted);
-  font-size: 0.82rem;
-  line-height: 1.45;
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .diwa-journal-composer__utility-actions {
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
 }
 
 .diwa-journal-composer__utility-btn {
-  min-height: 46px;
-  padding: 0 16px;
+  min-height: 44px;
+  padding: 0 14px;
 }
 
 .diwa-journal-composer__contexts--mobile {
-  margin-top: 2px;
+  min-width: 0;
+  margin-top: 0;
+  gap: 6px;
+  align-content: flex-start;
+}
+
+.diwa-journal-composer__contexts--mobile .diwa-journal-composer__context-hint {
+  font-size: 0.74rem;
+}
+
+.diwa-journal-composer__contexts--mobile .diwa-journal-composer__chip {
+  min-height: 28px;
+  padding: 0 9px;
+  font-size: 0.74rem;
 }
 
 .diwa-journal-composer__footer--mobile {
@@ -14773,16 +14811,26 @@ body.is-tablet .diwa-journal-composer__footer {
   bottom: 0;
   z-index: 4;
   align-items: stretch;
-  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  gap: 10px;
   margin-top: auto;
-  padding: 14px 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  padding: 12px 12px calc(env(safe-area-inset-bottom, 0px) + 14px);
   background: color-mix(in srgb, var(--background-primary) 92%, transparent);
   backdrop-filter: blur(20px);
   border-top: 1px solid color-mix(in srgb, var(--background-modifier-border) 62%, transparent);
 }
 
+.diwa-journal-composer__footer--mobile .diwa-journal-composer__hint {
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
 .diwa-journal-composer__footer--mobile .diwa-journal-composer__actions {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .diwa-journal-composer__footer--mobile .diwa-journal-composer__subtle-btn,
@@ -14794,6 +14842,13 @@ body.is-tablet .diwa-journal-composer__footer {
 body.is-mobile .diwa-journal-mobile,
 body.is-tablet .diwa-journal-mobile {
   min-height: 100dvh;
+  padding: 0;
+}
+
+body.is-mobile .diwa-journal-composer--mobile .diwa-journal-composer__surface,
+body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
+  padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 8px);
+  border-radius: 0;
 }
 
 @media (max-width: 900px) {
@@ -14803,9 +14858,20 @@ body.is-tablet .diwa-journal-mobile {
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 420px) {
   .diwa-journal-composer__utility {
-    flex-direction: column;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .diwa-journal-composer__contexts--mobile {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 380px) {
+  .diwa-journal-composer__utility-caption {
+    display: none;
   }
 }
 
