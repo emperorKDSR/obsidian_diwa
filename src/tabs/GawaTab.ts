@@ -629,6 +629,9 @@ export class GawaTab extends BaseTab {
             this.updateWorkspaceStats();
         } catch (error) {
             console.error('[DIWA GAWA] Failed to create task', error);
+            throw error instanceof Error
+                ? error
+                : new Error('Failed to add task to Gawa.');
         }
     }
 

@@ -1,9 +1,40 @@
-import { App, Modal, Notice, moment } from 'obsidian';
+import { App, Modal, Notice, Platform, moment } from 'obsidian';
 import type DiwaPlugin from '../main';
-import { parseNaturalDate } from '../utils';
+import { isTablet, parseNaturalDate } from '../utils';
+import { attachMobileSheetViewportBehavior } from '../utils/mobileSheetViewport';
 
 type TaskTarget = 'backlog' | 'active' | 'focus';
 type TaskPriority = 'high' | 'medium' | 'low' | null;
+
+const TARGET_META: Record<TaskTarget, {
+    label: string;
+    description: string;
+    footerLabel: string;
+    footerHint: string;
+    cta: string;
+}> = {
+    backlog: {
+        label: 'Backlog',
+        description: 'Park it for later planning.',
+        footerLabel: 'Backlog keeps new work ready for later review.',
+        footerHint: 'Best when you want to capture fast and sort it out later.',
+        cta: 'Add to Backlog',
+    },
+    active: {
+        label: 'Active',
+        description: 'Move it into the work queue now.',
+        footerLabel: 'Active makes this part of the current workload.',
+        footerHint: 'Use this when the task should already be in motion.',
+        cta: 'Add to Active',
+    },
+    focus: {
+        label: 'Focus',
+        description: 'Pin it for immediate attention.',
+        footerLabel: 'Focus highlights this task right away.',
+        footerHint: 'Great for the one thing that needs your eyes next.',
+        cta: 'Add to Focus',
+    },
+};
 
 export interface FastTaskCapturePayload {
     text: string;
@@ -30,11 +61,17 @@ interface CaptureOverrides {
     priority: 'auto' | 'none' | 'high' | 'medium' | 'low';
 }
 
+type AdvancedLayout = 'desktop' | 'mobile';
+
 export class FastTaskCaptureModal extends Modal {
     private inputEl!: HTMLTextAreaElement;
     private chipsEl!: HTMLElement;
     private advancedEl!: HTMLElement;
     private createBtn!: HTMLButtonElement;
+    private errorEl: HTMLElement | null = null;
+    private footerLabelEl: HTMLElement | null = null;
+    private footerHintEl: HTMLElement | null = null;
+    private advancedToggleBtn: HTMLButtonElement | null = null;
     private selectedTarget: TaskTarget = 'backlog';
     private overrides: CaptureOverrides = {
         project: 'auto',
@@ -42,6 +79,10 @@ export class FastTaskCaptureModal extends Modal {
         priority: 'auto',
     };
     private targetButtons = new Map<TaskTarget, HTMLButtonElement>();
+    private isMobileSheet = false;
+    private saving = false;
+    private viewportCleanup: (() => void) | null = null;
+    private focusTimer: number | null = null;
 
     constructor(
         app: App,
@@ -53,11 +94,38 @@ export class FastTaskCaptureModal extends Modal {
     }
 
     onOpen(): void {
+        this.contentEl.empty();
+        this.targetButtons.clear();
+        this.errorEl = null;
+        this.footerLabelEl = null;
+        this.footerHintEl = null;
+        this.advancedToggleBtn = null;
+        this.isMobileSheet = Platform.isMobile && !isTablet();
+
         this.modalEl.addClass('diwa-ftc-modal');
+
+        if (this.isMobileSheet) {
+            this.modalEl.addClass('diwa-ftc-mobile-modal');
+            this.renderMobile();
+            return;
+        }
+
         this.modalEl.addClass('diwa-workspace-popup-shell');
         this.modalEl.addClass('diwa-workspace-popup-shell--capture');
-        this.contentEl.empty();
+        this.renderDesktop();
+    }
 
+    onClose(): void {
+        this.clearFocusTimer();
+        this.viewportCleanup?.();
+        this.viewportCleanup = null;
+        this.modalEl.removeClass('diwa-ftc-mobile-modal');
+        this.modalEl.removeClass('diwa-workspace-popup-shell');
+        this.modalEl.removeClass('diwa-workspace-popup-shell--capture');
+        this.contentEl.empty();
+    }
+
+    private renderDesktop(): void {
         const root = this.contentEl.createEl('div', { cls: 'diwa-ftc-root' });
         const header = root.createEl('div', { cls: 'diwa-ftc-header diwa-workspace-popup-header' });
         header.createEl('span', { cls: 'diwa-workspace-popup-eyebrow', text: 'Gawa capture' });
@@ -79,26 +147,7 @@ export class FastTaskCaptureModal extends Modal {
             text: 'Capture once and route it to backlog, active, or focus.',
         });
 
-        const inputWrap = root.createEl('div', { cls: 'diwa-ftc-input-wrap' });
-        this.inputEl = inputWrap.createEl('textarea', {
-            cls: 'diwa-ftc-input',
-            attr: {
-                rows: '1',
-                placeholder: 'Add task… (#project @date !priority)',
-                'aria-label': 'Task input',
-            },
-        }) as HTMLTextAreaElement;
-        this.inputEl.value = this.initialText;
-        this.syncHeight();
-        this.inputEl.addEventListener('input', () => {
-            this.syncHeight();
-            this.renderMetadataPreview();
-            this.refreshCreateState();
-        });
-        this.inputEl.addEventListener('keydown', (event: KeyboardEvent) => this.handleInputKeydown(event));
-
-        this.chipsEl = root.createEl('div', { cls: 'diwa-ftc-chips' });
-        this.renderMetadataPreview();
+        this.renderInputSection(root);
 
         const targetSection = root.createEl('div', { cls: 'diwa-ftc-section' });
         targetSection.createEl('span', {
@@ -106,9 +155,9 @@ export class FastTaskCaptureModal extends Modal {
             text: 'Send to',
         });
         const targetRow = targetSection.createEl('div', { cls: 'diwa-ftc-targets' });
-        this.renderTargetToggle(targetRow, 'backlog', 'Backlog');
-        this.renderTargetToggle(targetRow, 'active', 'Active');
-        this.renderTargetToggle(targetRow, 'focus', 'Focus');
+        this.renderDesktopTargetToggle(targetRow, 'backlog');
+        this.renderDesktopTargetToggle(targetRow, 'active');
+        this.renderDesktopTargetToggle(targetRow, 'focus');
 
         const advancedSection = root.createEl('div', { cls: 'diwa-ftc-section diwa-ftc-section--advanced' });
         const advancedSectionHeader = advancedSection.createEl('div', { cls: 'diwa-ftc-section-header' });
@@ -116,19 +165,15 @@ export class FastTaskCaptureModal extends Modal {
             cls: 'diwa-workspace-popup-section-label',
             text: 'Refine',
         });
-        const advancedToggle = advancedSectionHeader.createEl('button', {
+        this.advancedToggleBtn = advancedSectionHeader.createEl('button', {
             cls: 'diwa-ftc-advanced-toggle',
             text: 'Advanced',
             attr: { type: 'button' },
-        });
-        advancedToggle.addEventListener('click', () => {
-            const nextOpen = !this.advancedEl.hasClass('is-open');
-            this.advancedEl.toggleClass('is-open', nextOpen);
-            advancedToggle.toggleClass('is-open', nextOpen);
-        });
+        }) as HTMLButtonElement;
+        this.advancedToggleBtn.addEventListener('click', () => this.toggleAdvanced());
 
         this.advancedEl = advancedSection.createEl('div', { cls: 'diwa-ftc-advanced' });
-        this.renderAdvancedFields(this.advancedEl);
+        this.renderAdvancedFields(this.advancedEl, 'desktop');
 
         const footer = root.createEl('div', { cls: 'diwa-ftc-footer' });
         footer.createEl('span', {
@@ -143,41 +188,186 @@ export class FastTaskCaptureModal extends Modal {
         this.createBtn.addEventListener('click', () => {
             void this.createWithTarget(this.selectedTarget);
         });
+
+        this.setSelectedTarget(this.selectedTarget);
         this.refreshCreateState();
-
-        setTimeout(() => {
-            this.inputEl.focus();
-            this.inputEl.setSelectionRange(this.inputEl.value.length, this.inputEl.value.length);
-        }, 40);
+        this.focusInput();
     }
 
-    onClose(): void {
-        this.contentEl.empty();
+    private renderMobile(): void {
+        const sheet = this.contentEl.createEl('div', { cls: 'diwa-ftc-mobile-sheet' });
+        sheet.createEl('div', { cls: 'diwa-ftc-mobile-handle' });
+
+        const header = sheet.createEl('div', { cls: 'diwa-ftc-mobile-header' });
+        const cancelBtn = header.createEl('button', {
+            cls: 'diwa-ftc-mobile-cancel',
+            text: 'Cancel',
+            attr: { type: 'button' },
+        });
+        cancelBtn.addEventListener('click', () => this.close());
+
+        const headerCopy = header.createEl('div', { cls: 'diwa-ftc-mobile-header-copy' });
+        headerCopy.createEl('div', { cls: 'diwa-ftc-mobile-kicker', text: 'Gawa capture' });
+        headerCopy.createEl('div', { cls: 'diwa-ftc-mobile-title', text: 'Add task' });
+
+        const body = sheet.createEl('div', { cls: 'diwa-ftc-mobile-body' });
+
+        const captureCard = body.createEl('section', { cls: 'diwa-ftc-mobile-card diwa-ftc-mobile-card--capture' });
+        captureCard.createEl('div', {
+            cls: 'diwa-ftc-mobile-label',
+            text: 'Write first',
+        });
+        this.renderInputSection(captureCard);
+        captureCard.createEl('div', {
+            cls: 'diwa-ftc-mobile-inline-hint',
+            text: 'Use #project, @date, and !priority inline or refine below.',
+        });
+
+        const routeCard = body.createEl('section', { cls: 'diwa-ftc-mobile-card' });
+        routeCard.createEl('div', {
+            cls: 'diwa-ftc-mobile-label',
+            text: 'Send it next',
+        });
+        const targetList = routeCard.createEl('div', { cls: 'diwa-ftc-mobile-targets' });
+        this.renderMobileTargetToggle(targetList, 'backlog');
+        this.renderMobileTargetToggle(targetList, 'active');
+        this.renderMobileTargetToggle(targetList, 'focus');
+
+        const advancedCard = body.createEl('section', { cls: 'diwa-ftc-mobile-card' });
+        const advancedHeader = advancedCard.createEl('div', { cls: 'diwa-ftc-mobile-card-header' });
+        advancedHeader.createEl('div', {
+            cls: 'diwa-ftc-mobile-label',
+            text: 'Refine',
+        });
+        this.advancedToggleBtn = advancedHeader.createEl('button', {
+            cls: 'diwa-ftc-mobile-advanced-toggle',
+            text: 'More options',
+            attr: { type: 'button' },
+        }) as HTMLButtonElement;
+        this.advancedToggleBtn.addEventListener('click', () => this.toggleAdvanced());
+        this.advancedEl = advancedCard.createEl('div', { cls: 'diwa-ftc-mobile-advanced' });
+        this.renderAdvancedFields(this.advancedEl, 'mobile');
+
+        const footer = sheet.createEl('div', { cls: 'diwa-ftc-mobile-footer' });
+        const footerCopy = footer.createEl('div', { cls: 'diwa-ftc-mobile-footer-copy' });
+        this.footerLabelEl = footerCopy.createEl('div', { cls: 'diwa-ftc-mobile-footer-label' });
+        this.footerHintEl = footerCopy.createEl('div', { cls: 'diwa-ftc-mobile-footer-hint' });
+        this.errorEl = footerCopy.createEl('div', { cls: 'diwa-ftc-mobile-error is-hidden' });
+
+        this.createBtn = footer.createEl('button', {
+            cls: 'diwa-ftc-mobile-create',
+            text: TARGET_META[this.selectedTarget].cta,
+            attr: { type: 'button' },
+        }) as HTMLButtonElement;
+        this.createBtn.addEventListener('click', () => {
+            void this.createWithTarget(this.selectedTarget);
+        });
+
+        this.viewportCleanup = attachMobileSheetViewportBehavior({
+            sheetEl: sheet,
+            scrollEl: body,
+        });
+
+        this.setSelectedTarget(this.selectedTarget);
+        this.refreshCreateState();
+        this.focusInput();
     }
 
-    private renderTargetToggle(parent: HTMLElement, target: TaskTarget, label: string): void {
+    private renderInputSection(parent: HTMLElement): void {
+        const inputWrap = parent.createEl('div', {
+            cls: this.isMobileSheet ? 'diwa-ftc-mobile-input-wrap' : 'diwa-ftc-input-wrap',
+        });
+        this.inputEl = inputWrap.createEl('textarea', {
+            cls: this.isMobileSheet ? 'diwa-ftc-mobile-input' : 'diwa-ftc-input',
+            attr: {
+                rows: '1',
+                placeholder: 'Add task… (#project @date !priority)',
+                'aria-label': 'Task input',
+            },
+        }) as HTMLTextAreaElement;
+        this.inputEl.value = this.initialText;
+        this.bindInputHandlers();
+        this.syncHeight();
+
+        this.chipsEl = parent.createEl('div', {
+            cls: this.isMobileSheet ? 'diwa-ftc-mobile-chips' : 'diwa-ftc-chips',
+        });
+        this.renderMetadataPreview();
+    }
+
+    private bindInputHandlers(): void {
+        this.inputEl.addEventListener('input', () => {
+            this.syncHeight();
+            this.setError();
+            this.renderMetadataPreview();
+            this.refreshCreateState();
+        });
+        this.inputEl.addEventListener('keydown', (event: KeyboardEvent) => this.handleInputKeydown(event));
+    }
+
+    private renderDesktopTargetToggle(parent: HTMLElement, target: TaskTarget): void {
         const button = parent.createEl('button', {
             cls: 'diwa-ftc-target-btn',
-            text: label,
+            text: TARGET_META[target].label,
             attr: { type: 'button' },
         }) as HTMLButtonElement;
         button.addEventListener('click', () => this.setSelectedTarget(target));
         this.targetButtons.set(target, button);
-        this.setSelectedTarget(this.selectedTarget);
+    }
+
+    private renderMobileTargetToggle(parent: HTMLElement, target: TaskTarget): void {
+        const button = parent.createEl('button', {
+            cls: 'diwa-ftc-mobile-target',
+            attr: { type: 'button', 'aria-label': `Route task to ${TARGET_META[target].label}` },
+        }) as HTMLButtonElement;
+        const copy = button.createEl('div', { cls: 'diwa-ftc-mobile-target-copy' });
+        copy.createEl('div', { cls: 'diwa-ftc-mobile-target-title', text: TARGET_META[target].label });
+        copy.createEl('div', { cls: 'diwa-ftc-mobile-target-description', text: TARGET_META[target].description });
+        button.addEventListener('click', () => this.setSelectedTarget(target));
+        this.targetButtons.set(target, button);
     }
 
     private setSelectedTarget(target: TaskTarget): void {
+        if (this.saving) return;
         this.selectedTarget = target;
         for (const [key, button] of this.targetButtons.entries()) {
-            button.toggleClass('is-active', key === target);
-            button.setAttr('aria-pressed', key === target ? 'true' : 'false');
+            const isActive = key === target;
+            button.toggleClass('is-active', isActive);
+            button.setAttr('aria-pressed', isActive ? 'true' : 'false');
+        }
+        this.refreshActionCopy();
+    }
+
+    private refreshActionCopy(): void {
+        const meta = TARGET_META[this.selectedTarget];
+        if (this.footerLabelEl) this.footerLabelEl.setText(meta.footerLabel);
+        if (this.footerHintEl) this.footerHintEl.setText(meta.footerHint);
+        if (this.createBtn) {
+            this.createBtn.textContent = this.saving
+                ? (this.isMobileSheet ? 'Adding task…' : 'Creating...')
+                : (this.isMobileSheet ? meta.cta : 'Create task');
         }
     }
 
-    private renderAdvancedFields(parent: HTMLElement): void {
-        const grid = parent.createEl('div', { cls: 'diwa-ftc-advanced-grid' });
+    private toggleAdvanced(): void {
+        if (this.saving) return;
+        const nextOpen = !this.advancedEl.hasClass('is-open');
+        this.advancedEl.toggleClass('is-open', nextOpen);
+        this.advancedToggleBtn?.toggleClass('is-open', nextOpen);
+        if (this.advancedToggleBtn) {
+            this.advancedToggleBtn.textContent = this.isMobileSheet
+                ? (nextOpen ? 'Hide options' : 'More options')
+                : 'Advanced';
+        }
+    }
 
-        const projectSelect = grid.createEl('select', {
+    private renderAdvancedFields(parent: HTMLElement, layout: AdvancedLayout): void {
+        const grid = parent.createEl('div', {
+            cls: layout === 'mobile' ? 'diwa-ftc-mobile-advanced-grid' : 'diwa-ftc-advanced-grid',
+        });
+
+        const projectField = this.createAdvancedField(grid, layout, 'Project');
+        const projectSelect = projectField.createEl('select', {
             cls: 'diwa-ftc-select',
             attr: { 'aria-label': 'Project override' },
         }) as HTMLSelectElement;
@@ -189,12 +379,14 @@ export class FastTaskCaptureModal extends Modal {
         for (const project of projects) {
             projectSelect.createEl('option', { text: `Project: ${project.name}`, value: project.name });
         }
+        projectSelect.value = this.overrides.project;
         projectSelect.addEventListener('change', () => {
             this.overrides.project = projectSelect.value as CaptureOverrides['project'];
             this.renderMetadataPreview();
         });
 
-        const dueInput = grid.createEl('input', {
+        const dueField = this.createAdvancedField(grid, layout, 'Due');
+        const dueInput = dueField.createEl('input', {
             cls: 'diwa-ftc-input-compact',
             attr: {
                 type: 'text',
@@ -202,12 +394,14 @@ export class FastTaskCaptureModal extends Modal {
                 'aria-label': 'Due date override',
             },
         }) as HTMLInputElement;
+        dueInput.value = this.overrides.due;
         dueInput.addEventListener('input', () => {
             this.overrides.due = dueInput.value.trim();
             this.renderMetadataPreview();
         });
 
-        const prioritySelect = grid.createEl('select', {
+        const priorityField = this.createAdvancedField(grid, layout, 'Priority');
+        const prioritySelect = priorityField.createEl('select', {
             cls: 'diwa-ftc-select',
             attr: { 'aria-label': 'Priority override' },
         }) as HTMLSelectElement;
@@ -216,10 +410,18 @@ export class FastTaskCaptureModal extends Modal {
         prioritySelect.createEl('option', { text: 'Priority: High', value: 'high' });
         prioritySelect.createEl('option', { text: 'Priority: Medium', value: 'medium' });
         prioritySelect.createEl('option', { text: 'Priority: Low', value: 'low' });
+        prioritySelect.value = this.overrides.priority;
         prioritySelect.addEventListener('change', () => {
             this.overrides.priority = prioritySelect.value as CaptureOverrides['priority'];
             this.renderMetadataPreview();
         });
+    }
+
+    private createAdvancedField(grid: HTMLElement, layout: AdvancedLayout, label: string): HTMLElement {
+        if (layout === 'desktop') return grid;
+        const field = grid.createEl('label', { cls: 'diwa-ftc-mobile-field' });
+        field.createEl('span', { cls: 'diwa-ftc-mobile-field-label', text: label });
+        return field;
     }
 
     private handleInputKeydown(event: KeyboardEvent): void {
@@ -228,7 +430,7 @@ export class FastTaskCaptureModal extends Modal {
             this.close();
             return;
         }
-        if (event.key !== 'Enter') return;
+        if (this.isMobileSheet || event.key !== 'Enter') return;
         event.preventDefault();
         if (event.metaKey || event.ctrlKey) {
             void this.createWithTarget('focus');
@@ -244,35 +446,52 @@ export class FastTaskCaptureModal extends Modal {
     private syncHeight(): void {
         this.inputEl.style.height = 'auto';
         this.inputEl.style.overflowY = 'hidden';
-        this.inputEl.style.height = `${this.inputEl.scrollHeight}px`;
+        const minHeight = this.isMobileSheet ? 220 : 56;
+        this.inputEl.style.height = `${Math.max(this.inputEl.scrollHeight, minHeight)}px`;
     }
 
     private refreshCreateState(): void {
         const parsed = this.resolveCapture();
-        const disabled = parsed.cleanText.length === 0;
+        const disabled = parsed.cleanText.length === 0 || this.saving;
         this.createBtn.disabled = disabled;
         this.createBtn.toggleClass('is-disabled', disabled);
+        for (const button of this.targetButtons.values()) {
+            button.disabled = this.saving;
+        }
+        this.refreshActionCopy();
     }
 
     private renderMetadataPreview(): void {
         const parsed = this.resolveCapture();
         this.chipsEl.empty();
 
+        const chipClass = this.isMobileSheet ? 'diwa-ftc-mobile-chip' : 'diwa-ftc-chip';
+        const hintClass = this.isMobileSheet
+            ? 'diwa-ftc-mobile-chip diwa-ftc-mobile-chip--hint'
+            : 'diwa-ftc-chip diwa-ftc-chip--hint';
+        const dueLabel = parsed.dueDate
+            ? moment(parsed.dueDate, 'YYYY-MM-DD').format(this.isMobileSheet ? 'ddd, MMM D' : 'MMM D')
+            : null;
+
         if (parsed.project) {
-            this.chipsEl.createEl('span', { cls: 'diwa-ftc-chip', text: `#${parsed.project}` });
+            this.chipsEl.createEl('span', { cls: chipClass, text: `#${parsed.project}` });
         }
         for (const context of parsed.contexts) {
-            this.chipsEl.createEl('span', { cls: 'diwa-ftc-chip', text: `#${context}` });
+            this.chipsEl.createEl('span', { cls: chipClass, text: `#${context}` });
         }
-        if (parsed.dueDate) {
-            const dueLabel = moment(parsed.dueDate, 'YYYY-MM-DD').format('MMM D');
-            this.chipsEl.createEl('span', { cls: 'diwa-ftc-chip', text: `@${dueLabel}` });
+        if (dueLabel) {
+            this.chipsEl.createEl('span', { cls: chipClass, text: `@${dueLabel}` });
         }
         if (parsed.priority) {
-            this.chipsEl.createEl('span', { cls: 'diwa-ftc-chip', text: `!${parsed.priority}` });
+            this.chipsEl.createEl('span', { cls: chipClass, text: `!${parsed.priority}` });
         }
         if (!this.chipsEl.children.length) {
-            this.chipsEl.createEl('span', { cls: 'diwa-ftc-chip diwa-ftc-chip--hint', text: 'Metadata preview' });
+            this.chipsEl.createEl('span', {
+                cls: hintClass,
+                text: this.isMobileSheet
+                    ? 'Metadata preview appears here.'
+                    : 'Metadata preview',
+            });
         }
     }
 
@@ -381,12 +600,15 @@ export class FastTaskCaptureModal extends Modal {
 
     private async createWithTarget(target: TaskTarget): Promise<void> {
         const capture = this.resolveCapture();
-        if (!capture.cleanText) {
-            return;
-        }
+        if (!capture.cleanText || this.saving) return;
+
         const status: 'open' | 'waiting' = target === 'backlog' ? 'open' : 'waiting';
         const focus = target === 'focus';
         this.setSelectedTarget(target);
+        this.saving = true;
+        this.setError();
+        this.refreshCreateState();
+
         try {
             await this.onCreate({
                 text: capture.cleanText,
@@ -401,6 +623,46 @@ export class FastTaskCaptureModal extends Modal {
             this.close();
         } catch (error) {
             console.error('[DIWA FastTaskCaptureModal] create failed', error);
+            const message = error instanceof Error && error.message
+                ? error.message
+                : 'Failed to add task to Gawa.';
+            this.setError(message);
+            new Notice(message);
+        } finally {
+            this.saving = false;
+            this.refreshCreateState();
         }
+    }
+
+    private setError(message = ''): void {
+        if (!this.errorEl) return;
+        this.errorEl.setText(message);
+        this.errorEl.toggleClass('is-hidden', !message);
+    }
+
+    private focusInput(): void {
+        this.scheduleFocus(() => this.inputEl, true);
+    }
+
+    private scheduleFocus(
+        getElement: () => HTMLInputElement | HTMLTextAreaElement | null,
+        moveCursorToEnd = false,
+    ): void {
+        this.clearFocusTimer();
+        this.focusTimer = window.setTimeout(() => {
+            const element = getElement();
+            if (!this.modalEl.isConnected || !element?.isConnected) return;
+            element.focus();
+            if (moveCursorToEnd && element instanceof HTMLTextAreaElement) {
+                const end = element.value.length;
+                element.setSelectionRange(end, end);
+            }
+        }, 50);
+    }
+
+    private clearFocusTimer(): void {
+        if (this.focusTimer === null) return;
+        window.clearTimeout(this.focusTimer);
+        this.focusTimer = null;
     }
 }

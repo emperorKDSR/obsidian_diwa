@@ -13980,6 +13980,371 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   opacity: 0.46;
 }
 
+.modal.diwa-ftc-modal.diwa-ftc-mobile-modal {
+  max-width: 100vw !important;
+  max-height: 100vh;
+  width: 100vw;
+  height: 100vh;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.18);
+  contain: layout style;
+}
+
+.modal.diwa-ftc-modal.diwa-ftc-mobile-modal .modal-close-button {
+  display: none;
+}
+
+.modal.diwa-ftc-modal.diwa-ftc-mobile-modal .modal-content {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.diwa-ftc-mobile-sheet {
+  width: min(100%, 720px);
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 28px 28px 0 0;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 72%, transparent);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0)),
+    color-mix(in srgb, var(--background-primary) 95%, var(--background-secondary) 5%);
+  box-shadow: 0 -18px 44px rgba(15, 23, 42, 0.22);
+}
+
+.diwa-ftc-mobile-handle {
+  width: 52px;
+  height: 5px;
+  margin: 10px auto 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 30%, transparent);
+}
+
+.diwa-ftc-mobile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 18px 14px;
+}
+
+.diwa-ftc-mobile-header-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.diwa-ftc-mobile-kicker {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--interactive-accent);
+}
+
+.diwa-ftc-mobile-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--text-normal);
+}
+
+.diwa-ftc-mobile-cancel,
+.diwa-ftc-mobile-create {
+  min-height: 48px;
+  border-radius: 18px;
+  font-weight: 700;
+}
+
+.diwa-ftc-mobile-cancel {
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 88%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 84%, transparent);
+  color: var(--text-normal);
+}
+
+.diwa-ftc-mobile-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 18px 18px;
+  overscroll-behavior: contain;
+}
+
+.diwa-ftc-mobile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 80%, transparent);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0)),
+    color-mix(in srgb, var(--background-primary) 97%, var(--background-secondary) 3%);
+}
+
+.diwa-ftc-mobile-card--capture {
+  min-height: 280px;
+}
+
+.diwa-ftc-mobile-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.diwa-ftc-mobile-label,
+.diwa-ftc-mobile-footer-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.diwa-ftc-mobile-input-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.diwa-ftc-mobile-input {
+  width: 100%;
+  min-height: 220px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  resize: none;
+  outline: none;
+  font-size: 1.04rem;
+  line-height: 1.8;
+  color: var(--text-normal);
+  padding: 0;
+  overflow-y: auto;
+  -webkit-appearance: none;
+}
+
+.diwa-ftc-mobile-inline-hint {
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.diwa-ftc-mobile-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.diwa-ftc-mobile-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--interactive-accent) 24%, transparent);
+  background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-primary) 88%);
+  color: var(--interactive-accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.diwa-ftc-mobile-chip--hint {
+  border-color: color-mix(in srgb, var(--background-modifier-border) 70%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 82%, transparent);
+  color: var(--text-muted);
+}
+
+.diwa-ftc-mobile-targets {
+  display: grid;
+  gap: 10px;
+}
+
+.diwa-ftc-mobile-target {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 82px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 84%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 58%, var(--background-primary) 42%);
+  text-align: left;
+  color: var(--text-normal);
+}
+
+.diwa-ftc-mobile-target:hover,
+.diwa-ftc-mobile-target:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--interactive-accent) 26%, transparent);
+  background: color-mix(in srgb, var(--interactive-accent) 8%, var(--background-primary) 92%);
+}
+
+.diwa-ftc-mobile-target.is-active {
+  border-color: color-mix(in srgb, var(--interactive-accent) 34%, transparent);
+  background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-primary) 88%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--interactive-accent) 18%, transparent);
+}
+
+.diwa-ftc-mobile-target-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.diwa-ftc-mobile-target-title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+.diwa-ftc-mobile-target-description {
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.diwa-ftc-mobile-advanced-toggle {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 84%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 84%, transparent);
+  color: var(--text-normal);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.diwa-ftc-mobile-advanced-toggle.is-open {
+  border-color: color-mix(in srgb, var(--interactive-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--interactive-accent) 10%, var(--background-primary) 90%);
+}
+
+.diwa-ftc-mobile-advanced {
+  display: none;
+}
+
+.diwa-ftc-mobile-advanced.is-open {
+  display: block;
+}
+
+.diwa-ftc-mobile-advanced-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.diwa-ftc-mobile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.diwa-ftc-mobile-field-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.diwa-ftc-mobile-advanced .diwa-ftc-select,
+.diwa-ftc-mobile-advanced .diwa-ftc-input-compact {
+  min-height: 48px;
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 84%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 82%, transparent);
+  padding: 0 14px;
+  font-size: 16px;
+}
+
+.diwa-ftc-mobile-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px max(env(safe-area-inset-bottom, 14px), 14px);
+  border-top: 1px solid color-mix(in srgb, var(--background-modifier-border) 74%, transparent);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0)),
+    color-mix(in srgb, var(--background-primary) 95%, var(--background-secondary) 5%);
+}
+
+.diwa-ftc-mobile-footer-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.diwa-ftc-mobile-footer-hint {
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.diwa-ftc-mobile-error {
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--text-error);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.diwa-ftc-mobile-error.is-hidden {
+  display: none;
+}
+
+.diwa-ftc-mobile-create {
+  min-width: 148px;
+  padding: 0 18px;
+  border: 1px solid color-mix(in srgb, var(--interactive-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--interactive-accent) 16%, var(--background-secondary) 84%);
+  color: var(--text-normal);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.diwa-ftc-mobile-create.is-disabled {
+  opacity: 0.46;
+  box-shadow: none;
+}
+
+@media (max-width: 560px) {
+  .diwa-ftc-mobile-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .diwa-ftc-mobile-create {
+    width: 100%;
+  }
+}
+
 .link-modal {
   position: absolute;
   top: 50%;
@@ -15642,6 +16007,7 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
 
 /* Shared mobile sheet keyboard handling */
 .diwa-edit-task-sheet,
+.diwa-ftc-mobile-sheet,
 .diwa-mobile-post-sheet,
 .diwa-dh-inline-popover.is-mobile-sheet {
   --diwa-kb-h: 0px;
@@ -15679,6 +16045,19 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
 .diwa-mobile-post-sheet {
   margin-bottom: var(--diwa-kb-h, 0px);
   max-height: min(96vh, calc(100dvh - 6px - var(--diwa-kb-h, 0px)));
+}
+
+.diwa-ftc-mobile-sheet {
+  margin-bottom: var(--diwa-kb-h, 0px);
+  max-height: min(96vh, calc(100dvh - 6px - var(--diwa-kb-h, 0px)));
+}
+
+.diwa-ftc-mobile-body {
+  scroll-padding-bottom: calc(var(--diwa-kb-h, 0px) + 120px);
+}
+
+.diwa-ftc-mobile-footer {
+  flex-shrink: 0;
 }
 
 .diwa-mobile-post-body {
@@ -15728,6 +16107,7 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
 }
 
 .diwa-edit-task-sheet :is(input, textarea, select, button),
+.diwa-ftc-mobile-sheet :is(input, textarea, select, button),
 .diwa-mobile-post-sheet :is(input, textarea, select, button),
 .diwa-dh-inline-popover.is-mobile-sheet :is(input, textarea, select, button) {
   scroll-margin-bottom: calc(var(--diwa-kb-h, 0px) + 96px);
