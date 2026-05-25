@@ -54,9 +54,31 @@ export class FastTaskCaptureModal extends Modal {
 
     onOpen(): void {
         this.modalEl.addClass('diwa-ftc-modal');
+        this.modalEl.addClass('diwa-workspace-popup-shell');
+        this.modalEl.addClass('diwa-workspace-popup-shell--capture');
         this.contentEl.empty();
 
         const root = this.contentEl.createEl('div', { cls: 'diwa-ftc-root' });
+        const header = root.createEl('div', { cls: 'diwa-ftc-header diwa-workspace-popup-header' });
+        header.createEl('span', { cls: 'diwa-workspace-popup-eyebrow', text: 'Gawa capture' });
+        const titleRow = header.createEl('div', { cls: 'diwa-workspace-popup-title-row' });
+        const title = titleRow.createEl('div', {
+            cls: 'diwa-workspace-popup-title',
+            text: 'Add task',
+        });
+        title.setAttr('role', 'heading');
+        title.setAttr('aria-level', '2');
+        const closeBtn = titleRow.createEl('button', {
+            cls: 'diwa-workspace-popup-close',
+            text: '✕',
+            attr: { type: 'button', 'aria-label': 'Close add task modal' },
+        });
+        closeBtn.addEventListener('click', () => this.close());
+        header.createEl('p', {
+            cls: 'diwa-workspace-popup-subtitle',
+            text: 'Capture once and route it to backlog, active, or focus.',
+        });
+
         const inputWrap = root.createEl('div', { cls: 'diwa-ftc-input-wrap' });
         this.inputEl = inputWrap.createEl('textarea', {
             cls: 'diwa-ftc-input',
@@ -78,12 +100,23 @@ export class FastTaskCaptureModal extends Modal {
         this.chipsEl = root.createEl('div', { cls: 'diwa-ftc-chips' });
         this.renderMetadataPreview();
 
-        const targetRow = root.createEl('div', { cls: 'diwa-ftc-targets' });
+        const targetSection = root.createEl('div', { cls: 'diwa-ftc-section' });
+        targetSection.createEl('span', {
+            cls: 'diwa-workspace-popup-section-label',
+            text: 'Send to',
+        });
+        const targetRow = targetSection.createEl('div', { cls: 'diwa-ftc-targets' });
         this.renderTargetToggle(targetRow, 'backlog', 'Backlog');
         this.renderTargetToggle(targetRow, 'active', 'Active');
         this.renderTargetToggle(targetRow, 'focus', 'Focus');
 
-        const advancedToggle = root.createEl('button', {
+        const advancedSection = root.createEl('div', { cls: 'diwa-ftc-section diwa-ftc-section--advanced' });
+        const advancedSectionHeader = advancedSection.createEl('div', { cls: 'diwa-ftc-section-header' });
+        advancedSectionHeader.createEl('span', {
+            cls: 'diwa-workspace-popup-section-label',
+            text: 'Refine',
+        });
+        const advancedToggle = advancedSectionHeader.createEl('button', {
             cls: 'diwa-ftc-advanced-toggle',
             text: 'Advanced',
             attr: { type: 'button' },
@@ -94,17 +127,17 @@ export class FastTaskCaptureModal extends Modal {
             advancedToggle.toggleClass('is-open', nextOpen);
         });
 
-        this.advancedEl = root.createEl('div', { cls: 'diwa-ftc-advanced' });
+        this.advancedEl = advancedSection.createEl('div', { cls: 'diwa-ftc-advanced' });
         this.renderAdvancedFields(this.advancedEl);
 
         const footer = root.createEl('div', { cls: 'diwa-ftc-footer' });
         footer.createEl('span', {
             cls: 'diwa-ftc-hint',
-            text: 'Enter backlog · Shift+Enter active · Ctrl/Cmd+Enter focus',
+            text: 'Enter creates · Shift+Enter active · Ctrl/Cmd+Enter focus',
         });
         this.createBtn = footer.createEl('button', {
             cls: 'diwa-ftc-create',
-            text: 'Create',
+            text: 'Create task',
             attr: { type: 'button' },
         }) as HTMLButtonElement;
         this.createBtn.addEventListener('click', () => {

@@ -62,6 +62,13 @@ export interface TaskPaneHost {
     _taskFilter: 'upcoming' | 'all';
 }
 
+interface InlinePopoverOptions {
+    eyebrow?: string;
+    title: string;
+    description?: string;
+    kind?: string;
+}
+
 const DEBUG = false;
 const DEBUG_TASK_PANE_RENDER = DEBUG;
 
@@ -1258,7 +1265,7 @@ class ThoughtOverlay {
     private ensureDom(): void {
         if (this.backdropEl) return;
         this.backdropEl = document.createElement('div');
-        this.backdropEl.className = 'thought-overlay-backdrop';
+        this.backdropEl.className = 'thought-overlay-backdrop diwa-workspace-popup-backdrop';
         this.backdropEl.style.display = 'none';
         this.backdropEl.addEventListener('mousedown', (event) => {
             if (event.target !== this.backdropEl) return;
@@ -1266,7 +1273,7 @@ class ThoughtOverlay {
         });
 
         const panelEl = document.createElement('div');
-        panelEl.className = 'thought-overlay';
+        panelEl.className = 'thought-overlay diwa-workspace-popup-shell diwa-workspace-popup-shell--thought';
         panelEl.addEventListener('mousedown', (event) => event.stopPropagation());
 
         this.headerEl = document.createElement('div');
@@ -1277,7 +1284,7 @@ class ThoughtOverlay {
 
         this.inputEl = document.createElement('input');
         this.inputEl.className = 'thought-input';
-        this.inputEl.placeholder = 'Write new thought...';
+        this.inputEl.placeholder = 'Capture a linked thought…';
         this.inputEl.addEventListener('keydown', (event: KeyboardEvent) => {
             event.stopPropagation();
             if (event.key === 'Escape') {
@@ -1339,7 +1346,35 @@ class ThoughtOverlay {
         }
         const taskRef = task.filePath || this.activeTaskId;
         const linkedThoughts = this.thoughtController.getThoughtsForTask(taskRef);
-        this.headerEl.setText(`Linked Thoughts (${linkedThoughts.length})`);
+        this.headerEl.empty();
+        const header = this.headerEl.createEl('div', { cls: 'diwa-workspace-popup-header' });
+        header.createEl('span', {
+            cls: 'diwa-workspace-popup-eyebrow',
+            text: 'Task thoughts',
+        });
+        const titleRow = header.createEl('div', { cls: 'diwa-workspace-popup-title-row' });
+        const title = titleRow.createEl('div', {
+            cls: 'diwa-workspace-popup-title',
+            text: 'Linked thoughts',
+        });
+        title.setAttr('role', 'heading');
+        title.setAttr('aria-level', '2');
+        titleRow.createEl('span', {
+            cls: 'diwa-workspace-popup-count',
+            text: String(linkedThoughts.length),
+        });
+        const closeBtn = titleRow.createEl('button', {
+            cls: 'diwa-workspace-popup-close',
+            text: '✕',
+            attr: { type: 'button', 'aria-label': 'Close linked thoughts modal' },
+        });
+        closeBtn.addEventListener('click', () => this.close());
+        header.createEl('p', {
+            cls: 'diwa-workspace-popup-subtitle',
+            text: linkedThoughts.length > 0
+                ? 'Review, open, or unlink thoughts tied to this task.'
+                : 'Capture the first thought to give this task context.',
+        });
         this.listEl.empty();
         if (linkedThoughts.length === 0) {
             this.listEl.createEl('div', { cls: 'diwa-dh-task-thought-empty', text: 'No linked thoughts' });
@@ -1732,6 +1767,11 @@ export class TaskItemView {
             createOption('Link thought', () => this.openLinkModal());
             createOption('Duplicate', async () => this.duplicateCurrentTask());
             createOption('Delete', () => this.hooks.onDelete?.(getTaskKey(this.currentTask)));
+        }, {
+            eyebrow: 'Task menu',
+            title: 'Quick actions',
+            description: 'Change metadata or run task actions without leaving the pane.',
+            kind: 'actions',
         });
     }
 
@@ -2166,7 +2206,7 @@ export class TaskItemView {
                 cls: 'diwa-dh-inline-popover-search',
                 attr: {
                     type: 'text',
-                    placeholder: 'Link thought...',
+                    placeholder: 'Search thoughts…',
                     spellcheck: 'false',
                 },
             }) as HTMLInputElement;
@@ -2203,6 +2243,11 @@ export class TaskItemView {
             renderOptions('');
             search.addEventListener('input', () => renderOptions(search.value));
             setTimeout(() => search.focus(), 30);
+        }, {
+            eyebrow: 'Thoughts',
+            title: 'Link thought',
+            description: 'Search recent thoughts to attach more context to this task.',
+            kind: 'thought',
         });
     }
 
@@ -2216,7 +2261,7 @@ export class TaskItemView {
                 cls: 'diwa-dh-inline-popover-search',
                 attr: {
                     type: 'text',
-                    placeholder: 'Find project…',
+                    placeholder: 'Search projects…',
                     spellcheck: 'false',
                 },
             }) as HTMLInputElement;
@@ -2262,6 +2307,11 @@ export class TaskItemView {
             renderOptions('');
             search.addEventListener('input', () => renderOptions(search.value));
             setTimeout(() => search.focus(), 30);
+        }, {
+            eyebrow: 'Metadata',
+            title: 'Project',
+            description: 'Assign a project or clear it for a lighter task card.',
+            kind: 'project',
         });
     }
 
@@ -2315,18 +2365,53 @@ export class TaskItemView {
                     }
                 }
             }, 30);
+        }, {
+            eyebrow: 'Schedule',
+            title: 'Due date',
+            description: 'Use a shortcut or pick an exact date.',
+            kind: 'due',
         });
     }
 
-    private openInlinePopover(anchor: HTMLElement, render: (popover: HTMLElement) => void): void {
+    private openInlinePopover(
+        anchor: HTMLElement,
+        render: (popover: HTMLElement) => void,
+        options?: InlinePopoverOptions,
+    ): void {
         this.closeInlinePopover();
         // Use the element's own document/window so popovers open in the correct
         // Obsidian window (e.g. when Gawa is in a pop-out window).
         const win = this.rootEl.win;
         const doc = this.rootEl.doc;
         this.popoverWin = win;
-        const popover = doc.body.createEl('div', { cls: 'diwa-dh-inline-popover' });
+        const popover = doc.body.createEl('div', {
+            cls: 'diwa-dh-inline-popover diwa-workspace-popup-shell diwa-workspace-popup-shell--inline',
+        });
+        if (options?.kind) popover.setAttr('data-popover-kind', options.kind);
         this.popoverEl = popover;
+        if (options) {
+            const header = popover.createEl('div', {
+                cls: 'diwa-dh-inline-popover-header diwa-workspace-popup-header',
+            });
+            if (options.eyebrow) {
+                header.createEl('span', {
+                    cls: 'diwa-workspace-popup-eyebrow',
+                    text: options.eyebrow,
+                });
+            }
+            const title = header.createEl('div', {
+                cls: 'diwa-workspace-popup-title',
+                text: options.title,
+            });
+            title.setAttr('role', 'heading');
+            title.setAttr('aria-level', '3');
+            if (options.description) {
+                header.createEl('p', {
+                    cls: 'diwa-workspace-popup-subtitle',
+                    text: options.description,
+                });
+            }
+        }
         render(popover);
 
         win.requestAnimationFrame(() => {

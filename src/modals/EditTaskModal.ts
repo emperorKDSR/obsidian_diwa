@@ -58,6 +58,8 @@ export class EditTaskModal extends Modal {
 
     onOpen(): void {
         this.contentEl.empty();
+        this.modalEl.addClass('diwa-workspace-popup-shell');
+        this.modalEl.addClass('diwa-workspace-popup-shell--edit-task');
         if (Platform.isMobile && !isTablet()) {
             this._isMobileSheet = true;
             this._renderMobile();
@@ -292,6 +294,26 @@ export class EditTaskModal extends Modal {
     private _renderDesktop(): void {
         const { contentEl, modalEl } = this;
         modalEl.addClass('diwa-edit-task-modal');
+
+        const header = contentEl.createDiv({ cls: 'diwa-etm-shell-header diwa-workspace-popup-header' });
+        header.createEl('span', { cls: 'diwa-workspace-popup-eyebrow', text: 'Task details' });
+        const titleRow = header.createDiv({ cls: 'diwa-workspace-popup-title-row' });
+        const title = titleRow.createDiv({ cls: 'diwa-workspace-popup-title', text: 'Edit task' });
+        title.setAttr('role', 'heading');
+        title.setAttr('aria-level', '2');
+        const closeBtn = titleRow.createEl('button', {
+            cls: 'diwa-workspace-popup-close diwa-etm-close-btn',
+            text: '✕',
+            attr: { type: 'button', 'aria-label': 'Close edit task modal' },
+        });
+        closeBtn.addEventListener('click', () => {
+            modalEl.addClass('is-closing');
+            setTimeout(() => this.close(), 140);
+        });
+        header.createEl('p', {
+            cls: 'diwa-workspace-popup-subtitle',
+            text: 'Refine schedule, effort, status, and tags without leaving the workspace.',
+        });
 
         // Body — single column
         const body = contentEl.createDiv({ cls: 'diwa-etm-body' });
@@ -703,7 +725,7 @@ export class EditTaskModal extends Modal {
             popoverAnchor.querySelector('.diwa-etm-popover')?.remove();
 
             const popover = popoverAnchor.createDiv({
-                cls:  'diwa-etm-popover',
+                cls:  'diwa-etm-popover diwa-workspace-popup-shell diwa-workspace-popup-shell--inline',
                 attr: { 'data-etm-popover': 'date' }
             });
 
@@ -814,7 +836,7 @@ export class EditTaskModal extends Modal {
             popoverAnchor.querySelector('.diwa-etm-popover')?.remove();
 
             const popover = popoverAnchor.createDiv({
-                cls:  'diwa-etm-popover',
+                cls:  'diwa-etm-popover diwa-workspace-popup-shell diwa-workspace-popup-shell--inline',
                 attr: { 'data-etm-popover': 'recur' }
             });
             const optsRow = popover.createDiv({ cls: 'diwa-etm-recur-opts' });
@@ -1155,5 +1177,3 @@ export class EditTaskModal extends Modal {
         }, { passive: true });
     }
 }
-
-

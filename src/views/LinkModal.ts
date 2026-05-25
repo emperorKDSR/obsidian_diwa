@@ -100,14 +100,14 @@ export class LinkModal {
     private ensureDom(): void {
         if (this.backdropEl && this.modalEl) return;
         this.backdropEl = document.createElement('div');
-        this.backdropEl.className = 'link-modal-backdrop';
+        this.backdropEl.className = 'link-modal-backdrop diwa-workspace-popup-backdrop';
         this.backdropEl.addEventListener('mousedown', (event) => {
             if (event.target !== this.backdropEl) return;
             this.close();
         });
 
         this.modalEl = document.createElement('div');
-        this.modalEl.className = 'link-modal';
+        this.modalEl.className = 'link-modal diwa-workspace-popup-shell diwa-workspace-popup-shell--link';
         this.modalEl.addEventListener('mousedown', (event) => event.stopPropagation());
         let touchStartY = 0;
         this.modalEl.addEventListener('touchstart', (event) => {
@@ -120,34 +120,50 @@ export class LinkModal {
             if (endY - touchStartY > 80) this.close();
         }, { passive: true });
 
-        const header = this.modalEl.createEl('div', { cls: 'link-modal-header', text: 'Linked Items' });
-        header.setAttr('role', 'heading');
-        header.setAttr('aria-level', '2');
+        const header = this.modalEl.createEl('div', { cls: 'link-modal-header diwa-workspace-popup-header' });
+        header.createEl('span', { cls: 'diwa-workspace-popup-eyebrow', text: 'Task links' });
+        const titleRow = header.createEl('div', { cls: 'diwa-workspace-popup-title-row' });
+        const title = titleRow.createEl('div', {
+            cls: 'diwa-workspace-popup-title',
+            text: 'Linked items',
+        });
+        title.setAttr('role', 'heading');
+        title.setAttr('aria-level', '2');
+        const closeBtn = titleRow.createEl('button', {
+            cls: 'diwa-workspace-popup-close link-modal-close',
+            text: '✕',
+            attr: { type: 'button', 'aria-label': 'Close linked items modal' },
+        });
+        closeBtn.addEventListener('click', () => this.close());
+        header.createEl('p', {
+            cls: 'diwa-workspace-popup-subtitle',
+            text: 'Review connected thoughts, tasks, and notes, then add more without leaving the workspace.',
+        });
 
-        const thoughtsSection = this.modalEl.createEl('div', { cls: 'link-modal-section' });
-        thoughtsSection.createEl('div', { cls: 'section-title', text: 'Thoughts' });
-        this.thoughtsListEl = thoughtsSection.createEl('div', { cls: 'thought-list' });
+        const body = this.modalEl.createEl('div', { cls: 'link-modal-body' });
+        this.thoughtsListEl = this.createSection(body, 'Thoughts', 'thought-list');
+        this.recallThoughtsListEl = this.createSection(
+            body,
+            'Related past thoughts',
+            'recall-thought-list',
+            'recall-section',
+        );
+        this.tasksListEl = this.createSection(body, 'Tasks', 'task-list');
+        this.notesListEl = this.createSection(body, 'Notes', 'note-list');
 
-        const relatedSection = this.modalEl.createEl('div', { cls: 'link-modal-section recall-section' });
-        relatedSection.createEl('div', { cls: 'section-title', text: 'Related Past Thoughts' });
-        this.recallThoughtsListEl = relatedSection.createEl('div', { cls: 'recall-thought-list' });
-
-        const tasksSection = this.modalEl.createEl('div', { cls: 'link-modal-section' });
-        tasksSection.createEl('div', { cls: 'section-title', text: 'Tasks' });
-        this.tasksListEl = tasksSection.createEl('div', { cls: 'task-list' });
-
-        const notesSection = this.modalEl.createEl('div', { cls: 'link-modal-section' });
-        notesSection.createEl('div', { cls: 'section-title', text: 'Notes' });
-        this.notesListEl = notesSection.createEl('div', { cls: 'note-list' });
-
-        const inputs = this.modalEl.createEl('div', { cls: 'link-modal-inputs' });
-        this.addThoughtInputEl = inputs.createEl('input', {
+        const inputs = this.modalEl.createEl('div', { cls: 'link-modal-inputs diwa-workspace-popup-section' });
+        inputs.createEl('div', {
+            cls: 'section-title diwa-workspace-popup-section-label',
+            text: 'Quick add',
+        });
+        const inputGrid = inputs.createEl('div', { cls: 'link-modal-input-grid' });
+        this.addThoughtInputEl = inputGrid.createEl('input', {
             cls: 'add-thought-input',
-            attr: { type: 'text', placeholder: 'Add thought...' },
+            attr: { type: 'text', placeholder: 'Add thought and press Enter…' },
         }) as HTMLInputElement;
-        this.addTaskInputEl = inputs.createEl('input', {
+        this.addTaskInputEl = inputGrid.createEl('input', {
             cls: 'add-task-input',
-            attr: { type: 'text', placeholder: 'Add task...' },
+            attr: { type: 'text', placeholder: 'Add linked task and press Enter…' },
         }) as HTMLInputElement;
 
         this.addThoughtInputEl.addEventListener('keydown', (event) => {
@@ -189,6 +205,16 @@ export class LinkModal {
                 this.render();
             })();
         });
+    }
+
+    private createSection(parent: HTMLElement, title: string, listCls: string, extraCls = ''): HTMLElement {
+        const cls = ['link-modal-section', 'diwa-workspace-popup-section', extraCls].filter(Boolean).join(' ');
+        const section = parent.createEl('div', { cls });
+        section.createEl('div', {
+            cls: 'section-title diwa-workspace-popup-section-label',
+            text: title,
+        });
+        return section.createEl('div', { cls: listCls });
     }
 
     private attachToHost(hostEl: HTMLElement): void {
