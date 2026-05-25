@@ -5137,6 +5137,64 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   overflow-y: auto;
   padding: 0 0 16px;
 }
+.diwa-dh-task-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.diwa-dh-task-group-header:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.diwa-dh-task-group-header:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--interactive-accent) 24%, transparent);
+}
+.diwa-dh-task-group-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--text-faint);
+}
+.diwa-dh-task-group-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.diwa-dh-task-group-count {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--background-modifier-hover);
+  color: var(--text-faint);
+  font-size: 10px;
+}
+.diwa-dh-task-item.is-group-collapsed {
+  display: none;
+}
+.diwa-dh-task-list-section.is-drop-target {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--interactive-accent) 26%, transparent);
+}
+.diwa-dh-task-list-section.is-drop-target .diwa-dh-task-list {
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--interactive-accent) 6%, transparent);
+}
 
 /* ── Task item ─────────────────────────────────────────────────── */
 .diwa-dh-task-item {
@@ -8213,6 +8271,36 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   flex-direction: column;
   gap: 6px;
   padding: 8px 8px 10px;
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-list-section.is-drop-target,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-list-section.is-drop-target {
+  background: color-mix(in srgb, var(--interactive-accent) 6%, var(--gawa-shell-surface) 94%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--interactive-accent) 20%, var(--gawa-shell-border) 80%);
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-group-header,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-group-header {
+  margin: 2px 0 0;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--gawa-shell-radius-inner);
+  background: color-mix(in srgb, var(--background-secondary) 78%, var(--background-primary) 22%);
+  color: var(--text-muted);
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-group-header:hover,
+.diwa-gawa-pane-shell .diwa-dh-task-group-header:focus-visible,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-group-header:hover,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-group-header:focus-visible {
+  border-color: var(--gawa-shell-border);
+  background: color-mix(in srgb, var(--background-secondary) 84%, var(--background-primary) 16%);
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-group-count,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-group-count {
+  border: 1px solid var(--gawa-shell-border);
+  background: color-mix(in srgb, var(--background-primary) 72%, var(--background-secondary) 28%);
 }
 
 .diwa-gawa-pane-shell .diwa-dh-task-empty,

@@ -4,7 +4,14 @@ import { BaseTab } from './BaseTab';
 import type { TaskBucketStatus, TaskEntry } from '../types';
 import { isTablet, parseNaturalDate } from '../utils';
 import { TaskController } from '../views/TaskController';
-import { TaskPane, type TaskPaneHost, type TaskFilterFn, type TaskSortFn } from '../views/DesktopTaskPane';
+import {
+    TaskPane,
+    type TaskPaneGroupController,
+    type TaskPaneHost,
+    type TaskFilterFn,
+    type TaskPanePlugin,
+    type TaskSortFn,
+} from '../views/DesktopTaskPane';
 import { FastTaskCaptureModal, type FastTaskCapturePayload } from '../modals/FastTaskCaptureModal';
 
 interface PaneConfig {
@@ -15,6 +22,9 @@ interface PaneConfig {
     baseFilterFn: TaskFilterFn;
     filterFn: TaskFilterFn;
     sortFn?: TaskSortFn;
+    plugins?: TaskPanePlugin[];
+    canDropTask?: TaskFilterFn;
+    groupController?: TaskPaneGroupController;
     bucketOnDrop: TaskBucketStatus;
     focusOnDrop?: boolean;
 }
@@ -47,6 +57,7 @@ export class GawaTab extends BaseTab {
     private _taskPending = 0;
     private _taskFilter: 'upcoming' | 'all' = 'all';
     private _taskIndexRecoveryInFlight = false;
+    private readonly _collapsedProjectGroups = new Set<string>();
 
     constructor(view: DiwaView) {
         super(view);
@@ -366,7 +377,10 @@ export class GawaTab extends BaseTab {
             baseFilterFn: config.baseFilterFn,
             filterFn: config.filterFn,
             sortFn: config.sortFn,
+            plugins: config.plugins,
             allowDragDrop: true,
+            canDropTask: config.canDropTask,
+            groupController: config.groupController,
             bucketOnDrop: config.bucketOnDrop,
             focusOnDrop: config.focusOnDrop,
             showBucketActions: true,
@@ -662,6 +676,43 @@ export class GawaTab extends BaseTab {
         return task.taskId?.trim() || task.filePath;
     }
 
+    private normalizeProjectGroupKey(value: string | null | undefined): string | null {
+        const normalized = value?.trim();
+        return normalized ? normalized : null;
+    }
+
+    private isProjectGroupCollapsed(groupKey: string): boolean {
+        return this._collapsedProjectGroups.has(groupKey);
+    }
+
+    private setProjectGroupCollapsed(groupKey: string, collapsed: boolean): void {
+        if (!groupKey) return;
+        if (collapsed) {
+            this._collapsedProjectGroups.add(groupKey);
+            return;
+        }
+        this._collapsedProjectGroups.delete(groupKey);
+    }
+
+    private getProjectsGroupController(): TaskPaneGroupController {
+        return {
+            getLabel: (groupKey) => groupKey,
+            isCollapsed: (groupKey) => this.isProjectGroupCollapsed(groupKey),
+            setCollapsed: (groupKey, collapsed) => this.setProjectGroupCollapsed(groupKey, collapsed),
+        };
+    }
+
+    private compareProjectTasks(a: TaskEntry, b: TaskEntry): number {
+        const aProject = this.normalizeProjectGroupKey(a.project) || '';
+        const bProject = this.normalizeProjectGroupKey(b.project) || '';
+        const projectCompare = aProject.localeCompare(bProject, undefined, { sensitivity: 'base' });
+        if (projectCompare !== 0) return projectCompare;
+        if (a.due && b.due) return a.due.localeCompare(b.due);
+        if (a.due && !b.due) return -1;
+        if (!a.due && b.due) return 1;
+        return (b.lastUpdate || 0) - (a.lastUpdate || 0);
+    }
+
     private createInboxPaneConfig(): PaneConfig {
         return {
             paneId: 'gawa-inbox',
@@ -670,6 +721,7 @@ export class GawaTab extends BaseTab {
             emptyMessage: 'Inbox is clear. New quick captures land here first.',
             bucketOnDrop: 'backlog',
             focusOnDrop: false,
+            canDropTask: (task) => !task.project && !task.due,
             baseFilterFn: (task) => this.getBucketStatus(task) === 'backlog',
             filterFn: (task) => !task.project && !task.due,
         };
@@ -683,6 +735,13 @@ export class GawaTab extends BaseTab {
             emptyMessage: 'No project-linked work yet.',
             bucketOnDrop: 'backlog',
             focusOnDrop: false,
+            sortFn: (a, b) => this.compareProjectTasks(a, b),
+            plugins: [{
+                id: 'gawa-project-grouping',
+                groupBy: (task) => this.normalizeProjectGroupKey(task.project),
+            }],
+            canDropTask: (task) => !!this.normalizeProjectGroupKey(task.project),
+            groupController: this.getProjectsGroupController(),
             baseFilterFn: (task) => this.getBucketStatus(task) === 'backlog',
             filterFn: (task) => !!task.project,
         };
@@ -696,6 +755,7 @@ export class GawaTab extends BaseTab {
             emptyMessage: 'Nothing is demanding attention today.',
             bucketOnDrop: 'active',
             focusOnDrop: false,
+            canDropTask: (task) => this.isTodayOrOverdue(task),
             baseFilterFn: (task) => this.getBucketStatus(task) !== 'done',
             filterFn: (task) => this.isTodayOrOverdue(task),
             sortFn: (a, b) => {
@@ -715,6 +775,7 @@ export class GawaTab extends BaseTab {
             emptyMessage: 'Backlog is empty. Future work will queue here.',
             bucketOnDrop: 'backlog',
             focusOnDrop: false,
+            canDropTask: (task) => !this.isTodayOrOverdue(task),
             baseFilterFn: (task) => this.getBucketStatus(task) === 'backlog',
             filterFn: (task) => !this.isTodayOrOverdue(task),
         };
@@ -745,6 +806,7 @@ export class GawaTab extends BaseTab {
             emptyMessage: 'No focus candidates right now.',
             bucketOnDrop: 'active',
             focusOnDrop: true,
+            canDropTask: (task) => this.getBucketStatus(task) !== 'done',
             baseFilterFn: (task) => this.getBucketStatus(task) !== 'done',
             filterFn: (task) => resolveFocusIndex().has(this.getTaskIdentity(task)),
             sortFn: (a, b) => {
@@ -763,6 +825,7 @@ export class GawaTab extends BaseTab {
             emptyMessage: 'No active tasks in motion.',
             bucketOnDrop: 'active',
             focusOnDrop: false,
+            canDropTask: (task) => this.getBucketStatus(task) !== 'done',
             baseFilterFn: (task) => this.getBucketStatus(task) === 'active',
             filterFn: () => true,
             sortFn: (a, b) => (b.lastUpdate || 0) - (a.lastUpdate || 0),

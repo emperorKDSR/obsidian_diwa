@@ -26,6 +26,12 @@ export interface TaskPanePlugin {
     groupBy?: TaskGroupFn;
 }
 
+export interface TaskPaneGroupController {
+    getLabel?: (groupKey: string) => string;
+    isCollapsed?: (groupKey: string) => boolean;
+    setCollapsed?: (groupKey: string, collapsed: boolean) => void;
+}
+
 export interface TaskPaneOptions {
     paneId?: string;
     hooks?: TaskItemHooks;
@@ -43,8 +49,10 @@ export interface TaskPaneOptions {
     bucketOnDrop?: TaskBucketStatus;
     focusOnDrop?: boolean;
     allowDragDrop?: boolean;
+    canDropTask?: (task: TaskEntry) => boolean;
     inlineContentRenderer?: (parent: HTMLElement) => void;
     eyebrow?: string;
+    groupController?: TaskPaneGroupController;
 }
 
 export interface TaskPaneHost {
@@ -81,6 +89,21 @@ function safeSetIcon(target: HTMLElement, iconName: string, fallbackIcon = 'circ
 
 function getTaskKey(task: TaskEntry): string {
     return task.taskId?.trim() || task.filePath;
+}
+
+let activeDraggedTaskId: string | null = null;
+
+function setActiveDraggedTaskId(taskId: string | null): void {
+    activeDraggedTaskId = taskId?.trim() || null;
+}
+
+function hasTaskDragData(event: DragEvent): boolean {
+    if (activeDraggedTaskId) return true;
+    const dataTransfer = event.dataTransfer;
+    if (!dataTransfer?.types) return false;
+    return Array.from(dataTransfer.types).some((type) =>
+        type === 'application/x-diwa-task-id' || type === 'text/plain'
+    );
 }
 
 function getLinkedThoughtIds(task: TaskEntry): string[] {
@@ -465,10 +488,19 @@ export class TaskPane implements TaskPanePort {
     private readonly layoutVariant: 'default' | 'workspace-right';
     private readonly hooks: TaskItemHooks;
     private readonly eyebrow?: string;
+    private readonly canDropTask?: (task: TaskEntry) => boolean;
+    private readonly groupController?: TaskPaneGroupController;
     readonly paneId: string;
     private pendingSnapshot: TaskEntry[] | null = null;
     private pendingFrame: number | null = null;
     private inBatchSync = false;
+    private collapsedGroups = new Set<string>();
+    private groupHeaderMap = new Map<string, {
+        rootEl: HTMLButtonElement;
+        iconEl: HTMLElement;
+        labelEl: HTMLElement;
+        countEl: HTMLElement;
+    }>();
 
     constructor(
         private view: TaskPaneHost,
@@ -485,8 +517,10 @@ export class TaskPane implements TaskPanePort {
         this.bucketOnDrop = options.bucketOnDrop;
         this.focusOnDrop = options.focusOnDrop;
         this.allowDragDrop = options.allowDragDrop ?? false;
+        this.canDropTask = options.canDropTask;
         this.layoutVariant = options.layoutVariant ?? 'default';
         this.eyebrow = options.eyebrow;
+        this.groupController = options.groupController;
         this.customFilter = options.filterFn ?? null;
         this.baseFilter = options.baseFilterFn ?? ((task) =>
             task.status === 'open'
@@ -666,6 +700,7 @@ export class TaskPane implements TaskPanePort {
 
         const row = this.taskMap.get(taskId);
         if (row) {
+            row.setGroupKey(this.resolveGroup(task));
             if (!row.rootEl.isConnected) {
                 console.warn('[DIWA TaskPane] task row was detached; reattaching', {
                     taskId,
@@ -688,14 +723,16 @@ export class TaskPane implements TaskPanePort {
         const hasMissingWorkflowState = !task.status && !task.state && !task.bucketStatus && !task.lifecycleStatus;
         if (existing && hasMissingWorkflowState) {
             const stableTask = existing.getTask();
-            existing.update({
+            const mergedTask = {
                 ...stableTask,
                 ...task,
                 status: stableTask.status,
                 state: task.state ?? stableTask.state,
                 bucketStatus: task.bucketStatus ?? stableTask.bucketStatus,
                 lifecycleStatus: task.lifecycleStatus ?? stableTask.lifecycleStatus,
-            });
+            };
+            existing.update(mergedTask);
+            existing.setGroupKey(this.resolveGroup(mergedTask));
             this.taskIdByFilePath.set(task.filePath, taskId);
             this.finalizeMutation('UPDATE_PARTIAL', taskId);
             return;
@@ -715,6 +752,7 @@ export class TaskPane implements TaskPanePort {
             return;
         }
         existing.update(task);
+        existing.setGroupKey(this.resolveGroup(task));
         this.taskIdByFilePath.set(task.filePath, taskId);
         this.finalizeMutation('UPDATE', taskId);
     }
@@ -739,8 +777,10 @@ export class TaskPane implements TaskPanePort {
             this.pendingFrame = null;
         }
         for (const itemView of this.taskMap.values()) itemView.destroy();
+        for (const header of this.groupHeaderMap.values()) header.rootEl.remove();
         this.taskMap.clear();
         this.taskIdByFilePath.clear();
+        this.groupHeaderMap.clear();
     }
 
     private setPresetFilter(filter: 'upcoming' | 'all'): void {
@@ -853,7 +893,7 @@ export class TaskPane implements TaskPanePort {
             this.inBatchSync = false;
         }
 
-        this.reorderRows(nextTaskIds);
+        this.syncGroupedRows(orderedTasks);
         this.updateEmptyState(this.taskMap.size);
         console.log(`[DIWA TaskPane] ${this.paneId} synced`, { rendered: orderedTasks.length, total: snapshot.length });
         debugTaskPane('snapshot sync', { paneId: this.paneId, taskCount: orderedTasks.length });
@@ -862,18 +902,19 @@ export class TaskPane implements TaskPanePort {
 
     private finalizeMutation(source: string, taskId?: string): void {
         if (this.inBatchSync) return;
+        this.syncGroupedRows(this.getOrderedTaskSnapshot());
         this.updateEmptyState(this.taskMap.size);
         this.verifyDomIntegrity(source, taskId);
     }
 
     private handleDragEnter(event: DragEvent): void {
-        if (!this.getDraggedTaskId(event)) return;
+        if (!this.canAcceptDraggedTask(event)) return;
         event.preventDefault();
         this.rootEl.addClass('is-drop-target');
     }
 
     private handleDragOver(event: DragEvent): void {
-        if (!this.getDraggedTaskId(event)) return;
+        if (!this.canAcceptDraggedTask(event)) return;
         event.preventDefault();
         if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
         this.rootEl.addClass('is-drop-target');
@@ -887,20 +928,120 @@ export class TaskPane implements TaskPanePort {
 
     private handleDrop(event: DragEvent): void {
         this.rootEl.removeClass('is-drop-target');
-        const draggedTaskId = this.getDraggedTaskId(event);
+        const draggedTaskId = this.getDroppableTaskId(event);
         if (!draggedTaskId || !this.bucketOnDrop) return;
         event.preventDefault();
+        setActiveDraggedTaskId(null);
         void this.controller.moveTaskToBucket(draggedTaskId, this.bucketOnDrop, {
             focus: this.focusOnDrop,
         });
     }
 
+    private canAcceptDraggedTask(event: DragEvent): boolean {
+        if (!hasTaskDragData(event)) return false;
+        return !!this.getDroppableTaskId(event);
+    }
+
+    private getDroppableTaskId(event: DragEvent): string | null {
+        const taskId = this.getDraggedTaskId(event);
+        if (!taskId) return null;
+        const task = this.controller.getTask(taskId);
+        if (!task) return null;
+        if (this.canDropTask && !this.canDropTask(task)) return null;
+        return taskId;
+    }
+
     private getDraggedTaskId(event: DragEvent): string | null {
         const dataTransfer = event.dataTransfer;
-        if (!dataTransfer) return null;
-        return dataTransfer.getData('application/x-diwa-task-id')
-            || dataTransfer.getData('text/plain')
+        const taskId = dataTransfer?.getData('application/x-diwa-task-id')
+            || dataTransfer?.getData('text/plain')
+            || activeDraggedTaskId
             || null;
+        return taskId?.trim() || null;
+    }
+
+    private getOrderedTaskSnapshot(): TaskEntry[] {
+        return Array.from(this.taskMap.values())
+            .map((itemView) => itemView.getTask())
+            .sort((a, b) => this.compareTasks(a, b));
+    }
+
+    private syncGroupedRows(orderedTasks: TaskEntry[]): void {
+        const groupCounts = new Map<string, number>();
+        for (const task of orderedTasks) {
+            const groupKey = this.resolveGroup(task);
+            if (!groupKey) continue;
+            groupCounts.set(groupKey, (groupCounts.get(groupKey) ?? 0) + 1);
+        }
+
+        const activeGroupKeys = new Set<string>();
+        const desiredNodes: HTMLElement[] = [];
+        for (const task of orderedTasks) {
+            const taskId = getTaskKey(task);
+            const row = this.taskMap.get(taskId);
+            if (!row) continue;
+            const groupKey = row.getGroupKey() ?? this.resolveGroup(task);
+            row.toggleGroupedState(!!groupKey, groupKey ? this.isGroupCollapsed(groupKey) : false);
+            if (groupKey && !activeGroupKeys.has(groupKey)) {
+                activeGroupKeys.add(groupKey);
+                desiredNodes.push(this.ensureGroupHeader(groupKey, groupCounts.get(groupKey) ?? 0));
+            }
+            desiredNodes.push(row.rootEl);
+        }
+
+        for (const [groupKey, header] of this.groupHeaderMap.entries()) {
+            if (activeGroupKeys.has(groupKey)) continue;
+            header.rootEl.remove();
+            this.groupHeaderMap.delete(groupKey);
+        }
+
+        const desiredSet = new Set(desiredNodes);
+        for (const child of Array.from(this.listEl.children)) {
+            if (!desiredSet.has(child as HTMLElement) && (child as HTMLElement).hasClass('diwa-dh-task-group-header')) {
+                child.remove();
+            }
+        }
+
+        for (const node of desiredNodes) this.listEl.appendChild(node);
+        this.rootEl.setAttr('data-has-task-groups', activeGroupKeys.size > 0 ? 'true' : 'false');
+    }
+
+    private ensureGroupHeader(groupKey: string, count: number): HTMLButtonElement {
+        let header = this.groupHeaderMap.get(groupKey);
+        if (!header) {
+            const rootEl = this.listEl.createEl('button', {
+                cls: 'diwa-dh-task-group-header',
+                attr: { type: 'button', 'data-group-key': groupKey },
+            }) as HTMLButtonElement;
+            const iconEl = rootEl.createEl('span', { cls: 'diwa-dh-task-group-icon' });
+            const labelEl = rootEl.createEl('span', { cls: 'diwa-dh-task-group-label' });
+            const countEl = rootEl.createEl('span', { cls: 'diwa-dh-task-group-count' });
+            rootEl.addEventListener('click', () => {
+                const collapsed = !this.isGroupCollapsed(groupKey);
+                this.setGroupCollapsed(groupKey, collapsed);
+                this.syncGroupedRows(this.getOrderedTaskSnapshot());
+            });
+            header = { rootEl, iconEl, labelEl, countEl };
+            this.groupHeaderMap.set(groupKey, header);
+        }
+
+        const collapsed = this.isGroupCollapsed(groupKey);
+        header.rootEl.toggleClass('is-collapsed', collapsed);
+        header.rootEl.setAttr('aria-expanded', collapsed ? 'false' : 'true');
+        header.labelEl.setText(this.groupController?.getLabel?.(groupKey) ?? groupKey);
+        header.countEl.setText(String(count));
+        safeSetIcon(header.iconEl, collapsed ? 'chevron-right' : 'chevron-down', collapsed ? 'chevron-right' : 'chevron-down');
+        return header.rootEl;
+    }
+
+    private isGroupCollapsed(groupKey: string): boolean {
+        return this.groupController?.isCollapsed?.(groupKey) ?? this.collapsedGroups.has(groupKey);
+    }
+
+    private setGroupCollapsed(groupKey: string, collapsed: boolean): void {
+        if (collapsed) this.collapsedGroups.add(groupKey);
+        else this.collapsedGroups.delete(groupKey);
+        this.groupController?.setCollapsed?.(groupKey, collapsed);
     }
 
     private removeTaskById(taskId: string): void {
@@ -974,29 +1115,6 @@ export class TaskPane implements TaskPanePort {
         return count > 0
             ? `${count} open task${count === 1 ? '' : 's'} in the current view`
             : 'All open tasks are cleared from this view';
-    }
-
-    private reorderRows(orderedIds: string[]): void {
-        for (let i = 0; i < orderedIds.length; i++) {
-            const taskId = orderedIds[i];
-            const row = this.taskMap.get(taskId);
-            if (!row) continue;
-            const rowEl = row.rootEl;
-            const nextAnchor = this.findNextRenderedRow(orderedIds, i + 1);
-            if (nextAnchor) {
-                if (rowEl.nextElementSibling !== nextAnchor) this.listEl.insertBefore(rowEl, nextAnchor);
-                continue;
-            }
-            if (rowEl !== this.listEl.lastElementChild) this.listEl.appendChild(rowEl);
-        }
-    }
-
-    private findNextRenderedRow(orderedIds: string[], start: number): HTMLElement | null {
-        for (let i = start; i < orderedIds.length; i++) {
-            const row = this.taskMap.get(orderedIds[i]);
-            if (row) return row.rootEl;
-        }
-        return null;
     }
 
     private findRenderedRowByTaskId(taskId: string): HTMLElement | null {
@@ -1310,7 +1428,7 @@ export class TaskItemView {
         this.rootEl.tabIndex = 0;
         this.rootEl.draggable = true;
         this.rootEl.addEventListener('dragstart', (event) => this.handleDragStart(event));
-        this.rootEl.addEventListener('dragend', () => this.rootEl.removeClass('is-dragging'));
+        this.rootEl.addEventListener('dragend', () => this.handleDragEnd());
 
         this.headerEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-header' });
         const mainEl = this.headerEl.createEl('div', { cls: 'diwa-dh-task-main' });
@@ -1469,6 +1587,10 @@ export class TaskItemView {
         return this.currentTask;
     }
 
+    getGroupKey(): string | null {
+        return this.groupKey;
+    }
+
     setGroupKey(groupKey: string | null): void {
         if (this.groupKey === groupKey) return;
         this.groupKey = groupKey;
@@ -1477,6 +1599,11 @@ export class TaskItemView {
         } else {
             this.rootEl.removeAttribute('data-group-key');
         }
+    }
+
+    toggleGroupedState(grouped: boolean, collapsed: boolean): void {
+        this.rootEl.toggleClass('is-grouped', grouped);
+        this.rootEl.toggleClass('is-group-collapsed', grouped && collapsed);
     }
 
     destroy(): void {
@@ -1501,10 +1628,18 @@ export class TaskItemView {
         const dataTransfer = event.dataTransfer;
         if (!dataTransfer) return;
         const taskId = getTaskKey(this.currentTask);
+        setActiveDraggedTaskId(taskId);
         dataTransfer.setData('application/x-diwa-task-id', taskId);
         dataTransfer.setData('text/plain', taskId);
         dataTransfer.effectAllowed = 'move';
         this.rootEl.addClass('is-dragging');
+    }
+
+    private handleDragEnd(): void {
+        this.rootEl.removeClass('is-dragging');
+        window.setTimeout(() => {
+            if (activeDraggedTaskId === getTaskKey(this.currentTask)) setActiveDraggedTaskId(null);
+        }, 0);
     }
 
     private async runTaskAction(action: () => Promise<boolean>): Promise<void> {
