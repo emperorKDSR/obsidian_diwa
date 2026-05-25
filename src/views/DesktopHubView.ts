@@ -31,22 +31,6 @@ function getTaskKey(task: TaskEntry): string {
     return task.taskId?.trim() || task.filePath;
 }
 
-const DESKTOP_RIGHT_PANE_DEFAULT_WIDTH = 272;
-const DESKTOP_RIGHT_PANE_MIN_WIDTH = 240;
-const DESKTOP_RIGHT_PANE_MAX_WIDTH = 420;
-const DESKTOP_RIGHT_PANE_KEYBOARD_STEP = 16;
-
-function clampDesktopRightPaneWidth(width: number): number {
-    return Math.min(
-        DESKTOP_RIGHT_PANE_MAX_WIDTH,
-        Math.max(DESKTOP_RIGHT_PANE_MIN_WIDTH, Math.round(width)),
-    );
-}
-
-function uniqueStrings(values: string[]): string[] {
-    return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
-}
-
 export class DesktopHubView extends ItemView {
     plugin: DiwaPlugin;
     isFocusMode: boolean = true;
@@ -64,7 +48,6 @@ export class DesktopHubView extends ItemView {
     private _topBarEl: HTMLElement | null = null;
     private _sidebarEl: HTMLElement | null = null;
     private _centerEl: HTMLElement | null = null;
-    private _rightResizeHandleEl: HTMLElement | null = null;
     private _rightEl: HTMLElement | null = null;
     private _taskPaneView: DesktopTaskPaneView | null = null;
     private _taskController: TaskController;
@@ -106,10 +89,6 @@ export class DesktopHubView extends ItemView {
     private _feedPopoverOutsideHandler: ((event: MouseEvent) => void) | null = null;
     private _feedPopoverEscapeHandler: ((event: KeyboardEvent) => void) | null = null;
     private _feedPopoverWin: Window | null = null;
-    private _rightPaneWidth: number = DESKTOP_RIGHT_PANE_DEFAULT_WIDTH;
-    private _rightResizeMoveHandler: ((event: PointerEvent) => void) | null = null;
-    private _rightResizeStopHandler: ((event: PointerEvent) => void) | null = null;
-    private _rightResizeWindow: Window | null = null;
 
     // Topbar guard: only rebuild when focus mode changes or topbar is new
     private _topBarFocusMode: boolean | null = null;
@@ -130,7 +109,6 @@ export class DesktopHubView extends ItemView {
         return {
             isFocusMode: this.isFocusMode,
             activeContext: this._activeContext,
-            rightPaneWidth: this._rightPaneWidth,
         };
     }
 
@@ -141,10 +119,6 @@ export class DesktopHubView extends ItemView {
         } else {
             this._activeContext = 'all';
         }
-        const parsedRightPaneWidth = Number(state?.rightPaneWidth);
-        this._rightPaneWidth = Number.isFinite(parsedRightPaneWidth)
-            ? clampDesktopRightPaneWidth(parsedRightPaneWidth)
-            : DESKTOP_RIGHT_PANE_DEFAULT_WIDTH;
         await super.setState(state, result);
         this.renderView();
     }
@@ -169,7 +143,6 @@ export class DesktopHubView extends ItemView {
         this._closed = true;
         this._thoughtUnsubscribe?.();
         this._thoughtUnsubscribe = null;
-        this.teardownRightPaneResize();
         if (this._feedDebounceTimer !== null) { clearTimeout(this._feedDebounceTimer); this._feedDebounceTimer = null; }
         this._pendingFeedRender = false;
         this._isFeedRendering = false;
@@ -214,7 +187,6 @@ export class DesktopHubView extends ItemView {
         }
 
         this._wrapEl?.toggleClass('is-focus-mode', this.isFocusMode);
-        this.applyRightPaneWidth();
 
         // Only rebuild topbar when focus mode changes or topbar is new.
         // Rebuilding on every vault event causes DOM thrash and perceived sluggishness.
@@ -242,7 +214,6 @@ export class DesktopHubView extends ItemView {
         if (!this._wrapEl || !root.contains(this._wrapEl)) {
             this.buildStableLayout(root);
         }
-        this.teardownRightPaneResize();
         this._wrapEl?.addClass('is-mobile-layout');
         this._wrapEl?.removeClass('is-focus-mode');
 
@@ -271,33 +242,17 @@ export class DesktopHubView extends ItemView {
         this.renderSidebar(this._sidebarEl);
 
         this._centerEl = cols.createEl('div', { cls: 'diwa-dh-center' });
-        this._rightResizeHandleEl = cols.createEl('div', {
-            cls: 'diwa-dh-right-resize',
-            attr: {
-                role: 'separator',
-                tabindex: '0',
-                'aria-label': 'Resize right task pane',
-                'aria-orientation': 'vertical',
-            },
-        });
-        this.bindRightPaneResize(this._rightResizeHandleEl);
-        this._rightEl = cols.createEl('aside', {
-            cls: 'diwa-dh-right',
-            attr: { 'aria-label': 'Task side pane' },
-        });
-        this.applyRightPaneWidth();
+        this._rightEl = cols.createEl('div', { cls: 'diwa-dh-right' });
         this.mountTaskPane(this._rightEl);
     }
 
     private resetLayoutRefs(): void {
-        this.teardownRightPaneResize();
         this._taskPaneView?.destroy();
         this.closeFeedPopover();
         this._wrapEl = null;
         this._topBarEl = null;
         this._sidebarEl = null;
         this._centerEl = null;
-        this._rightResizeHandleEl = null;
         this._rightEl = null;
         this._taskPaneView = null;
         this._captureSectionEl = null;
@@ -359,7 +314,6 @@ export class DesktopHubView extends ItemView {
         focusBtn.createSpan({ text: this.isFocusMode ? 'EXIT FOCUS' : 'FOCUS MODE' });
         focusBtn.addEventListener('click', () => {
             this.isFocusMode = !this.isFocusMode;
-            this.requestWorkspaceLayoutSave();
             this.renderView();
         });
         this._focusBtnEl = focusBtn;
@@ -951,8 +905,6 @@ export class DesktopHubView extends ItemView {
         const contexts = this.plugin.getContexts();
         if (this._activeContext !== 'all' && !contexts.some((ctx) => ctx.toLowerCase() === this._activeContext.toLowerCase())) {
             this._activeContext = 'all';
-            this.updateCaptureHint();
-            this._taskPaneView?.refreshCaptureContext();
         }
 
         const chipRow = parent.createEl('div', {
@@ -975,9 +927,6 @@ export class DesktopHubView extends ItemView {
                 if (this._activeContext.toLowerCase() === context.toLowerCase()) return;
                 this._activeContext = context;
                 this._visibleCount = 50;
-                this.updateCaptureHint();
-                this._taskPaneView?.refreshCaptureContext();
-                this.requestWorkspaceLayoutSave();
                 this.renderContextFilter(parent);
                 this.scheduleFeedRefresh();
             });
@@ -1339,7 +1288,7 @@ export class DesktopHubView extends ItemView {
             });
             this._captureInputEl = textarea;
             this._captureHintEl = contextHint;
-            this.updateCaptureHint();
+            this._captureHintEl.setText('Enter → save  •  Shift+Enter → multiline');
 
             const autosize = () => {
                 textarea.style.height = 'auto';
@@ -1383,10 +1332,7 @@ export class DesktopHubView extends ItemView {
                 this._capturePending++;
                 textarea.disabled = true;
                 try {
-                    const created = await this._thoughtController.addThought({
-                        content: raw,
-                        context: this.getCaptureContextSnapshot(),
-                    });
+                    const created = await this._thoughtController.addThought({ content: raw, context: [] });
                     if (!created) {
                         return;
                     }
@@ -1398,7 +1344,6 @@ export class DesktopHubView extends ItemView {
                 }
             });
         }
-        this.updateCaptureHint();
     }
 
     private renderFeedSearch(parent: HTMLElement): void {
@@ -1443,130 +1388,8 @@ export class DesktopHubView extends ItemView {
     }
 
     // ── RIGHT Panel ───────────────────────────────────────────────────────────
-    getCaptureContextSnapshot(): string[] {
-        const activeContext = this._activeContext.trim();
-        if (!activeContext || activeContext.toLowerCase() === 'all') {
-            return [];
-        }
-        return uniqueStrings([activeContext]);
-    }
-
     private mountTaskPane(parent: HTMLElement) {
         this._taskPaneView = new DesktopTaskPaneView(this, parent, this._taskController);
         this._taskPaneView.mount();
-    }
-
-    private getWorkspaceRoot(): HTMLElement | null {
-        const root = this.containerEl.children[1];
-        return root instanceof HTMLElement ? root : null;
-    }
-
-    private applyRightPaneWidth(): void {
-        const root = this.getWorkspaceRoot();
-        if (!root) return;
-        root.style.setProperty('--diwa-dh-right-w', `${clampDesktopRightPaneWidth(this._rightPaneWidth)}px`);
-        this.syncRightPaneResizeAccessibility();
-    }
-
-    private syncRightPaneResizeAccessibility(): void {
-        if (!this._rightResizeHandleEl) return;
-        const width = clampDesktopRightPaneWidth(this._rightPaneWidth);
-        this._rightResizeHandleEl.setAttr('aria-valuemin', String(DESKTOP_RIGHT_PANE_MIN_WIDTH));
-        this._rightResizeHandleEl.setAttr('aria-valuemax', String(DESKTOP_RIGHT_PANE_MAX_WIDTH));
-        this._rightResizeHandleEl.setAttr('aria-valuenow', String(width));
-        this._rightResizeHandleEl.setAttr('aria-valuetext', `${width}px`);
-        this._rightResizeHandleEl.setAttr('title', `Right pane width: ${width}px`);
-    }
-
-    private setRightPaneWidth(width: number, options: { persist?: boolean } = {}): void {
-        const nextWidth = clampDesktopRightPaneWidth(width);
-        if (nextWidth === this._rightPaneWidth) {
-            if (options.persist) this.requestWorkspaceLayoutSave();
-            return;
-        }
-        this._rightPaneWidth = nextWidth;
-        this.applyRightPaneWidth();
-        if (options.persist) this.requestWorkspaceLayoutSave();
-    }
-
-    private bindRightPaneResize(handle: HTMLElement): void {
-        handle.addEventListener('pointerdown', (event: PointerEvent) => {
-            if (event.button !== 0 || !this._rightEl) return;
-            event.preventDefault();
-            const startX = event.clientX;
-            const startWidth = this._rightEl.getBoundingClientRect().width || this._rightPaneWidth;
-            const win = handle.ownerDocument.defaultView ?? window;
-            this.teardownRightPaneResize();
-            this._wrapEl?.addClass('is-right-resizing');
-            handle.addClass('is-active');
-            handle.focus();
-
-            this._rightResizeWindow = win;
-            this._rightResizeMoveHandler = (moveEvent: PointerEvent) => {
-                const deltaX = moveEvent.clientX - startX;
-                this.setRightPaneWidth(startWidth - deltaX);
-            };
-            this._rightResizeStopHandler = () => {
-                this.teardownRightPaneResize();
-                this.requestWorkspaceLayoutSave();
-            };
-            win.addEventListener('pointermove', this._rightResizeMoveHandler);
-            win.addEventListener('pointerup', this._rightResizeStopHandler);
-            win.addEventListener('pointercancel', this._rightResizeStopHandler);
-        });
-
-        handle.addEventListener('keydown', (event: KeyboardEvent) => {
-            let nextWidth: number | null = null;
-            switch (event.key) {
-                case 'ArrowLeft':
-                    nextWidth = this._rightPaneWidth + DESKTOP_RIGHT_PANE_KEYBOARD_STEP;
-                    break;
-                case 'ArrowRight':
-                    nextWidth = this._rightPaneWidth - DESKTOP_RIGHT_PANE_KEYBOARD_STEP;
-                    break;
-                case 'Home':
-                    nextWidth = DESKTOP_RIGHT_PANE_MIN_WIDTH;
-                    break;
-                case 'End':
-                    nextWidth = DESKTOP_RIGHT_PANE_MAX_WIDTH;
-                    break;
-                default:
-                    return;
-            }
-            event.preventDefault();
-            this.setRightPaneWidth(nextWidth, { persist: true });
-        });
-    }
-
-    private teardownRightPaneResize(): void {
-        if (this._rightResizeWindow && this._rightResizeMoveHandler) {
-            this._rightResizeWindow.removeEventListener('pointermove', this._rightResizeMoveHandler);
-        }
-        if (this._rightResizeWindow && this._rightResizeStopHandler) {
-            this._rightResizeWindow.removeEventListener('pointerup', this._rightResizeStopHandler);
-            this._rightResizeWindow.removeEventListener('pointercancel', this._rightResizeStopHandler);
-        }
-        this._rightResizeMoveHandler = null;
-        this._rightResizeStopHandler = null;
-        this._rightResizeWindow = null;
-        this._wrapEl?.removeClass('is-right-resizing');
-        this._rightResizeHandleEl?.removeClass('is-active');
-    }
-
-    private updateCaptureHint(): void {
-        if (!this._captureHintEl) return;
-        const contexts = this.getCaptureContextSnapshot();
-        this._captureHintEl.setText(
-            contexts.length > 0
-                ? `Saving to #${contexts.join(' #')}  •  Enter → save  •  Shift+Enter → multiline`
-                : 'Enter → save  •  Shift+Enter → multiline',
-        );
-    }
-
-    private requestWorkspaceLayoutSave(): void {
-        const workspaceWithSave = this.app.workspace as typeof this.app.workspace & {
-            requestSaveLayout?: () => void;
-        };
-        workspaceWithSave.requestSaveLayout?.();
     }
 }
