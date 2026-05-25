@@ -14588,6 +14588,8 @@ body.is-tablet .diwa-journal-composer__footer {
   display: flex;
   flex: 1;
   min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .diwa-journal-composer__header--mobile {
@@ -14661,6 +14663,9 @@ body.is-tablet .diwa-journal-composer__footer {
 
 .diwa-journal-composer--mobile {
   flex: 1;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .diwa-journal-composer--mobile .diwa-journal-composer__surface {
@@ -14668,12 +14673,14 @@ body.is-tablet .diwa-journal-composer__footer {
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  height: 100%;
   gap: 14px;
   padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 10px);
   border: 0;
   border-radius: 0;
   box-shadow: none;
   background: transparent;
+  overflow: hidden;
 }
 
 .diwa-journal-composer--mobile .diwa-journal-composer__title {
@@ -14702,10 +14709,15 @@ body.is-tablet .diwa-journal-composer__footer {
     color-mix(in srgb, var(--background-primary) 95%, var(--background-secondary) 5%);
   border: 1px solid color-mix(in srgb, var(--background-modifier-border) 80%, transparent);
   box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
 }
 
 .diwa-journal-composer--mobile .diwa-journal-composer__body {
+  flex: 1 1 auto;
   min-height: 0;
+  height: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   font-size: 1rem;
   line-height: 1.85;
 }

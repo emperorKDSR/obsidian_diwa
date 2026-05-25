@@ -22,6 +22,7 @@ interface JournalEditorState extends JournalComposerValue {
 }
 
 type DesktopJournalMode = 'new' | 'existing';
+const LOW_SIGNAL_JOURNAL_RAIL_TYPES = new Set<JournalTypeId | null>(['idea', 'free']);
 
 export class JournalTab extends BaseTab {
     private editorState: JournalEditorState = this.createBlankState();
@@ -77,11 +78,11 @@ export class JournalTab extends BaseTab {
             entries.forEach((entry) => {
                 const journalType = getJournalTypeOption(inferJournalType(entry));
                 const preview = getThoughtPreviewLine(entry, 'Open this entry to keep writing.');
-                const chips = [
-                    journalType.label,
+                const metadataChips = [
                     ...(entry.topic?.trim() ? [entry.topic.trim()] : []),
                     ...stripReservedJournalContexts(entry.context).slice(0, 2),
                 ];
+                const shouldRenderTypeChip = !LOW_SIGNAL_JOURNAL_RAIL_TYPES.has(journalType.id);
                 const item = railList.createEl('button', {
                     cls: 'diwa-journal-rail__item',
                     attr: {
@@ -111,12 +112,18 @@ export class JournalTab extends BaseTab {
                     text: preview,
                 });
 
-                if (chips.length) {
+                if (shouldRenderTypeChip || metadataChips.length) {
                     const itemChips = itemContent.createDiv('diwa-journal-rail__item-chips');
-                    chips.forEach((chip, index) => {
+                    if (shouldRenderTypeChip) {
                         itemChips.createSpan({
-                            cls: `diwa-journal-rail__item-chip${index === 0 ? ' is-type' : ''}`,
-                            text: index === 0 ? `${journalType.icon} ${chip}` : chip,
+                            cls: 'diwa-journal-rail__item-chip is-type',
+                            text: `${journalType.icon} ${journalType.label}`,
+                        });
+                    }
+                    metadataChips.forEach((chip) => {
+                        itemChips.createSpan({
+                            cls: 'diwa-journal-rail__item-chip',
+                            text: chip,
                         });
                     });
                 }

@@ -259,7 +259,7 @@ export function renderJournalComposer(options: JournalComposerOptions): JournalC
 
     const autoGrowBody = () => {
         if (isMobile) {
-            bodyInput.style.height = '100%';
+            bodyInput.style.removeProperty('height');
             return;
         }
         bodyInput.style.height = 'auto';
