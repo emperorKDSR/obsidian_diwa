@@ -1,6 +1,7 @@
 import { App, Modal, Notice, setIcon } from 'obsidian';
 import type DiwaPlugin from '../main';
 import { attachInlineTriggers, attachMediaPasteHandler } from '../utils';
+import { attachMobileSheetViewportBehavior } from '../utils/mobileSheetViewport';
 import { ConfirmModal } from './ConfirmModal';
 
 interface MobilePostComposerOptions {
@@ -32,6 +33,7 @@ export class MobilePostComposerModal extends Modal {
     private initialSnapshot = '';
     private contextPickerOpen = false;
     private topicPickerOpen = false;
+    private viewportCleanup: (() => void) | null = null;
 
     constructor(app: App, plugin: DiwaPlugin, options: MobilePostComposerOptions = {}) {
         super(app);
@@ -162,11 +164,17 @@ export class MobilePostComposerModal extends Modal {
         this.renderTopicPicker();
         this.syncHeight();
         this.refreshComposerState();
+        this.viewportCleanup = attachMobileSheetViewportBehavior({
+            sheetEl: sheet,
+            scrollEl: body,
+        });
         this.scheduleFocus(() => this.textarea);
     }
 
     onClose() {
         this.clearFocusTimer();
+        this.viewportCleanup?.();
+        this.viewportCleanup = null;
         this.contentEl.empty();
     }
 

@@ -1,5 +1,6 @@
 import { App, Modal, Platform, setIcon } from 'obsidian';
 import { isTablet, parseNaturalDate } from '../utils';
+import { attachMobileSheetViewportBehavior } from '../utils/mobileSheetViewport';
 import { ContextSuggestModal } from './ContextSuggestModal';
 import { ProjectPickerModal } from './ProjectPickerModal';
 import type { TaskEntry, ProjectEntry, RecurrenceRule } from '../types';
@@ -171,6 +172,8 @@ export class EditTaskModal extends Modal {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); this._save(); }
             if (e.key === 'Escape') this.close();
         });
+
+        this._initKeyboardAvoidance(modalEl, titleWrap);
 
         setTimeout(() => {
             titleTA.focus();
@@ -1069,16 +1072,12 @@ export class EditTaskModal extends Modal {
 
     // ── Swipe dismiss — mobile ────────────────────────────────────────────
 
-    // ── Keyboard avoidance — retired ──────────────────────────────────────────
-    // Modal is now anchored to the top half of the screen; the keyboard rises
-    // from the bottom and can never cover it. No JS avoidance needed.
-    // This stub cleans up any stale CSS variables set by previous plugin builds.
-
-    private _initKeyboardAvoidance(_modalEl: HTMLElement): void {
-        document.documentElement.style.removeProperty('--diwa-kb-h');
-        this._viewportCleanup = () => {
-            document.documentElement.style.removeProperty('--diwa-kb-h');
-        };
+    private _initKeyboardAvoidance(modalEl: HTMLElement, scrollEl: HTMLElement): void {
+        this._viewportCleanup?.();
+        this._viewportCleanup = attachMobileSheetViewportBehavior({
+            sheetEl: modalEl,
+            scrollEl,
+        });
     }
 
     private _initSwipeToDismiss(

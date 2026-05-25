@@ -15639,3 +15639,96 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
     grid-template-columns: 1fr;
   }
 }
+
+/* Shared mobile sheet keyboard handling */
+.diwa-edit-task-sheet,
+.diwa-mobile-post-sheet,
+.diwa-dh-inline-popover.is-mobile-sheet {
+  --diwa-kb-h: 0px;
+}
+
+.diwa-edit-task-sheet {
+  bottom: var(--diwa-kb-h, 0px) !important;
+  max-height: min(92dvh, calc(100dvh - var(--diwa-kb-h, 0px) - 8px)) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.diwa-edit-task-sheet .modal-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.diwa-ets-root {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.diwa-ets-title-wrap {
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  scroll-padding-bottom: calc(var(--diwa-kb-h, 0px) + 96px);
+}
+
+.diwa-ets-footer {
+  flex-shrink: 0;
+}
+
+.diwa-mobile-post-sheet {
+  margin-bottom: var(--diwa-kb-h, 0px);
+  max-height: min(96vh, calc(100dvh - 6px - var(--diwa-kb-h, 0px)));
+}
+
+.diwa-mobile-post-body {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scroll-padding-bottom: calc(var(--diwa-kb-h, 0px) + 120px);
+}
+
+.diwa-mobile-post-picker,
+.diwa-mobile-post-picker-list {
+  max-height: none;
+  overflow: visible;
+}
+
+.diwa-mobile-post-footer {
+  flex-shrink: 0;
+}
+
+.diwa-dh-inline-popover.is-mobile-sheet {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px + var(--diwa-kb-h, 0px));
+  max-height: min(78vh, calc(100dvh - var(--diwa-kb-h, 0px) - 24px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.diwa-dh-inline-popover.is-mobile-sheet .diwa-dh-inline-popover-header {
+  flex-shrink: 0;
+}
+
+.diwa-dh-inline-popover.is-mobile-sheet .diwa-dh-inline-popover-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-bottom: calc(var(--diwa-kb-h, 0px) + 96px);
+}
+
+.diwa-dh-inline-popover.is-mobile-sheet .diwa-dh-inline-popover-list {
+  max-height: none;
+  overflow: visible;
+}
+
+.diwa-dh-inline-popover.is-mobile-sheet .diwa-dh-inline-sheet-list {
+  margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+}
+
+.diwa-edit-task-sheet :is(input, textarea, select, button),
+.diwa-mobile-post-sheet :is(input, textarea, select, button),
+.diwa-dh-inline-popover.is-mobile-sheet :is(input, textarea, select, button) {
+  scroll-margin-bottom: calc(var(--diwa-kb-h, 0px) + 96px);
+}

@@ -101,7 +101,6 @@ export class DiwaView extends ItemView {
 
     getViewType(): string { return VIEW_TYPE_DIWA; }
     getDisplayText(): string {
-        if (Platform.isMobile) return `M.I.N.A.`;
         return this.getModeTitle();
     }
     getIcon() { return KATANA_ICON_ID; }

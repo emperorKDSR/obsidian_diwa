@@ -2,6 +2,7 @@ import { Notice, TFile, moment, setIcon } from 'obsidian';
 import type { App } from 'obsidian';
 import type { TaskBucketStatus, TaskEntry, ThoughtEntry } from '../types';
 import { attachInlineTriggers, attachMediaPasteHandler } from '../utils';
+import { attachMobileSheetViewportBehavior } from '../utils/mobileSheetViewport';
 import type { TaskController, TaskPanePort } from './TaskController';
 import type { ThoughtController } from './ThoughtController';
 import { LinkModal } from './LinkModal';
@@ -1451,6 +1452,7 @@ export class TaskItemView {
     private popoverOutsideHandler: ((event: MouseEvent) => void) | null = null;
     private popoverEscapeHandler: ((event: KeyboardEvent) => void) | null = null;
     private popoverWin: Window | null = null;
+    private popoverViewportCleanup: (() => void) | null = null;
     private linkedThoughtIds: string[] = [];
     private readonly interactionMode: 'desktop' | 'tablet' | 'phone';
 
@@ -2554,7 +2556,16 @@ export class TaskItemView {
                 closeBtn.addEventListener('click', () => this.closeInlinePopover());
             }
         }
-        render(popover);
+        const contentRoot = useMobileSheet
+            ? popover.createEl('div', { cls: 'diwa-dh-inline-popover-body' })
+            : popover;
+        render(contentRoot);
+        if (useMobileSheet) {
+            this.popoverViewportCleanup = attachMobileSheetViewportBehavior({
+                sheetEl: popover,
+                scrollEl: contentRoot,
+            });
+        }
 
         if (!useMobileSheet) {
             win.requestAnimationFrame(() => {
@@ -2596,6 +2607,8 @@ export class TaskItemView {
     }
 
     private closeInlinePopover(): void {
+        this.popoverViewportCleanup?.();
+        this.popoverViewportCleanup = null;
         const win = this.popoverWin;
         if (this.popoverOutsideHandler) {
             win?.removeEventListener('mousedown', this.popoverOutsideHandler, true);
