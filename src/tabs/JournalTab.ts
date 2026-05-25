@@ -6,6 +6,8 @@ import { ConfirmModal } from '../modals/ConfirmModal';
 import { isTablet, attachMediaPasteHandler, attachInlineTriggers } from '../utils';
 import type { ThoughtEntry } from '../types';
 
+const JOURNAL_COMPOSE_MAX_HEIGHT = 136;
+
 export class JournalTab extends BaseTab {
     constructor(view: DiwaView) { super(view); }
 
@@ -27,64 +29,107 @@ export class JournalTab extends BaseTab {
         );
 
         const isMobilePhone = Platform.isMobile && !isTablet();
+        const isTabletLayout = isTablet() && !isMobilePhone;
 
         const root = container.createEl('div', { cls: 'diwa-journal-root' });
         if (isMobilePhone) root.addClass('has-compose-bar');
+        if (isMobilePhone) root.addClass('is-mobile');
+        if (isTabletLayout) root.addClass('is-tablet');
         const scroll = root.createEl('div', { cls: 'diwa-journal-scroll' });
 
-        // ── Nav row ───────────────────────────────────────────────────────
-        const navRow = scroll.createEl('div', { cls: 'diwa-journal-nav-row' });
-        if (!isMobilePhone) {
-            const newBtn = navRow.createEl('button', { cls: 'diwa-journal-new-btn' });
-            const btnIcon = newBtn.createSpan(); setIcon(btnIcon, 'lucide-pencil');
-            newBtn.createSpan({ text: 'New Entry' });
-            newBtn.addEventListener('click', () => this._openNewEntry());
-        }
+        const shell = scroll.createEl('section', {
+            cls: 'diwa-journal-shell',
+            attr: { 'aria-label': 'Journal overview' }
+        });
+        const header = shell.createEl('div', { cls: 'diwa-journal-header' });
+        const headerCopy = header.createEl('div', { cls: 'diwa-journal-header-copy' });
+        headerCopy.createEl('span', { text: 'Reflection archive', cls: 'diwa-journal-eyebrow' });
+        headerCopy.createEl('h2', { text: 'Journal', cls: 'diwa-journal-title' });
+        headerCopy.createEl('p', {
+            text: 'Capture what mattered, revisit patterns, and keep your thinking close.',
+            cls: 'diwa-journal-subtitle'
+        });
+        headerCopy.createEl('span', {
+            text: this._latestEntryLabel(allEntries),
+            cls: 'diwa-journal-header-meta'
+        });
 
-        // ── Title row (header + FAB pill inline on mobile) ────────────────
-        const titleRow = scroll.createEl('div', { cls: 'diwa-journal-title-row' });
-        titleRow.createEl('h2', { text: 'Journal', cls: 'diwa-journal-title' });
-        if (isMobilePhone) {
-            const fab = titleRow.createEl('button', { cls: 'diwa-journal-fab', attr: { 'aria-label': 'New entry' } });
-            setIcon(fab, 'lucide-pencil');
-            fab.createSpan({ text: 'New Entry', cls: 'diwa-journal-fab-label' });
-            fab.addEventListener('click', () => this._openNewEntry());
-        }
-        scroll.createEl('p', { text: 'All entries', cls: 'diwa-journal-subtitle' });
+        const headerActions = header.createEl('div', { cls: 'diwa-journal-header-actions' });
+        const newBtn = headerActions.createEl('button', {
+            cls: 'diwa-journal-new-btn',
+            attr: { type: 'button', 'aria-label': 'Create a new journal entry' }
+        });
+        const btnIcon = newBtn.createSpan();
+        setIcon(btnIcon, 'lucide-pencil');
+        newBtn.createSpan({ text: isMobilePhone ? 'New entry' : 'New Entry' });
+        newBtn.addEventListener('click', () => this._openNewEntry());
 
         // ── Stats strip ───────────────────────────────────────────────────
         const thisMonth = moment().format('YYYY-MM');
         const monthCount = allEntries.filter(e => e.day && e.day.startsWith(thisMonth)).length;
         const streak = this._calcStreak(allEntries);
-        const statsRow = scroll.createEl('div', { cls: 'diwa-journal-stats' });
+        const statsRow = shell.createEl('div', {
+            cls: 'diwa-journal-stats',
+            attr: { 'aria-label': 'Journal stats' }
+        });
         this._stat(statsRow, String(allEntries.length), 'Entries');
         this._stat(statsRow, String(monthCount), 'This Month');
-        this._stat(statsRow, streak > 0 ? `${streak} 🔥` : '—', 'Streak');
+        this._stat(statsRow, streak > 0 ? `${streak} days` : '—', 'Streak');
 
         // ── List ──────────────────────────────────────────────────────────
-        const listEl = scroll.createEl('div', { cls: 'diwa-journal-list' });
+        const feedShell = scroll.createEl('section', {
+            cls: 'diwa-journal-feed-shell',
+            attr: { 'aria-label': 'Journal entry timeline' }
+        });
+        const feedHead = feedShell.createEl('div', { cls: 'diwa-journal-feed-head' });
+        const feedCopy = feedHead.createEl('div', { cls: 'diwa-journal-feed-copy' });
+        feedCopy.createEl('span', {
+            text: allEntries.length > 0 ? 'Entry timeline' : 'Ready when you are',
+            cls: 'diwa-journal-feed-label'
+        });
+        feedCopy.createEl('h3', {
+            text: allEntries.length > 0 ? 'Recent entries' : 'Start your archive',
+            cls: 'diwa-journal-feed-title'
+        });
+        feedHead.createEl('span', {
+            text: this._entryCountLabel(allEntries.length),
+            cls: 'diwa-journal-feed-count'
+        });
+
+        const listEl = feedShell.createEl('div', { cls: 'diwa-journal-list' });
         const renderList = () => {
             listEl.empty();
             if (allEntries.length === 0) {
-                this.renderEmptyState(listEl, 'No entries in the last 14 days.\nTap New Entry above to begin. ✍️');
+                this.renderEmptyState(
+                    listEl,
+                    isMobilePhone
+                        ? 'No journal entries yet.\nUse New Entry or the quick compose bar below to begin. ✍️'
+                        : 'No journal entries yet.\nUse New Entry above to begin. ✍️'
+                );
                 return;
             }
             this._renderGrouped(listEl, allEntries);
         };
 
         renderList();
+        if (isMobilePhone) this._renderComposeBar(root, scroll);
     }
     private _renderGrouped(listEl: HTMLElement, entries: ThoughtEntry[]) {
         const today = moment().format('YYYY-MM-DD');
         const yesterday = moment().subtract(1, 'day').format('YYYY-MM-DD');
         let currentGroup = '';
+        let currentGroupEl: HTMLElement | null = null;
         for (const entry of entries) {
             const label = this._groupLabel(entry.day || entry.created.split(' ')[0], today, yesterday);
             if (label !== currentGroup) {
                 currentGroup = label;
-                listEl.createEl('div', { cls: 'diwa-journal-group-header', text: label });
+                currentGroupEl = listEl.createEl('section', {
+                    cls: 'diwa-journal-group',
+                    attr: { 'aria-label': label }
+                });
+                currentGroupEl.createEl('div', { cls: 'diwa-journal-group-header', text: label });
             }
-            this._renderCard(listEl, entry);
+            this._renderCard(currentGroupEl ?? listEl, entry);
         }
     }
 
@@ -103,15 +148,27 @@ export class JournalTab extends BaseTab {
         const timePart = entry.created.includes(' ')
             ? entry.created.split(' ')[1].substring(0, 5)
             : '';
+        const wordCount = entry.body.trim().split(/\s+/).filter(Boolean).length;
+        const visibleCtx = entry.context.filter(c => c !== 'journal');
 
         const card = listEl.createEl('div', { cls: 'diwa-journal-card' });
 
         // ── Card head: time + actions ─────────────────────────────────────
         const cardHead = card.createEl('div', { cls: 'diwa-journal-card-head' });
-        if (timePart) cardHead.createEl('span', { cls: 'diwa-journal-card-time', text: timePart });
+        const cardMeta = cardHead.createEl('div', { cls: 'diwa-journal-card-meta' });
+        if (timePart) cardMeta.createEl('span', { cls: 'diwa-journal-card-time', text: timePart });
+        if (wordCount > 0) {
+            cardMeta.createEl('span', {
+                cls: 'diwa-journal-card-summary',
+                text: `${wordCount} ${wordCount === 1 ? 'word' : 'words'}`
+            });
+        }
         const actions = cardHead.createEl('div', { cls: 'diwa-journal-card-actions' });
 
-        const editBtn = actions.createEl('button', { cls: 'diwa-journal-act-btn', attr: { title: 'Edit entry' } });
+        const editBtn = actions.createEl('button', {
+            cls: 'diwa-journal-act-btn',
+            attr: { type: 'button', title: 'Edit entry', 'aria-label': 'Edit journal entry' }
+        });
         setIcon(editBtn, 'lucide-pencil');
         editBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -127,7 +184,8 @@ export class JournalTab extends BaseTab {
         });
 
         const delBtn = actions.createEl('button', {
-            cls: 'diwa-journal-act-btn diwa-journal-act-btn--del', attr: { title: 'Delete entry' }
+            cls: 'diwa-journal-act-btn diwa-journal-act-btn--del',
+            attr: { type: 'button', title: 'Delete entry', 'aria-label': 'Delete journal entry' }
         });
         setIcon(delBtn, 'lucide-trash-2');
         delBtn.addEventListener('click', (e) => {
@@ -142,14 +200,14 @@ export class JournalTab extends BaseTab {
         const bodyEl = card.createEl('div', { cls: 'diwa-journal-card-body' });
         MarkdownRenderer.render(this.app, entry.body, bodyEl, entry.filePath, this.view);
         this.hookInternalLinks(bodyEl, entry.filePath);
-        this.hookImageZoom(bodyEl);
         this.hookCheckboxes(bodyEl, entry);
 
-        // Thumbnail images — tap to open full-screen zoomable lightbox
+        // Journal uses its own lightbox path for thumbnails.
         setTimeout(() => {
             bodyEl.querySelectorAll('img').forEach((img: HTMLElement) => {
                 img.addClass('diwa-journal-thumb');
                 img.addEventListener('click', (e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     const src = (img as HTMLImageElement).src;
                     if (src) this._openImageLightbox(src);
@@ -158,7 +216,6 @@ export class JournalTab extends BaseTab {
         }, 120);
 
         // ── Footer: context chips + reply count ───────────────────────────
-        const visibleCtx = entry.context.filter(c => c !== 'journal');
         if (visibleCtx.length > 0) {
             const footer = card.createEl('div', { cls: 'diwa-journal-card-footer' });
             for (const ctx of visibleCtx) {
@@ -180,7 +237,11 @@ export class JournalTab extends BaseTab {
             for (const ctx of visible) {
                 const chip = chipsWrap.createEl('span', { cls: 'diwa-jm-chip' });
                 chip.createSpan({ text: `#${ctx}` });
-                const x = chip.createSpan({ text: '×', cls: 'diwa-jm-chip-x' });
+                const x = chip.createEl('button', {
+                    text: '×',
+                    cls: 'diwa-jm-chip-x',
+                    attr: { type: 'button', 'aria-label': `Remove #${ctx}` }
+                });
                 x.addEventListener('click', (e) => {
                     e.stopPropagation();
                     contexts = contexts.filter(c => c !== ctx);
@@ -196,7 +257,8 @@ export class JournalTab extends BaseTab {
         }) as HTMLInputElement;
 
         const attachBtn = row.createEl('button', {
-            cls: 'diwa-journal-compose-attach', attr: { title: 'Attach image' }
+            cls: 'diwa-journal-compose-attach',
+            attr: { type: 'button', title: 'Attach image', 'aria-label': 'Attach image to journal entry' }
         });
         setIcon(attachBtn, 'lucide-image');
         attachBtn.addEventListener('click', () => fileInput.click());
@@ -207,15 +269,16 @@ export class JournalTab extends BaseTab {
         }) as HTMLTextAreaElement;
 
         const sendBtn = row.createEl('button', {
-            cls: 'diwa-journal-compose-send', attr: { title: 'Save entry' }
+            cls: 'diwa-journal-compose-send',
+            attr: { type: 'button', title: 'Save entry', 'aria-label': 'Save journal entry' }
         }) as HTMLButtonElement;
         setIcon(sendBtn, 'lucide-send');
         sendBtn.disabled = true;
 
         const autoGrow = () => {
             textarea.style.height = 'auto';
-            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
-            textarea.style.overflowY = textarea.scrollHeight > 120 ? 'auto' : 'hidden';
+            textarea.style.height = Math.min(textarea.scrollHeight, JOURNAL_COMPOSE_MAX_HEIGHT) + 'px';
+            textarea.style.overflowY = textarea.scrollHeight > JOURNAL_COMPOSE_MAX_HEIGHT ? 'auto' : 'hidden';
         };
 
         textarea.addEventListener('focus', () => {
@@ -379,5 +442,15 @@ export class JournalTab extends BaseTab {
         s.createEl('div', { cls: 'diwa-journal-stat-val', text: value });
         s.createEl('div', { cls: 'diwa-journal-stat-lbl', text: label });
     }
-}
 
+    private _latestEntryLabel(entries: ThoughtEntry[]): string {
+        if (entries.length === 0) return 'Fresh space for new reflections';
+        const latest = moment(entries[0].created, 'YYYY-MM-DD HH:mm:ss', true);
+        if (!latest.isValid()) return `${this._entryCountLabel(entries.length)} captured`;
+        return `Last entry ${latest.fromNow()}`;
+    }
+
+    private _entryCountLabel(count: number): string {
+        return `${count} ${count === 1 ? 'entry' : 'entries'}`;
+    }
+}

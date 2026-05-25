@@ -75,7 +75,11 @@ export class JournalEntryModal extends Modal {
 
         // ── M365 nav header: [Cancel]  title/date  [Done] ─────────────────
         const navHeader = contentEl.createDiv({ cls: 'diwa-jm-m365-header' });
-        const cancelBtn = navHeader.createEl('button', { cls: 'diwa-jm-m365-cancel', text: 'Cancel' });
+        const cancelBtn = navHeader.createEl('button', {
+            cls: 'diwa-jm-m365-cancel',
+            text: 'Cancel',
+            attr: { type: 'button', 'aria-label': 'Cancel journal entry' }
+        });
         cancelBtn.addEventListener('click', () => this.close());
 
         const headerCenter = navHeader.createDiv({ cls: 'diwa-jm-m365-center' });
@@ -84,7 +88,8 @@ export class JournalEntryModal extends Modal {
 
         const saveBtn = navHeader.createEl('button', {
             cls: 'diwa-jm-m365-done',
-            text: this.mode === 'new' ? 'Done' : 'Update'
+            text: this.mode === 'new' ? 'Done' : 'Update',
+            attr: { type: 'button', 'aria-label': this.mode === 'new' ? 'Save journal entry' : 'Update journal entry' }
         }) as HTMLButtonElement;
 
         // ── Document textarea ──────────────────────────────────────────────
@@ -109,7 +114,7 @@ export class JournalEntryModal extends Modal {
 
         const attachIcon = barLeft.createEl('button', {
             cls: 'diwa-jm-m365-icon-btn',
-            attr: { title: 'Attach image' }
+            attr: { type: 'button', title: 'Attach image', 'aria-label': 'Attach image to journal entry' }
         });
         setIcon(attachIcon, 'lucide-image');
         attachIcon.addEventListener('click', () => fileInput.click());
@@ -123,7 +128,11 @@ export class JournalEntryModal extends Modal {
             for (const ctx of visible) {
                 const chip = chipScroll.createEl('span', { cls: 'diwa-jm-chip' });
                 chip.createSpan({ text: `#${ctx}` });
-                const x = chip.createSpan({ text: '×', cls: 'diwa-jm-chip-x' });
+                const x = chip.createEl('button', {
+                    text: '×',
+                    cls: 'diwa-jm-chip-x',
+                    attr: { type: 'button', 'aria-label': `Remove #${ctx}` }
+                });
                 x.addEventListener('click', (e) => {
                     e.stopPropagation();
                     this.contexts = this.contexts.filter(c => c !== ctx);
@@ -196,6 +205,12 @@ export class JournalEntryModal extends Modal {
             cls: 'diwa-jm-header-date',
             text: moment().format(variant === 'desktop' ? 'dddd, MMMM D' : 'ddd, MMM D')
         });
+        const closeBtn = header.createEl('button', {
+            cls: 'diwa-jm-close-btn',
+            attr: { type: 'button', 'aria-label': 'Close journal entry editor' }
+        });
+        setIcon(closeBtn, 'lucide-x');
+        closeBtn.addEventListener('click', () => this.close());
         // ── Body
         const body = contentEl.createDiv({
             cls: 'diwa-jm-card-body' + (variant === 'desktop' ? ' diwa-jm-card-body--desktop' : '')
@@ -230,7 +245,11 @@ export class JournalEntryModal extends Modal {
             for (const ctx of visible) {
                 const chip = chipRow.createEl('span', { cls: 'diwa-jm-chip' });
                 chip.createSpan({ text: `#${ctx}` });
-                const x = chip.createSpan({ text: '×', cls: 'diwa-jm-chip-x' });
+                const x = chip.createEl('button', {
+                    text: '×',
+                    cls: 'diwa-jm-chip-x',
+                    attr: { type: 'button', 'aria-label': `Remove #${ctx}` }
+                });
                 x.addEventListener('click', (e) => {
                     e.stopPropagation();
                     this.contexts = this.contexts.filter(c => c !== ctx);
@@ -254,20 +273,25 @@ export class JournalEntryModal extends Modal {
         const toolbarLeft = toolbar.createDiv({ cls: 'diwa-jm-toolbar-left' });
         const attachBtn = toolbarLeft.createEl('button', {
             cls: 'diwa-jm-attach-btn',
-            text: '📎',
-            attr: { 'aria-label': 'Attach image' }
+            attr: { type: 'button', 'aria-label': 'Attach image to journal entry' }
         });
+        setIcon(attachBtn, 'lucide-paperclip');
         if (variant === 'desktop') {
             toolbarLeft.createSpan({ cls: 'diwa-jm-attach-hint', text: 'Paste or drag images' });
         }
         attachBtn.addEventListener('click', () => fileInput.click());
 
         const toolbarRight = toolbar.createDiv({ cls: 'diwa-jm-toolbar-right' });
-        const cancelBtn = toolbarRight.createEl('button', { cls: 'diwa-jm-cancel-btn', text: 'Cancel' });
+        const cancelBtn = toolbarRight.createEl('button', {
+            cls: 'diwa-jm-cancel-btn',
+            text: 'Cancel',
+            attr: { type: 'button', 'aria-label': 'Cancel journal entry' }
+        });
         cancelBtn.addEventListener('click', () => this.close());
         const saveBtn = toolbarRight.createEl('button', {
             cls: 'diwa-jm-save-btn',
-            text: this.mode === 'new' ? 'Save Entry' : 'Update Entry'
+            text: this.mode === 'new' ? 'Save Entry' : 'Update Entry',
+            attr: { type: 'button', 'aria-label': this.mode === 'new' ? 'Save journal entry' : 'Update journal entry' }
         }) as HTMLButtonElement;
         if (variant === 'desktop') {
             saveBtn.setAttribute('title', '⌘↵ / Ctrl+↵');
@@ -339,15 +363,24 @@ export class JournalEntryModal extends Modal {
 
         for (const type of JOURNAL_TYPES) {
             const pill = bar.createEl('button', {
-                cls: `diwa-jm-type-pill${type.id === activeId ? ' is-active' : ''}`
+                cls: `diwa-jm-type-pill${type.id === activeId ? ' is-active' : ''}`,
+                attr: {
+                    type: 'button',
+                    'aria-pressed': type.id === activeId ? 'true' : 'false',
+                    'aria-label': `${type.label} journal type`
+                }
             });
             pill.createSpan({ cls: 'diwa-jm-type-pill__icon', text: type.icon });
             pill.createSpan({ cls: 'diwa-jm-type-pill__label', text: type.label });
             pillEls.set(type.id, pill);
 
             pill.addEventListener('click', () => {
-                for (const el of pillEls.values()) el.removeClass('is-active');
+                for (const el of pillEls.values()) {
+                    el.removeClass('is-active');
+                    el.setAttribute('aria-pressed', 'false');
+                }
                 pill.addClass('is-active');
+                pill.setAttribute('aria-pressed', 'true');
                 this.contexts = this.contexts.filter(c => !TYPE_TAGS.has(c));
                 if (type.tag) this.contexts.push(type.tag);
                 textArea.placeholder = type.placeholder;
@@ -457,6 +490,3 @@ export class JournalEntryModal extends Modal {
         modalEl.addEventListener('touchend', onTouchEnd, { passive: true });
     }
 }
-
-
-
