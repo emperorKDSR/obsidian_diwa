@@ -154,10 +154,10 @@ const SECTIONS: HelpSection[] = [
     {
         id: 'journal', icon: 'lucide-book-open', title: 'Journal', subtitle: 'Daily freeform writing',
         items: [
-            { label: 'All Entries Feed', desc: 'All journal entries shown newest-first in a single scrollable feed. Your full history is always visible — no day-based navigation needed.' },
-            { label: 'New Entry', desc: 'Tap the "+ New Entry" pill in the Journal header to open the entry modal. Write and tap Done (or Save on desktop) to save.', tip: 'On mobile the modal opens as a bottom sheet with Cancel and Done in the header.' },
-            { label: 'Edit & Delete', desc: 'Each entry card has Edit (✏) and Delete (🗑) buttons. Tap Edit to reopen the modal with existing content.' },
-            { label: 'Timestamps', desc: 'Every entry shows its creation date and time below the entry body.' },
+            { label: 'Desktop Split View', desc: 'Desktop Journal now uses a split workspace: title-only archive rail on the left, focused composer on the right.' },
+            { label: 'Mobile Composer', desc: 'On mobile the Journal opens straight into the composer so capture stays fast and touch-friendly.' },
+            { label: 'Titles & Types', desc: 'Every entry now supports a dedicated title plus journal-type pills such as Reflection or Realization.' },
+            { label: 'Files & Images', desc: 'Paste, drag, or attach files in the composer. DIWA saves them to your Attachments folder and inserts a vault-relative link inline.' },
         ]
     },
     {

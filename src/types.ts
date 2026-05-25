@@ -122,6 +122,7 @@ export interface ThoughtEntry {
     allDates: string[];        // all [[YYYY-MM-DD]] links found in full content
     context: string[];         // from frontmatter context list
     topic?: string | null;     // sub-topic label, e.g. "Meeting"
+    journalType?: string | null;
     body: string;              // text before first ## reply header
     content?: string;          // canonical full content alias
     wikilinks: string[];       // derived from [[wikilinks]] in content/body

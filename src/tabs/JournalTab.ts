@@ -1,456 +1,291 @@
-import { MarkdownRenderer, moment, Platform, setIcon, Notice } from 'obsidian';
-import type { DiwaView } from '../view';
-import { BaseTab } from "./BaseTab";
-import { JournalEntryModal } from '../modals/JournalEntryModal';
+import { Notice, Platform, moment, setIcon } from 'obsidian';
+import { BaseTab } from './BaseTab';
 import { ConfirmModal } from '../modals/ConfirmModal';
-import { isTablet, attachMediaPasteHandler, attachInlineTriggers } from '../utils';
+import { renderJournalComposer, type JournalComposerValue } from '../journal/JournalComposer';
+import {
+    buildJournalContexts,
+    getThoughtDisplayTitle,
+    inferJournalType,
+    JOURNAL_CONTEXT,
+    stripReservedJournalContexts,
+    type JournalTypeId,
+} from '../journal/shared';
 import type { ThoughtEntry } from '../types';
+import { isTablet } from '../utils';
 
-const JOURNAL_COMPOSE_MAX_HEIGHT = 136;
+interface JournalEditorState extends JournalComposerValue {
+    filePath: string | null;
+    created?: string;
+    modified?: string;
+}
 
 export class JournalTab extends BaseTab {
-    constructor(view: DiwaView) { super(view); }
+    private editorState: JournalEditorState = this.createBlankState();
+    private selectedPath: string | null = null;
+    private focusComposerOnRender = false;
 
     render(container: HTMLElement) {
-        this._renderJournal(container);
+        container.empty();
+        const entries = this.getJournalEntries();
+        const isMobilePhone = Platform.isMobile && !isTablet();
+
+        if (isMobilePhone) {
+            this.ensureMobileState();
+            this.renderMobile(container);
+            return;
+        }
+
+        this.ensureDesktopState(entries);
+        this.renderDesktop(container, entries);
     }
 
-    private _renderJournal(container: HTMLElement) {
-        container.empty();
+    private renderDesktop(container: HTMLElement, entries: ThoughtEntry[]): void {
+        const root = container.createDiv('diwa-journal-workspace');
+        const rail = root.createDiv('diwa-journal-rail');
+        const railHeader = rail.createDiv('diwa-journal-rail__header');
+        const railCopy = railHeader.createDiv('diwa-journal-rail__copy');
+        railCopy.createSpan({ cls: 'diwa-journal-rail__eyebrow', text: 'Journal archive' });
+        railCopy.createEl('h2', { cls: 'diwa-journal-rail__title', text: 'Journal' });
+        railCopy.createSpan({
+            cls: 'diwa-journal-rail__meta',
+            text: `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}`,
+        });
 
-        // Load all journal entries (no date limit)
-        const allEntries = Array.from(this.index.thoughtIndex.values())
-            .filter(e =>
-                Array.isArray(e.context) && e.context.includes('journal')
+        const newBtn = railHeader.createEl('button', {
+            cls: 'diwa-journal-rail__new-btn',
+            attr: { type: 'button', 'aria-label': 'Create a new journal entry' },
+        });
+        setIcon(newBtn, 'plus');
+        newBtn.createSpan({ text: 'New' });
+        newBtn.addEventListener('click', () => {
+            this.startNewEntry(true);
+            this.view.renderView();
+        });
+
+        const railList = rail.createDiv('diwa-journal-rail__list');
+        if (entries.length === 0) {
+            railList.createDiv({
+                cls: 'diwa-journal-rail__empty',
+                text: 'No journal entries yet.',
+            });
+        } else {
+            entries.forEach((entry) => {
+                const item = railList.createEl('button', {
+                    cls: 'diwa-journal-rail__item',
+                    text: getThoughtDisplayTitle(entry, 'Untitled journal'),
+                    attr: {
+                        type: 'button',
+                        'aria-pressed': entry.filePath === this.selectedPath ? 'true' : 'false',
+                    },
+                });
+                if (entry.filePath === this.selectedPath) item.addClass('is-active');
+                item.addEventListener('click', () => {
+                    this.loadEntry(entry, false);
+                    this.view.renderView();
+                });
+            });
+        }
+
+        const main = root.createDiv('diwa-journal-main');
+        const mainHeader = main.createDiv('diwa-journal-main__header');
+        const mainCopy = mainHeader.createDiv('diwa-journal-main__copy');
+        mainCopy.createSpan({ cls: 'diwa-journal-main__eyebrow', text: 'Writing workspace' });
+        mainCopy.createEl('h3', {
+            cls: 'diwa-journal-main__title',
+            text: this.editorState.filePath ? 'Refine entry' : 'Compose entry',
+        });
+        mainCopy.createSpan({
+            cls: 'diwa-journal-main__meta',
+            text: this.editorState.filePath
+                ? 'Titles stay pinned to the archive. Type, body, and attachments update in place.'
+                : 'Give the entry a clear title, choose a type, then write into the body.',
+        });
+
+        renderJournalComposer({
+            app: this.app,
+            plugin: this.plugin,
+            parent: main,
+            mode: this.editorState.filePath ? 'edit' : 'new',
+            value: {
+                title: this.editorState.title,
+                body: this.editorState.body,
+                contexts: this.editorState.contexts,
+                journalType: this.editorState.journalType,
+            },
+            created: this.editorState.created,
+            modified: this.editorState.modified,
+            variant: 'desktop',
+            autoFocus: this.consumeAutoFocus(),
+            onChange: (value) => {
+                this.editorState = {
+                    ...this.editorState,
+                    ...value,
+                };
+            },
+            onCancel: () => {
+                if (this.editorState.filePath) {
+                    const entry = entries.find((item) => item.filePath === this.editorState.filePath);
+                    if (entry) this.loadEntry(entry, false);
+                } else {
+                    this.startNewEntry(false);
+                }
+                this.view.renderView();
+            },
+            onDelete: this.editorState.filePath
+                ? async () => {
+                    const path = this.editorState.filePath;
+                    if (!path) return;
+                    new ConfirmModal(this.app, 'Move this journal entry to trash?', async () => {
+                        await this.vault.deleteFile(path, 'thoughts');
+                        this.selectedPath = null;
+                        this.editorState = this.createBlankState();
+                        this.view.renderView();
+                    }).open();
+                }
+                : undefined,
+            onSave: async (value) => {
+                const wasEditing = !!this.editorState.filePath;
+                const saved = await this.saveEntry(value);
+                if (!saved) return;
+                this.loadEntry(saved, false);
+                new Notice(wasEditing ? 'Journal entry updated' : 'Journal entry saved');
+                this.view.renderView();
+            },
+        });
+    }
+
+    private renderMobile(container: HTMLElement): void {
+        const root = container.createDiv('diwa-journal-mobile');
+        renderJournalComposer({
+            app: this.app,
+            plugin: this.plugin,
+            parent: root,
+            mode: 'new',
+            value: {
+                title: this.editorState.title,
+                body: this.editorState.body,
+                contexts: this.editorState.contexts,
+                journalType: this.editorState.journalType,
+            },
+            variant: 'mobile',
+            autoFocus: this.consumeAutoFocus() || this.plugin.consumeJournalInputFocusRequest(),
+            onChange: (value) => {
+                this.editorState = {
+                    ...this.editorState,
+                    ...value,
+                    filePath: null,
+                };
+            },
+            onCancel: () => {
+                this.startNewEntry(false);
+                this.view.renderView();
+            },
+            onSave: async (value) => {
+                const saved = await this.saveEntry(value);
+                if (!saved) return;
+                new Notice('Journal entry saved');
+                this.startNewEntry(true);
+                this.view.renderView();
+            },
+        });
+    }
+
+    private getJournalEntries(): ThoughtEntry[] {
+        return Array.from(this.index.thoughtIndex.values())
+            .filter((entry) => Array.isArray(entry.context) && entry.context.includes(JOURNAL_CONTEXT))
+            .sort((left, right) =>
+                moment(right.modified || right.created, 'YYYY-MM-DD HH:mm:ss').valueOf()
+                - moment(left.modified || left.created, 'YYYY-MM-DD HH:mm:ss').valueOf(),
             );
-        allEntries.sort((a, b) =>
-            moment(b.created, 'YYYY-MM-DD HH:mm:ss').valueOf() -
-            moment(a.created, 'YYYY-MM-DD HH:mm:ss').valueOf()
-        );
+    }
 
-        const isMobilePhone = Platform.isMobile && !isTablet();
-        const isTabletLayout = isTablet() && !isMobilePhone;
+    private ensureDesktopState(entries: ThoughtEntry[]): void {
+        if (this.editorState.filePath) {
+            const current = entries.find((entry) => entry.filePath === this.editorState.filePath);
+            if (current) return;
+            this.editorState = this.createBlankState();
+        }
 
-        const root = container.createEl('div', { cls: 'diwa-journal-root' });
-        if (isMobilePhone) root.addClass('has-compose-bar');
-        if (isMobilePhone) root.addClass('is-mobile');
-        if (isTabletLayout) root.addClass('is-tablet');
-        const scroll = root.createEl('div', { cls: 'diwa-journal-scroll' });
-
-        const shell = scroll.createEl('section', {
-            cls: 'diwa-journal-shell',
-            attr: { 'aria-label': 'Journal overview' }
-        });
-        const header = shell.createEl('div', { cls: 'diwa-journal-header' });
-        const headerCopy = header.createEl('div', { cls: 'diwa-journal-header-copy' });
-        headerCopy.createEl('span', { text: 'Reflection archive', cls: 'diwa-journal-eyebrow' });
-        headerCopy.createEl('h2', { text: 'Journal', cls: 'diwa-journal-title' });
-        headerCopy.createEl('p', {
-            text: 'Capture what mattered, revisit patterns, and keep your thinking close.',
-            cls: 'diwa-journal-subtitle'
-        });
-        headerCopy.createEl('span', {
-            text: this._latestEntryLabel(allEntries),
-            cls: 'diwa-journal-header-meta'
-        });
-
-        const headerActions = header.createEl('div', { cls: 'diwa-journal-header-actions' });
-        const newBtn = headerActions.createEl('button', {
-            cls: 'diwa-journal-new-btn',
-            attr: { type: 'button', 'aria-label': 'Create a new journal entry' }
-        });
-        const btnIcon = newBtn.createSpan();
-        setIcon(btnIcon, 'lucide-pencil');
-        newBtn.createSpan({ text: isMobilePhone ? 'New entry' : 'New Entry' });
-        newBtn.addEventListener('click', () => this._openNewEntry());
-
-        // ── Stats strip ───────────────────────────────────────────────────
-        const thisMonth = moment().format('YYYY-MM');
-        const monthCount = allEntries.filter(e => e.day && e.day.startsWith(thisMonth)).length;
-        const streak = this._calcStreak(allEntries);
-        const statsRow = shell.createEl('div', {
-            cls: 'diwa-journal-stats',
-            attr: { 'aria-label': 'Journal stats' }
-        });
-        this._stat(statsRow, String(allEntries.length), 'Entries');
-        this._stat(statsRow, String(monthCount), 'This Month');
-        this._stat(statsRow, streak > 0 ? `${streak} days` : '—', 'Streak');
-
-        // ── List ──────────────────────────────────────────────────────────
-        const feedShell = scroll.createEl('section', {
-            cls: 'diwa-journal-feed-shell',
-            attr: { 'aria-label': 'Journal entry timeline' }
-        });
-        const feedHead = feedShell.createEl('div', { cls: 'diwa-journal-feed-head' });
-        const feedCopy = feedHead.createEl('div', { cls: 'diwa-journal-feed-copy' });
-        feedCopy.createEl('span', {
-            text: allEntries.length > 0 ? 'Entry timeline' : 'Ready when you are',
-            cls: 'diwa-journal-feed-label'
-        });
-        feedCopy.createEl('h3', {
-            text: allEntries.length > 0 ? 'Recent entries' : 'Start your archive',
-            cls: 'diwa-journal-feed-title'
-        });
-        feedHead.createEl('span', {
-            text: this._entryCountLabel(allEntries.length),
-            cls: 'diwa-journal-feed-count'
-        });
-
-        const listEl = feedShell.createEl('div', { cls: 'diwa-journal-list' });
-        const renderList = () => {
-            listEl.empty();
-            if (allEntries.length === 0) {
-                this.renderEmptyState(
-                    listEl,
-                    isMobilePhone
-                        ? 'No journal entries yet.\nUse New Entry or the quick compose bar below to begin. ✍️'
-                        : 'No journal entries yet.\nUse New Entry above to begin. ✍️'
-                );
+        if (!this.selectedPath && (this.editorState.title.trim() || this.editorState.body.trim())) return;
+        if (this.selectedPath) {
+            const selected = entries.find((entry) => entry.filePath === this.selectedPath);
+            if (selected) {
+                this.loadEntry(selected, false);
                 return;
             }
-            this._renderGrouped(listEl, allEntries);
-        };
+        }
 
-        renderList();
-        if (isMobilePhone) this._renderComposeBar(root, scroll);
-    }
-    private _renderGrouped(listEl: HTMLElement, entries: ThoughtEntry[]) {
-        const today = moment().format('YYYY-MM-DD');
-        const yesterday = moment().subtract(1, 'day').format('YYYY-MM-DD');
-        let currentGroup = '';
-        let currentGroupEl: HTMLElement | null = null;
-        for (const entry of entries) {
-            const label = this._groupLabel(entry.day || entry.created.split(' ')[0], today, yesterday);
-            if (label !== currentGroup) {
-                currentGroup = label;
-                currentGroupEl = listEl.createEl('section', {
-                    cls: 'diwa-journal-group',
-                    attr: { 'aria-label': label }
-                });
-                currentGroupEl.createEl('div', { cls: 'diwa-journal-group-header', text: label });
-            }
-            this._renderCard(currentGroupEl ?? listEl, entry);
+        if (entries.length > 0 && !this.editorState.title.trim() && !this.editorState.body.trim()) {
+            this.loadEntry(entries[0], false);
+            return;
+        }
+
+        if (entries.length === 0 && !this.editorState.filePath) {
+            this.startNewEntry(false);
         }
     }
 
-    private _groupLabel(day: string, today: string, yesterday: string): string {
-        if (day === today) return 'Today';
-        if (day === yesterday) return 'Yesterday';
-        const m = moment(day, 'YYYY-MM-DD', true);
-        if (!m.isValid()) return day;
-        const daysAgo = moment().diff(m, 'days');
-        if (daysAgo < 7) return m.format('dddd');
-        if (m.year() === moment().year()) return m.format('MMMM D');
-        return m.format('MMMM D, YYYY');
+    private ensureMobileState(): void {
+        if (this.editorState.filePath) {
+            this.editorState = this.createBlankState();
+        }
     }
 
-    private _renderCard(listEl: HTMLElement, entry: ThoughtEntry) {
-        const timePart = entry.created.includes(' ')
-            ? entry.created.split(' ')[1].substring(0, 5)
-            : '';
-        const wordCount = entry.body.trim().split(/\s+/).filter(Boolean).length;
-        const visibleCtx = entry.context.filter(c => c !== 'journal');
+    private loadEntry(entry: ThoughtEntry, autoFocus: boolean): void {
+        this.selectedPath = entry.filePath;
+        this.editorState = {
+            filePath: entry.filePath,
+            title: getThoughtDisplayTitle(entry, 'Untitled journal'),
+            body: entry.body || entry.content || '',
+            contexts: stripReservedJournalContexts(entry.context),
+            journalType: inferJournalType(entry),
+            created: entry.created,
+            modified: entry.modified,
+        };
+        this.focusComposerOnRender = autoFocus;
+    }
 
-        const card = listEl.createEl('div', { cls: 'diwa-journal-card' });
+    private startNewEntry(autoFocus: boolean): void {
+        this.selectedPath = null;
+        this.editorState = this.createBlankState();
+        this.focusComposerOnRender = autoFocus;
+    }
 
-        // ── Card head: time + actions ─────────────────────────────────────
-        const cardHead = card.createEl('div', { cls: 'diwa-journal-card-head' });
-        const cardMeta = cardHead.createEl('div', { cls: 'diwa-journal-card-meta' });
-        if (timePart) cardMeta.createEl('span', { cls: 'diwa-journal-card-time', text: timePart });
-        if (wordCount > 0) {
-            cardMeta.createEl('span', {
-                cls: 'diwa-journal-card-summary',
-                text: `${wordCount} ${wordCount === 1 ? 'word' : 'words'}`
+    private createBlankState(overrides: Partial<JournalEditorState> = {}): JournalEditorState {
+        return {
+            filePath: null,
+            title: '',
+            body: '',
+            contexts: [],
+            journalType: null,
+            ...overrides,
+        };
+    }
+
+    private consumeAutoFocus(): boolean {
+        const shouldFocus = this.focusComposerOnRender;
+        this.focusComposerOnRender = false;
+        return shouldFocus;
+    }
+
+    private async saveEntry(value: JournalComposerValue): Promise<ThoughtEntry | null> {
+        const contexts = buildJournalContexts(value.contexts, value.journalType);
+        const editingPath = this.editorState.filePath;
+        if (editingPath) {
+            return await this.plugin.getThoughtController().updateThought({
+                filePath: editingPath,
+                title: value.title,
+                content: value.body,
+                context: contexts,
+                journalType: value.journalType,
             });
         }
-        const actions = cardHead.createEl('div', { cls: 'diwa-journal-card-actions' });
 
-        const editBtn = actions.createEl('button', {
-            cls: 'diwa-journal-act-btn',
-            attr: { type: 'button', title: 'Edit entry', 'aria-label': 'Edit journal entry' }
+        return await this.plugin.getThoughtController().addThought({
+            title: value.title,
+            content: value.body,
+            context: contexts,
+            journalType: value.journalType,
         });
-        setIcon(editBtn, 'lucide-pencil');
-        editBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            new JournalEntryModal(this.app, this.plugin, 'edit', entry.body, entry.filePath,
-                async (newText, ctxArr) => {
-                    await this.plugin.getThoughtController().updateThought({
-                        filePath: entry.filePath,
-                        content: newText,
-                        context: ctxArr,
-                    });
-                    this.view.renderView();
-                }, entry.context).open();
-        });
-
-        const delBtn = actions.createEl('button', {
-            cls: 'diwa-journal-act-btn diwa-journal-act-btn--del',
-            attr: { type: 'button', title: 'Delete entry', 'aria-label': 'Delete journal entry' }
-        });
-        setIcon(delBtn, 'lucide-trash-2');
-        delBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            new ConfirmModal(this.app, 'Move this entry to trash?', async () => {
-                await this.vault.deleteFile(entry.filePath, 'thoughts');
-                this.view.renderView();
-            }).open();
-        });
-
-        // ── Body ──────────────────────────────────────────────────────────
-        const bodyEl = card.createEl('div', { cls: 'diwa-journal-card-body' });
-        MarkdownRenderer.render(this.app, entry.body, bodyEl, entry.filePath, this.view);
-        this.hookInternalLinks(bodyEl, entry.filePath);
-        this.hookCheckboxes(bodyEl, entry);
-
-        // Journal uses its own lightbox path for thumbnails.
-        setTimeout(() => {
-            bodyEl.querySelectorAll('img').forEach((img: HTMLElement) => {
-                img.addClass('diwa-journal-thumb');
-                img.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const src = (img as HTMLImageElement).src;
-                    if (src) this._openImageLightbox(src);
-                });
-            });
-        }, 120);
-
-        // ── Footer: context chips + reply count ───────────────────────────
-        if (visibleCtx.length > 0) {
-            const footer = card.createEl('div', { cls: 'diwa-journal-card-footer' });
-            for (const ctx of visibleCtx) {
-                footer.createEl('span', { cls: 'diwa-journal-ctx-chip', text: `#${ctx}` });
-            }
-        }
-    }
-
-    // ── INLINE COMPOSE BAR ─────────────────────────────────────────────────
-    private _renderComposeBar(root: HTMLElement, scroll: HTMLElement) {
-        let contexts: string[] = [];
-        const compose = root.createDiv({ cls: 'diwa-journal-compose' });
-
-        // Chips row — appears above input when focused and chips exist
-        const chipsWrap = compose.createDiv({ cls: 'diwa-journal-compose-chips' });
-        const renderChips = () => {
-            chipsWrap.empty();
-            const visible = contexts.filter(c => c !== 'journal');
-            for (const ctx of visible) {
-                const chip = chipsWrap.createEl('span', { cls: 'diwa-jm-chip' });
-                chip.createSpan({ text: `#${ctx}` });
-                const x = chip.createEl('button', {
-                    text: '×',
-                    cls: 'diwa-jm-chip-x',
-                    attr: { type: 'button', 'aria-label': `Remove #${ctx}` }
-                });
-                x.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    contexts = contexts.filter(c => c !== ctx);
-                    renderChips();
-                });
-            }
-        };
-
-        const row = compose.createDiv({ cls: 'diwa-journal-compose-row' });
-
-        const fileInput = compose.createEl('input', {
-            attr: { type: 'file', accept: 'image/*,application/pdf', style: 'display:none' }
-        }) as HTMLInputElement;
-
-        const attachBtn = row.createEl('button', {
-            cls: 'diwa-journal-compose-attach',
-            attr: { type: 'button', title: 'Attach image', 'aria-label': 'Attach image to journal entry' }
-        });
-        setIcon(attachBtn, 'lucide-image');
-        attachBtn.addEventListener('click', () => fileInput.click());
-
-        const textarea = row.createEl('textarea', {
-            cls: 'diwa-journal-compose-input',
-            attr: { placeholder: 'Write a journal entry…', rows: '1' }
-        }) as HTMLTextAreaElement;
-
-        const sendBtn = row.createEl('button', {
-            cls: 'diwa-journal-compose-send',
-            attr: { type: 'button', title: 'Save entry', 'aria-label': 'Save journal entry' }
-        }) as HTMLButtonElement;
-        setIcon(sendBtn, 'lucide-send');
-        sendBtn.disabled = true;
-
-        const autoGrow = () => {
-            textarea.style.height = 'auto';
-            textarea.style.height = Math.min(textarea.scrollHeight, JOURNAL_COMPOSE_MAX_HEIGHT) + 'px';
-            textarea.style.overflowY = textarea.scrollHeight > JOURNAL_COMPOSE_MAX_HEIGHT ? 'auto' : 'hidden';
-        };
-
-        textarea.addEventListener('focus', () => {
-            compose.addClass('is-focused');
-            setTimeout(() => { scroll.scrollTop = scroll.scrollHeight; }, 350);
-        });
-        textarea.addEventListener('blur', () => {
-            if (!textarea.value.trim() && contexts.length === 0) compose.removeClass('is-focused');
-        });
-        textarea.addEventListener('input', () => {
-            autoGrow();
-            sendBtn.disabled = !textarea.value.trim();
-        });
-
-        fileInput.addEventListener('change', async () => {
-            if (!fileInput.files?.length) return;
-            for (let i = 0; i < fileInput.files.length; i++) {
-                await this._saveComposeAttachment(fileInput.files[i], textarea);
-            }
-            fileInput.value = '';
-            sendBtn.disabled = !textarea.value.trim();
-            autoGrow();
-        });
-
-        attachMediaPasteHandler(this.app, textarea, () =>
-            this.settings.attachmentsFolder ?? '000 Bin/DIWA Attachments'
-        );
-        attachInlineTriggers(
-            this.app, textarea,
-            () => {},
-            (tag: string) => { if (!contexts.includes(tag)) { contexts.push(tag); renderChips(); } },
-            () => this.settings.contexts ?? [],
-            this.settings.peopleFolder
-        );
-
-        const doSend = async () => {
-            const text = textarea.value.trim();
-            if (!text) return;
-            const ctxs = [...contexts];
-            if (!ctxs.includes('journal')) ctxs.push('journal');
-            await this.plugin.getThoughtController().addThought({ content: text, context: ctxs });
-            textarea.value = '';
-            textarea.style.height = '';
-            contexts = [];
-            renderChips();
-            sendBtn.disabled = true;
-            compose.removeClass('is-focused');
-            this.view.renderView();
-        };
-
-        sendBtn.addEventListener('click', doSend);
-        textarea.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); doSend(); }
-        });
-    }
-
-    private async _saveComposeAttachment(file: File, textarea: HTMLTextAreaElement): Promise<void> {
-        try {
-            const folder = (this.settings.attachmentsFolder ?? '000 Bin/DIWA Attachments').trim();
-            if (!this.app.vault.getAbstractFileByPath(folder)) {
-                await this.app.vault.createFolder(folder);
-            }
-            const mimeToExt: Record<string, string> = {
-                'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif',
-                'image/webp': 'webp', 'application/pdf': 'pdf',
-            };
-            const ext = mimeToExt[file.type] || (file.name.includes('.') ? file.name.split('.').pop()! : 'bin');
-            const ts = moment().format('YYYYMMDD_HHmmss');
-            const rand = Math.random().toString(36).substring(2, 6);
-            const filename = `journal_${ts}_${rand}.${ext}`;
-            await this.app.vault.createBinary(`${folder}/${filename}`, await file.arrayBuffer());
-            const link = `![[${filename}]]`;
-            const start = textarea.selectionStart ?? textarea.value.length;
-            const end = textarea.selectionEnd ?? start;
-            textarea.value = textarea.value.substring(0, start) + link + textarea.value.substring(end);
-            textarea.setSelectionRange(start + link.length, start + link.length);
-            textarea.dispatchEvent(new Event('input'));
-        } catch (e) {
-            console.error('[DIWA] Compose attachment failed:', e);
-        }
-    }
-
-    // ── FULL-SCREEN IMAGE LIGHTBOX WITH PINCH ZOOM ───────────────────────
-    private _openImageLightbox(src: string) {
-        const overlay = document.body.createDiv({ cls: 'diwa-journal-lightbox' });
-        const imgEl = overlay.createEl('img', {
-            cls: 'diwa-journal-lightbox-img',
-            attr: { src }
-        }) as HTMLImageElement;
-
-        const closeBtn = overlay.createEl('button', { cls: 'diwa-journal-lightbox-close', text: '×' });
-        closeBtn.addEventListener('click', () => overlay.remove());
-        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-
-        // Pinch-to-zoom
-        let scale = 1, lastScale = 1, startDist = 0;
-        let originX = 0, originY = 0;
-
-        imgEl.addEventListener('touchstart', (e: TouchEvent) => {
-            if (e.touches.length === 2) {
-                startDist = Math.hypot(
-                    e.touches[1].clientX - e.touches[0].clientX,
-                    e.touches[1].clientY - e.touches[0].clientY
-                );
-                originX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-                originY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-                imgEl.style.transformOrigin = `${originX}px ${originY}px`;
-            }
-        }, { passive: true });
-
-        imgEl.addEventListener('touchmove', (e: TouchEvent) => {
-            if (e.touches.length !== 2) return;
-            e.preventDefault();
-            const dist = Math.hypot(
-                e.touches[1].clientX - e.touches[0].clientX,
-                e.touches[1].clientY - e.touches[0].clientY
-            );
-            scale = Math.max(1, Math.min(6, lastScale * (dist / startDist)));
-            imgEl.style.transform = `scale(${scale})`;
-        }, { passive: false });
-
-        imgEl.addEventListener('touchend', () => { lastScale = scale; });
-
-        // Double-tap to reset zoom
-        let lastTap = 0;
-        imgEl.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const now = Date.now();
-            if (now - lastTap < 300) {
-                scale = 1; lastScale = 1;
-                imgEl.style.transform = 'scale(1)';
-                imgEl.style.transformOrigin = 'center center';
-            }
-            lastTap = now;
-        });
-    }
-
-    private _openNewEntry() {
-        new JournalEntryModal(this.app, this.plugin, 'new', '', null,
-            async (text, contexts) => {
-                if (!text.trim()) return;
-                await this.plugin.getThoughtController().addThought({ content: text, context: contexts });
-                this.view.renderView();
-            }).open();
-    }
-
-    private _calcStreak(entries: ThoughtEntry[]): number {
-        const days = new Set(entries.map(e => e.day || e.created.split(' ')[0]).filter(Boolean));
-        let streak = 0;
-        let cursor = moment().startOf('day');
-        if (!days.has(cursor.format('YYYY-MM-DD'))) cursor = cursor.subtract(1, 'day');
-        while (days.has(cursor.format('YYYY-MM-DD'))) {
-            streak++;
-            cursor = cursor.subtract(1, 'day');
-        }
-        return streak;
-    }
-
-    private _stat(parent: HTMLElement, value: string, label: string) {
-        const s = parent.createEl('div', { cls: 'diwa-journal-stat' });
-        s.createEl('div', { cls: 'diwa-journal-stat-val', text: value });
-        s.createEl('div', { cls: 'diwa-journal-stat-lbl', text: label });
-    }
-
-    private _latestEntryLabel(entries: ThoughtEntry[]): string {
-        if (entries.length === 0) return 'Fresh space for new reflections';
-        const latest = moment(entries[0].created, 'YYYY-MM-DD HH:mm:ss', true);
-        if (!latest.isValid()) return `${this._entryCountLabel(entries.length)} captured`;
-        return `Last entry ${latest.fromNow()}`;
-    }
-
-    private _entryCountLabel(count: number): string {
-        return `${count} ${count === 1 ? 'entry' : 'entries'}`;
     }
 }

@@ -1,6 +1,7 @@
 import { App, TFile, moment } from 'obsidian';
 import { DiwaSettings, ThoughtEntry, TaskEntry, DueEntry, ProjectEntry, TaskBucketStatus } from '../types';
 import { extractWikiLinks } from '../utils/wikilinks';
+import { getThoughtDisplayTitle, inferJournalType } from '../journal/shared';
 
 export interface ChecklistItem {
     text: string;
@@ -415,6 +416,13 @@ export class IndexService {
         } as Record<string, any>;
         if (Object.keys(fm).length === 0) return;
         const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').trim();
+        const context = IndexService.normalizeContext(fm.context ?? fm.contexts);
+        const tags = IndexService.normalizeStringArray(fm.tags);
+        const journalType = inferJournalType({
+            journalType: fm.journalType,
+            context,
+            tags,
+        });
         const linkedTaskIds = Array.from(new Set([
             ...IndexService.normalizeStringArray(fm.linkedTasks),
             ...IndexService.normalizeLinksArray(fm.links, 'tasks'),
@@ -422,7 +430,7 @@ export class IndexService {
         this.thoughtIndex.set(file.path, {
             id: file.path,
             filePath: file.path,
-            title: file.basename,
+            title: getThoughtDisplayTitle({ title: String(fm.title || '').trim(), body }, file.basename),
             body: body,
             content: body,
             wikilinks: extractWikiLinks(body),
@@ -431,13 +439,14 @@ export class IndexService {
             modified: fm.modified || '',
             createdAt: Number(fm.createdAt || file.stat.ctime || Date.now()),
             updatedAt: Number(fm.updatedAt || file.stat.mtime || Date.now()),
-            context: IndexService.normalizeContext(fm.context ?? fm.contexts),
+            context,
             topic: Array.isArray(fm.topic) ? (fm.topic[0] ? String(fm.topic[0]) : null) : (fm.topic || null),
+            journalType,
             synthesized: fm.synthesized || false,
             state: fm.state || 'raw',
             pinned: Boolean(fm.pinned),
             archived: Boolean(fm.archived),
-            tags: IndexService.normalizeStringArray(fm.tags),
+            tags,
             project: fm.project || null,
             allDates: fm.allDates || [],
             lastThreadUpdate: file.stat.mtime,

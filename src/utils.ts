@@ -165,41 +165,9 @@ export function attachInlineTriggers(
 export function attachMediaPasteHandler(
     app: App,
     textarea: HTMLTextAreaElement | HTMLInputElement,
-    getFolder: () => string
+    getFolder: () => string,
+    options: { prefix?: string } = {},
 ): void {
-    const saveFile = async (file: File): Promise<string | null> => {
-        try {
-            const folder = (getFolder() || '000 Bin/DIWA Attachments').trim();
-            if (!app.vault.getAbstractFileByPath(folder)) {
-                await app.vault.createFolder(folder);
-            }
-            const mimeToExt: Record<string, string> = {
-                'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif',
-                'image/webp': 'webp', 'image/svg+xml': 'svg',
-                'application/pdf': 'pdf',
-            };
-            const ext = mimeToExt[file.type] || (file.name.includes('.') ? file.name.split('.').pop()! : 'bin');
-            const ts = moment().format('YYYYMMDD_HHmmss');
-            const rand = Math.random().toString(36).substring(2, 6);
-            const filename = `attachment_${ts}_${rand}.${ext}`;
-            const buffer = await file.arrayBuffer();
-            await app.vault.createBinary(`${folder}/${filename}`, buffer);
-            return filename;
-        } catch (e) {
-            console.error('[DIWA] Attachment save failed:', e);
-            return null;
-        }
-    };
-
-    const insertAtCursor = (link: string) => {
-        const el = textarea as HTMLInputElement;
-        const start = el.selectionStart ?? el.value.length;
-        const end = el.selectionEnd ?? start;
-        el.value = el.value.substring(0, start) + link + el.value.substring(end);
-        el.setSelectionRange(start + link.length, start + link.length);
-        el.dispatchEvent(new Event('input'));
-    };
-
     (textarea as HTMLElement).addEventListener('paste', async (e: Event) => {
         const ce = e as ClipboardEvent;
         const items = ce.clipboardData?.items;
@@ -216,11 +184,7 @@ export function attachMediaPasteHandler(
         for (const item of fileItems) {
             const file = item.getAsFile();
             if (!file) continue;
-            const filename = await saveFile(file);
-            if (filename) {
-                insertAtCursor(`![[${filename}]]`);
-            } else {
-            }
+            await insertFilesAtCursor(app, textarea, [file], getFolder, options);
         }
     });
 
@@ -237,13 +201,103 @@ export function attachMediaPasteHandler(
         const files = de.dataTransfer?.files;
         if (!files || files.length === 0) return;
         de.preventDefault();
-        for (let i = 0; i < files.length; i++) {
-            const filename = await saveFile(files[i]);
-            if (filename) {
-                insertAtCursor(`![[${filename}]]`);
-            }
-        }
+        await insertFilesAtCursor(app, textarea, Array.from(files), getFolder, options);
     });
+}
+
+export async function ensureVaultFolder(app: App, folder: string): Promise<void> {
+    if (!folder || folder === '/' || folder === '.') return;
+    if (folder.includes('..') || folder.startsWith('/') || folder.startsWith('\\')) {
+        throw new Error(`Invalid folder path: "${folder}"`);
+    }
+
+    const parts = folder.split('/').filter(Boolean);
+    let pathSoFar = '';
+    for (const part of parts) {
+        pathSoFar = pathSoFar ? `${pathSoFar}/${part}` : part;
+        if (app.vault.getAbstractFileByPath(pathSoFar)) continue;
+        try {
+            await app.vault.createFolder(pathSoFar);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            if (!message.includes('already exists')) throw error;
+        }
+    }
+}
+
+export function buildAttachmentWikiLink(path: string, file: Pick<File, 'type' | 'name'>): string {
+    return `${shouldEmbedAttachment(file) ? '!' : ''}[[${path}]]`;
+}
+
+export async function insertFilesAtCursor(
+    app: App,
+    textarea: HTMLTextAreaElement | HTMLInputElement,
+    files: Iterable<File>,
+    getFolder: () => string,
+    options: { prefix?: string } = {},
+): Promise<string[]> {
+    const inserted: string[] = [];
+    for (const file of files) {
+        const savedPath = await saveAttachmentFile(app, file, getFolder(), options.prefix);
+        if (!savedPath) continue;
+        const link = buildAttachmentWikiLink(savedPath, file);
+        insertAtCursor(textarea, link);
+        inserted.push(savedPath);
+    }
+    return inserted;
+}
+
+async function saveAttachmentFile(app: App, file: File, folderPath: string, prefix = 'attachment'): Promise<string | null> {
+    try {
+        const folder = (folderPath || '000 Bin/DIWA Attachments').trim();
+        await ensureVaultFolder(app, folder);
+        const ext = resolveAttachmentExtension(file);
+        const ts = moment().format('YYYYMMDD_HHmmss');
+        const rand = Math.random().toString(36).substring(2, 6);
+        const filename = `${prefix}_${ts}_${rand}.${ext}`;
+        const path = `${folder}/${filename}`;
+        const buffer = await file.arrayBuffer();
+        await app.vault.createBinary(path, buffer);
+        return path;
+    } catch (error) {
+        console.error('[DIWA] Attachment save failed:', error);
+        return null;
+    }
+}
+
+function resolveAttachmentExtension(file: Pick<File, 'type' | 'name'>): string {
+    const mimeToExt: Record<string, string> = {
+        'image/png': 'png',
+        'image/jpeg': 'jpg',
+        'image/gif': 'gif',
+        'image/webp': 'webp',
+        'image/svg+xml': 'svg',
+        'application/pdf': 'pdf',
+        'text/plain': 'txt',
+        'application/json': 'json',
+    };
+    if (file.type && mimeToExt[file.type]) return mimeToExt[file.type];
+    const parts = String(file.name || '').split('.');
+    return parts.length > 1 ? parts.pop()!.toLowerCase() : 'bin';
+}
+
+function shouldEmbedAttachment(file: Pick<File, 'type' | 'name'>): boolean {
+    const normalizedType = String(file.type || '').toLowerCase();
+    if (normalizedType.startsWith('image/')) return true;
+    if (normalizedType === 'application/pdf') return true;
+    const extension = resolveAttachmentExtension(file);
+    return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'pdf'].includes(extension);
+}
+
+function insertAtCursor(textarea: HTMLTextAreaElement | HTMLInputElement, link: string): void {
+    const start = textarea.selectionStart ?? textarea.value.length;
+    const end = textarea.selectionEnd ?? start;
+    const needsPrefixNewline = start > 0 && !textarea.value.slice(Math.max(0, start - 1), start).match(/\s/);
+    const insertText = `${needsPrefixNewline ? '\n' : ''}${link}`;
+    textarea.value = textarea.value.substring(0, start) + insertText + textarea.value.substring(end);
+    const nextPos = start + insertText.length;
+    textarea.setSelectionRange(nextPos, nextPos);
+    textarea.dispatchEvent(new Event('input'));
 }
 
 export interface ThoughtCaptureOptions {

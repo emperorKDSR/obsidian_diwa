@@ -1,6 +1,13 @@
 import { App, TFile, Notice, moment } from 'obsidian';
 import type { DiwaSettings, ThoughtEntry, TaskEntry, ReplyEntry, ProjectEntry, Milestone } from '../types';
 import { generateTaskId } from '../utils/taskModel';
+import { buildJournalContexts, normalizeJournalType } from '../journal/shared';
+import { ensureVaultFolder } from '../utils';
+
+interface ThoughtWriteOptions {
+    title?: string;
+    journalType?: string | null;
+}
 
 export class VaultService {
     app: App;
@@ -34,14 +41,15 @@ export class VaultService {
     private formatDate(d: Date): string     { return moment(d).format('YYYY-MM-DD'); }
     private formatTime(d: Date): string     { return moment(d).format('HH:mm:ss'); }
 
-    private buildFrontmatter(title: string, created: string, modified: string, dayStr: string, contexts: string[], pinned: boolean = false, project?: string, topic?: string): string {
+    private buildFrontmatter(title: string, created: string, modified: string, dayStr: string, contexts: string[], pinned: boolean = false, project?: string, topic?: string, journalType?: string | null): string {
         // sec-006: Sanitize title and contexts before YAML embedding to prevent injection
         const safeTitle = this.sanitizeYamlString(title);
         const safeContexts = contexts.map(c => this.sanitizeContext(c));
         const contextYaml = safeContexts.length > 0 ? safeContexts.map(c => `  - ${c}`).join('\n') : '  []';
         const projectLine = project ? `project: "${this.sanitizeYamlString(project)}"\n` : '';
         const topicLine = topic ? `topic: "${this.sanitizeYamlString(topic)}"\n` : '';
-        return `---\ntitle: "${safeTitle}"\ncreated: ${created}\nmodified: ${modified}\nday: "[[${dayStr}]]"\narea: DIWA\ncontext:\n${contextYaml}\ntags:\n${contextYaml}\npinned: ${pinned}\n${topicLine}${projectLine}---\n`;
+        const journalTypeLine = journalType ? `journalType: "${this.sanitizeYamlString(journalType)}"\n` : '';
+        return `---\ntitle: "${safeTitle}"\ncreated: ${created}\nmodified: ${modified}\nday: "[[${dayStr}]]"\narea: DIWA\ncontext:\n${contextYaml}\ntags:\n${contextYaml}\npinned: ${pinned}\n${journalTypeLine}${topicLine}${projectLine}---\n`;
     }
 
     private buildTaskFrontmatter(title: string, created: string, modified: string, dayStr: string, status: string, due: string, contexts: string[], project?: string, recurrence?: string, recurrenceParentId?: string, priority?: string, energy?: string): string {
@@ -80,27 +88,7 @@ export class VaultService {
     }
 
     async ensureFolder(folder: string) {
-        // sec-014: Reject paths with traversal sequences or absolute paths
-        if (folder.includes('..') || folder.startsWith('/') || folder.startsWith('\\')) {
-            throw new Error(`Invalid folder path: "${folder}"`);
-        }
-        const { vault } = this.app;
-        if (!folder || folder === '/' || folder === '.') return;
-        
-        const parts = folder.split('/');
-        let pathSoFar = '';
-        for (const part of parts) {
-            pathSoFar = pathSoFar ? pathSoFar + '/' + part : part;
-            const exists = vault.getAbstractFileByPath(pathSoFar);
-            if (!exists) {
-                try { 
-                    await vault.createFolder(pathSoFar); 
-                } catch (e) {
-                    // Ignore errors if folder was created simultaneously by another process
-                    if (!e.message?.includes('already exists')) throw e;
-                }
-            }
-        }
+        await ensureVaultFolder(this.app, folder);
     }
 
     async createFile(folder: string, filename: string, content: string): Promise<TFile> {
@@ -125,15 +113,17 @@ export class VaultService {
         }
     }
 
-    async createThoughtFile(text: string, contexts: string[], project?: string, topic?: string): Promise<TFile> {
+    async createThoughtFile(text: string, contexts: string[], project?: string, topic?: string, options?: ThoughtWriteOptions): Promise<TFile> {
         // arch-08: Normalize <br> → newline at service boundary
         text = text.replace(/<br>/g, '\n');
         const folder = this.settings.thoughtsFolder.trim() || '000 Bin/DIWA';
         const now = new Date();
         const created = this.formatDateTime(now);
         const dayStr = this.formatDate(now);
-        const title = this.extractTitle(text);
-        const fm = this.buildFrontmatter(title, created, created, dayStr, contexts, false, project, topic);
+        const journalType = normalizeJournalType(options?.journalType);
+        const normalizedContexts = journalType ? buildJournalContexts(contexts, journalType) : contexts;
+        const title = options?.title?.trim() || this.extractTitle(text) || 'Untitled thought';
+        const fm = this.buildFrontmatter(title, created, created, dayStr, normalizedContexts, false, project, topic, journalType);
         const filename = this.generateFilename();
         return await this.createFile(folder, filename, fm + text);
     }
@@ -152,7 +142,7 @@ export class VaultService {
         return await this.createFile(folder, filename, fm + text);
     }
 
-    async editThought(filePath: string, newText: string, contexts: string[], topic?: string): Promise<void> {
+    async editThought(filePath: string, newText: string, contexts: string[], options?: { topic?: string; title?: string; journalType?: string | null }): Promise<void> {
         // arch-08: Normalize <br> → newline at service boundary
         newText = newText.replace(/<br>/g, '\n');
         const file = this.app.vault.getAbstractFileByPath(filePath);
@@ -161,9 +151,11 @@ export class VaultService {
             const now = new Date();
             const nowStr = this.formatDateTime(now);
             const dayStr = this.formatDate(now);
-            const title = this.extractTitle(newText);
-            const safeContexts = contexts.map(c => this.sanitizeContext(c));
-            const safeTopic = topic ? topic.replace(/[^a-zA-Z0-9 _-]/g, '').trim() : '';
+            const journalType = normalizeJournalType(options?.journalType);
+            const title = options?.title?.trim() || this.extractTitle(newText) || 'Untitled thought';
+            const normalizedContexts = journalType ? buildJournalContexts(contexts, journalType) : contexts;
+            const safeContexts = normalizedContexts.map(c => this.sanitizeContext(c));
+            const safeTopic = options?.topic ? options.topic.replace(/[^a-zA-Z0-9 _-]/g, '').trim() : '';
             const tags = safeContexts.map(c => safeTopic ? `${c}/${safeTopic}` : c);
 
             // Step 1: update all FM fields safely via Obsidian API
@@ -173,6 +165,8 @@ export class VaultService {
                 fm['day'] = `[[${dayStr}]]`;
                 fm['context'] = safeContexts;
                 fm['topic'] = safeTopic || null;
+                if (journalType) fm['journalType'] = journalType;
+                else delete fm['journalType'];
                 fm['tags'] = tags;
                 // preserve existing created, pinned, project
             });

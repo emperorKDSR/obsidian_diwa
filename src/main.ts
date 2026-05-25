@@ -60,6 +60,7 @@ export default class DiwaPlugin extends Plugin {
     settingsInitialized: boolean = false;
     zenCaptureDraft: string = '';
     aiMode: 'off' | 'assist' | 'active' = 'assist';
+    private pendingJournalInputFocus = false;
     
     // Services
     ai: AiService;
@@ -272,6 +273,7 @@ export default class DiwaPlugin extends Plugin {
         });
 
         this.addCommand({ id: 'diwa-open-workspace', name: 'Diwa Workspace', icon: DESKTOP_HUB_ICON_ID, callback: () => { this.activateWorkspace(); } });
+        this.addCommand({ id: 'diwa-open-journal-input', name: 'DIWA: Open Journal Input', icon: JOURNAL_ICON_ID, callback: () => { void this.activateJournalInput(); } });
         this.addCommand({ id: 'open-diwa-mobile-gawa', name: 'DIWA: Open Mobile Gawa', icon: 'check-square-2', callback: () => { this.activateMobileGawa(); } });
         this.addCommand({ id: 'diwa-open-gawa', name: 'DIWA: Gawa', icon: 'check-square-2', callback: () => { this.activateGawa(); } });
 
@@ -406,6 +408,17 @@ export default class DiwaPlugin extends Plugin {
             await leaf.setViewState({ type: VIEW_TYPE_SEARCH, active: true });
             workspace.revealLeaf(leaf);
         }
+    }
+
+    async activateJournalInput() {
+        this.pendingJournalInputFocus = Platform.isMobile && !isTablet();
+        await this.activateView('journal');
+    }
+
+    consumeJournalInputFocusRequest(): boolean {
+        const pending = this.pendingJournalInputFocus;
+        this.pendingJournalInputFocus = false;
+        return pending;
     }
 
     async activateView(tabId?: string, isDedicated: boolean = false) {

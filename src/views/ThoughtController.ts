@@ -125,6 +125,7 @@ export class ThoughtController {
             pinned: !!thought.pinned,
             archived: !!thought.archived,
             tags: thought.tags ?? [],
+            journalType: thought.journalType ?? null,
             links,
         };
     }
@@ -176,9 +177,10 @@ export class ThoughtController {
         return this.upsertThought(indexed, true);
     }
 
-    async addThought(thought: Partial<ThoughtEntry> & { content?: string; context?: string[]; topic?: string | null; project?: string | null }): Promise<ThoughtEntry | null> {
-        const content = (thought.content ?? thought.body ?? thought.title ?? '').trim();
-        if (!content) return null;
+    async addThought(thought: Partial<ThoughtEntry> & { content?: string; context?: string[]; topic?: string | null; project?: string | null; title?: string; journalType?: string | null }): Promise<ThoughtEntry | null> {
+        const content = (thought.content ?? thought.body ?? '').trim();
+        const title = String(thought.title || '').trim();
+        if (!content && !title) return null;
         try {
             // Suppress vault-event re-renders while we write and persist the file
             this.plugin.refreshCoordinator.suppressNotifyRefresh(1200);
@@ -187,6 +189,10 @@ export class ThoughtController {
                 thought.context ?? [],
                 thought.project ?? undefined,
                 thought.topic ?? undefined,
+                {
+                    title: title || undefined,
+                    journalType: thought.journalType ?? undefined,
+                },
             );
             await this.plugin.refreshCoordinator.reindexFile(created);
             const synced = this.syncIndexedThought(created.path);
@@ -205,7 +211,7 @@ export class ThoughtController {
         }
     }
 
-    async updateThought(thought: Partial<ThoughtEntry> & { id?: string; filePath?: string; content?: string; topic?: string | null }): Promise<ThoughtEntry | null> {
+    async updateThought(thought: Partial<ThoughtEntry> & { id?: string; filePath?: string; content?: string; topic?: string | null; title?: string; journalType?: string | null }): Promise<ThoughtEntry | null> {
         const ref = (thought.filePath || thought.id || '').trim();
         if (!ref) return null;
         const existing = this.getThought(ref);
@@ -221,13 +227,24 @@ export class ThoughtController {
 
         try {
             this.updatingThoughtPaths.add(existing.filePath);
-            if (thought.content !== undefined || thought.body !== undefined || thought.context !== undefined || thought.topic !== undefined) {
-                const body = (merged.content || merged.body || merged.title || '').trim();
+            if (
+                thought.content !== undefined
+                || thought.body !== undefined
+                || thought.context !== undefined
+                || thought.topic !== undefined
+                || thought.title !== undefined
+                || thought.journalType !== undefined
+            ) {
+                const body = (merged.content || merged.body || '').trim();
                 await this.plugin.vault.editThought(
                     existing.filePath,
                     body,
                     merged.context ?? [],
-                    merged.topic ?? undefined,
+                    {
+                        topic: merged.topic ?? undefined,
+                        title: merged.title,
+                        journalType: merged.journalType ?? undefined,
+                    },
                 );
             }
             await this.persistThoughts([merged]);

@@ -169,11 +169,11 @@ const SECTIONS: HelpSection[] = [
     {
         id: 'journal', icon: 'lucide-book-open', title: 'Journal', subtitle: 'Daily freeform writing',
         items: [
-            { label: 'All Entries Feed', desc: 'All journal entries are shown in a single scrollable feed, sorted newest-first. There is no day-based navigation — your full history is always visible.' },
-            { label: 'New Entry', desc: 'Tap the "+ New Entry" pill button in the Journal header to open the entry modal. Write your entry and tap Done (or Save on desktop) to save it.', tip: 'On mobile the modal opens as a bottom sheet — Cancel and Done are in the header bar.' },
-            { label: 'Edit & Delete', desc: 'Each entry card has an Edit (✏) and Delete (🗑) button. Tap Edit to reopen the modal with existing content for changes.' },
-            { label: 'Timestamps', desc: 'Every entry is stamped with its creation date and time, displayed below the entry body.' },
-            { label: 'Attach Images', desc: 'In the entry modal tap the paperclip icon to attach an image. It is saved to your Attachments folder and linked inline.' },
+            { label: 'Desktop Layout', desc: 'Desktop Journal now opens as a split writing workspace: a left archive rail with titles only, plus a right-side composer for writing and editing.' },
+            { label: 'Mobile Layout', desc: 'On mobile the Journal view shows the composer only, so you can jump straight into writing without the archive rail.' },
+            { label: 'Titles & Types', desc: 'Every entry now has a dedicated title field and a journal-type pill row (Reflection, Realization, Gratitude, Idea, Note, or Free Write).' },
+            { label: 'Files & Images', desc: 'Paste, drag, or attach files directly in the composer. DIWA saves them to your Attachments folder and inserts a vault-relative link inline.' },
+            { label: 'Quick Access', desc: 'Use the command palette action “DIWA: Open Journal Input” to jump directly into the Journal composer, especially on mobile.' },
         ]
     },
     {
