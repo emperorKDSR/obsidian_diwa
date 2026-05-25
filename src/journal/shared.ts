@@ -24,6 +24,13 @@ function firstContentLine(text: string): string {
         || '';
 }
 
+export function getThoughtPreviewLine(entryOrText: Partial<ThoughtEntry> | string, fallback = ''): string {
+    const text = typeof entryOrText === 'string'
+        ? entryOrText
+        : String(entryOrText.body || entryOrText.content || '');
+    return firstContentLine(text) || fallback;
+}
+
 export function normalizeJournalType(value: unknown): JournalTypeId | null {
     const normalized = String(value || '').trim().toLowerCase();
     if (!normalized) return null;
@@ -73,6 +80,6 @@ export function buildJournalContexts(contexts: string[] = [], journalType?: stri
 export function getThoughtDisplayTitle(entry: Partial<ThoughtEntry>, fallback = 'Untitled'): string {
     const explicit = String(entry.title || '').trim();
     if (explicit) return explicit;
-    const fromBody = firstContentLine(String(entry.body || entry.content || ''));
+    const fromBody = getThoughtPreviewLine(entry);
     return fromBody || fallback;
 }

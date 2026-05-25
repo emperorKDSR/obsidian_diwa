@@ -60,24 +60,10 @@ export function renderJournalComposer(options: JournalComposerOptions): JournalC
     let contexts = Array.from(new Set((value.contexts ?? []).map((ctx) => String(ctx || '').trim()).filter(Boolean)));
     let journalType = value.journalType ?? null;
     let savePending = false;
+    const isMobile = variant === 'mobile';
 
     const root = parent.createDiv(`diwa-journal-composer diwa-journal-composer--${variant}`);
     const surface = root.createDiv('diwa-journal-composer__surface');
-    const header = surface.createDiv('diwa-journal-composer__header');
-    const meta = header.createDiv('diwa-journal-composer__meta');
-
-    const metaBadge = meta.createSpan({
-        cls: 'diwa-journal-composer__badge',
-        text: mode === 'new' ? 'New entry' : 'Editing',
-    });
-    if (mode === 'edit') metaBadge.addClass('is-editing');
-
-    const metaText = meta.createSpan({
-        cls: 'diwa-journal-composer__meta-text',
-        text: buildMetaLabel(created, modified, mode),
-    });
-
-    const headerActions = header.createDiv('diwa-journal-composer__header-actions');
     const fileInput = surface.createEl('input', {
         attr: {
             type: 'file',
@@ -87,16 +73,66 @@ export function renderJournalComposer(options: JournalComposerOptions): JournalC
         },
     }) as HTMLInputElement;
 
-    const attachBtn = headerActions.createEl('button', {
-        cls: 'diwa-journal-composer__ghost-btn',
-        attr: {
-            type: 'button',
-            'aria-label': 'Attach files',
-        },
-    });
-    setIcon(attachBtn, 'paperclip');
-    attachBtn.createSpan({ text: 'Attach' });
-    attachBtn.addEventListener('click', () => fileInput.click());
+    const createAttachButton = (parentEl: HTMLElement, extraClass = '') => {
+        const attachBtn = parentEl.createEl('button', {
+            cls: `diwa-journal-composer__ghost-btn${extraClass ? ` ${extraClass}` : ''}`,
+            attr: {
+                type: 'button',
+                'aria-label': 'Attach files',
+            },
+        });
+        setIcon(attachBtn, 'paperclip');
+        attachBtn.createSpan({ text: isMobile ? 'Attach files' : 'Attach' });
+        attachBtn.addEventListener('click', () => fileInput.click());
+        return attachBtn;
+    };
+
+    const header = surface.createDiv('diwa-journal-composer__header');
+    if (isMobile) {
+        header.addClass('diwa-journal-composer__header--mobile');
+        if (onCancel) {
+            const dismissBtn = header.createEl('button', {
+                cls: 'diwa-journal-composer__mobile-dismiss',
+                text: mode === 'new' ? 'Cancel' : 'Close',
+                attr: {
+                    type: 'button',
+                    'aria-label': mode === 'new' ? 'Cancel journal composer' : 'Close journal editor',
+                },
+            });
+            dismissBtn.addEventListener('click', () => onCancel());
+        } else {
+            header.createDiv('diwa-journal-composer__mobile-dismiss-spacer');
+        }
+
+        const mobileHeadline = header.createDiv('diwa-journal-composer__mobile-headline');
+        mobileHeadline.createSpan({ cls: 'diwa-journal-composer__mobile-kicker', text: 'Journal' });
+        mobileHeadline.createSpan({
+            cls: 'diwa-journal-composer__mobile-meta',
+            text: buildMetaLabel(created, modified, mode),
+        });
+
+        const mobilePill = header.createSpan({
+            cls: 'diwa-journal-composer__mobile-pill',
+            text: mode === 'new' ? 'New' : 'Editing',
+        });
+        if (mode === 'edit') mobilePill.addClass('is-editing');
+    } else {
+        const meta = header.createDiv('diwa-journal-composer__meta');
+
+        const metaBadge = meta.createSpan({
+            cls: 'diwa-journal-composer__badge',
+            text: mode === 'new' ? 'New entry' : 'Editing',
+        });
+        if (mode === 'edit') metaBadge.addClass('is-editing');
+
+        meta.createSpan({
+            cls: 'diwa-journal-composer__meta-text',
+            text: buildMetaLabel(created, modified, mode),
+        });
+
+        const headerActions = header.createDiv('diwa-journal-composer__header-actions');
+        createAttachButton(headerActions);
+    }
 
     const titleInput = surface.createEl('input', {
         cls: 'diwa-journal-composer__title',
@@ -121,10 +157,33 @@ export function renderJournalComposer(options: JournalComposerOptions): JournalC
     }) as HTMLTextAreaElement;
     bodyInput.value = body;
 
-    const contextsRow = surface.createDiv('diwa-journal-composer__contexts');
+    let contextsRow: HTMLElement;
+    if (isMobile) {
+        const utilityRow = surface.createDiv('diwa-journal-composer__utility');
+        const utilityCopy = utilityRow.createDiv('diwa-journal-composer__utility-copy');
+        utilityCopy.createSpan({
+            cls: 'diwa-journal-composer__utility-title',
+            text: 'Context & attachments',
+        });
+        utilityCopy.createSpan({
+            cls: 'diwa-journal-composer__utility-caption',
+            text: 'Paste media or type #context to tag this entry.',
+        });
+        contextsRow = utilityRow.createDiv('diwa-journal-composer__contexts diwa-journal-composer__contexts--mobile');
+        const utilityActions = utilityRow.createDiv('diwa-journal-composer__utility-actions');
+        createAttachButton(utilityActions, 'diwa-journal-composer__utility-btn');
+    } else {
+        contextsRow = surface.createDiv('diwa-journal-composer__contexts');
+    }
+
     const footer = surface.createDiv('diwa-journal-composer__footer');
+    if (isMobile) footer.addClass('diwa-journal-composer__footer--mobile');
     const footerHint = footer.createDiv('diwa-journal-composer__hint');
-    footerHint.createSpan({ text: 'Paste, drag, or choose files. Use # to add contexts.' });
+    footerHint.createSpan({
+        text: isMobile
+            ? 'Reset or save from the thumb zone. Use # to add context instantly.'
+            : 'Paste, drag, or choose files. Use # to add contexts.',
+    });
 
     const footerActions = footer.createDiv('diwa-journal-composer__actions');
     if (onDelete) {
@@ -189,6 +248,9 @@ export function renderJournalComposer(options: JournalComposerOptions): JournalC
         const disabled = savePending || !title.trim();
         saveBtn.disabled = disabled;
         saveBtn.toggleClass('is-disabled', disabled);
+        saveBtn.textContent = savePending
+            ? (mode === 'new' ? 'Saving...' : 'Updating...')
+            : (mode === 'new' ? 'Save entry' : 'Update entry');
     };
 
     const syncBodyPlaceholder = () => {
@@ -196,7 +258,7 @@ export function renderJournalComposer(options: JournalComposerOptions): JournalC
     };
 
     const autoGrowBody = () => {
-        if (variant === 'mobile') {
+        if (isMobile) {
             bodyInput.style.height = '100%';
             return;
         }

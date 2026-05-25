@@ -4,7 +4,9 @@ import { ConfirmModal } from '../modals/ConfirmModal';
 import { renderJournalComposer, type JournalComposerValue } from '../journal/JournalComposer';
 import {
     buildJournalContexts,
+    getJournalTypeOption,
     getThoughtDisplayTitle,
+    getThoughtPreviewLine,
     inferJournalType,
     JOURNAL_CONTEXT,
     stripReservedJournalContexts,
@@ -70,15 +72,52 @@ export class JournalTab extends BaseTab {
             });
         } else {
             entries.forEach((entry) => {
+                const journalType = getJournalTypeOption(inferJournalType(entry));
+                const preview = getThoughtPreviewLine(entry, 'Open this entry to keep writing.');
+                const chips = [
+                    journalType.label,
+                    ...(entry.topic?.trim() ? [entry.topic.trim()] : []),
+                    ...stripReservedJournalContexts(entry.context).slice(0, 2),
+                ];
                 const item = railList.createEl('button', {
                     cls: 'diwa-journal-rail__item',
-                    text: getThoughtDisplayTitle(entry, 'Untitled journal'),
                     attr: {
                         type: 'button',
                         'aria-pressed': entry.filePath === this.selectedPath ? 'true' : 'false',
+                        title: getThoughtDisplayTitle(entry, 'Untitled journal'),
                     },
                 });
                 if (entry.filePath === this.selectedPath) item.addClass('is-active');
+
+                const indicator = item.createDiv('diwa-journal-rail__item-indicator');
+                indicator.createSpan({ text: journalType.icon });
+
+                const itemContent = item.createDiv('diwa-journal-rail__item-content');
+                const itemTop = itemContent.createDiv('diwa-journal-rail__item-top');
+                itemTop.createEl('h4', {
+                    cls: 'diwa-journal-rail__item-title',
+                    text: getThoughtDisplayTitle(entry, 'Untitled journal'),
+                });
+                itemTop.createSpan({
+                    cls: 'diwa-journal-rail__item-time',
+                    text: this.formatEntryTimestamp(entry),
+                });
+
+                itemContent.createDiv({
+                    cls: 'diwa-journal-rail__item-preview',
+                    text: preview,
+                });
+
+                if (chips.length) {
+                    const itemChips = itemContent.createDiv('diwa-journal-rail__item-chips');
+                    chips.forEach((chip, index) => {
+                        itemChips.createSpan({
+                            cls: `diwa-journal-rail__item-chip${index === 0 ? ' is-type' : ''}`,
+                            text: index === 0 ? `${journalType.icon} ${chip}` : chip,
+                        });
+                    });
+                }
+
                 item.addEventListener('click', () => {
                     this.loadEntry(entry, false);
                     this.view.renderView();
@@ -146,7 +185,10 @@ export class JournalTab extends BaseTab {
             onSave: async (value) => {
                 const wasEditing = !!this.editorState.filePath;
                 const saved = await this.saveEntry(value);
-                if (!saved) return;
+                if (!saved) {
+                    new Notice('Failed to save journal entry.');
+                    return;
+                }
                 this.loadEntry(saved, false);
                 new Notice(wasEditing ? 'Journal entry updated' : 'Journal entry saved');
                 this.view.renderView();
@@ -156,10 +198,11 @@ export class JournalTab extends BaseTab {
 
     private renderMobile(container: HTMLElement): void {
         const root = container.createDiv('diwa-journal-mobile');
+        const shell = root.createDiv('diwa-journal-mobile__shell');
         renderJournalComposer({
             app: this.app,
             plugin: this.plugin,
-            parent: root,
+            parent: shell,
             mode: 'new',
             value: {
                 title: this.editorState.title,
@@ -182,7 +225,10 @@ export class JournalTab extends BaseTab {
             },
             onSave: async (value) => {
                 const saved = await this.saveEntry(value);
-                if (!saved) return;
+                if (!saved) {
+                    new Notice('Failed to save journal entry.');
+                    return;
+                }
                 new Notice('Journal entry saved');
                 this.startNewEntry(true);
                 this.view.renderView();
@@ -287,5 +333,14 @@ export class JournalTab extends BaseTab {
             context: contexts,
             journalType: value.journalType,
         });
+    }
+
+    private formatEntryTimestamp(entry: ThoughtEntry): string {
+        const source = entry.modified || entry.created;
+        const parsed = moment(source, 'YYYY-MM-DD HH:mm:ss', true);
+        if (!parsed.isValid()) return source;
+        if (parsed.isSame(moment(), 'day')) return parsed.format('h:mm A');
+        if (parsed.isSame(moment(), 'year')) return parsed.format('MMM D');
+        return parsed.format('MMM D, YYYY');
     }
 }
