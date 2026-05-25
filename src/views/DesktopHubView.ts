@@ -1,7 +1,6 @@
 import { ItemView, WorkspaceLeaf, setIcon, Notice, ViewStateResult, MarkdownRenderer } from 'obsidian';
 import type DiwaPlugin from '../main';
 import {
-    VIEW_TYPE_DIWA,
     VIEW_TYPE_DESKTOP_HUB,
     PF_ICON_ID, SYNTHESIS_ICON_ID, AI_CHAT_ICON_ID, REVIEW_ICON_ID,
     SETTINGS_ICON_ID, TIMELINE_ICON_ID, JOURNAL_ICON_ID, COMPASS_ICON_ID,
@@ -62,6 +61,7 @@ export class DesktopHubView extends ItemView {
     private _feedSearchInputEl: HTMLInputElement | null = null;
     private _feedSearchQuery: string = '';
     private _activeContext: string = 'all';
+    private _lastSidebarTarget: string = 'hub';
 
     // Feed state
     private _feedEl: HTMLElement | null = null;
@@ -322,19 +322,32 @@ export class DesktopHubView extends ItemView {
     // ── LEFT Sidebar ──────────────────────────────────────────────────────────
     private renderSidebar(parent: HTMLElement) {
         const sidebar = parent;
+        sidebar.empty();
 
-        const groups: { title: string; items: { label: string; icon: string; tab: string }[] }[] = [
+        const shell = sidebar.createEl('div', { cls: 'diwa-dh-sidebar-shell' });
+        const top = shell.createEl('div', { cls: 'diwa-dh-sidebar-top' });
+        this.renderSidebarButton(top, {
+            label: 'Workspace',
+            icon: 'layout-dashboard',
+            tab: 'hub',
+            variant: 'brand',
+            onClick: () => this.plugin.activateDesktopHub(),
+        });
+
+        const groups: { title: string; variant?: 'primary' | 'utility'; items: { label: string; icon: string; tab: string; onClick?: () => Promise<void> | void }[] }[] = [
             {
-                title: 'ACTION',
+                title: 'Core',
+                variant: 'primary',
                 items: [
-                    { label: 'Search', icon: 'lucide-search', tab: 'search' },
+                    { label: 'Search', icon: 'lucide-search', tab: 'search', onClick: () => this.plugin.activateSearchView() },
                     { label: 'Synthesis', icon: SYNTHESIS_ICON_ID, tab: 'synthesis' },
                     { label: 'Journal', icon: JOURNAL_ICON_ID, tab: 'journal' },
                     { label: 'Timeline', icon: TIMELINE_ICON_ID, tab: 'timeline' },
+                    { label: 'AI Chat', icon: AI_CHAT_ICON_ID, tab: 'diwa-ai' },
                 ],
             },
             {
-                title: 'MANAGE',
+                title: 'Manage',
                 items: [
                     { label: 'Gawa', icon: 'lucide-check-square-2', tab: 'review-gawa' },
                     { label: 'Finance', icon: PF_ICON_ID, tab: 'dues' },
@@ -345,15 +358,15 @@ export class DesktopHubView extends ItemView {
                 ],
             },
             {
-                title: 'FEATURES',
+                title: 'Track',
                 items: [
-                    { label: 'AI Chat', icon: AI_CHAT_ICON_ID, tab: 'diwa-ai' },
                     { label: 'Voice', icon: 'lucide-mic', tab: 'voice-note' },
                     { label: 'Habits', icon: 'lucide-flame', tab: 'habits' },
                 ],
             },
             {
-                title: 'SYSTEM',
+                title: 'System',
+                variant: 'utility',
                 items: [
                     { label: 'Settings', icon: SETTINGS_ICON_ID, tab: 'settings' },
                     { label: 'Manual', icon: 'lucide-book-open', tab: 'manual' },
@@ -361,23 +374,62 @@ export class DesktopHubView extends ItemView {
             },
         ];
 
+        const main = shell.createEl('div', { cls: 'diwa-dh-sidebar-main' });
+        const footer = shell.createEl('div', { cls: 'diwa-dh-sidebar-footer' });
+
         for (const group of groups) {
-            const groupEl = sidebar.createEl('div', { cls: 'diwa-dh-nav-group' });
+            const groupHost = group.variant === 'utility' ? footer : main;
+            const groupEl = groupHost.createEl('div', { cls: `diwa-dh-nav-group${group.variant === 'primary' ? ' is-primary' : ''}${group.variant === 'utility' ? ' is-utility' : ''}` });
             groupEl.createEl('span', { text: group.title, cls: 'diwa-dh-nav-group-label' });
             for (const item of group.items) {
-                const btn = groupEl.createEl('button', {
-                    cls: 'diwa-dh-nav-item',
-                    attr: { title: item.label, 'aria-label': item.label }
-                });
-                const iconWrap = btn.createEl('span', { cls: 'diwa-dh-nav-icon' });
-                setIcon(iconWrap, item.icon);
-                btn.createEl('span', { text: item.label, cls: 'diwa-dh-nav-label' });
-                btn.addEventListener('click', () => {
-                    if (item.tab === 'search') { this.plugin.activateSearchView(); }
-                    else { this.plugin.activateView(item.tab, false); }
+                this.renderSidebarButton(groupEl, {
+                    ...item,
+                    onClick: item.onClick ?? (() => this.plugin.activateView(item.tab, false)),
                 });
             }
         }
+
+        this.syncSidebarSelection();
+    }
+
+    private renderSidebarButton(
+        parent: HTMLElement,
+        item: { label: string; icon: string; tab: string; variant?: 'brand'; onClick: () => Promise<void> | void; },
+    ): void {
+        const btn = parent.createEl('button', {
+            cls: `diwa-dh-nav-item${item.variant === 'brand' ? ' is-brand' : ''}`,
+            attr: {
+                type: 'button',
+                title: item.label,
+                'aria-label': item.label,
+                'data-nav-target': item.tab,
+            }
+        });
+        const iconWrap = btn.createEl('span', { cls: 'diwa-dh-nav-icon' });
+        setIcon(iconWrap, item.icon);
+        btn.createEl('span', { text: item.label, cls: 'diwa-dh-nav-label' });
+        btn.addEventListener('click', () => {
+            this._lastSidebarTarget = item.tab;
+            this.syncSidebarSelection();
+            void item.onClick();
+        });
+    }
+
+    private syncSidebarSelection(): void {
+        if (!this._sidebarEl) {
+            return;
+        }
+
+        this._sidebarEl.querySelectorAll<HTMLElement>('.diwa-dh-nav-item[data-nav-target]').forEach((btn) => {
+            const target = btn.getAttribute('data-nav-target');
+            const isCurrent = target === this._lastSidebarTarget;
+            btn.toggleClass('is-current', isCurrent);
+            if (isCurrent) {
+                btn.setAttribute('aria-current', 'page');
+            } else {
+                btn.removeAttribute('aria-current');
+            }
+        });
     }
 
     // ── CENTER Column ─────────────────────────────────────────────────────────
@@ -434,19 +486,19 @@ export class DesktopHubView extends ItemView {
             titleRow.createEl('h2', { cls: 'diwa-dh-feed-section-title', text: 'Recent thoughts' });
             this._feedHeaderCountEl = titleRow.createEl('span', {
                 cls: 'diwa-dh-feed-section-count',
-                text: 'Syncing…',
+                text: '(Syncing…)',
             });
-            this._feedHeaderSubtitleEl = heading.createEl('p', {
+            this._feedHeaderSubtitleEl = titleRow.createEl('span', {
                 cls: 'diwa-dh-feed-section-subtitle',
-                text: 'Refreshing your latest non-archived thoughts.',
+                text: 'All contexts · Search titles + markdown · Syncing',
+            });
+            this._feedSearchSectionEl = header.createEl('div', {
+                cls: 'diwa-dh-feed-search-section diwa-dh-feed-control diwa-dh-feed-control--search',
             });
 
             const controls = this._feedSectionEl.createEl('div', { cls: 'diwa-dh-feed-controls' });
             this._contextFilterSectionEl = controls.createEl('div', {
                 cls: 'diwa-dh-feed-context-section diwa-dh-feed-control diwa-dh-feed-control--contexts',
-            });
-            this._feedSearchSectionEl = controls.createEl('div', {
-                cls: 'diwa-dh-feed-search-section diwa-dh-feed-control diwa-dh-feed-control--search',
             });
 
             const feedWrap = this._feedSectionEl.createEl('div', { cls: 'diwa-dh-feed-wrap' });
@@ -773,13 +825,15 @@ export class DesktopHubView extends ItemView {
         isLoading: boolean,
     ): void {
         if (this._feedHeaderCountEl) {
-            const countLabel = isLoading ? 'Syncing…' : `${filteredCount} ${filteredCount === 1 ? 'thought' : 'thoughts'}`;
+            const countLabel = isLoading
+                ? '(Syncing…)'
+                : `(${filteredCount} ${filteredCount === 1 ? 'thought' : 'thoughts'})`;
             this._feedHeaderCountEl.setText(countLabel);
         }
 
         if (!this._feedHeaderSubtitleEl) return;
         if (isLoading) {
-            this._feedHeaderSubtitleEl.setText('Refreshing your latest non-archived thoughts.');
+            this._feedHeaderSubtitleEl.setText('All contexts · Search titles + markdown · Syncing');
             return;
         }
 
@@ -793,14 +847,16 @@ export class DesktopHubView extends ItemView {
             const compactQuery = searchQuery.length > 32 ? `${searchQuery.slice(0, 29)}...` : searchQuery;
             segments.push(`Search: "${compactQuery}"`);
         } else {
-            segments.push('Search titles and markdown');
+            segments.push('Search titles + markdown');
         }
-        if (filteredCount > 0 && visibleCount < filteredCount) {
-            segments.push(`Showing ${visibleCount} of ${filteredCount}`);
+        if (filteredCount === 0) {
+            segments.push('0 shown');
+        } else if (visibleCount < filteredCount) {
+            segments.push(`${visibleCount}/${filteredCount} shown`);
         } else if (filteredCount > 0 && totalNonArchived > filteredCount) {
-            segments.push(`Filtered from ${totalNonArchived}`);
+            segments.push(`${filteredCount}/${totalNonArchived} shown`);
         } else {
-            segments.push('Latest non-archived thoughts');
+            segments.push('Newest first');
         }
         this._feedHeaderSubtitleEl.setText(segments.join(' · '));
     }
@@ -851,13 +907,7 @@ export class DesktopHubView extends ItemView {
             this._activeContext = 'all';
         }
 
-        const activeLabel = this._activeContext.toLowerCase() === 'all' ? 'All streams' : `#${this._activeContext}`;
-        const panel = parent.createEl('div', { cls: 'diwa-dh-feed-control-panel diwa-dh-feed-control-panel--contexts' });
-        const heading = panel.createEl('div', { cls: 'diwa-dh-feed-control-head' });
-        heading.createEl('span', { cls: 'diwa-dh-feed-control-eyebrow', text: 'Context' });
-        heading.createEl('span', { cls: 'diwa-dh-feed-control-summary', text: activeLabel });
-
-        const chipRow = panel.createEl('div', {
+        const chipRow = parent.createEl('div', {
             cls: 'diwa-dh-feed-contexts',
             attr: { 'aria-label': 'Thought context filters' },
         });
@@ -1299,15 +1349,7 @@ export class DesktopHubView extends ItemView {
     private renderFeedSearch(parent: HTMLElement): void {
         if (!this._feedSearchInputEl) {
             parent.empty();
-            const searchPanel = parent.createEl('div', { cls: 'diwa-dh-feed-search-panel' });
-            const searchHeader = searchPanel.createEl('div', { cls: 'diwa-dh-feed-control-head' });
-            searchHeader.createEl('span', { cls: 'diwa-dh-feed-control-eyebrow', text: 'Search' });
-            searchHeader.createEl('span', {
-                cls: 'diwa-dh-feed-control-summary',
-                text: this._feedSearchQuery.trim() ? 'Query active' : 'Titles and markdown',
-            });
-
-            const searchWrap = searchPanel.createEl('div', { cls: 'diwa-dh-feed-search-wrap' });
+            const searchWrap = parent.createEl('div', { cls: 'diwa-dh-feed-search-wrap' });
             const searchIcon = searchWrap.createEl('span', { cls: 'diwa-dh-feed-search-icon' });
             setIcon(searchIcon, 'search');
             const input = searchWrap.createEl('input', {
@@ -1324,10 +1366,6 @@ export class DesktopHubView extends ItemView {
                 const nextQuery = input.value;
                 if (nextQuery === this._feedSearchQuery) return;
                 this._feedSearchQuery = nextQuery;
-                const summaryEl = parent.querySelector('.diwa-dh-feed-control-summary') as HTMLElement | null;
-                if (summaryEl) {
-                    summaryEl.setText(this._feedSearchQuery.trim() ? 'Query active' : 'Titles and markdown');
-                }
                 this._visibleCount = 50;
                 this.scheduleFeedRefresh();
             });
@@ -1337,8 +1375,6 @@ export class DesktopHubView extends ItemView {
                 input.value = '';
                 if (!this._feedSearchQuery) return;
                 this._feedSearchQuery = '';
-                const summaryEl = parent.querySelector('.diwa-dh-feed-control-summary') as HTMLElement | null;
-                if (summaryEl) summaryEl.setText('Titles and markdown');
                 this._visibleCount = 50;
                 this.scheduleFeedRefresh();
             });
@@ -1348,10 +1384,6 @@ export class DesktopHubView extends ItemView {
 
         if (this._feedSearchInputEl.value !== this._feedSearchQuery) {
             this._feedSearchInputEl.value = this._feedSearchQuery;
-        }
-        const searchSummary = parent.querySelector('.diwa-dh-feed-control-summary') as HTMLElement | null;
-        if (searchSummary) {
-            searchSummary.setText(this._feedSearchQuery.trim() ? 'Query active' : 'Titles and markdown');
         }
     }
 

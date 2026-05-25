@@ -10,6 +10,7 @@ import { TabletHubView } from './views/TabletHubView';
 import { SearchView } from './views/SearchView';
 import { DiwaSettingTab } from './settings';
 import { EditEntryModal } from './modals/EditEntryModal';
+import { EditThoughtModal } from './modals/EditThoughtModal';
 import { EditTaskModal } from './modals/EditTaskModal';
 import { MobilePostComposerModal } from './modals/MobilePostComposerModal';
 import { ConfirmModal } from './modals/ConfirmModal';
@@ -882,25 +883,7 @@ export default class DiwaPlugin extends Plugin {
             return;
         }
 
-        new EditEntryModal(
-            this.app,
-            this,
-            content,
-            (thought.context ?? []).map((ctx) => `#${ctx}`).join(' '),
-            null,
-            false,
-            async (text, contexts) => {
-                const next = text.trim();
-                if (!next) return;
-                await this.getThoughtController().updateThought({
-                    filePath: thought.filePath,
-                    content: next,
-                    context: parseContextString(contexts),
-                    topic: thought.topic ?? undefined,
-                });
-            },
-            'Edit Thought',
-        ).open();
+        new EditThoughtModal(this.app, this, thought).open();
     }
 
     private async archiveThought(thought: ThoughtEntry): Promise<void> {

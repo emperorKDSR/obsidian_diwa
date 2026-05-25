@@ -395,6 +395,29 @@ export class ThoughtController {
         return !!updatedSource && !!updatedTarget;
     }
 
+    async unlinkThoughtFromThought(sourceId: string, targetId: string): Promise<boolean> {
+        const source = this.getThought(sourceId);
+        const target = this.getThought(targetId);
+        if (!source || !target) return false;
+        if (source.filePath === target.filePath) return true;
+
+        const targetRefs = new Set(unique([target.filePath, target.id ?? '']));
+        const sourceRefs = new Set(unique([source.filePath, source.id ?? '']));
+
+        const sourceLinks: ThoughtLinks = {
+            tasks: unique(source.links?.tasks ?? []),
+            thoughts: unique((source.links?.thoughts ?? []).filter((ref) => !targetRefs.has(ref.trim()))),
+        };
+        const targetLinks: ThoughtLinks = {
+            tasks: unique(target.links?.tasks ?? []),
+            thoughts: unique((target.links?.thoughts ?? []).filter((ref) => !sourceRefs.has(ref.trim()))),
+        };
+
+        const updatedSource = await this.updateThought({ ...source, links: sourceLinks });
+        const updatedTarget = await this.updateThought({ ...target, links: targetLinks });
+        return !!updatedSource && !!updatedTarget;
+    }
+
     async convertThoughtToTask(thoughtId: string, taskController: TaskController): Promise<boolean> {
         const thought = this.getThought(thoughtId);
         if (!thought) return false;
