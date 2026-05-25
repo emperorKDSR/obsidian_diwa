@@ -8547,6 +8547,309 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   color: var(--text-muted);
 }
 
+.diwa-gawa-workspace-bar {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: grid;
+  grid-template-columns: minmax(220px, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--gawa-shell-border);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--background-primary) 94%, transparent), color-mix(in srgb, var(--background-secondary) 32%, transparent)),
+    color-mix(in srgb, var(--background-primary) 94%, var(--background-secondary) 6%);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--background-primary) 86%, transparent);
+}
+
+.diwa-gawa-workspace-bar-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.diwa-gawa-workspace-eyebrow {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.diwa-gawa-workspace-identity {
+  gap: 3px;
+}
+
+.diwa-gawa-workspace-identity .diwa-gawa-header-title {
+  font-size: 1.48rem;
+  font-weight: 780;
+  letter-spacing: -0.04em;
+  text-transform: none;
+  color: var(--text-normal);
+}
+
+.diwa-gawa-workspace-identity .diwa-gawa-header-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.diwa-gawa-progress-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.diwa-gawa-stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--gawa-shell-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--background-secondary) 74%, transparent);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.diwa-gawa-stat-chip-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.diwa-gawa-stat-chip-value {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-normal);
+}
+
+.diwa-gawa-stat-chip--done {
+  border-color: color-mix(in srgb, var(--color-green) 22%, var(--gawa-shell-border) 78%);
+  background: color-mix(in srgb, var(--color-green) 12%, var(--background-secondary) 88%);
+}
+
+.diwa-gawa-stat-chip--done .diwa-gawa-stat-chip-value {
+  color: var(--color-green);
+}
+
+.diwa-gawa-stat-chip--focus {
+  border-color: color-mix(in srgb, var(--interactive-accent) 22%, var(--gawa-shell-border) 78%);
+  background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-secondary) 88%);
+}
+
+.diwa-gawa-stat-chip--focus .diwa-gawa-stat-chip-value {
+  color: var(--interactive-accent);
+}
+
+.diwa-gawa-stat-chip--overdue {
+  border-color: color-mix(in srgb, var(--text-error) 20%, var(--gawa-shell-border) 80%);
+  background: color-mix(in srgb, var(--text-error) 12%, var(--background-secondary) 88%);
+}
+
+.diwa-gawa-stat-chip--overdue .diwa-gawa-stat-chip-value {
+  color: var(--text-error);
+}
+
+.diwa-gawa-workspace-bar-right {
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.diwa-gawa-workspace-bar-right .diwa-gawa-capture {
+  min-width: 240px;
+  max-width: 320px;
+}
+
+.diwa-gawa-workspace-bar-right .diwa-gawa-capture-input {
+  height: 36px;
+  border-style: dashed;
+  background: color-mix(in srgb, var(--background-secondary) 82%, transparent);
+}
+
+.diwa-gawa-desktop-grid {
+  grid-template-columns: minmax(280px, 0.92fr) minmax(420px, 1.28fr) minmax(300px, 1.02fr);
+  gap: 18px;
+  padding: 18px 20px 20px;
+  align-items: stretch;
+}
+
+.diwa-gawa-column {
+  gap: 14px;
+  overflow: auto;
+  padding-right: 2px;
+  scrollbar-width: thin;
+}
+
+.diwa-gawa-column--center {
+  position: relative;
+}
+
+.diwa-gawa-pane-shell {
+  position: relative;
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--background-primary) 86%, transparent);
+}
+
+.diwa-gawa-pane-shell.is-primary-pane {
+  border-color: color-mix(in srgb, var(--interactive-accent) 18%, var(--gawa-shell-border) 82%);
+}
+
+.diwa-gawa-pane-shell.is-focus-pane {
+  background: color-mix(in srgb, var(--interactive-accent) 5%, var(--gawa-shell-surface) 95%);
+}
+
+.diwa-gawa-pane-shell--gawa-inbox {
+  flex: 1.15;
+}
+
+.diwa-gawa-pane-shell--gawa-projects {
+  flex: 0.85;
+}
+
+.diwa-gawa-pane-shell--gawa-today {
+  flex: 1.12;
+}
+
+.diwa-gawa-pane-shell--gawa-focus {
+  flex: 0.92;
+}
+
+.diwa-gawa-pane-shell--gawa-active {
+  flex: 1.05;
+}
+
+.diwa-gawa-pane-shell--gawa-backlog {
+  flex: 0.95;
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-list-header,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-list-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 15px 16px 12px;
+  background: color-mix(in srgb, var(--background-secondary-alt) 88%, var(--background-primary) 12%);
+  backdrop-filter: blur(12px);
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-pane-heading,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-pane-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-pane-eyebrow,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-pane-eyebrow {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-pane-title-row,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-pane-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-pane-title,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-pane-title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--text-normal);
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-pane-count,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-pane-count {
+  font-size: 11px;
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-pane-summary,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-pane-summary {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.diwa-gawa-pane-shell > .diwa-dh-task-list-section.is-drop-target,
+.diwa-gawa-mobile-pane-shell > .diwa-dh-task-list-section.is-drop-target {
+  background: color-mix(in srgb, var(--interactive-accent) 4%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--interactive-accent) 22%, var(--gawa-shell-border) 78%);
+}
+
+.diwa-gawa-pane-shell > .diwa-dh-task-list-section.is-drop-target .diwa-dh-task-list-header,
+.diwa-gawa-mobile-pane-shell > .diwa-dh-task-list-section.is-drop-target .diwa-dh-task-list-header {
+  border-bottom-color: color-mix(in srgb, var(--interactive-accent) 24%, var(--gawa-shell-border) 76%);
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-list,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-list {
+  gap: 8px;
+  padding: 10px 10px 12px;
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-empty,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+  margin: 10px;
+  padding: 18px 20px;
+  border: 1px dashed color-mix(in srgb, var(--background-modifier-border) 72%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--background-secondary) 58%, transparent);
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.diwa-gawa-pane-shell .diwa-dh-task-item.is-updated,
+.diwa-gawa-mobile-pane-shell .diwa-dh-task-item.is-updated {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 20px color-mix(in srgb, var(--interactive-accent) 10%, transparent);
+}
+
+@media (max-width: 1380px) {
+  .diwa-gawa-workspace-bar {
+    grid-template-columns: minmax(220px, 1fr);
+    justify-items: start;
+  }
+
+  .diwa-gawa-progress-strip {
+    justify-content: flex-start;
+  }
+
+  .diwa-gawa-workspace-bar-right {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .diwa-gawa-workspace-bar-right .diwa-gawa-capture {
+    min-width: min(320px, 100%);
+    max-width: 100%;
+  }
+}
+
 .diwa-gawa-mobile {
   display: flex;
   flex: 1;

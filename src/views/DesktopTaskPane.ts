@@ -44,6 +44,7 @@ export interface TaskPaneOptions {
     focusOnDrop?: boolean;
     allowDragDrop?: boolean;
     inlineContentRenderer?: (parent: HTMLElement) => void;
+    eyebrow?: string;
 }
 
 export interface TaskPaneHost {
@@ -463,6 +464,7 @@ export class TaskPane implements TaskPanePort {
     private readonly allowDragDrop: boolean;
     private readonly layoutVariant: 'default' | 'workspace-right';
     private readonly hooks: TaskItemHooks;
+    private readonly eyebrow?: string;
     readonly paneId: string;
     private pendingSnapshot: TaskEntry[] | null = null;
     private pendingFrame: number | null = null;
@@ -484,6 +486,7 @@ export class TaskPane implements TaskPanePort {
         this.focusOnDrop = options.focusOnDrop;
         this.allowDragDrop = options.allowDragDrop ?? false;
         this.layoutVariant = options.layoutVariant ?? 'default';
+        this.eyebrow = options.eyebrow;
         this.customFilter = options.filterFn ?? null;
         this.baseFilter = options.baseFilterFn ?? ((task) =>
             task.status === 'open'
@@ -528,8 +531,28 @@ export class TaskPane implements TaskPanePort {
             });
             filterParent = header.createEl('div', { cls: 'diwa-dh-task-feed-controls' });
         } else {
-            header.createEl('span', { text: this.title, cls: 'diwa-dh-task-list-title' });
-            this.countEl = header.createEl('span', { cls: 'diwa-dh-task-count' });
+            if (this.eyebrow) {
+                header.addClass('diwa-dh-task-pane-header');
+                const heading = header.createEl('div', { cls: 'diwa-dh-task-pane-heading' });
+                heading.createEl('span', {
+                    text: this.eyebrow,
+                    cls: 'diwa-dh-task-pane-eyebrow',
+                });
+                const titleRow = heading.createEl('div', { cls: 'diwa-dh-task-pane-title-row' });
+                titleRow.createEl('h3', {
+                    text: this.title,
+                    cls: 'diwa-dh-task-list-title diwa-dh-task-pane-title',
+                });
+                this.countEl = titleRow.createEl('span', {
+                    cls: 'diwa-dh-task-count diwa-dh-task-pane-count',
+                });
+                this.summaryEl = heading.createEl('p', {
+                    cls: 'diwa-dh-task-feed-summary diwa-dh-task-pane-summary',
+                });
+            } else {
+                header.createEl('span', { text: this.title, cls: 'diwa-dh-task-list-title' });
+                this.countEl = header.createEl('span', { cls: 'diwa-dh-task-count' });
+            }
         }
 
         if (this.showFilterPills) {
@@ -767,8 +790,10 @@ export class TaskPane implements TaskPanePort {
 
         if (this.presetFilter === 'upcoming') {
             if (task.due) {
-                const cutoff = moment().startOf('day').add(2, 'days').endOf('day');
-                if (!moment(task.due, 'YYYY-MM-DD').isSameOrBefore(cutoff, 'day')) return false;
+                const today = moment().startOf('day');
+                const cutoff = today.clone().add(2, 'days').endOf('day');
+                const dueDate = moment(task.due, 'YYYY-MM-DD');
+                if (dueDate.isBefore(today, 'day') || !dueDate.isSameOrBefore(cutoff, 'day')) return false;
             }
         }
 
@@ -913,6 +938,34 @@ export class TaskPane implements TaskPanePort {
     }
 
     private describeFeedState(count: number): string {
+        switch (this.paneId) {
+            case 'gawa-inbox':
+                return count > 0
+                    ? `${count} capture${count === 1 ? '' : 's'} waiting to be shaped`
+                    : 'Quick ideas land here first';
+            case 'gawa-projects':
+                return count > 0
+                    ? `${count} project-linked task${count === 1 ? '' : 's'} in play`
+                    : 'Project-linked tasks stay collected here';
+            case 'gawa-today':
+                return count > 0
+                    ? `${count} task${count === 1 ? '' : 's'} demanding attention today`
+                    : 'Only today and overdue work surfaces here';
+            case 'gawa-backlog':
+                return count > 0
+                    ? `${count} task${count === 1 ? '' : 's'} queued for later`
+                    : 'Future-facing work collects here';
+            case 'gawa-focus':
+                return count > 0
+                    ? `${count} task${count === 1 ? '' : 's'} in the spotlight`
+                    : 'Pin the few tasks that deserve full attention';
+            case 'gawa-active':
+                return count > 0
+                    ? `${count} task${count === 1 ? '' : 's'} actively moving`
+                    : 'Promoted tasks stay visible here';
+            default:
+                break;
+        }
         if (this.presetFilter === 'upcoming') {
             return count > 0
                 ? `${count} task${count === 1 ? '' : 's'} due in the next 2 days`

@@ -10,6 +10,7 @@ import { FastTaskCaptureModal, type FastTaskCapturePayload } from '../modals/Fas
 interface PaneConfig {
     paneId: string;
     title: string;
+    eyebrow: string;
     emptyMessage: string;
     baseFilterFn: TaskFilterFn;
     filterFn: TaskFilterFn;
@@ -40,6 +41,9 @@ export class GawaTab extends BaseTab {
     private readonly _paneMap = new Map<string, TaskPane>();
     private readonly _mobilePaneShells = new Map<MobileTabId, HTMLElement>();
     private readonly _mobileTabButtons = new Map<MobileTabId, HTMLElement>();
+    private _doneTodayStatEl: HTMLElement | null = null;
+    private _focusStatEl: HTMLElement | null = null;
+    private _overdueStatEl: HTMLElement | null = null;
     private _taskPending = 0;
     private _taskFilter: 'upcoming' | 'all' = 'all';
     private _taskIndexRecoveryInFlight = false;
@@ -73,6 +77,7 @@ export class GawaTab extends BaseTab {
         this._container = container;
         if (canReuseLayout) {
             this._taskController.syncFromIndex();
+            this.updateWorkspaceStats();
             return;
         }
 
@@ -107,15 +112,16 @@ export class GawaTab extends BaseTab {
             ]);
             this.renderColumn(grid, 'center', [
                 this.createTodayPaneConfig(),
-                this.createBacklogPaneConfig(),
+                this.createFocusPaneConfig(),
             ]);
             this.renderColumn(grid, 'right', [
-                this.createFocusPaneConfig(),
                 this.createActivePaneConfig(),
+                this.createBacklogPaneConfig(),
             ]);
         }
 
         this._taskController.syncFromIndex();
+        this.updateWorkspaceStats();
         void this.ensureTaskIndexRecovered();
     }
 
@@ -129,6 +135,7 @@ export class GawaTab extends BaseTab {
         const indexSize = this.plugin.index.taskIndex.size;
         console.log('[DIWA GAWA] onTasksRefresh', { indexSize, paneCount: this._paneMap.size });
         this._taskController.syncFromIndex();
+        this.updateWorkspaceStats();
     }
 
     onunload(): void {
@@ -153,6 +160,7 @@ export class GawaTab extends BaseTab {
                     taskCount: this.plugin.index.taskIndex.size,
                 });
                 this._taskController.syncFromIndex();
+                this.updateWorkspaceStats();
             }
         } catch (error) {
             console.error('[DIWA GAWA] task index recovery failed', error);
@@ -162,17 +170,27 @@ export class GawaTab extends BaseTab {
     }
 
     private renderHeader(parent: HTMLElement): void {
-        const header = parent.createEl('div', { cls: 'diwa-gawa-header' });
-        const titleGroup = header.createEl('div', { cls: 'diwa-gawa-header-title-group' });
-        titleGroup.createEl('h2', { text: 'GAWA', cls: 'diwa-gawa-header-title' });
+        const header = parent.createEl('div', { cls: 'diwa-gawa-header diwa-gawa-workspace-bar' });
+        const identity = header.createEl('div', { cls: 'diwa-gawa-workspace-bar-left' });
+        identity.createEl('span', { text: 'Task workspace', cls: 'diwa-gawa-workspace-eyebrow' });
+        const titleGroup = identity.createEl('div', { cls: 'diwa-gawa-header-title-group diwa-gawa-workspace-identity' });
+        titleGroup.createEl('h2', { text: 'Gawa', cls: 'diwa-gawa-header-title' });
         const subtitle = this.isPhoneLayout()
             ? 'Mobile Task Workspace'
             : this.isTabletLayout()
                 ? 'Tablet Task Workspace'
-                : 'Desktop Task Workspace';
+                : 'Desktop task cockpit';
         titleGroup.createEl('span', { text: subtitle, cls: 'diwa-gawa-header-subtitle' });
 
-        const actions = header.createEl('div', { cls: 'diwa-gawa-header-actions' });
+        const progressStrip = header.createEl('div', {
+            cls: 'diwa-gawa-progress-strip',
+            attr: { 'aria-label': 'Workspace progress' },
+        });
+        this._doneTodayStatEl = this.createWorkspaceStat(progressStrip, 'done', 'Done today');
+        this._focusStatEl = this.createWorkspaceStat(progressStrip, 'focus', 'Focus');
+        this._overdueStatEl = this.createWorkspaceStat(progressStrip, 'overdue', 'Overdue');
+
+        const actions = header.createEl('div', { cls: 'diwa-gawa-header-actions diwa-gawa-workspace-bar-right' });
         this.renderFastCapture(actions);
 
         const addBtn = actions.createEl('button', { cls: 'diwa-gawa-header-btn diwa-gawa-header-btn--primary' });
@@ -183,7 +201,41 @@ export class GawaTab extends BaseTab {
         const refreshBtn = actions.createEl('button', { cls: 'diwa-gawa-header-btn' });
         setIcon(refreshBtn, 'refresh-cw');
         refreshBtn.createEl('span', { text: 'Sync' });
-        refreshBtn.addEventListener('click', () => this._taskController.syncFromIndex());
+        refreshBtn.addEventListener('click', () => {
+            this._taskController.syncFromIndex();
+            this.updateWorkspaceStats();
+        });
+
+        this.updateWorkspaceStats();
+    }
+
+    private createWorkspaceStat(parent: HTMLElement, modifier: string, label: string): HTMLElement {
+        const chip = parent.createEl('div', { cls: `diwa-gawa-stat-chip diwa-gawa-stat-chip--${modifier}` });
+        chip.createEl('span', { cls: 'diwa-gawa-stat-chip-label', text: label });
+        return chip.createEl('span', { cls: 'diwa-gawa-stat-chip-value', text: '0' });
+    }
+
+    private updateWorkspaceStats(): void {
+        const tasks = Array.from(this.plugin.index.taskIndex.values());
+        const today = moment().startOf('day');
+        const doneToday = tasks.filter((task) =>
+            task.status === 'done'
+            && task.modified
+            && moment(task.modified, ['YYYY-MM-DD HH:mm:ss', moment.ISO_8601], true).isSame(today, 'day')
+        ).length;
+        const focusCount = tasks.filter((task) =>
+            this.getBucketStatus(task) !== 'done'
+            && !!task.focus
+        ).length;
+        const overdueCount = tasks.filter((task) => {
+            if (this.getBucketStatus(task) === 'done' || !task.due) return false;
+            const due = moment(task.due, 'YYYY-MM-DD', true);
+            return due.isValid() && due.isBefore(today, 'day');
+        }).length;
+
+        this._doneTodayStatEl?.setText(String(doneToday));
+        this._focusStatEl?.setText(String(focusCount));
+        this._overdueStatEl?.setText(String(overdueCount));
     }
 
     private renderFastCapture(parent: HTMLElement): void {
@@ -192,7 +244,7 @@ export class GawaTab extends BaseTab {
             cls: 'diwa-gawa-capture-input',
             attr: {
                 type: 'text',
-                placeholder: 'Fast capture… (Enter add, Ctrl/Cmd+Enter refine)',
+                placeholder: 'Quick add to inbox…',
                 'aria-label': 'Fast capture task',
             },
         }) as HTMLInputElement;
@@ -216,6 +268,7 @@ export class GawaTab extends BaseTab {
                     this._taskController.syncFromIndex();
                 }
                 input.value = '';
+                this.updateWorkspaceStats();
             } catch (error) {
                 console.error('[DIWA GAWA] Failed fast capture task', error);
             } finally {
@@ -241,8 +294,14 @@ export class GawaTab extends BaseTab {
         configs: PaneConfig[],
     ): void {
         const column = parent.createEl('div', { cls: `diwa-gawa-column diwa-gawa-column--${columnKind}` });
+        column.setAttr('data-gawa-column', columnKind);
         for (const config of configs) {
-            const shell = column.createEl('section', { cls: 'diwa-gawa-pane-shell' });
+            const shell = column.createEl('section', {
+                cls: `diwa-gawa-pane-shell diwa-gawa-pane-shell--${config.paneId}`,
+            });
+            shell.setAttr('data-gawa-pane', config.paneId);
+            if (config.paneId === 'gawa-focus') shell.addClass('is-focus-pane');
+            if (config.paneId === 'gawa-today' || config.paneId === 'gawa-focus') shell.addClass('is-primary-pane');
             this.mountPane(shell, config);
         }
     }
@@ -300,6 +359,7 @@ export class GawaTab extends BaseTab {
         const pane = new TaskPane(this._paneHost, parent, this._taskController, {
             paneId: config.paneId,
             title: config.title,
+            eyebrow: config.eyebrow,
             emptyMessage: config.emptyMessage,
             showFilterPills: false,
             presetFilter: 'all',
@@ -357,6 +417,7 @@ export class GawaTab extends BaseTab {
                 if (shouldFocus) {
                     await this._taskController.moveTaskToBucket(created.path, 'active', { focus: true });
                 }
+                this.updateWorkspaceStats();
             } catch (error) {
                 console.error('[DIWA GAWA] Failed inbox inline capture', error);
             } finally {
@@ -475,6 +536,7 @@ export class GawaTab extends BaseTab {
             } else {
                 this._taskController.syncFromIndex();
             }
+            this.updateWorkspaceStats();
         } catch (error) {
             console.error('[DIWA GAWA] Failed to create task', error);
         }
@@ -603,8 +665,9 @@ export class GawaTab extends BaseTab {
     private createInboxPaneConfig(): PaneConfig {
         return {
             paneId: 'gawa-inbox',
-            title: 'INBOX',
-            emptyMessage: 'Inbox is clear.',
+            title: 'Inbox',
+            eyebrow: 'Capture lane',
+            emptyMessage: 'Inbox is clear. New quick captures land here first.',
             bucketOnDrop: 'backlog',
             focusOnDrop: false,
             baseFilterFn: (task) => this.getBucketStatus(task) === 'backlog',
@@ -615,8 +678,9 @@ export class GawaTab extends BaseTab {
     private createProjectsPaneConfig(): PaneConfig {
         return {
             paneId: 'gawa-projects',
-            title: 'PROJECTS',
-            emptyMessage: 'No project tasks.',
+            title: 'Projects',
+            eyebrow: 'Planning lane',
+            emptyMessage: 'No project-linked work yet.',
             bucketOnDrop: 'backlog',
             focusOnDrop: false,
             baseFilterFn: (task) => this.getBucketStatus(task) === 'backlog',
@@ -627,8 +691,9 @@ export class GawaTab extends BaseTab {
     private createTodayPaneConfig(): PaneConfig {
         return {
             paneId: 'gawa-today',
-            title: 'TODAY',
-            emptyMessage: 'Nothing due today.',
+            title: 'Today',
+            eyebrow: 'Execution lane',
+            emptyMessage: 'Nothing is demanding attention today.',
             bucketOnDrop: 'active',
             focusOnDrop: false,
             baseFilterFn: (task) => this.getBucketStatus(task) !== 'done',
@@ -645,8 +710,9 @@ export class GawaTab extends BaseTab {
     private createBacklogPaneConfig(): PaneConfig {
         return {
             paneId: 'gawa-backlog',
-            title: 'BACKLOG',
-            emptyMessage: 'Backlog is empty.',
+            title: 'Backlog',
+            eyebrow: 'Queue',
+            emptyMessage: 'Backlog is empty. Future work will queue here.',
             bucketOnDrop: 'backlog',
             focusOnDrop: false,
             baseFilterFn: (task) => this.getBucketStatus(task) === 'backlog',
@@ -674,8 +740,9 @@ export class GawaTab extends BaseTab {
 
         return {
             paneId: 'gawa-focus',
-            title: 'FOCUS',
-            emptyMessage: 'No focus candidates.',
+            title: 'Focus',
+            eyebrow: 'Spotlight',
+            emptyMessage: 'No focus candidates right now.',
             bucketOnDrop: 'active',
             focusOnDrop: true,
             baseFilterFn: (task) => this.getBucketStatus(task) !== 'done',
@@ -691,8 +758,9 @@ export class GawaTab extends BaseTab {
     private createActivePaneConfig(): PaneConfig {
         return {
             paneId: 'gawa-active',
-            title: 'ACTIVE',
-            emptyMessage: 'No active tasks.',
+            title: 'Active',
+            eyebrow: 'Momentum',
+            emptyMessage: 'No active tasks in motion.',
             bucketOnDrop: 'active',
             focusOnDrop: false,
             baseFilterFn: (task) => this.getBucketStatus(task) === 'active',

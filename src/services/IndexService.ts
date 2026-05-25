@@ -548,6 +548,13 @@ export class IndexService {
             ...IndexService.normalizeLinksArray(fm.links, 'thoughts'),
         ]));
 
+        // Guard against a stale disk read clobbering a newer optimistic in-memory update.
+        const existingEntry = this.taskIndex.get(file.path);
+        if (existingEntry && existingEntry.lastUpdate > file.stat.mtime) {
+            if (!skipRebuild) this.rebuildCalculatedState();
+            return;
+        }
+
         this.taskIndex.set(file.path, {
             id: normalizedTaskId ?? file.path,
             filePath: file.path,
