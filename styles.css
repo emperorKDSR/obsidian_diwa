@@ -4962,21 +4962,21 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 
 .diwa-dh-right-resize {
   position: relative;
-  flex: 0 0 12px;
+  flex: 0 0 16px;
   align-self: stretch;
   cursor: col-resize;
   user-select: none;
   touch-action: none;
-  background: transparent;
+  background: color-mix(in srgb, var(--background-secondary) 68%, transparent);
 }
 
 .diwa-dh-right-resize::before {
   content: '';
   position: absolute;
-  inset: 12px 5px;
+  inset: 10px 6px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--diwa-dh-border) 88%, transparent);
-  opacity: 0.7;
+  background: color-mix(in srgb, var(--text-faint) 38%, transparent);
+  opacity: 0.9;
   transition: background-color 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
 }
 
@@ -6062,7 +6062,7 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 }
 
 /* ── Responsive fallback: narrow windows ───────────────────────── */
-@media (max-width: 900px) {
+@media (max-width: 768px) {
   .diwa-dh-cols { flex-direction: column; }
   .diwa-dh-sidebar {
     width: 100%;
