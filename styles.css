@@ -7995,6 +7995,8 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   padding: 0;
   font-size: 13px;
   line-height: 1.45;
+  container-type: inline-size;
+  container-name: gawa-workspace;
   color: var(--text-normal);
   background: var(--gawa-shell-bg);
 }
@@ -8935,6 +8937,83 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   .diwa-gawa-workspace-bar-right .diwa-gawa-capture {
     min-width: min(320px, 100%);
     max-width: 100%;
+  }
+}
+
+@container gawa-workspace (max-width: 1320px) {
+  .diwa-gawa-workspace-bar {
+    grid-template-columns: minmax(220px, 1fr);
+    justify-items: start;
+  }
+
+  .diwa-gawa-progress-strip {
+    justify-content: flex-start;
+  }
+
+  .diwa-gawa-workspace-bar-right {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .diwa-gawa-workspace-bar-right .diwa-gawa-capture {
+    min-width: min(320px, 100%);
+    max-width: 100%;
+  }
+
+  .diwa-gawa-desktop-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: row dense;
+    align-content: start;
+    overflow-y: auto;
+  }
+
+  .diwa-gawa-desktop-grid > .diwa-gawa-column {
+    display: contents;
+  }
+
+  .diwa-gawa-desktop-grid .diwa-gawa-pane-shell {
+    min-height: clamp(280px, 36vh, 460px);
+  }
+}
+
+@container gawa-workspace (max-width: 980px) {
+  .diwa-gawa-workspace-bar {
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .diwa-gawa-progress-strip {
+    width: 100%;
+  }
+
+  .diwa-gawa-workspace-bar-right .diwa-gawa-capture {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  .diwa-gawa-workspace-bar-right .diwa-gawa-header-btn {
+    flex: 1 1 calc(50% - 4px);
+    justify-content: center;
+  }
+
+  .diwa-gawa-desktop-grid,
+  .diwa-gawa-tablet-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    padding: 16px;
+    align-content: start;
+    overflow-y: auto;
+  }
+
+  .diwa-gawa-desktop-grid > .diwa-gawa-column,
+  .diwa-gawa-tablet-grid > .diwa-gawa-column {
+    display: contents;
+  }
+
+  .diwa-gawa-desktop-grid .diwa-gawa-pane-shell,
+  .diwa-gawa-tablet-grid .diwa-gawa-pane-shell {
+    min-height: clamp(260px, 34vh, 420px);
   }
 }
 

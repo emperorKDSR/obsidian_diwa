@@ -947,6 +947,7 @@ export class DesktopHubView extends ItemView {
         if (this._activeContext !== 'all' && !contexts.some((ctx) => ctx.toLowerCase() === this._activeContext.toLowerCase())) {
             this._activeContext = 'all';
         }
+        this.updateCaptureHint();
 
         const chipRow = parent.createEl('div', {
             cls: 'diwa-dh-feed-contexts',
@@ -972,6 +973,25 @@ export class DesktopHubView extends ItemView {
                 this.scheduleFeedRefresh();
             });
         }
+    }
+
+    private getSelectedCaptureContexts(): string[] {
+        const activeContext = this._activeContext.trim();
+        if (!activeContext || activeContext.toLowerCase() === 'all') {
+            return [];
+        }
+        const matchedContext = this.plugin.getContexts().find((context) => context.toLowerCase() === activeContext.toLowerCase());
+        return matchedContext ? [matchedContext] : [];
+    }
+
+    private updateCaptureHint(): void {
+        if (!this._captureHintEl) return;
+        const selectedContext = this.getSelectedCaptureContexts()[0];
+        this._captureHintEl.setText(
+            selectedContext
+                ? `Saving to #${selectedContext}  •  Enter → save  •  Shift+Enter → multiline`
+                : 'Enter → save  •  Shift+Enter → multiline',
+        );
     }
 
     private matchesThoughtSearch(thought: ThoughtEntry, query: string): boolean {
@@ -1329,7 +1349,6 @@ export class DesktopHubView extends ItemView {
             });
             this._captureInputEl = textarea;
             this._captureHintEl = contextHint;
-            this._captureHintEl.setText('Enter → save  •  Shift+Enter → multiline');
 
             const autosize = () => {
                 textarea.style.height = 'auto';
@@ -1373,7 +1392,10 @@ export class DesktopHubView extends ItemView {
                 this._capturePending++;
                 textarea.disabled = true;
                 try {
-                    const created = await this._thoughtController.addThought({ content: raw, context: [] });
+                    const created = await this._thoughtController.addThought({
+                        content: raw,
+                        context: this.getSelectedCaptureContexts(),
+                    });
                     if (!created) {
                         return;
                     }
@@ -1385,6 +1407,7 @@ export class DesktopHubView extends ItemView {
                 }
             });
         }
+        this.updateCaptureHint();
     }
 
     private renderFeedSearch(parent: HTMLElement): void {
