@@ -21,9 +21,12 @@ interface JournalEditorState extends JournalComposerValue {
     modified?: string;
 }
 
+type DesktopJournalMode = 'new' | 'existing';
+
 export class JournalTab extends BaseTab {
     private editorState: JournalEditorState = this.createBlankState();
     private selectedPath: string | null = null;
+    private desktopMode: DesktopJournalMode = 'existing';
     private focusComposerOnRender = false;
 
     render(container: HTMLElement) {
@@ -166,7 +169,7 @@ export class JournalTab extends BaseTab {
                     const entry = entries.find((item) => item.filePath === this.editorState.filePath);
                     if (entry) this.loadEntry(entry, false);
                 } else {
-                    this.startNewEntry(false);
+                    this.loadDesktopFallbackEntry(entries, false);
                 }
                 this.view.renderView();
             },
@@ -176,8 +179,10 @@ export class JournalTab extends BaseTab {
                     if (!path) return;
                     new ConfirmModal(this.app, 'Move this journal entry to trash?', async () => {
                         await this.vault.deleteFile(path, 'thoughts');
-                        this.selectedPath = null;
-                        this.editorState = this.createBlankState();
+                        this.loadDesktopFallbackEntry(
+                            entries.filter((entry) => entry.filePath !== path),
+                            false,
+                        );
                         this.view.renderView();
                     }).open();
                 }
@@ -246,9 +251,17 @@ export class JournalTab extends BaseTab {
     }
 
     private ensureDesktopState(entries: ThoughtEntry[]): void {
+        if (this.desktopMode === 'new') {
+            if (this.editorState.filePath) {
+                this.startNewEntry(false);
+            }
+            return;
+        }
+
         if (this.editorState.filePath) {
             const current = entries.find((entry) => entry.filePath === this.editorState.filePath);
             if (current) return;
+            this.selectedPath = null;
             this.editorState = this.createBlankState();
         }
 
@@ -261,12 +274,12 @@ export class JournalTab extends BaseTab {
             }
         }
 
-        if (entries.length > 0 && !this.editorState.title.trim() && !this.editorState.body.trim()) {
+        if (entries.length > 0) {
             this.loadEntry(entries[0], false);
             return;
         }
 
-        if (entries.length === 0 && !this.editorState.filePath) {
+        if (!this.editorState.filePath) {
             this.startNewEntry(false);
         }
     }
@@ -278,6 +291,7 @@ export class JournalTab extends BaseTab {
     }
 
     private loadEntry(entry: ThoughtEntry, autoFocus: boolean): void {
+        this.desktopMode = 'existing';
         this.selectedPath = entry.filePath;
         this.editorState = {
             filePath: entry.filePath,
@@ -292,9 +306,18 @@ export class JournalTab extends BaseTab {
     }
 
     private startNewEntry(autoFocus: boolean): void {
+        this.desktopMode = 'new';
         this.selectedPath = null;
         this.editorState = this.createBlankState();
         this.focusComposerOnRender = autoFocus;
+    }
+
+    private loadDesktopFallbackEntry(entries: ThoughtEntry[], autoFocus: boolean): void {
+        if (entries.length > 0) {
+            this.loadEntry(entries[0], autoFocus);
+            return;
+        }
+        this.startNewEntry(autoFocus);
     }
 
     private createBlankState(overrides: Partial<JournalEditorState> = {}): JournalEditorState {
