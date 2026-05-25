@@ -485,6 +485,15 @@ export default class DiwaPlugin extends Plugin {
 	    if (this.taskReflection) this.taskReflection.updateSettings(this.settings);
 	    if (this.refreshCoordinator) this.refreshCoordinator.updateSettings(this.settings);
         this.applyMobileCssVars();
+        if (this.index?.tasksFolderChanged()) {
+            await this.index.buildTaskIndex();
+            this.index.rebuildCalculatedState();
+            const normalizedTasks = this.normalizeIndexedTasks(Array.from(this.index.taskIndex.values()));
+            this.taskIndex.set(normalizedTasks);
+            this.controller?.syncFromIndex();
+            this.refreshOpenTaskPanes();
+            this.notifyRefresh('tasks');
+        }
 	}
 
     private applyMobileCssVars(): void {

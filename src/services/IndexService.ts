@@ -166,10 +166,15 @@ export class IndexService {
     // Performance Cache (Synchronous Access)
     radarQueue: TaskEntry[] = [];
     totalDues: number = 0;
+    private _activeTasksFolder: string;
+    private _lastIndexedTasksFolderSetting: string;
 
     constructor(app: App, settings: DiwaSettings) {
         this.app = app;
         this.settings = settings;
+        const initialTasksFolder = this.getConfiguredTasksFolder();
+        this._activeTasksFolder = initialTasksFolder;
+        this._lastIndexedTasksFolderSetting = initialTasksFolder;
     }
 
     private normalizeVaultPath(path: string): string {
@@ -185,6 +190,18 @@ export class IndexService {
         const normalizedFolder = this.normalizeVaultPath(folder).toLowerCase();
         if (!normalizedFolder) return false;
         return normalizedPath === normalizedFolder || normalizedPath.startsWith(`${normalizedFolder}/`);
+    }
+
+    private getConfiguredTasksFolder(): string {
+        return this.normalizeVaultPath(this.settings.tasksFolder || '000 Bin/DIWA Gawa');
+    }
+
+    private getTaskMarkdownFilesForFolder(folder: string): TFile[] {
+        return this.app.vault.getMarkdownFiles().filter((file) =>
+            this.pathIsInFolder(file.path, folder)
+            && file.path.toLowerCase().endsWith('.md')
+            && !file.path.toLowerCase().includes('/trash/'),
+        );
     }
 
     updateSettings(settings: DiwaSettings) {
@@ -334,37 +351,56 @@ export class IndexService {
     }
 
     async buildTaskIndex(): Promise<void> {
+        const configuredFolder = this.getConfiguredTasksFolder();
+        const fallbackFolders = ['000 Bin/GAWA', '000 Bin/DIWA Gawa']
+            .map((folder) => this.normalizeVaultPath(folder))
+            .filter(Boolean)
+            .filter((folder, index, folders) => folders.findIndex((candidate) => candidate.toLowerCase() === folder.toLowerCase()) === index)
+            .filter((folder) => folder.toLowerCase() !== configuredFolder.toLowerCase());
+        const candidateFolders = [configuredFolder, ...fallbackFolders];
+
         this.taskIndex.clear();
-        let files = this.app.vault.getMarkdownFiles().filter(f => this.isTaskFile(f.path));
-        if (files.length === 0) {
-            const fallbackFolders = ['000 Bin/GAWA', '000 Bin/DIWA Gawa'];
-            const configuredFolder = this.normalizeVaultPath(this.settings.tasksFolder || '');
-            for (const folder of fallbackFolders) {
-                const normalizedFolder = this.normalizeVaultPath(folder);
-                if (!normalizedFolder || normalizedFolder.toLowerCase() === configuredFolder.toLowerCase()) continue;
-                const fallbackFiles = this.app.vault.getMarkdownFiles().filter((f) =>
-                    this.pathIsInFolder(f.path, normalizedFolder)
-                    && f.path.toLowerCase().endsWith('.md')
-                    && !f.path.toLowerCase().includes('/trash/')
-                );
-                if (fallbackFiles.length === 0) continue;
-                console.warn('[DIWA IndexService] task folder fallback engaged', {
+        this._activeTasksFolder = configuredFolder;
+
+        for (const folder of candidateFolders) {
+            const files = this.getTaskMarkdownFilesForFolder(folder);
+            if (files.length === 0) continue;
+            this.taskIndex.clear();
+
+            // arch-02: Pass skipRebuild=true — rebuildCalculatedState() called once in buildIndices()
+            for (const f of files) {
+                try {
+                    await this.indexTaskFile(f, true);
+                } catch (error) {
+                    console.warn('[DIWA IndexService] skipped task file due indexing error', { path: f.path, error });
+                }
+            }
+
+            if (this.taskIndex.size > 0) {
+                if (folder.toLowerCase() !== configuredFolder.toLowerCase()) {
+                    console.warn('[DIWA IndexService] task folder fallback engaged', {
+                        configuredFolder: this.settings.tasksFolder,
+                        fallbackFolder: folder,
+                        fileCount: files.length,
+                        indexedTaskCount: this.taskIndex.size,
+                    });
+                }
+                this._activeTasksFolder = folder;
+                this._lastIndexedTasksFolderSetting = configuredFolder;
+                return;
+            }
+
+            if (folder.toLowerCase() === configuredFolder.toLowerCase()) {
+                console.warn('[DIWA IndexService] configured task folder contained no indexable task files', {
                     configuredFolder: this.settings.tasksFolder,
-                    fallbackFolder: folder,
-                    fileCount: fallbackFiles.length,
+                    fileCount: files.length,
                 });
-                files = fallbackFiles;
-                break;
             }
         }
-        // arch-02: Pass skipRebuild=true — rebuildCalculatedState() called once in buildIndices()
-        for (const f of files) {
-            try {
-                await this.indexTaskFile(f, true);
-            } catch (error) {
-                console.warn('[DIWA IndexService] skipped task file due indexing error', { path: f.path, error });
-            }
-        }
+
+        this.taskIndex.clear();
+        this._activeTasksFolder = configuredFolder;
+        this._lastIndexedTasksFolderSetting = configuredFolder;
     }
 
     async indexThoughtFile(file: TFile) {
@@ -452,7 +488,10 @@ export class IndexService {
             ...(fallbackFrontmatter ?? {}),
             ...(cacheFrontmatter ?? {}),
         } as Record<string, any>;
-        if (Object.keys(fm).length === 0) return;
+        if (Object.keys(fm).length === 0) {
+            console.warn('[DIWA IndexService] indexTaskFile: no parseable frontmatter, skipping', { path: file.path });
+            return;
+        }
         const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').trim();
         const rawWorkflowStatus = String(pickFrontmatter(['status', 'state']) ?? 'backlog').toLowerCase().trim();
         const normalizedTaskIdValue = pickFrontmatter(['taskId', 'taskID']);
@@ -560,11 +599,15 @@ export class IndexService {
     }
 
     isTaskFile(path: string): boolean {
-        const folder = this.settings.tasksFolder || '000 Bin/DIWA Gawa';
+        const folder = this._activeTasksFolder || this.getConfiguredTasksFolder();
         const normalizedPath = this.normalizeVaultPath(path);
         return this.pathIsInFolder(normalizedPath, folder)
             && normalizedPath.toLowerCase().endsWith('.md')
             && !normalizedPath.toLowerCase().includes('/trash/');
+    }
+
+    tasksFolderChanged(): boolean {
+        return this.getConfiguredTasksFolder().toLowerCase() !== this._lastIndexedTasksFolderSetting.toLowerCase();
     }
 
     isDueFile(path: string): boolean {
