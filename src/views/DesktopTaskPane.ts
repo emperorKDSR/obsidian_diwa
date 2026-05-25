@@ -51,6 +51,7 @@ export interface TaskPaneHost {
     plugin: any;
     _taskPending: number;
     _taskFilter: 'upcoming' | 'all';
+    getCaptureContextSnapshot?: () => string[];
 }
 
 const DEBUG = false;
@@ -103,6 +104,7 @@ export class DesktopTaskPaneView implements TaskPanePort {
     private listView: TaskPane | null = null;
     private mounted = false;
     private captureSurfaceEl: HTMLElement | null = null;
+    private refreshCaptureContextState: (() => void) | null = null;
 
     constructor(
         private view: TaskPaneHost,
@@ -138,18 +140,18 @@ export class DesktopTaskPaneView implements TaskPanePort {
             });
             captureHeader.createEl('span', {
                 cls: 'diwa-dh-task-capture-eyebrow',
-                text: 'Task capture',
+                text: 'Quick task',
             });
             const captureHeading = captureHeader.createEl('div', {
                 cls: 'diwa-dh-task-capture-heading',
             });
             captureHeading.createEl('h2', {
                 cls: 'diwa-dh-task-capture-title',
-                text: 'Add the next task',
+                text: 'Add task',
             });
             captureHeading.createEl('p', {
                 cls: 'diwa-dh-task-capture-summary',
-                text: 'Quick capture with optional contexts and due date',
+                text: 'Optional context + due',
             });
             const captureBody = this.captureSurfaceEl.createEl('div', {
                 cls: 'diwa-dh-task-capture-body',
@@ -168,6 +170,10 @@ export class DesktopTaskPaneView implements TaskPanePort {
         });
         this.mounted = true;
         this.controller.registerPane(this);
+    }
+
+    refreshCaptureContext(): void {
+        this.refreshCaptureContextState?.();
     }
 
     syncTasks(tasks: TaskEntry[]): void {
@@ -209,6 +215,7 @@ export class DesktopTaskPaneView implements TaskPanePort {
         this.rootEl.empty();
         this.mounted = false;
         this.captureSurfaceEl = null;
+        this.refreshCaptureContextState = null;
     }
 
     private renderTaskQuickInput(parent: HTMLElement, captureSurfaceEl?: HTMLElement): void {
@@ -220,28 +227,66 @@ export class DesktopTaskPaneView implements TaskPanePort {
         const chipRow = section.createEl('div', { cls: 'diwa-dh-task-chip-row' });
         let contexts: string[] = [];
         let dueDate: string | null = null;
+        let draftContextSnapshot: string[] | null = null;
+        let inheritedContextsSeeded = false;
 
-        const addChip = (tag: string) => {
-            if (contexts.includes(tag)) return;
-            contexts.push(tag);
-            const chip = chipRow.createEl('span', { cls: 'diwa-dh-chip', text: `#${tag}` });
+        const getContextFilterSnapshot = (): string[] => {
+            if (draftContextSnapshot) {
+                return [...draftContextSnapshot];
+            }
+            return Array.from(new Set(
+                (this.view.getCaptureContextSnapshot?.() ?? [])
+                    .map((value) => value.trim())
+                    .filter(Boolean),
+            ));
+        };
+
+        const lockDraftContextSnapshot = (): string[] => {
+            if (!draftContextSnapshot) {
+                draftContextSnapshot = getContextFilterSnapshot();
+            }
+            return [...draftContextSnapshot];
+        };
+
+        const insertChip = (tag: string, options: { sync?: boolean } = {}) => {
+            const normalizedTag = tag.trim();
+            if (!normalizedTag || contexts.some((context) => context.toLowerCase() === normalizedTag.toLowerCase())) return;
+            contexts.push(normalizedTag);
+            const chip = chipRow.createEl('span', { cls: 'diwa-dh-chip', text: `#${normalizedTag}` });
             chip.addEventListener('click', () => {
-                contexts = contexts.filter(c => c !== tag);
+                contexts = contexts.filter((context) => context.toLowerCase() !== normalizedTag.toLowerCase());
                 chip.remove();
                 syncCaptureSurfaceState();
             });
+            if (options.sync !== false) {
+                syncCaptureSurfaceState();
+            }
+        };
+
+        const ensureInheritedContexts = () => {
+            const inheritedContexts = lockDraftContextSnapshot();
+            if (inheritedContextsSeeded) return;
+            inheritedContextsSeeded = true;
+            for (const context of inheritedContexts) {
+                insertChip(context, { sync: false });
+            }
             syncCaptureSurfaceState();
+        };
+
+        const addChip = (tag: string) => {
+            ensureInheritedContexts();
+            insertChip(tag);
         };
 
         const textarea = section.createEl('textarea', {
             cls: 'diwa-dh-task-textarea',
-            attr: { placeholder: 'Add a task… (Enter save, Ctrl/Cmd+Enter refine)', rows: '1' }
+            attr: { rows: '1' }
         }) as HTMLTextAreaElement;
         const footer = section.createEl('div', { cls: 'diwa-dh-task-capture-footer' });
         const draftSummaryEl = footer.createEl('span', { cls: 'diwa-dh-task-capture-draft' });
         footer.createEl('span', {
             cls: 'diwa-dh-task-capture-shortcuts',
-            text: 'Enter save • Ctrl/Cmd+Enter refine',
+            text: 'Ctrl/Cmd+Enter refine',
         });
 
         const syncHeight = () => {
@@ -250,21 +295,46 @@ export class DesktopTaskPaneView implements TaskPanePort {
             textarea.style.height = `${textarea.scrollHeight}px`;
         };
 
+        const updatePlaceholder = () => {
+            const previewContexts = getContextFilterSnapshot();
+            textarea.placeholder = previewContexts.length > 0
+                ? `Add a task in ${previewContexts.map((context) => `#${context}`).join(' ')}…`
+                : 'Add a task…';
+        };
+
         const updateCaptureSummary = () => {
             const parts: string[] = [];
             if (textarea.value.trim()) parts.push('Draft ready');
-            if (contexts.length) parts.push(`${contexts.length} context${contexts.length === 1 ? '' : 's'}`);
+            if (contexts.length === 1) {
+                parts.push(`#${contexts[0]}`);
+            } else if (contexts.length > 1) {
+                parts.push(`${contexts.length} contexts`);
+            }
             if (dueDate) {
                 const parsedDue = moment(dueDate, 'YYYY-MM-DD', true);
                 parts.push(`Due ${parsedDue.isValid() ? parsedDue.format('MMM D') : dueDate}`);
             }
-            draftSummaryEl.setText(parts.join(' • ') || 'Quick add with optional contexts or due date');
+            if (parts.length > 0) {
+                draftSummaryEl.setText(parts.join(' • '));
+                return;
+            }
+            const inheritedContexts = getContextFilterSnapshot();
+            draftSummaryEl.setText(
+                inheritedContexts.length === 1
+                    ? `New tasks use #${inheritedContexts[0]}`
+                    : 'Quick add',
+            );
         };
 
         const syncCaptureSurfaceState = () => {
+            const hasDraft = textarea.value.trim().length > 0 || contexts.length > 0 || !!dueDate;
+            if (!hasDraft) {
+                draftContextSnapshot = null;
+                inheritedContextsSeeded = false;
+            }
+            updatePlaceholder();
             updateCaptureSummary();
             if (!captureSurfaceEl) return;
-            const hasDraft = textarea.value.trim().length > 0 || contexts.length > 0 || !!dueDate;
             captureSurfaceEl.setAttr('data-capture-state', hasDraft ? 'draft' : 'empty');
             captureSurfaceEl.setAttr('data-has-contexts', contexts.length > 0 ? 'true' : 'false');
             captureSurfaceEl.setAttr('data-has-due', dueDate ? 'true' : 'false');
@@ -280,6 +350,7 @@ export class DesktopTaskPaneView implements TaskPanePort {
             syncHeight();
         });
         textarea.addEventListener('input', () => {
+            ensureInheritedContexts();
             syncHeight();
             syncTaskPendingState();
         });
@@ -290,6 +361,7 @@ export class DesktopTaskPaneView implements TaskPanePort {
             this.view.app,
             textarea,
             (d) => {
+                ensureInheritedContexts();
                 dueDate = d;
                 syncCaptureSurfaceState();
             },
@@ -310,6 +382,8 @@ export class DesktopTaskPaneView implements TaskPanePort {
             textarea.style.overflowY = '';
             contexts = [];
             dueDate = null;
+            draftContextSnapshot = null;
+            inheritedContextsSeeded = false;
             chipRow.empty();
             syncCaptureSurfaceState();
         };
@@ -317,6 +391,7 @@ export class DesktopTaskPaneView implements TaskPanePort {
         const saveTask = async () => {
             const raw = textarea.value.trim();
             if (!raw) return;
+            ensureInheritedContexts();
             const ctxSnapshot = [...contexts];
             const due = dueDate;
             resetQuickInput();
@@ -333,6 +408,7 @@ export class DesktopTaskPaneView implements TaskPanePort {
         };
 
         const openStructuredCapture = () => {
+            ensureInheritedContexts();
             const draftText = textarea.value.trim();
             const draftContexts = [...contexts];
             const draftDueDate = dueDate;
@@ -382,6 +458,13 @@ export class DesktopTaskPaneView implements TaskPanePort {
                 },
                 seededText
             ).open();
+        };
+
+        this.refreshCaptureContextState = () => {
+            if (draftContextSnapshot !== null || textarea.value.trim() || contexts.length > 0 || dueDate) {
+                return;
+            }
+            syncCaptureSurfaceState();
         };
 
         textarea.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -476,7 +559,6 @@ export class TaskPane implements TaskPanePort {
     ) {
         this.hooks = options.hooks ?? {};
         this.paneId = options.paneId ?? 'default';
-        this.title = options.title ?? 'TASKS';
         this.emptyMessage = options.emptyMessage;
         this.showFilterPills = options.showFilterPills ?? true;
         this.showBucketActions = options.showBucketActions ?? false;
@@ -484,6 +566,7 @@ export class TaskPane implements TaskPanePort {
         this.focusOnDrop = options.focusOnDrop;
         this.allowDragDrop = options.allowDragDrop ?? false;
         this.layoutVariant = options.layoutVariant ?? 'default';
+        this.title = options.title ?? (this.layoutVariant === 'workspace-right' ? 'Tasks' : 'TASKS');
         this.customFilter = options.filterFn ?? null;
         this.baseFilter = options.baseFilterFn ?? ((task) =>
             task.status === 'open'
@@ -513,7 +596,7 @@ export class TaskPane implements TaskPanePort {
             const heading = header.createEl('div', { cls: 'diwa-dh-task-feed-heading' });
             heading.createEl('span', {
                 cls: 'diwa-dh-task-feed-eyebrow',
-                text: 'Task feed',
+                text: 'Queue',
             });
             const titleRow = heading.createEl('div', { cls: 'diwa-dh-task-feed-title-row' });
             titleRow.createEl('h2', {
@@ -905,22 +988,18 @@ export class TaskPane implements TaskPanePort {
             this.emptyEl.setText(this.emptyMessage);
         } else {
             this.emptyEl.setText(this.presetFilter === 'upcoming'
-                ? 'No tasks in the next 2 days.'
-                : 'All clear — no open gawa.');
+                ? 'No tasks due soon.'
+                : 'No open tasks.');
         }
         this.emptyEl.style.display = '';
         this.listEl.style.display = 'none';
     }
 
-    private describeFeedState(count: number): string {
+    private describeFeedState(_count: number): string {
         if (this.presetFilter === 'upcoming') {
-            return count > 0
-                ? `${count} task${count === 1 ? '' : 's'} due in the next 2 days`
-                : 'Only tasks due in the next 2 days appear here';
+            return 'Next 2 days + undated';
         }
-        return count > 0
-            ? `${count} open task${count === 1 ? '' : 's'} in the current view`
-            : 'All open tasks are cleared from this view';
+        return 'All open tasks';
     }
 
     private reorderRows(orderedIds: string[]): void {
