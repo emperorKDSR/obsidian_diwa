@@ -3,7 +3,7 @@ import * as chrono from 'chrono-node';
 import { FileSuggestModal } from './modals/FileSuggestModal';
 import { ContextSuggestModal } from './modals/ContextSuggestModal';
 import { PersonSuggestModal } from './modals/PersonSuggestModal';
-import type { RecurrenceRule } from './types';
+import type { RecurrenceRule, TaskEntry } from './types';
 
 export function computeNextDue(currentDue: string, rule: RecurrenceRule): string {
     const m = moment(currentDue, 'YYYY-MM-DD', true);
@@ -48,6 +48,18 @@ export function parseNaturalDate(text: string): string | null {
         return moment(date).format('YYYY-MM-DD');
     }
     return null;
+}
+
+export function isTaskDone(task: TaskEntry): boolean {
+    const status = String(task.status || '').toLowerCase();
+    const state = String(task.state || '').toLowerCase();
+    const bucket = String(task.bucketStatus || '').toLowerCase();
+    const lifecycle = String(task.lifecycleStatus || '').toLowerCase();
+    return status === 'done'
+        || state === 'done'
+        || bucket === 'done'
+        || lifecycle === 'done'
+        || !!task.completedAt;
 }
 
 /**

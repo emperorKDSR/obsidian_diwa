@@ -196,8 +196,12 @@ export function renderJournalComposer(options: JournalComposerOptions): JournalC
     };
 
     const autoGrowBody = () => {
+        if (variant === 'mobile') {
+            bodyInput.style.height = '100%';
+            return;
+        }
         bodyInput.style.height = 'auto';
-        bodyInput.style.height = `${Math.max(bodyInput.scrollHeight, variant === 'mobile' ? 260 : 320)}px`;
+        bodyInput.style.height = `${Math.max(bodyInput.scrollHeight, variant === 'modal' ? 260 : 320)}px`;
     };
 
     const setActiveType = (typeId: JournalTypeId | null) => {

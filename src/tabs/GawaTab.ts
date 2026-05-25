@@ -182,14 +182,16 @@ export class GawaTab extends BaseTab {
 
     private renderHeader(parent: HTMLElement): void {
         const header = parent.createEl('div', { cls: 'diwa-gawa-header diwa-gawa-workspace-bar' });
+        if (this.isPhoneLayout()) header.addClass('is-phone-header');
+        if (this.isTabletLayout()) header.addClass('is-tablet-header');
         const identity = header.createEl('div', { cls: 'diwa-gawa-workspace-bar-left' });
         identity.createEl('span', { text: 'Task workspace', cls: 'diwa-gawa-workspace-eyebrow' });
         const titleGroup = identity.createEl('div', { cls: 'diwa-gawa-header-title-group diwa-gawa-workspace-identity' });
         titleGroup.createEl('h2', { text: 'Gawa', cls: 'diwa-gawa-header-title' });
         const subtitle = this.isPhoneLayout()
-            ? 'Mobile Task Workspace'
+            ? 'Task flow'
             : this.isTabletLayout()
-                ? 'Tablet Task Workspace'
+                ? 'Calm task cockpit'
                 : 'Desktop task cockpit';
         titleGroup.createEl('span', { text: subtitle, cls: 'diwa-gawa-header-subtitle' });
 
@@ -202,9 +204,13 @@ export class GawaTab extends BaseTab {
         this._overdueStatEl = this.createWorkspaceStat(progressStrip, 'overdue', 'Overdue');
 
         const actions = header.createEl('div', { cls: 'diwa-gawa-header-actions diwa-gawa-workspace-bar-right' });
-        this.renderFastCapture(actions);
+        if (this.isTabletLayout()) {
+            this.renderCaptureTrigger(actions);
+        } else {
+            this.renderFastCapture(actions);
+        }
 
-        const addBtn = actions.createEl('button', { cls: 'diwa-gawa-header-btn diwa-gawa-header-btn--primary' });
+        const addBtn = actions.createEl('button', { cls: 'diwa-gawa-header-btn' });
         setIcon(addBtn, 'plus');
         addBtn.createEl('span', { text: 'Refine' });
         addBtn.addEventListener('click', () => this.openCreateTaskModal());
@@ -218,6 +224,16 @@ export class GawaTab extends BaseTab {
         });
 
         this.updateWorkspaceStats();
+    }
+
+    private renderCaptureTrigger(parent: HTMLElement): void {
+        const captureBtn = parent.createEl('button', {
+            cls: 'diwa-gawa-header-btn diwa-gawa-header-btn--primary diwa-gawa-capture-trigger',
+            attr: { type: 'button' },
+        });
+        setIcon(captureBtn, 'sparkles');
+        captureBtn.createEl('span', { text: 'Capture' });
+        captureBtn.addEventListener('click', () => this.openCreateTaskModal());
     }
 
     private createWorkspaceStat(parent: HTMLElement, modifier: string, label: string): HTMLElement {
@@ -251,6 +267,8 @@ export class GawaTab extends BaseTab {
 
     private renderFastCapture(parent: HTMLElement): void {
         const capture = parent.createEl('div', { cls: 'diwa-gawa-capture' });
+        const icon = capture.createEl('span', { cls: 'diwa-gawa-capture-icon' });
+        setIcon(icon, 'plus');
         const input = capture.createEl('input', {
             cls: 'diwa-gawa-capture-input',
             attr: {
@@ -307,13 +325,7 @@ export class GawaTab extends BaseTab {
         const column = parent.createEl('div', { cls: `diwa-gawa-column diwa-gawa-column--${columnKind}` });
         column.setAttr('data-gawa-column', columnKind);
         for (const config of configs) {
-            const shell = column.createEl('section', {
-                cls: `diwa-gawa-pane-shell diwa-gawa-pane-shell--${config.paneId}`,
-            });
-            shell.setAttr('data-gawa-pane', config.paneId);
-            if (config.paneId === 'gawa-focus') shell.addClass('is-focus-pane');
-            if (config.paneId === 'gawa-today' || config.paneId === 'gawa-focus') shell.addClass('is-primary-pane');
-            this.mountPane(shell, config);
+            this.createPaneShell(column, config);
         }
     }
 
@@ -332,13 +344,18 @@ export class GawaTab extends BaseTab {
             focus: this.createFocusPaneConfig(),
             projects: this.createProjectsPaneConfig(),
         };
+        const labelByTab: Record<MobileTabId, string> = {
+            inbox: 'Inbox',
+            today: 'Today',
+            focus: 'Focus',
+            projects: 'Projects',
+        };
 
         for (const tabId of MOBILE_TAB_ORDER) {
-            const label = tabId.toUpperCase();
             const button = tabBar.createEl('button', {
                 cls: 'diwa-gawa-mobile-tab-btn',
-                text: label,
-                attr: { role: 'tab', type: 'button' },
+                text: labelByTab[tabId],
+                attr: { role: 'tab', type: 'button', 'data-mobile-tab': tabId },
             });
             button.addEventListener('click', () => this.setMobileTab(tabId));
             this._mobileTabButtons.set(tabId, button);
@@ -360,10 +377,25 @@ export class GawaTab extends BaseTab {
             this.createInboxPaneConfig(),
             this.createProjectsPaneConfig(),
         ]);
-        this.renderColumn(grid, 'right', [
-            this.createTodayPaneConfig(),
-            this.createFocusPaneConfig(),
-        ]);
+        const right = grid.createEl('div', { cls: 'diwa-gawa-column diwa-gawa-column--right' });
+        this.createPaneShell(right, this.createTodayPaneConfig());
+        this.createPaneShell(right, this.createFocusPaneConfig());
+
+        const supportRow = right.createEl('div', { cls: 'diwa-gawa-tablet-support-row' });
+        this.createPaneShell(supportRow, this.createActivePaneConfig(), ['is-compact-pane']);
+        this.createPaneShell(supportRow, this.createBacklogPaneConfig(), ['is-compact-pane']);
+    }
+
+    private createPaneShell(parent: HTMLElement, config: PaneConfig, extraClasses: string[] = []): HTMLElement {
+        const shell = parent.createEl('section', {
+            cls: `diwa-gawa-pane-shell diwa-gawa-pane-shell--${config.paneId}`,
+        });
+        shell.setAttr('data-gawa-pane', config.paneId);
+        if (config.paneId === 'gawa-focus') shell.addClass('is-focus-pane');
+        if (config.paneId === 'gawa-today' || config.paneId === 'gawa-focus') shell.addClass('is-primary-pane');
+        extraClasses.forEach((className) => shell.addClass(className));
+        this.mountPane(shell, config);
+        return shell;
     }
 
     private mountPane(parent: HTMLElement, config: PaneConfig): void {
@@ -394,7 +426,8 @@ export class GawaTab extends BaseTab {
 
     private renderInboxInlineCapture(parent: HTMLElement): void {
         const capture = parent.createEl('div', { cls: 'diwa-gawa-inbox-capture' });
-        const input = capture.createEl('input', {
+        const captureMain = capture.createEl('div', { cls: 'diwa-gawa-inbox-capture-main' });
+        const input = captureMain.createEl('input', {
             cls: 'diwa-gawa-inbox-capture-input',
             attr: {
                 type: 'text',
@@ -458,6 +491,25 @@ export class GawaTab extends BaseTab {
             }
             void submit('backlog');
         });
+
+        if (!this.isTabletLayout()) return;
+
+        const actions = capture.createEl('div', { cls: 'diwa-gawa-inbox-capture-actions' });
+        const targets: Array<{ id: InboxCaptureTarget; label: string }> = [
+            { id: 'backlog', label: 'Backlog' },
+            { id: 'active', label: 'Active' },
+            { id: 'focus', label: 'Focus' },
+        ];
+        for (const target of targets) {
+            const button = actions.createEl('button', {
+                cls: 'diwa-gawa-inbox-capture-target',
+                text: target.label,
+                attr: { type: 'button' },
+            });
+            button.addEventListener('click', () => {
+                void submit(target.id);
+            });
+        }
     }
 
     private destroyPanes(): void {
@@ -485,12 +537,14 @@ export class GawaTab extends BaseTab {
         for (const [tabId, shell] of this._mobilePaneShells.entries()) {
             const isActive = tabId === active;
             shell.toggleClass('is-active', isActive);
+            shell.setAttr('aria-hidden', isActive ? 'false' : 'true');
             shell.style.display = isActive ? '' : 'none';
         }
         for (const [tabId, button] of this._mobileTabButtons.entries()) {
             const isActive = tabId === active;
             button.toggleClass('is-active', isActive);
             button.setAttr('aria-selected', isActive ? 'true' : 'false');
+            button.setAttr('tabindex', isActive ? '0' : '-1');
         }
     }
 

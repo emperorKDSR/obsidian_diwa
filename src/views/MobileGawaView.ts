@@ -1,7 +1,7 @@
 import { ItemView, Notice, Platform, TFile, WorkspaceLeaf } from 'obsidian';
 import { VIEW_TYPE_MOBILE_GAWA } from '../constants';
 import type DiwaPlugin from '../main';
-import { isTablet } from '../utils';
+import { isTablet, isTaskDone } from '../utils';
 import type { TaskEntry } from '../types';
 
 export class MobileGawaView extends ItemView {
@@ -90,7 +90,7 @@ export class MobileGawaView extends ItemView {
     private renderTaskItem(parent: HTMLElement, task: TaskEntry): void {
         const item = parent.createEl('div', { cls: 'diwa-mh-task-item' });
         const taskId = task.taskId?.trim() || task.filePath;
-        const isDone = task.status === 'done';
+        const isDone = isTaskDone(task);
 
         const line = item.createEl('div', { cls: 'diwa-mh-task-line' });
         const check = line.createEl('input', {
@@ -148,22 +148,10 @@ export class MobileGawaView extends ItemView {
     private matchTaskFilter(task: TaskEntry): boolean {
         if (this._taskFilter === 'all') return true;
         const status = String(task.status || '').toLowerCase();
-        const isDone = this.isTaskDone(task);
+        const isDone = isTaskDone(task);
         if (this._taskFilter === 'open') return !isDone && (status === 'open' || status === 'someday' || status === 'waiting');
         if (this._taskFilter === 'waiting') return !isDone && status === 'waiting';
         if (this._taskFilter === 'done') return isDone;
         return false;
-    }
-
-    private isTaskDone(task: TaskEntry): boolean {
-        const status = String(task.status || '').toLowerCase();
-        const state = String(task.state || '').toLowerCase();
-        const bucket = String(task.bucketStatus || '').toLowerCase();
-        const lifecycle = String(task.lifecycleStatus || '').toLowerCase();
-        return status === 'done'
-            || state === 'done'
-            || bucket === 'done'
-            || lifecycle === 'done'
-            || !!task.completedAt;
     }
 }
