@@ -1438,6 +1438,11 @@ export class TaskItemView {
     private focusBtnEl: HTMLElement | null = null;
     private doneBtnEl: HTMLElement | null = null;
     private editBtnEl: HTMLElement;
+    private backlogBtnLabelEl: HTMLElement | null = null;
+    private activateBtnLabelEl: HTMLElement | null = null;
+    private focusBtnLabelEl: HTMLElement | null = null;
+    private doneBtnLabelEl: HTMLElement | null = null;
+    private editBtnLabelEl: HTMLElement | null = null;
     private currentTask: TaskEntry;
     private destroyed = false;
     private groupKey: string | null = null;
@@ -1447,6 +1452,7 @@ export class TaskItemView {
     private popoverEscapeHandler: ((event: KeyboardEvent) => void) | null = null;
     private popoverWin: Window | null = null;
     private linkedThoughtIds: string[] = [];
+    private readonly interactionMode: 'desktop' | 'tablet' | 'phone';
 
     constructor(
         private view: TaskPaneHost,
@@ -1461,9 +1467,13 @@ export class TaskItemView {
         this.rootEl.setAttr('data-task-id', getTaskKey(task));
         this.rootEl.setAttr('aria-keyshortcuts', 'Space Ctrl+Enter Meta+Enter Ctrl+ArrowUp Meta+ArrowUp Ctrl+ArrowDown Meta+ArrowDown');
         this.rootEl.tabIndex = 0;
-        this.rootEl.draggable = true;
-        this.rootEl.addEventListener('dragstart', (event) => this.handleDragStart(event));
-        this.rootEl.addEventListener('dragend', () => this.handleDragEnd());
+        this.interactionMode = this.detectInteractionMode();
+        this.rootEl.setAttr('data-interaction-mode', this.interactionMode);
+        if (this.interactionMode !== 'phone') {
+            this.rootEl.draggable = true;
+            this.rootEl.addEventListener('dragstart', (event) => this.handleDragStart(event));
+            this.rootEl.addEventListener('dragend', () => this.handleDragEnd());
+        }
 
         this.headerEl = this.rootEl.createEl('div', { cls: 'diwa-dh-task-header' });
         const mainEl = this.headerEl.createEl('div', { cls: 'diwa-dh-task-main' });
@@ -1482,7 +1492,7 @@ export class TaskItemView {
                 cls: 'diwa-dh-task-quick-btn',
                 attr: { title: 'Demote task', 'aria-label': 'Demote task' }
             });
-            safeSetIcon(this.backlogBtnEl, 'lucide-inbox', 'inbox');
+            this.backlogBtnLabelEl = this.decorateActionButton(this.backlogBtnEl, 'lucide-inbox', 'Backlog');
             this.backlogBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
                 void this.runTaskAction(() => this.controller.demoteTask(getTaskKey(this.currentTask)));
@@ -1492,7 +1502,7 @@ export class TaskItemView {
                 cls: 'diwa-dh-task-quick-btn',
                 attr: { title: 'Promote to Active', 'aria-label': 'Promote to Active' }
             });
-            safeSetIcon(this.activateBtnEl, 'lucide-play', 'play');
+            this.activateBtnLabelEl = this.decorateActionButton(this.activateBtnEl, 'lucide-play', 'Active');
             this.activateBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
                 void this.runTaskAction(() => this.controller.promoteTask(getTaskKey(this.currentTask)));
@@ -1502,7 +1512,7 @@ export class TaskItemView {
                 cls: 'diwa-dh-task-quick-btn',
                 attr: { title: 'Focus task', 'aria-label': 'Focus task' }
             });
-            safeSetIcon(this.focusBtnEl, 'lucide-target', 'target');
+            this.focusBtnLabelEl = this.decorateActionButton(this.focusBtnEl, 'lucide-target', 'Focus');
             this.focusBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
                 void this.handleFocusAction();
@@ -1512,7 +1522,7 @@ export class TaskItemView {
                 cls: 'diwa-dh-task-quick-btn',
                 attr: { title: 'Complete task', 'aria-label': 'Complete task' }
             });
-            safeSetIcon(this.doneBtnEl, 'lucide-check', 'check');
+            this.doneBtnLabelEl = this.decorateActionButton(this.doneBtnEl, 'lucide-check', 'Done');
             this.doneBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
                 void this.handleToggle();
@@ -1523,9 +1533,13 @@ export class TaskItemView {
             cls: 'diwa-dh-task-edit-btn',
             attr: { title: 'More actions', 'aria-label': 'More actions' }
         });
-        safeSetIcon(this.editBtnEl, 'lucide-more-horizontal', 'more-horizontal');
+        this.editBtnLabelEl = this.decorateActionButton(this.editBtnEl, 'lucide-more-horizontal', 'Update');
         this.editBtnEl.addEventListener('click', (e) => {
             e.stopPropagation();
+            if (this.isPhoneInteraction()) {
+                this.openTouchTaskSheet();
+                return;
+            }
             this.openMoreMenu(this.editBtnEl);
         });
         this.linkIconsEl = actionsEl.createEl('div', { cls: 'task-link-icons' });
@@ -1719,6 +1733,10 @@ export class TaskItemView {
             || target.closest('.thought-overlay')
             || target.closest('.diwa-dh-inline-popover')
         ) return;
+        if (this.isPhoneInteraction()) {
+            this.openTouchTaskSheet();
+            return;
+        }
         this.triggerRecall();
         this.hooks.onClick?.(this.currentTask);
     }
@@ -1748,6 +1766,10 @@ export class TaskItemView {
 
     private openMoreMenu(anchor: HTMLElement): void {
         if (this.destroyed) return;
+        if (this.isPhoneInteraction()) {
+            this.openTouchTaskSheet();
+            return;
+        }
         this.openInlinePopover(anchor, (popover) => {
             const actions = popover.createEl('div', { cls: 'diwa-dh-inline-popover-list' });
             const createOption = (label: string, run: () => void | Promise<void>) => {
@@ -1992,6 +2014,30 @@ export class TaskItemView {
         return 'backlog';
     }
 
+    private detectInteractionMode(): 'desktop' | 'tablet' | 'phone' {
+        if (this.rootEl.closest('.diwa-gawa-desktop.is-mobile, .diwa-gawa-mobile-pane-shell')) {
+            return 'phone';
+        }
+        if (this.rootEl.closest('.diwa-gawa-desktop.is-tablet, .diwa-dh-root.is-tablet, .diwa-gawa-tablet-grid')) {
+            return 'tablet';
+        }
+        return 'desktop';
+    }
+
+    private isPhoneInteraction(): boolean {
+        return this.interactionMode === 'phone';
+    }
+
+    private decorateActionButton(button: HTMLElement, iconName: string, label: string): HTMLElement {
+        const iconEl = button.createEl('span', { cls: 'diwa-dh-task-action-icon' });
+        safeSetIcon(iconEl, iconName, iconName.replace(/^lucide-/, ''));
+        return button.createEl('span', { cls: 'diwa-dh-task-action-label', text: label });
+    }
+
+    private setActionLabel(target: HTMLElement | null, label: string): void {
+        if (target) target.setText(label);
+    }
+
     private syncQuickActionState(task: TaskEntry): void {
         if (!this.showBucketActions) return;
         const state = this.getWorkflowState(task);
@@ -2011,7 +2057,7 @@ export class TaskItemView {
             this.focusBtnEl.toggleClass('is-active', isFocusState);
             this.focusBtnEl.setAttr('title', isFocusState ? 'Unfocus task' : 'Focus task');
             this.focusBtnEl.setAttr('aria-label', isFocusState ? 'Unfocus task' : 'Focus task');
-            safeSetIcon(this.focusBtnEl, isFocusState ? 'lucide-target' : 'lucide-target', 'target');
+            this.setActionLabel(this.focusBtnLabelEl, isFocusState ? 'Unfocus' : 'Focus');
         }
 
         if (this.doneBtnEl) {
@@ -2019,10 +2065,14 @@ export class TaskItemView {
             this.doneBtnEl.toggleClass('is-active', isDone);
             this.doneBtnEl.setAttr('title', isDone ? 'Reopen task' : 'Complete task');
             this.doneBtnEl.setAttr('aria-label', isDone ? 'Reopen task' : 'Complete task');
+            this.setActionLabel(this.doneBtnLabelEl, isDone ? 'Reopen' : 'Done');
         }
 
         this.activateBtnEl?.toggleClass('is-active', state === 'active');
         this.backlogBtnEl?.toggleClass('is-active', state === 'backlog');
+        this.setActionLabel(this.activateBtnLabelEl, 'Active');
+        this.setActionLabel(this.backlogBtnLabelEl, state === 'focus' ? 'Active' : 'Backlog');
+        this.setActionLabel(this.editBtnLabelEl, this.isPhoneInteraction() ? 'Update' : 'More');
     }
 
     private flashUpdate(): void {
@@ -2373,6 +2423,88 @@ export class TaskItemView {
         });
     }
 
+    private openTouchTaskSheet(): void {
+        if (this.destroyed) return;
+        const state = this.getWorkflowState(this.currentTask);
+        const title = (this.currentTask.title || this.currentTask.body || 'Untitled task').trim();
+        const meta: string[] = [];
+        if (this.currentTask.project?.trim()) meta.push(`#${this.currentTask.project.trim()}`);
+        if (this.currentTask.due?.trim()) meta.push(`Due ${this.currentTask.due.trim()}`);
+
+        this.openInlinePopover(this.rootEl, (popover) => {
+            const summary = popover.createEl('div', { cls: 'diwa-dh-inline-sheet-summary' });
+            summary.createEl('span', {
+                cls: 'diwa-dh-inline-sheet-kicker',
+                text: state === 'done' ? 'Completed' : state === 'focus' ? 'In focus' : state === 'active' ? 'Active now' : 'Backlog',
+            });
+            summary.createEl('strong', { cls: 'diwa-dh-inline-sheet-task', text: title });
+            if (meta.length > 0) {
+                summary.createEl('div', { cls: 'diwa-dh-inline-sheet-meta', text: meta.join(' • ') });
+            }
+
+            const workflow = popover.createEl('div', { cls: 'diwa-dh-inline-action-grid' });
+            const createAction = (
+                label: string,
+                icon: string,
+                run: () => void | Promise<void>,
+                modifier: 'primary' | 'accent' | 'neutral' | 'danger' = 'neutral',
+                wide = false,
+            ) => {
+                const button = workflow.createEl('button', {
+                    cls: `diwa-dh-inline-action-btn is-${modifier}${wide ? ' is-wide' : ''}`,
+                    attr: { type: 'button' },
+                });
+                const iconEl = button.createEl('span', { cls: 'diwa-dh-inline-action-icon' });
+                safeSetIcon(iconEl, icon, icon.replace(/^lucide-/, ''));
+                button.createEl('span', { cls: 'diwa-dh-inline-action-text', text: label });
+                button.addEventListener('click', () => {
+                    this.closeInlinePopover();
+                    void run();
+                });
+            };
+
+            if (state === 'backlog') {
+                createAction('Move to active', 'lucide-play', () => this.runTaskAction(() => this.controller.promoteTask(getTaskKey(this.currentTask))), 'primary');
+                createAction('Add to focus', 'lucide-target', () => this.handleFocusAction(), 'accent');
+            }
+            if (state === 'active') {
+                createAction('Move to backlog', 'lucide-inbox', () => this.runTaskAction(() => this.controller.demoteTask(getTaskKey(this.currentTask))), 'neutral');
+                createAction('Add to focus', 'lucide-target', () => this.handleFocusAction(), 'accent');
+            }
+            if (state === 'focus') {
+                createAction('Keep active', 'lucide-arrow-left', () => this.handleFocusAction(), 'neutral');
+                createAction('Move to backlog', 'lucide-inbox', () => this.runTaskAction(() => this.controller.demoteTask(getTaskKey(this.currentTask))), 'neutral');
+            }
+            createAction(state === 'done' ? 'Reopen task' : 'Complete task', 'lucide-check', () => this.handleToggle(), 'primary', true);
+
+            popover.createEl('span', { cls: 'diwa-dh-inline-sheet-section-label', text: 'Details' });
+            const actions = popover.createEl('div', { cls: 'diwa-dh-inline-popover-list diwa-dh-inline-sheet-list' });
+            const createOption = (label: string, run: () => void | Promise<void>) => {
+                const option = actions.createEl('button', {
+                    cls: 'diwa-dh-inline-option',
+                    text: label,
+                    attr: { type: 'button' },
+                });
+                option.addEventListener('click', () => {
+                    this.closeInlinePopover();
+                    void run();
+                });
+            };
+
+            createOption('Change project', () => this.openProjectPicker(this.rootEl));
+            createOption('Change due date', () => this.openDuePicker(this.rootEl));
+            createOption('Open full editor', () => this.openStructuredEditor());
+            createOption('Link thought', () => this.openLinkModal());
+            createOption('Duplicate', async () => this.duplicateCurrentTask());
+            createOption('Delete', () => this.hooks.onDelete?.(getTaskKey(this.currentTask)));
+        }, {
+            eyebrow: 'Task update',
+            title,
+            description: 'Choose a clear next move for this task.',
+            kind: 'actions',
+        });
+    }
+
     private openInlinePopover(
         anchor: HTMLElement,
         render: (popover: HTMLElement) => void,
@@ -2387,6 +2519,8 @@ export class TaskItemView {
         const popover = doc.body.createEl('div', {
             cls: 'diwa-dh-inline-popover diwa-workspace-popup-shell diwa-workspace-popup-shell--inline',
         });
+        const useMobileSheet = this.isPhoneInteraction();
+        if (useMobileSheet) popover.addClass('is-mobile-sheet');
         if (options?.kind) popover.setAttr('data-popover-kind', options.kind);
         this.popoverEl = popover;
         if (options) {
@@ -2411,31 +2545,39 @@ export class TaskItemView {
                     text: options.description,
                 });
             }
+            if (useMobileSheet) {
+                const closeBtn = header.createEl('button', {
+                    cls: 'diwa-dh-inline-popover-close',
+                    attr: { type: 'button', 'aria-label': 'Close task sheet' },
+                });
+                safeSetIcon(closeBtn, 'lucide-x', 'x');
+                closeBtn.addEventListener('click', () => this.closeInlinePopover());
+            }
         }
         render(popover);
 
-        win.requestAnimationFrame(() => {
-            if (!this.popoverEl || this.popoverEl !== popover || this.destroyed) return;
-            const anchorRect = anchor.getBoundingClientRect();
-            const popoverW = popover.offsetWidth;
-            const popoverH = popover.offsetHeight;
-            const vw = win.innerWidth;
-            const vh = win.innerHeight;
-            const gap = 6;
-            const margin = 8;
-            // Prefer below anchor; fall back to above if it would overflow the viewport bottom.
-            let top = anchorRect.bottom + gap;
-            if (top + popoverH > vh - margin) {
-                const aboveTop = anchorRect.top - popoverH - gap;
-                top = aboveTop >= margin ? aboveTop : vh - popoverH - margin;
-            }
-            // Left-align with anchor; clamp to viewport edges.
-            let left = anchorRect.left;
-            if (left + popoverW > vw - margin) left = vw - popoverW - margin;
-            if (left < margin) left = margin;
-            popover.style.left = `${left}px`;
-            popover.style.top = `${top}px`;
-        });
+        if (!useMobileSheet) {
+            win.requestAnimationFrame(() => {
+                if (!this.popoverEl || this.popoverEl !== popover || this.destroyed) return;
+                const anchorRect = anchor.getBoundingClientRect();
+                const popoverW = popover.offsetWidth;
+                const popoverH = popover.offsetHeight;
+                const vw = win.innerWidth;
+                const vh = win.innerHeight;
+                const gap = 6;
+                const margin = 8;
+                let top = anchorRect.bottom + gap;
+                if (top + popoverH > vh - margin) {
+                    const aboveTop = anchorRect.top - popoverH - gap;
+                    top = aboveTop >= margin ? aboveTop : vh - popoverH - margin;
+                }
+                let left = anchorRect.left;
+                if (left + popoverW > vw - margin) left = vw - popoverW - margin;
+                if (left < margin) left = margin;
+                popover.style.left = `${left}px`;
+                popover.style.top = `${top}px`;
+            });
+        }
 
         this.popoverOutsideHandler = (event: MouseEvent) => {
             const target = event.target as Node | null;

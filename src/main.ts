@@ -274,8 +274,8 @@ export default class DiwaPlugin extends Plugin {
 
         this.addCommand({ id: 'diwa-open-workspace', name: 'Diwa Workspace', icon: DESKTOP_HUB_ICON_ID, callback: () => { this.activateWorkspace(); } });
         this.addCommand({ id: 'diwa-open-journal-input', name: 'DIWA: Open Journal Input', icon: JOURNAL_ICON_ID, callback: () => { void this.activateJournalInput(); } });
-        this.addCommand({ id: 'open-diwa-mobile-gawa', name: 'DIWA: Open Mobile Gawa', icon: 'check-square-2', callback: () => { this.activateMobileGawa(); } });
-        this.addCommand({ id: 'diwa-open-gawa', name: 'DIWA: Gawa', icon: 'check-square-2', callback: () => { this.activateGawa(); } });
+        this.addCommand({ id: 'open-diwa-mobile-gawa', name: 'DIWA: Open Mobile Gawa', icon: 'check-square-2', callback: () => { void this.activateMobileGawa(); } });
+        this.addCommand({ id: 'diwa-open-gawa', name: 'DIWA: Gawa', icon: 'check-square-2', callback: () => { void this.activateGawa(); } });
 
 		this.addSettingTab(new DiwaSettingTab(this.app, this));
         if (!this.settings.legacyMigrated) {
@@ -373,24 +373,12 @@ export default class DiwaPlugin extends Plugin {
     }
 
     async activateMobileGawa() {
-        const { workspace } = this.app;
-        const existing = workspace.getLeavesOfType(VIEW_TYPE_MOBILE_GAWA);
-        if (existing.length > 0) { workspace.revealLeaf(existing[0]); return; }
-        if (!Platform.isMobile || isTablet()) {
-            return;
-        }
-        const leaf = workspace.getLeaf(false);
-        if (leaf) { await leaf.setViewState({ type: VIEW_TYPE_MOBILE_GAWA, active: true }); workspace.revealLeaf(leaf); }
+        if (!Platform.isMobile) return;
+        await this.activateView('review-gawa');
     }
 
     async activateGawa() {
-        if (isTablet()) {
-            await this.activateTabletHub();
-        } else if (Platform.isMobile) {
-            await this.activateMobileGawa();
-        } else {
-            await this.activateView('review-gawa');
-        }
+        await this.activateView('review-gawa');
     }
 
     async activateSearchView() {
