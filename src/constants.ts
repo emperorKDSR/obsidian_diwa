@@ -1,4 +1,5 @@
 import { DiwaSettings } from './types';
+import { createDefaultGawaLayoutPreferences } from './gawaLayout';
 
 export const VIEW_TYPE_DIWA = "diwa-view";
 export const VIEW_TYPE_DESKTOP_HUB = "diwa-desktop-hub";
@@ -207,6 +208,7 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
     mobileBottomBarHeight: 56,
     peopleFolder: '000 Bin/DIWA People',
     legacyMigrated: false,
+    gawaLayoutPreferences: createDefaultGawaLayoutPreferences(),
     ai: {
         enabled: false,
         model: 'gpt-4o-mini',

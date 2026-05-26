@@ -1,7 +1,7 @@
 import { Notice, Platform, TFile, moment, setIcon } from 'obsidian';
 import type { DiwaView } from '../view';
 import { BaseTab } from './BaseTab';
-import type { TaskBucketStatus, TaskEntry } from '../types';
+import type { GawaDesktopBucketId, GawaLayoutBucketPreference, GawaPaneId, GawaTabletBucketId, TaskBucketStatus, TaskEntry } from '../types';
 import { isTablet, parseNaturalDate } from '../utils';
 import { TaskController } from '../views/TaskController';
 import {
@@ -13,6 +13,7 @@ import {
     type TaskSortFn,
 } from '../views/DesktopTaskPane';
 import { FastTaskCaptureModal, type FastTaskCapturePayload } from '../modals/FastTaskCaptureModal';
+import { GawaLayoutCustomizeModal } from '../modals/GawaLayoutCustomizeModal';
 
 interface PaneConfig {
     paneId: string;
@@ -52,6 +53,7 @@ export class GawaTab extends BaseTab {
     private _container: HTMLElement | null = null;
     private _rootEl: HTMLElement | null = null;
     private _layoutMode: GawaLayoutMode | null = null;
+    private _layoutSignature: string | null = null;
     private readonly _taskController: TaskController;
     private readonly _paneHost: TaskPaneHost;
     private readonly _paneMap = new Map<string, TaskPane>();
@@ -82,10 +84,12 @@ export class GawaTab extends BaseTab {
 
     render(container: HTMLElement): void {
         const layoutMode = this.resolveLayoutMode();
+        const layoutSignature = this.getLayoutSignature(layoutMode);
         const canReuseLayout =
             this._container === container
             && this._rootEl !== null
             && this._layoutMode === layoutMode
+            && this._layoutSignature === layoutSignature
             && container.contains(this._rootEl);
 
         const indexSize = this.plugin.index.taskIndex.size;
@@ -109,6 +113,8 @@ export class GawaTab extends BaseTab {
         this._mobilePaneShells.clear();
         this._mobileTabButtons.clear();
         this._layoutMode = layoutMode;
+        this._layoutSignature = layoutSignature;
+        const paneConfigs = this.buildPaneConfigMap();
 
         const root = container.createEl('div', { cls: 'diwa-gawa-desktop' });
         this._rootEl = root;
@@ -120,21 +126,9 @@ export class GawaTab extends BaseTab {
         if (isPhone) {
             this.renderMobileLayout(root);
         } else if (isTabletLayout) {
-            this.renderTabletLayout(root);
+            this.renderTabletLayout(root, paneConfigs);
         } else {
-            const grid = root.createEl('div', { cls: 'diwa-gawa-desktop-grid' });
-            this.renderColumn(grid, 'left', [
-                this.createInboxPaneConfig(),
-                this.createProjectsPaneConfig(),
-            ]);
-            this.renderColumn(grid, 'center', [
-                this.createTodayPaneConfig(),
-                this.createFocusPaneConfig(),
-            ]);
-            this.renderColumn(grid, 'right', [
-                this.createActivePaneConfig(),
-                this.createBacklogPaneConfig(),
-            ]);
+            this.renderDesktopLayout(root, paneConfigs);
         }
 
         this._taskController.syncFromIndex();
@@ -159,6 +153,7 @@ export class GawaTab extends BaseTab {
         this.destroyPanes();
         this._rootEl = null;
         this._layoutMode = null;
+        this._layoutSignature = null;
         this._container = null;
         this._mobilePaneShells.clear();
         this._mobileTabButtons.clear();
@@ -217,6 +212,14 @@ export class GawaTab extends BaseTab {
         }
 
         if (!this.isPhoneLayout()) {
+            const customizeBtn = actions.createEl('button', {
+                cls: 'diwa-gawa-header-btn diwa-gawa-header-btn--ghost diwa-gawa-customize-btn',
+                attr: { type: 'button' },
+            });
+            setIcon(customizeBtn, 'sliders-horizontal');
+            customizeBtn.createEl('span', { text: 'Customize' });
+            customizeBtn.addEventListener('click', () => this.openLayoutCustomizeModal());
+
             const addBtn = actions.createEl('button', { cls: 'diwa-gawa-header-btn' });
             setIcon(addBtn, 'plus');
             addBtn.createEl('span', { text: 'Refine' });
@@ -232,6 +235,12 @@ export class GawaTab extends BaseTab {
         });
 
         this.updateWorkspaceStats();
+    }
+
+    private openLayoutCustomizeModal(): void {
+        new GawaLayoutCustomizeModal(this.app, this.plugin, async (preferences) => {
+            await this.plugin.saveGawaLayoutPreferences(preferences);
+        }).open();
     }
 
     private renderCaptureTrigger(parent: HTMLElement): void {
@@ -337,6 +346,24 @@ export class GawaTab extends BaseTab {
         }
     }
 
+    private renderDesktopLayout(parent: HTMLElement, paneConfigs: Record<GawaPaneId, PaneConfig>): void {
+        const grid = parent.createEl('div', { cls: 'diwa-gawa-desktop-grid' });
+        const desktopLayout = this.plugin.settings.gawaLayoutPreferences.desktop;
+        const columns: Array<{ kind: GawaDesktopBucketId; configs: PaneConfig[] }> = [
+            { kind: 'left', configs: this.resolveVisiblePaneConfigs(paneConfigs, desktopLayout.left) },
+            { kind: 'center', configs: this.resolveVisiblePaneConfigs(paneConfigs, desktopLayout.center) },
+            { kind: 'right', configs: this.resolveVisiblePaneConfigs(paneConfigs, desktopLayout.right) },
+        ];
+        const visibleColumns = columns.filter((column) => column.configs.length > 0);
+        if (visibleColumns.length === 0) {
+            this.renderHiddenLayoutEmptyState(grid);
+            return;
+        }
+        for (const column of visibleColumns) {
+            this.renderColumn(grid, column.kind, column.configs);
+        }
+    }
+
     private renderMobileLayout(parent: HTMLElement): void {
         const mobile = parent.createEl('div', { cls: 'diwa-gawa-mobile' });
         const stage = mobile.createEl('div', { cls: 'diwa-gawa-mobile-stage' });
@@ -392,19 +419,53 @@ export class GawaTab extends BaseTab {
         this.applyMobileTabVisibility();
     }
 
-    private renderTabletLayout(parent: HTMLElement): void {
+    private renderTabletLayout(parent: HTMLElement, paneConfigs: Record<GawaPaneId, PaneConfig>): void {
         const grid = parent.createEl('div', { cls: 'diwa-gawa-tablet-grid' });
-        const planning = grid.createEl('div', { cls: 'diwa-gawa-column diwa-gawa-column--left diwa-gawa-tablet-planning' });
-        this.createPaneShell(planning, this.createInboxPaneConfig());
-        this.createPaneShell(planning, this.createProjectsPaneConfig());
+        const tabletLayout = this.plugin.settings.gawaLayoutPreferences.tablet;
+        const planningConfigs = this.resolveVisiblePaneConfigs(paneConfigs, tabletLayout.planning);
+        const executionConfigs = this.resolveVisiblePaneConfigs(paneConfigs, tabletLayout.execution);
+        const supportConfigs = this.resolveVisiblePaneConfigs(paneConfigs, tabletLayout.support);
 
-        const execution = grid.createEl('div', { cls: 'diwa-gawa-column diwa-gawa-column--right diwa-gawa-tablet-execution' });
-        this.createPaneShell(execution, this.createTodayPaneConfig());
-        this.createPaneShell(execution, this.createFocusPaneConfig());
+        if (planningConfigs.length === 0 && executionConfigs.length === 0 && supportConfigs.length === 0) {
+            this.renderHiddenLayoutEmptyState(grid);
+            return;
+        }
 
-        const supportRow = execution.createEl('div', { cls: 'diwa-gawa-tablet-support-row' });
-        this.createPaneShell(supportRow, this.createActivePaneConfig(), ['is-compact-pane']);
-        this.createPaneShell(supportRow, this.createBacklogPaneConfig(), ['is-compact-pane']);
+        if (planningConfigs.length > 0) {
+            const planning = grid.createEl('div', { cls: 'diwa-gawa-column diwa-gawa-column--left diwa-gawa-tablet-planning' });
+            for (const config of planningConfigs) {
+                this.createPaneShell(planning, config);
+            }
+        }
+
+        if (executionConfigs.length > 0 || supportConfigs.length > 0) {
+            const execution = grid.createEl('div', { cls: 'diwa-gawa-column diwa-gawa-column--right diwa-gawa-tablet-execution' });
+            for (const config of executionConfigs) {
+                this.createPaneShell(execution, config);
+            }
+            if (supportConfigs.length > 0) {
+                const supportRow = execution.createEl('div', { cls: 'diwa-gawa-tablet-support-row' });
+                for (const config of supportConfigs) {
+                    this.createPaneShell(supportRow, config, ['is-compact-pane']);
+                }
+            }
+        }
+    }
+
+    private renderHiddenLayoutEmptyState(parent: HTMLElement): void {
+        const emptyState = parent.createEl('div', { cls: 'diwa-gawa-layout-empty' });
+        emptyState.createEl('span', { cls: 'diwa-gawa-layout-empty-eyebrow', text: 'All panes hidden' });
+        emptyState.createEl('h3', { cls: 'diwa-gawa-layout-empty-title', text: 'Nothing is mounted in Gawa right now.' });
+        emptyState.createEl('p', {
+            cls: 'diwa-gawa-layout-empty-copy',
+            text: 'Open Customize and turn at least one pane back on for this layout.',
+        });
+        const manageBtn = emptyState.createEl('button', {
+            cls: 'diwa-gawa-header-btn diwa-gawa-header-btn--primary',
+            text: 'Customize panes',
+            attr: { type: 'button' },
+        });
+        manageBtn.addEventListener('click', () => this.openLayoutCustomizeModal());
     }
 
     private createPaneShell(parent: HTMLElement, config: PaneConfig, extraClasses: string[] = []): HTMLElement {
@@ -582,6 +643,36 @@ export class GawaTab extends BaseTab {
         if (this.isPhoneLayout()) return 'phone';
         if (this.isTabletLayout()) return 'tablet';
         return 'desktop';
+    }
+
+    private getLayoutSignature(layoutMode: GawaLayoutMode): string {
+        if (layoutMode === 'phone') return 'phone';
+        return `${layoutMode}:${JSON.stringify(
+            layoutMode === 'tablet'
+                ? this.plugin.settings.gawaLayoutPreferences.tablet
+                : this.plugin.settings.gawaLayoutPreferences.desktop,
+        )}`;
+    }
+
+    private buildPaneConfigMap(): Record<GawaPaneId, PaneConfig> {
+        return {
+            'gawa-inbox': this.createInboxPaneConfig(),
+            'gawa-projects': this.createProjectsPaneConfig(),
+            'gawa-today': this.createTodayPaneConfig(),
+            'gawa-focus': this.createFocusPaneConfig(),
+            'gawa-active': this.createActivePaneConfig(),
+            'gawa-backlog': this.createBacklogPaneConfig(),
+        };
+    }
+
+    private resolveVisiblePaneConfigs(
+        paneConfigs: Record<GawaPaneId, PaneConfig>,
+        preference: GawaLayoutBucketPreference,
+    ): PaneConfig[] {
+        const hidden = new Set(preference.hidden);
+        return preference.order
+            .filter((paneId) => !hidden.has(paneId))
+            .map((paneId) => paneConfigs[paneId]);
     }
 
     private openCreateTaskModal(initialText: string = ''): void {

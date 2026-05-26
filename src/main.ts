@@ -1,6 +1,7 @@
 import { Plugin, TFile, Notice, WorkspaceLeaf, Platform, moment, addIcon, setIcon, MarkdownRenderer, Menu } from 'obsidian';
 import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, AI_CHAT_ICON_ID, AI_CHAT_ICON_SVG, TIMELINE_ICON_ID, TIMELINE_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, VOICE_ICON_ID, VOICE_ICON_SVG, PROJECT_ICON_ID, PROJECT_ICON_SVG, SYNTHESIS_ICON_ID, SYNTHESIS_ICON_SVG, COMPASS_ICON_ID, COMPASS_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_SEARCH, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_MOBILE_GAWA, VIEW_TYPE_TABLET_HUB } from './constants';
-import { DiwaSettings, TaskEntry, ThoughtEntry } from './types';
+import { DiwaSettings, GawaLayoutPreferences, TaskEntry, ThoughtEntry } from './types';
+import { sanitizeGawaLayoutPreferences } from './gawaLayout';
 import { isTablet, parseContextString } from './utils';
 import { DiwaView } from './view';
 import { DesktopHubView } from './views/DesktopHubView';
@@ -473,11 +474,13 @@ export default class DiwaPlugin extends Plugin {
         this.settings.mobileBottomBarHeight = Number.isFinite(mobileBottomBarHeight)
             ? Math.max(0, Math.min(100, mobileBottomBarHeight))
             : 56;
+        this.settings.gawaLayoutPreferences = sanitizeGawaLayoutPreferences(this.settings.gawaLayoutPreferences);
         this.settingsInitialized = true;
 	}
 
 	async saveSettings() {
 	    if (!this.settingsInitialized) return;
+        this.settings.gawaLayoutPreferences = sanitizeGawaLayoutPreferences(this.settings.gawaLayoutPreferences);
 	    await this.saveData(this.settings);
 	    if (this.ai) this.ai.updateSettings(this.settings);
 	    if (this.vault) this.vault.updateSettings(this.settings);
@@ -496,6 +499,24 @@ export default class DiwaPlugin extends Plugin {
             this.notifyRefresh('tasks');
         }
 	}
+
+    async saveGawaLayoutPreferences(preferences: GawaLayoutPreferences): Promise<void> {
+        this.settings.gawaLayoutPreferences = sanitizeGawaLayoutPreferences(preferences);
+        await this.saveSettings();
+        this.forceGawaLayoutRefresh();
+    }
+
+    forceGawaLayoutRefresh(): void {
+        const diwaLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DIWA);
+        for (const leaf of diwaLeaves) {
+            const view = leaf.view as any;
+            if (typeof view?.forceGawaRerender === 'function') {
+                view.forceGawaRerender();
+                continue;
+            }
+            if (typeof view?.renderView === 'function') view.renderView();
+        }
+    }
 
     private applyMobileCssVars(): void {
         const value = Number.isFinite(this.settings.mobileBottomBarHeight)

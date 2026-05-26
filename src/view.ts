@@ -197,6 +197,17 @@ export class DiwaView extends ItemView {
         this.renderView();
     }
 
+    forceGawaRerender(): void {
+        if (this.activeTab !== 'review-gawa') return;
+        if (!this.contentAreaEl) {
+            this.renderView();
+            return;
+        }
+        this.disposeCurrentTab();
+        this.contentAreaEl.empty();
+        this.renderTab(this.contentAreaEl);
+    }
+
     private renderTab(container: HTMLElement) {
         // arch-04: Error boundaries on all dynamic imports — silent failures leave blank panels
         const loadErr = (e: any) => container.createEl('p', { text: `Failed to load tab: ${e.message}`, cls: 'diwa-tab-error' });

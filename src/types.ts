@@ -25,6 +25,28 @@ export interface AISettingsConfig {
     enableSummaries: boolean;
 }
 
+export type GawaPaneId =
+    | 'gawa-inbox'
+    | 'gawa-projects'
+    | 'gawa-today'
+    | 'gawa-focus'
+    | 'gawa-active'
+    | 'gawa-backlog';
+
+export type GawaDesktopBucketId = 'left' | 'center' | 'right';
+export type GawaTabletBucketId = 'planning' | 'execution' | 'support';
+
+export interface GawaLayoutBucketPreference {
+    order: GawaPaneId[];
+    hidden: GawaPaneId[];
+}
+
+export interface GawaLayoutPreferences {
+    version: 1;
+    desktop: Record<GawaDesktopBucketId, GawaLayoutBucketPreference>;
+    tablet: Record<GawaTabletBucketId, GawaLayoutBucketPreference>;
+}
+
 export interface DiwaSettings {
     captureFolder: string;
 	captureFilePath: string;
@@ -79,6 +101,7 @@ export interface DiwaSettings {
     peopleFolder: string;
     contextOrder: string[];
     ai: AISettingsConfig;
+    gawaLayoutPreferences: GawaLayoutPreferences;
 }
 
 export interface Milestone {
