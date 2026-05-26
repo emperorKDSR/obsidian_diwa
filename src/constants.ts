@@ -7,6 +7,7 @@ export const VIEW_TYPE_MOBILE_HUB  = "diwa-mobile-hub";
 export const VIEW_TYPE_MOBILE_GAWA = "diwa-mobile-gawa";
 export const VIEW_TYPE_TABLET_HUB  = "diwa-tablet-hub";
 export const VIEW_TYPE_SEARCH = "diwa-search-view";
+export const VIEW_TYPE_GRAPH_EXPLORER = "diwa-graph-explorer";
 
 // Desktop Hub ribbon icon — three-pane cockpit layout
 export const DESKTOP_HUB_ICON_ID = "diwa-desktop-hub-icon";

@@ -602,6 +602,7 @@ export class IndexService {
             createdAt:   fm.createdAt   ? String(fm.createdAt)   : undefined,
             updatedAt:   fm.updatedAt   ? String(fm.updatedAt)   : undefined,
             completedAt: fm.completedAt ? String(fm.completedAt) : undefined,
+            reflectionThoughtId: fm.reflectionThoughtId ? String(fm.reflectionThoughtId) : undefined,
         });
         if (!skipRebuild) this.rebuildCalculatedState();
     }

@@ -130,6 +130,19 @@ function areStringArraysEqual(left: string[], right: string[]): boolean {
     return true;
 }
 
+type TaskGraphPayload = {
+    task: TaskEntry;
+    seed: TaskEntry;
+    kind: 'task';
+    type: 'task';
+};
+
+type TaskGraphPlugin = Partial<{
+    openTaskGraph: (task: TaskEntry) => unknown;
+    openGraphExplorer: (payload: TaskGraphPayload) => unknown;
+    openGraph: (payload: TaskGraphPayload) => unknown;
+}>;
+
 export class DesktopTaskPaneView implements TaskPanePort {
     readonly paneId: string;
     private listView: TaskPane | null = null;
@@ -1766,6 +1779,39 @@ export class TaskItemView {
         ).open();
     }
 
+    private openCurrentTaskGraph(): void {
+        const graphPlugin = this.view.plugin as TaskGraphPlugin;
+        const payload: TaskGraphPayload = {
+            task: this.currentTask,
+            seed: this.currentTask,
+            kind: 'task',
+            type: 'task',
+        };
+        const openGraph = typeof graphPlugin.openTaskGraph === 'function'
+            ? () => graphPlugin.openTaskGraph!(this.currentTask)
+            : typeof graphPlugin.openGraphExplorer === 'function'
+                ? () => graphPlugin.openGraphExplorer!(payload)
+                : typeof graphPlugin.openGraph === 'function'
+                    ? () => graphPlugin.openGraph!(payload)
+                    : null;
+
+        if (!openGraph) {
+            new Notice('Graph Explorer is not available yet.');
+            return;
+        }
+
+        try {
+            const result = openGraph();
+            void Promise.resolve(result).catch((error) => {
+                console.error('[DIWA TaskPane] Failed to open task graph', error);
+                new Notice('Unable to open Graph Explorer right now.');
+            });
+        } catch (error) {
+            console.error('[DIWA TaskPane] Failed to open task graph', error);
+            new Notice('Unable to open Graph Explorer right now.');
+        }
+    }
+
     private openMoreMenu(anchor: HTMLElement): void {
         if (this.destroyed) return;
         if (this.isPhoneInteraction()) {
@@ -1789,6 +1835,7 @@ export class TaskItemView {
             createOption('Change project', () => this.openProjectPicker(anchor));
             createOption('Change date', () => this.openDuePicker(anchor));
             createOption('Link thought', () => this.openLinkModal());
+            createOption('Open Graph Explorer', () => this.openCurrentTaskGraph());
             createOption('Duplicate', async () => this.duplicateCurrentTask());
             createOption('Delete', () => this.hooks.onDelete?.(getTaskKey(this.currentTask)));
         }, {
@@ -2497,6 +2544,7 @@ export class TaskItemView {
             createOption('Change due date', () => this.openDuePicker(this.rootEl));
             createOption('Open full editor', () => this.openStructuredEditor());
             createOption('Link thought', () => this.openLinkModal());
+            createOption('Open Graph Explorer', () => this.openCurrentTaskGraph());
             createOption('Duplicate', async () => this.duplicateCurrentTask());
             createOption('Delete', () => this.hooks.onDelete?.(getTaskKey(this.currentTask)));
         }, {
