@@ -1,9 +1,9 @@
 import { moment, Platform, TFile, setIcon } from 'obsidian';
 import type { DiwaView } from '../view';
-import { BaseTab } from "./BaseTab";
-import { DueEntry } from "../types";
-import { PaymentModal } from "../modals/PaymentModal";
-import { NewDueModal } from "../modals/NewDueModal";
+import { BaseTab } from './BaseTab';
+import type { DueEntry } from '../types';
+import { PaymentModal } from '../modals/PaymentModal';
+import { NewDueModal } from '../modals/NewDueModal';
 
 export class DuesTab extends BaseTab {
     showAll: boolean = false;
@@ -11,128 +11,177 @@ export class DuesTab extends BaseTab {
     constructor(view: DiwaView) { super(view); }
 
     render(container: HTMLElement) {
-        this.renderDuesMode(container);
+        void this.renderDuesMode(container);
     }
 
     async renderDuesMode(container: HTMLElement) {
         container.empty();
 
-        // ── Outer scroll wrapper ──────────────────────────────────────────
-        const wrap = container.createEl('div', { cls: 'diwa-bills-wrap' });
-
-        // ── 1. Header ────────────────────────────────────────────────────
-        const header = wrap.createEl('div', { cls: 'diwa-bills-header' });
-
-        const navRow = header.createEl('div', { attr: { style: 'display: flex; align-items: center; gap: 12px;' } });
-        const titleRow = header.createEl('div', { cls: 'diwa-bills-title-row' });
-        const titleStack = titleRow.createEl('div', { cls: 'diwa-bills-title-stack' });
-        titleStack.createEl('h2', { text: 'Bill Overview', cls: 'diwa-bills-title' });
-        titleStack.createEl('span', { text: moment().format('MMMM YYYY'), cls: 'diwa-bills-subtitle' });
-
-        // Inline "+" — visible on desktop; FAB replaces it on mobile
-        const addBtnInline = titleRow.createEl('button', {
-            text: '+ New Bill',
-            cls: 'diwa-bills-inline-add-btn'
-        });
-        addBtnInline.addEventListener('click', () => {
-            new NewDueModal(this.app, this.settings.pfFolder, async () => { await this.index.buildDueIndex(); this.renderDuesMode(container); }).open();
-        });
-
-        const analyticsBtn = titleRow.createEl('button', {
-            text: 'Analytics →',
-            cls: 'diwa-bills-inline-add-btn'
-        });
-        analyticsBtn.addEventListener('click', () => { this.view.activeTab = 'finance-analytics'; this.view.renderView(); });
-
-        // ── 2. Summary Strip ─────────────────────────────────────────────
         const allEntries = this.buildEntries();
-        const today      = moment().startOf('day');
+        const today = moment().startOf('day');
+        const activeEntries = allEntries.filter((entry) => entry.isActive);
+        const overdueEntries = activeEntries.filter((entry) => entry.dueMoment?.isValid() && entry.dueMoment.isBefore(today));
+        const todayEntries = activeEntries.filter((entry) => entry.dueMoment?.isValid() && entry.dueMoment.isSame(today, 'day'));
+        const upcomingEntries = activeEntries.filter((entry) => entry.dueMoment?.isValid() && entry.dueMoment.isAfter(today));
+        const totalMonthly = activeEntries.reduce((sum, entry) => sum + (entry.amount ?? 0), 0);
 
-        const activeEntries   = allEntries.filter(e => e.isActive);
-        const overdueEntries  = activeEntries.filter(e => e.dueMoment?.isValid() && e.dueMoment.isBefore(today));
-        const todayEntries    = activeEntries.filter(e => e.dueMoment?.isValid() && e.dueMoment.isSame(today, 'day'));
-        const upcomingEntries = activeEntries.filter(e => e.dueMoment?.isValid() && e.dueMoment.isAfter(today));
-        const totalMonthly    = activeEntries.reduce((sum, e) => sum + (e.amount ?? 0), 0);
+        const refreshDues = async () => {
+            await this.index.buildDueIndex();
+            await this.renderDuesMode(container);
+        };
+        const openNewDueModal = () => {
+            new NewDueModal(this.app, this.settings.pfFolder, refreshDues).open();
+        };
+        const openInsights = () => {
+            this.view.activeTab = 'finance-analytics';
+            this.view.renderView();
+        };
 
-        const summary = wrap.createEl('div', { cls: 'diwa-bills-summary' });
+        const wrap = container.createEl('section', {
+            cls: 'diwa-bills-wrap',
+            attr: { 'aria-label': 'Bulsa dues workspace' },
+        });
+
+        const header = wrap.createEl('header', { cls: 'diwa-bills-header' });
+        const headerMain = header.createEl('div', { cls: 'diwa-bills-header-main' });
+        const titleRow = headerMain.createEl('div', { cls: 'diwa-bills-title-row' });
+        const titleStack = titleRow.createEl('div', { cls: 'diwa-bills-title-stack' });
+        titleStack.createEl('span', { text: 'Finance workspace', cls: 'diwa-bills-eyebrow' });
+        titleStack.createEl('h2', { text: 'Bulsa', cls: 'diwa-bills-title' });
+        titleStack.createEl('span', {
+            text: `${moment().format('MMMM YYYY')} ledger`,
+            cls: 'diwa-bills-subtitle',
+        });
+
+        const actions = headerMain.createEl('div', { cls: 'diwa-bills-header-actions' });
+        const addBtnInline = actions.createEl('button', {
+            text: 'Add Due',
+            cls: 'diwa-bills-inline-add-btn diwa-bills-inline-add-btn--primary',
+            attr: { type: 'button' },
+        });
+        addBtnInline.addEventListener('click', openNewDueModal);
+
+        const analyticsBtn = actions.createEl('button', {
+            text: 'Bulsa Insights',
+            cls: 'diwa-bills-inline-add-btn diwa-bills-inline-add-btn--secondary',
+            attr: { type: 'button' },
+        });
+        analyticsBtn.addEventListener('click', openInsights);
+
+        header.createEl('p', {
+            text: 'Recurring dues, subscriptions, and household commitments in one calm ledger.',
+            cls: 'diwa-bills-header-copy',
+        });
+
+        const headerChips = header.createEl('div', { cls: 'diwa-bills-header-chips' });
+        headerChips.createEl('span', {
+            text: `${activeEntries.length} active due${activeEntries.length === 1 ? '' : 's'}`,
+            cls: 'diwa-bills-header-chip',
+        });
+        headerChips.createEl('span', {
+            text: overdueEntries.length > 0 ? `${overdueEntries.length} overdue` : 'All caught up',
+            cls: 'diwa-bills-header-chip diwa-bills-header-chip--accent',
+        });
+
+        const summary = wrap.createEl('section', {
+            cls: 'diwa-bills-summary',
+            attr: { 'aria-label': 'Bulsa summary' },
+        });
 
         const renderMetric = (value: string, label: string, mod = '') => {
-            const chip = summary.createEl('div', { cls: `diwa-bills-metric-chip${mod ? ' ' + mod : ''}` });
+            const chip = summary.createEl('article', { cls: `diwa-bills-metric-chip${mod ? ` ${mod}` : ''}` });
             chip.createEl('div', { text: value, cls: 'diwa-bills-metric-value' });
             chip.createEl('div', { text: label, cls: 'diwa-bills-metric-label' });
         };
-        renderMetric(
-            overdueEntries.length.toString(), 'Overdue',
-            overdueEntries.length > 0 ? 'is-danger' : ''
-        );
-        renderMetric(
-            todayEntries.length.toString(), 'Due Today',
-            todayEntries.length > 0 ? 'is-accent' : ''
-        );
+        renderMetric(overdueEntries.length.toString(), 'Overdue', overdueEntries.length > 0 ? 'is-danger' : '');
+        renderMetric(todayEntries.length.toString(), 'Due Today', todayEntries.length > 0 ? 'is-accent' : '');
         renderMetric(upcomingEntries.length.toString(), 'Upcoming');
         renderMetric(
-            totalMonthly > 0
-                ? totalMonthly.toLocaleString()
-                : activeEntries.length.toString(),
-            totalMonthly > 0 ? 'Total / Mo' : 'Active Bills'
+            totalMonthly > 0 ? totalMonthly.toLocaleString() : activeEntries.length.toString(),
+            totalMonthly > 0 ? 'Total / Mo' : 'Active Dues',
         );
 
-        // ── 3. Full-Width Filter Toggle ──────────────────────────────────
-        const toggleBar = wrap.createEl('div', { cls: 'diwa-bills-toggle' });
+        const toggleBar = wrap.createEl('nav', {
+            cls: 'diwa-bills-toggle',
+            attr: { 'aria-label': 'Bulsa due filters' },
+        });
 
         const mkToggleBtn = (label: string, isActive: boolean, onClick: () => void) => {
             const btn = toggleBar.createEl('button', {
                 text: label,
-                cls: `diwa-bills-toggle-btn${isActive ? ' is-active' : ''}`
+                cls: `diwa-bills-toggle-btn${isActive ? ' is-active' : ''}`,
+                attr: { type: 'button', 'aria-pressed': isActive ? 'true' : 'false' },
             });
             btn.addEventListener('click', onClick);
         };
-        mkToggleBtn('Active', !this.showAll, () => { this.showAll = false; this.renderDuesMode(container); });
-        mkToggleBtn('All History', this.showAll, () => { this.showAll = true; this.renderDuesMode(container); });
+        mkToggleBtn('Active', !this.showAll, () => {
+            this.showAll = false;
+            void this.renderDuesMode(container);
+        });
+        mkToggleBtn('All History', this.showAll, () => {
+            this.showAll = true;
+            void this.renderDuesMode(container);
+        });
 
-        // ── 4. Bill Cards ────────────────────────────────────────────────
-        const entries       = allEntries.filter(e => this.showAll || e.isActive);
-        const listContainer = wrap.createEl('div', { cls: 'diwa-bills-list' });
+        const entries = allEntries.filter((entry) => this.showAll || entry.isActive);
+        const listContainer = wrap.createEl('section', {
+            cls: 'diwa-bills-list',
+            attr: { 'aria-label': this.showAll ? 'All Bulsa dues' : 'Active Bulsa dues' },
+        });
 
         if (entries.length === 0) {
-            this.renderBillsEmptyState(listContainer, () => this.renderDuesMode(container));
+            this.renderBillsEmptyState(listContainer, openNewDueModal);
         } else {
-            entries.forEach(entry => {
+            entries.forEach((entry) => {
                 const isOverdue = entry.dueMoment?.isValid() && entry.dueMoment.isBefore(today);
-                const isToday   = entry.dueMoment?.isValid() && entry.dueMoment.isSame(today, 'day');
-                const isPaid    = !entry.isActive;
-                const daysUntil = (entry.dueMoment?.isValid() && !isOverdue && !isToday)
-                    ? entry.dueMoment.diff(today, 'days') : null;
-                const isSoon    = daysUntil !== null && daysUntil <= 7;
+                const isToday = entry.dueMoment?.isValid() && entry.dueMoment.isSame(today, 'day');
+                const isPaid = !entry.isActive;
+                const daysUntil = entry.dueMoment?.isValid() && !isOverdue && !isToday
+                    ? entry.dueMoment.diff(today, 'days')
+                    : null;
+                const isSoon = daysUntil !== null && daysUntil <= 7;
 
-                const statusClass = isOverdue ? 'is-overdue'
-                    : isToday   ? 'is-today'
-                    : isPaid    ? 'is-paid'
-                    : isSoon    ? 'is-soon'
-                    : 'is-upcoming';
+                const statusClass = isOverdue
+                    ? 'is-overdue'
+                    : isToday
+                        ? 'is-today'
+                        : isPaid
+                            ? 'is-paid'
+                            : isSoon
+                                ? 'is-soon'
+                                : 'is-upcoming';
 
-                // ── Card shell ───────────────────────────────────────────
-                const card = listContainer.createEl('div', {
-                    cls: `diwa-bills-card ${statusClass}${isPaid ? ' is-inactive' : ''}`
+                const card = listContainer.createEl('article', {
+                    cls: `diwa-bills-card ${statusClass}${isPaid ? ' is-inactive' : ''}`,
                 });
-
-                // Left accent stripe
                 card.createEl('div', { cls: 'diwa-bills-card-stripe' });
 
-                // Body — tap area → open vault file
-                const body = card.createEl('div', { cls: 'diwa-bills-card-body' });
-                body.addEventListener('click', () => {
+                const body = card.createEl('div', {
+                    cls: 'diwa-bills-card-body',
+                    attr: {
+                        role: 'button',
+                        tabindex: '0',
+                        'aria-label': `Open ${entry.title}`,
+                    },
+                });
+                const openEntry = () => {
                     this.plugin.app.workspace.openLinkText(
-                        entry.title, entry.path,
-                        Platform.isMobile ? 'tab' : 'window'
+                        entry.title,
+                        entry.path,
+                        Platform.isMobile ? 'tab' : 'window',
                     );
+                };
+                body.addEventListener('click', openEntry);
+                body.addEventListener('keydown', (evt: KeyboardEvent) => {
+                    if (evt.key === 'Enter' || evt.key === ' ') {
+                        evt.preventDefault();
+                        openEntry();
+                    }
                 });
 
-                // Top row: name + amount
                 const topRow = body.createEl('div', { cls: 'diwa-bills-card-top' });
                 topRow.createEl('span', { text: entry.title, cls: 'diwa-bills-card-name' });
 
-                // Amount: prefer explicit field, fall back to regex extraction from title
                 const displayAmount = entry.amount != null
                     ? entry.amount.toLocaleString()
                     : (entry.title.match(/[\d,.]+/) ?? [])[0];
@@ -140,9 +189,7 @@ export class DuesTab extends BaseTab {
                     topRow.createEl('span', { text: displayAmount, cls: 'diwa-bills-card-amount' });
                 }
 
-                // Meta row: status badge + recurring tag + last payment
                 const meta = body.createEl('div', { cls: 'diwa-bills-card-meta' });
-
                 if (isOverdue) {
                     meta.createEl('span', { text: 'Overdue', cls: 'diwa-bills-badge diwa-bills-badge--overdue' });
                 } else if (isToday) {
@@ -161,27 +208,31 @@ export class DuesTab extends BaseTab {
                 if (entry.lastPayment) {
                     meta.createEl('span', {
                         text: `Paid ${moment(entry.lastPayment).fromNow()}`,
-                        cls: 'diwa-bills-last-payment'
+                        cls: 'diwa-bills-last-payment',
                     });
                 }
 
-                // Pay button — active recurring bills only
                 if (entry.hasRecurring && entry.isActive) {
-                    const actions = card.createEl('div', { cls: 'diwa-bills-card-actions' });
-                    const payBtn  = actions.createEl('button', {
+                    const actionsRow = card.createEl('div', { cls: 'diwa-bills-card-actions' });
+                    const payBtn = actionsRow.createEl('button', {
                         cls: 'diwa-bills-pay-btn',
-                        attr: { 'aria-label': `Pay ${entry.title}`, title: 'Record payment' }
+                        attr: {
+                            type: 'button',
+                            'aria-label': `Pay ${entry.title}`,
+                            title: 'Record payment',
+                        },
                     });
                     setIcon(payBtn, 'lucide-credit-card');
-                    // Prevent card's tap-to-open from firing when the pay button is tapped
-                    payBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
+                    payBtn.addEventListener('click', (evt) => {
+                        evt.stopPropagation();
                         const file = this.app.vault.getAbstractFileByPath(entry.path);
                         if (file instanceof TFile) {
                             new PaymentModal(
-                                this.app, this.plugin, file,
+                                this.app,
+                                this.plugin,
+                                file,
                                 entry.dueDate,
-                                async () => { await this.index.buildDueIndex(); this.renderDuesMode(container); }
+                                refreshDues,
                             ).open();
                         }
                     });
@@ -189,38 +240,39 @@ export class DuesTab extends BaseTab {
             });
         }
 
-        // ── 5. FAB — mobile sticky bottom-right ─────────────────────────
-        // Rendered after the list so it stacks correctly in the flex column
         const fab = wrap.createEl('button', {
             cls: 'diwa-bills-fab',
-            attr: { 'aria-label': 'Add new bill', title: 'New Bill' }
+            attr: {
+                type: 'button',
+                'aria-label': 'Add Due',
+                title: 'Add Due',
+            },
         });
         setIcon(fab, 'lucide-plus');
-        fab.addEventListener('click', () => {
-            new NewDueModal(this.app, this.settings.pfFolder, async () => { await this.index.buildDueIndex(); this.renderDuesMode(container); }).open();
-        });
+        fab.addEventListener('click', openNewDueModal);
     }
 
-    // ── Mobile Empty State ───────────────────────────────────────────────
     private renderBillsEmptyState(parent: HTMLElement, onCta: () => void) {
         const empty = parent.createEl('div', { cls: 'diwa-bills-empty' });
-        empty.createEl('div', { cls: 'diwa-bills-empty-icon', text: '📄' });
+        empty.createEl('div', { cls: 'diwa-bills-empty-icon', text: '₱' });
         empty.createEl('p', {
-            text: this.showAll ? 'No bill history yet.' : 'No active bills.',
-            cls: 'diwa-bills-empty-title'
+            text: this.showAll ? 'No Bulsa history yet.' : 'No active dues in Bulsa.',
+            cls: 'diwa-bills-empty-title',
         });
         empty.createEl('p', {
-            text: 'Track recurring payments, subscriptions, and dues — all in one place.',
-            cls: 'diwa-bills-empty-body'
+            text: 'Bulsa keeps recurring payments, subscriptions, and shared dues in one calm place.',
+            cls: 'diwa-bills-empty-body',
         });
-        const cta = empty.createEl('button', { text: '+ Add your first bill', cls: 'diwa-bills-empty-cta' });
+        const cta = empty.createEl('button', {
+            text: 'Add your first due',
+            cls: 'diwa-bills-empty-cta',
+            attr: { type: 'button' },
+        });
         cta.addEventListener('click', onCta);
     }
 
     private buildEntries(): DueEntry[] {
-        // ob-perf-03: Read from pre-built index (O(1)) instead of scanning vault on every render
         return Array.from(this.index.dueIndex.values())
             .sort((a, b) => (a.dueMoment?.valueOf() || 0) - (b.dueMoment?.valueOf() || 0));
     }
 }
-

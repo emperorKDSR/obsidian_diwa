@@ -110,7 +110,7 @@ export class DiwaView extends ItemView {
             case 'review-thoughts': return "Thoughts";
             case 'review-gawa': return "Gawa";
             case 'diwa-ai': return "AI Chat";
-            case 'dues': return "Dues";
+            case 'dues': return "Bulsa";
             case 'projects': return "Projects";
             case 'synthesis': return "Synthesis";
             case 'compass': return "Compass";
@@ -124,7 +124,7 @@ export class DiwaView extends ItemView {
             case 'manual': return "Manual";
             case 'calendar': return "Calendar";
             case 'export': return "Export";
-            case 'finance-analytics': return "Finance Analytics";
+            case 'finance-analytics': return "Bulsa Insights";
             case 'milestones': return "Project Milestones";
             default: return "DIWA";
         }

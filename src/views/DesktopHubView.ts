@@ -405,7 +405,7 @@ export class DesktopHubView extends ItemView {
                 title: 'Manage',
                 items: [
                     { label: 'Gawa', icon: 'lucide-check-square-2', tab: 'review-gawa' },
-                    { label: 'Finance', icon: PF_ICON_ID, tab: 'dues' },
+                    { label: 'Bulsa', icon: PF_ICON_ID, tab: 'dues' },
                     { label: 'Projects', icon: 'lucide-briefcase', tab: 'projects' },
                     { label: 'Calendar', icon: 'lucide-calendar', tab: 'calendar' },
                     { label: 'Review', icon: REVIEW_ICON_ID, tab: 'review' },

@@ -9,10 +9,10 @@ const SECTIONS: HelpSection[] = [
         items: [
             { label: 'Greeting & Date', desc: 'Shows today\'s date, your greeting, and your North Star vision at the top.' },
             { label: 'Zen Mode 🎯', desc: 'Tap the target icon to collapse all navigation and enter deep focus. Tap again to exit.', tip: 'Best used when you only want to see your intelligence card and capture bar.' },
-            { label: 'Intelligence Card', desc: 'Live snapshot: open gawa, habits completed, unprocessed thoughts, and total dues. Hit "SYNTHESIZE BRIEFING" to get an AI strategy summary.', tip: 'Requires a Gemini API key configured in Settings → AI.' },
-            { label: 'Navigation Clusters', desc: 'Four grouped rows: ACTION (Focus, Habits, Journal, Synthesis, Timeline), MANAGEMENT (Gawa, Finance, Projects, Calendar, Weekly, Monthly, Compass), FEATURES (AI Chat, Voice, Compasee, Memento), and SYSTEM (Settings, Manual, Export). Each cluster wraps to the next row automatically on narrow screens.', tip: 'Tap any icon to jump directly to that tab.' },
+            { label: 'Intelligence Card', desc: 'Live snapshot: open gawa, habits completed, unprocessed thoughts, and your total Bulsa obligations. Hit "SYNTHESIZE BRIEFING" to get an AI strategy summary.', tip: 'Requires a Gemini API key configured in Settings → AI.' },
+            { label: 'Navigation Clusters', desc: 'Four grouped rows: ACTION (Focus, Habits, Journal, Synthesis, Timeline), MANAGEMENT (Gawa, Bulsa, Projects, Calendar, Weekly, Monthly, Compass), FEATURES (AI Chat, Voice, Compasee, Memento), and SYSTEM (Settings, Manual, Export). Each cluster wraps to the next row automatically on narrow screens.', tip: 'Tap any icon to jump directly to that tab.' },
             { label: 'Tablet Experience', desc: 'On tablets (iPad, etc.), DIWA automatically upgrades to a desktop-like layout: inline capture bar, horizontal habit bar, expanded navigation, sidebar manual, and hover effects.', tip: 'Tablet is detected when the device short-edge is ≥768px.' },
-            { label: 'Global Search 🔍', desc: 'Tap the search icon (before Help) or press Mod+Shift+F to open Global Search. Instantly find anything across Thoughts, Gawa, Dues, Projects, and Habits.', tip: 'Also available via Obsidian command palette: "DIWA: Global Search".' },
+            { label: 'Global Search 🔍', desc: 'Tap the search icon (before Help) or press Mod+Shift+F to open Global Search. Instantly find anything across Thoughts, Gawa, Bulsa, Projects, and Habits.', tip: 'Also available via Obsidian command palette: "DIWA: Global Search".' },
         ]
     },
     {
@@ -22,9 +22,9 @@ const SECTIONS: HelpSection[] = [
             { label: 'Search Pill (Phone)', desc: 'On phone, a tappable search pill sits in the Command Center between the greeting and the capture bar. Tapping it opens the full-screen search overlay directly.', tip: 'The pill only appears on phone-sized screens — on tablet/desktop use the header icon.' },
             { label: 'Mobile Full-Screen Mode', desc: 'On phone, search opens as a full-screen iOS Spotlight-style takeover: 16px input (prevents iOS zoom), results scroll above the keyboard automatically, and safe-area insets are respected for notched phones.' },
             { label: 'Swipe to Dismiss', desc: 'On phone, swipe down on the search overlay or tap the ← back button to close. Supports reduced-motion preferences.', tip: 'The back button appears in the top-left corner of the full-screen overlay.' },
-            { label: 'Scope Filters', desc: 'Use the pill buttons (All / Thoughts / Gawa / Dues / Projects / Habits) to narrow results to a specific type. Counts update live as you type.' },
+            { label: 'Scope Filters', desc: 'Use the pill buttons (All / Thoughts / Gawa / Bulsa / Projects / Habits) to narrow results to a specific type. Counts update live as you type.' },
             { label: 'Keyboard Navigation', desc: '↑↓ arrow keys move through results. Enter opens the focused item. Escape closes the overlay.', tip: 'Typing always returns focus to the input — you never lose your place.' },
-            { label: 'Quick Jump', desc: 'When search is empty, a Quick Jump grid lets you instantly navigate to any tab — Timeline, Gawa, Dues, Projects, Habits, or Journal. Displays as 2 columns on phone, 3 columns on tablet/desktop.', tip: 'Quick Jump tiles are touch-optimised (56px+ height) for easy tapping on phone.' },
+            { label: 'Quick Jump', desc: 'When search is empty, a Quick Jump grid lets you instantly navigate to any tab — Timeline, Gawa, Bulsa, Projects, Habits, or Journal. Displays as 2 columns on phone, 3 columns on tablet/desktop.', tip: 'Quick Jump tiles are touch-optimised (56px+ height) for easy tapping on phone.' },
             { label: 'Match Highlighting', desc: 'Your query is highlighted wherever it matches result titles, making it easy to confirm relevance at a glance.' },
             { label: 'Result Types', desc: 'Each result shows a colour-coded icon (purple=thought, accent=task, amber=due, green=project, red=habit), title, preview, and date/status.' },
         ]
@@ -82,18 +82,18 @@ const SECTIONS: HelpSection[] = [
         ]
     },
     {
-        id: 'finance', icon: 'lucide-credit-card', title: 'Finance (Dues)', subtitle: 'Track bills and financial obligations',
+        id: 'finance', icon: 'lucide-credit-card', title: 'Bulsa', subtitle: 'Track bills and recurring obligations',
         items: [
-            { label: 'Dues Ledger', desc: 'All your recurring bills and due dates in one place.' },
+            { label: 'Bulsa Ledger', desc: 'All your recurring bills and due dates in one place.' },
             { label: 'Filter Views', desc: 'Switch between All, Due Soon, Overdue, and Paid views using the segment bar.' },
-            { label: 'Mark Paid', desc: 'Tap a due item to log a payment. Updates next_duedate and last_payment_date frontmatter, stamped and reflected in Weekly Review.', tip: 'Dates are stored as plain YYYY-MM-DD strings (e.g. 2026-05-01), not wiki links.' },
-            { label: 'Burn Rate', desc: 'Total monthly obligation is shown at the top — your financial baseline.' },
+            { label: 'Mark Paid', desc: 'Tap a Bulsa item to log a payment. Updates next_duedate and last_payment_date frontmatter, stamped and reflected in Weekly Review.', tip: 'Dates are stored as plain YYYY-MM-DD strings (e.g. 2026-05-01), not wiki links.' },
+            { label: 'Burn Rate', desc: 'Total monthly obligation is shown at the top — your baseline for recurring obligations.' },
         ]
     },
     {
         id: 'review', icon: 'lucide-calendar-check', title: 'Weekly Review', subtitle: 'Reflect and plan every week',
         items: [
-            { label: 'Week at a Glance ⚡', desc: 'Auto-generated panel showing gawa completed this week, habit progress bars, active projects, and finance paid/overdue.', tip: 'Tap ↻ to refresh. Tap ⌄ to collapse.' },
+            { label: 'Week at a Glance ⚡', desc: 'Auto-generated panel showing gawa completed this week, habit progress bars, active projects, and Bulsa paid/overdue.', tip: 'Tap ↻ to refresh. Tap ⌄ to collapse.' },
             { label: 'Wins', desc: 'Write what went well this week — celebrate progress, big and small.' },
             { label: 'Lessons Learned', desc: 'Capture what you\'d do differently. Turns mistakes into growth.' },
             { label: 'Next Week\'s Focus', desc: 'Set 1–3 priorities for the coming week. These appear on your Home screen.' },
@@ -183,10 +183,10 @@ const SECTIONS: HelpSection[] = [
             { label: '3-Column Layout', desc: 'LEFT: icon-only navigation sidebar (hover to expand with labels). CENTER: thought capture + today\'s live feed. RIGHT: stats panel + AI Intelligence briefing.' },
             { label: 'Thought Capture', desc: 'Type your thought in the center textarea and press Enter to save instantly. Use ⌘K to open the inline context tagger and assign tags before saving.', tip: 'Shift+Enter inserts a newline without saving.' },
             { label: "Today's Feed", desc: 'All thoughts captured today are shown in the center panel, newest first. Each entry shows timestamp, body text, and context chips.' },
-            { label: 'Stats Panel', desc: 'Right panel shows 5 live stats: Open Gawa, Overdue (red when >0), Unsynth Thoughts, Total Dues ($), and Habits ratio. Updates reactively with every vault change.' },
+            { label: 'Stats Panel', desc: 'Right panel shows 5 live stats: Open Gawa, Overdue (red when >0), Unsynth Thoughts, Bulsa Total ($), and Habits ratio. Updates reactively with every vault change.' },
             { label: 'AI Intelligence', desc: 'Hit "SYNTHESIZE BRIEFING" in the right panel to get a Gemini strategy summary based on your current thoughts, gawa, and context.', tip: 'Requires a Gemini API key in Settings → AI.' },
             { label: 'Focus Mode 🎯', desc: 'Desktop Hub opens in Focus Mode by default. Click the 🎯 button in the top bar to collapse the sidebar and right panel — center capture goes full-width for distraction-free input. Click again to restore.', tip: 'Focus Mode state is saved per-window and survives Obsidian restarts.' },
-            { label: 'Navigation Sidebar', desc: 'Hover the left sidebar to expand it. Four groups: ACTION (Capture, Synthesis, Timeline, Habits, Journal), MANAGE (Gawa, Finance, Projects, Calendar, Monthly, Compass), FEATURES (AI Chat, Voice, Memento, Export), SYSTEM (Settings, Manual).' },
+            { label: 'Navigation Sidebar', desc: 'Hover the left sidebar to expand it. Four groups: ACTION (Capture, Synthesis, Timeline, Habits, Journal), MANAGE (Gawa, Bulsa, Projects, Calendar, Monthly, Compass), FEATURES (AI Chat, Voice, Memento, Export), SYSTEM (Settings, Manual).' },
         ]
     },
     {

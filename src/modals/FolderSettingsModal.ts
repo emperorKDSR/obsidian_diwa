@@ -57,8 +57,8 @@ export class FolderSettingsModal extends Modal {
                 }));
 
         new Setting(body)
-            .setName('Finance Folder')
-            .setDesc('Scanned for recurring payment notes.')
+            .setName('Bulsa Folder')
+            .setDesc('Scanned for Bulsa recurring payment notes.')
             .addText(text => text
                 .setPlaceholder('000 Bin/DIWA PF')
                 .setValue(this.plugin.settings.pfFolder)
@@ -140,5 +140,4 @@ export class FolderSettingsModal extends Modal {
         this.contentEl.empty();
     }
 }
-
 

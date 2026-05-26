@@ -12,10 +12,10 @@ const SECTIONS: HelpSection[] = [
         items: [
             { label: 'Greeting & Date', desc: 'Shows today\'s date, your greeting, and your North Star vision at the top.' },
             { label: 'Zen Mode 🎯', desc: 'Tap the target icon to collapse all navigation and enter deep focus. Tap again to exit.', tip: 'Best used when you only want to see your intelligence card and capture bar.' },
-            { label: 'Intelligence Card', desc: 'Live snapshot: open gawa, habits completed, unprocessed thoughts, and total dues. Hit "SYNTHESIZE BRIEFING" to get an AI strategy summary.', tip: 'Requires a Gemini API key configured in Settings → AI.' },
-            { label: 'Navigation Clusters', desc: 'Four grouped rows: ACTION (Habits, Journal, Synthesis, Timeline), MANAGEMENT (Gawa, Finance, Projects, Calendar, Weekly, Monthly, Compass), FEATURES (AI Chat, Voice, Compasee), and SYSTEM (Settings, Manual, Export). Each cluster wraps to the next row automatically on narrow screens.', tip: 'Tap any icon to jump directly to that tab.' },
+            { label: 'Intelligence Card', desc: 'Live snapshot: open gawa, habits completed, unprocessed thoughts, and your total Bulsa obligations. Hit "SYNTHESIZE BRIEFING" to get an AI strategy summary.', tip: 'Requires a Gemini API key configured in Settings → AI.' },
+            { label: 'Navigation Clusters', desc: 'Four grouped rows: ACTION (Habits, Journal, Synthesis, Timeline), MANAGEMENT (Gawa, Bulsa, Projects, Calendar, Weekly, Monthly, Compass), FEATURES (AI Chat, Voice, Compasee), and SYSTEM (Settings, Manual, Export). Each cluster wraps to the next row automatically on narrow screens.', tip: 'Tap any icon to jump directly to that tab.' },
             { label: 'Tablet Experience', desc: 'On tablets (iPad, etc.), DIWA automatically upgrades to a desktop-like layout: inline capture bar, horizontal habit bar, expanded navigation, and hover effects.', tip: 'Tablet is detected when the device short-edge is ≥768px.' },
-            { label: 'Global Search 🔍', desc: 'Tap the search icon in the header or press Mod+Shift+F to open Global Search. Instantly find anything across Thoughts, Gawa, Dues, Projects, and Habits.', tip: 'Also available via Obsidian command palette: "MINA: Global Search".' },
+            { label: 'Global Search 🔍', desc: 'Tap the search icon in the header or press Mod+Shift+F to open Global Search. Instantly find anything across Thoughts, Gawa, Bulsa, Projects, and Habits.', tip: 'Also available via Obsidian command palette: "MINA: Global Search".' },
         ]
     },
     {
@@ -25,7 +25,7 @@ const SECTIONS: HelpSection[] = [
             { label: 'Search Pill (Phone)', desc: 'On phone, a tappable search pill sits in the Command Center between the greeting and the capture bar. Tapping it opens the full-screen search overlay directly.', tip: 'The pill only appears on phone-sized screens — on tablet/desktop use the header icon.' },
             { label: 'Mobile Full-Screen Mode', desc: 'On phone, search opens as a full-screen iOS Spotlight-style takeover: 16px input (prevents iOS zoom), results scroll above the keyboard automatically, and safe-area insets are respected for notched phones.' },
             { label: 'Swipe to Dismiss', desc: 'On phone, swipe down on the search overlay or tap the ← back button to close.', tip: 'The back button appears in the top-left corner of the full-screen overlay.' },
-            { label: 'Scope Filters', desc: 'Use the pill buttons (All / Thoughts / Gawa / Dues / Projects / Habits) to narrow results to a specific type. Counts update live as you type.' },
+            { label: 'Scope Filters', desc: 'Use the pill buttons (All / Thoughts / Gawa / Bulsa / Projects / Habits) to narrow results to a specific type. Counts update live as you type.' },
             { label: 'Keyboard Navigation', desc: '↑↓ arrow keys move through results. Enter opens the focused item. Escape closes the overlay.', tip: 'Typing always returns focus to the input — you never lose your place.' },
             { label: 'Quick Jump', desc: 'When search is empty, a Quick Jump grid lets you instantly navigate to any tab. Displays as 2 columns on phone, 3 columns on tablet/desktop.' },
             { label: 'Match Highlighting', desc: 'Your query is highlighted wherever it matches result titles, making it easy to confirm relevance at a glance.' },
@@ -92,19 +92,19 @@ const SECTIONS: HelpSection[] = [
         ]
     },
     {
-        id: 'finance', icon: 'lucide-credit-card', title: 'Finance (Dues)', subtitle: 'Track bills and financial obligations',
+        id: 'finance', icon: 'lucide-credit-card', title: 'Bulsa', subtitle: 'Track bills and recurring obligations',
         items: [
-            { label: 'Dues Ledger', desc: 'All your recurring bills and due dates in one place.' },
+            { label: 'Bulsa Ledger', desc: 'All your recurring bills and due dates in one place.' },
             { label: 'Filter Views', desc: 'Switch between All, Due Soon, Overdue, and Paid views using the segment bar.' },
-            { label: 'Mark Paid', desc: 'Tap a due item to open the payment modal. Enter the payment date and next due date. MINA updates the last_payment_date and next_duedate frontmatter fields and appends a payment log entry to the bill note.', tip: 'Dates must be plain YYYY-MM-DD format (e.g. 2026-05-01). The "Paid X ago" badge reads last_payment_date.' },
-            { label: 'Burn Rate', desc: 'Total monthly obligation is shown at the top — your financial baseline.' },
+            { label: 'Mark Paid', desc: 'Tap a Bulsa item to open the payment modal. Enter the payment date and next due date. MINA updates the last_payment_date and next_duedate frontmatter fields and appends a payment log entry to the bill note.', tip: 'Dates must be plain YYYY-MM-DD format (e.g. 2026-05-01). The "Paid X ago" badge reads last_payment_date.' },
+            { label: 'Burn Rate', desc: 'Total monthly obligation is shown at the top — your baseline for recurring obligations.' },
             { label: 'Bill Frontmatter Contract', desc: 'Each bill note uses: active_status, next_duedate, last_payment_date, and amount. The pay button only shows for active bills that have a next_duedate set.', tip: 'Use category: recurring payment to create standard bills via the New Due modal.' },
         ]
     },
     {
         id: 'review', icon: 'lucide-calendar-check', title: 'Weekly Review', subtitle: 'Reflect and plan every week',
         items: [
-            { label: 'Week at a Glance ⚡', desc: 'Auto-generated panel showing gawa completed, habit progress, active projects, and finance paid/overdue.', tip: 'Tap ↻ to refresh. Tap ⌄ to collapse.' },
+            { label: 'Week at a Glance ⚡', desc: 'Auto-generated panel showing gawa completed, habit progress, active projects, and Bulsa paid/overdue.', tip: 'Tap ↻ to refresh. Tap ⌄ to collapse.' },
             { label: 'AI Weekly Brief 🤖', desc: 'Tap "✨ Generate AI Brief" at the bottom of the review to get a Gemini-powered 5-section brief: Week Assessment, Top Win, Key Insight, Next Week Priority, and North Star Pulse.', tip: 'Requires a Gemini API key. The brief is generated from your actual vault data — gawa, habits, thoughts, projects, and goals.' },
             { label: 'Wins', desc: 'Write what went well this week — celebrate progress, big and small.' },
             { label: 'Lessons Learned', desc: 'Capture what you\'d do differently. Turns mistakes into growth.' },
@@ -131,7 +131,7 @@ const SECTIONS: HelpSection[] = [
             { label: 'Access', desc: 'Open from the MANAGEMENT cluster in Command Center. Shows your Quarterly North Star Goals and Life Mission.' },
             { label: 'North Star Goals', desc: 'Set 3 quarterly goals that define your 90-day strategic priorities. Displayed daily on the Home screen.' },
             { label: 'Life Mission', desc: 'Write your personal "why" — the reason behind all your goals and actions.' },
-            { label: 'Quarterly Audit', desc: 'Auto-generated stats showing gawa done, habits completed, and dues paid for the quarter.' },
+            { label: 'Quarterly Audit', desc: 'Auto-generated stats showing gawa done, habits completed, and Bulsa payments logged for the quarter.' },
             { label: 'Persistence', desc: 'Compass data saves to Reviews/Compass/YYYY-Qx.md — one file per quarter.', tip: 'Configurable via Folder Config → Reviews Folder.' },
         ]
     },
@@ -188,8 +188,8 @@ const SECTIONS: HelpSection[] = [
         items: [
             { label: 'Access', desc: 'Open from the MANAGEMENT cluster in Command Center (Calendar icon).' },
             { label: 'Month / Week Toggle', desc: 'Switch between a full month grid and a focused 7-day week view using the toggle in the top-right.', tip: 'Week view shows mini task lists inside each day cell.' },
-            { label: 'Event Dots', desc: 'Each day cell shows coloured dots: accent = gawa due, orange = financial dues, green = habits completed. A count badge appears when there are multiple.', tip: 'Green dot glows when you\'ve completed all habits for the day.' },
-            { label: 'Day Detail Panel', desc: 'Tap any day cell to see its full detail panel below the grid: gawa with priority badges, dues with amounts, and habits with completion status.' },
+            { label: 'Event Dots', desc: 'Each day cell shows coloured dots: accent = gawa due, orange = Bulsa items due, green = habits completed. A count badge appears when there are multiple.', tip: 'Green dot glows when you\'ve completed all habits for the day.' },
+            { label: 'Day Detail Panel', desc: 'Tap any day cell to see its full detail panel below the grid: gawa with priority badges, Bulsa items with amounts, and habits with completion status.' },
             { label: 'Navigation', desc: 'Use ◀ ▶ to move between months or weeks. "Today" snaps back to the current date instantly.' },
             { label: 'State Persistence', desc: 'Your selected date, view mode, and current month are remembered even when the tab re-renders after vault changes.' },
         ]
@@ -200,19 +200,19 @@ const SECTIONS: HelpSection[] = [
             { label: 'Access', desc: 'Open from the SYSTEM cluster in Command Center (Export button).', tip: 'Run a backup before major vault reorganisations.' },
             { label: 'Export Thoughts (CSV)', desc: 'Exports all thoughts as a CSV file (title, created date, day, contexts, body). Saved to your Thoughts folder.', tip: 'Open in Excel, Numbers, or any spreadsheet app.' },
             { label: 'Export Gawa (CSV)', desc: 'Exports all gawa items as a CSV file (title, status, due date, priority, energy, contexts). Saved to your Gawa folder.' },
-            { label: 'Full JSON Backup', desc: 'Creates a single JSON snapshot of thoughts, gawa, projects, dues, and plugin settings. API keys are intentionally excluded for security.', tip: 'Saved to your vault root as DIWA-backup-YYYY-MM-DD.json.' },
+            { label: 'Full JSON Backup', desc: 'Creates a single JSON snapshot of thoughts, gawa, projects, Bulsa data, and plugin settings. API keys are intentionally excluded for security.', tip: 'Saved to your vault root as DIWA-backup-YYYY-MM-DD.json.' },
             { label: 'Count Badges', desc: 'Each export card shows a live count of how many items will be exported before you click.' },
         ]
     },
     {
-        id: 'finance-analytics', icon: 'lucide-bar-chart-2', title: 'Finance Analytics', subtitle: 'Cashflow overview and obligation breakdown',
+        id: 'finance-analytics', icon: 'lucide-bar-chart-2', title: 'Bulsa Insights', subtitle: 'Cashflow overview and obligation breakdown',
         items: [
-            { label: 'Access', desc: 'Open from the Finance (Dues) tab via the "Analytics →" button in the header, or navigate directly to Finance Analytics from Command Center.', tip: 'The Analytics button appears in the top-right of the Dues ledger.' },
-            { label: 'Cashflow Overview', desc: 'Shows monthly income, total obligations, and net cashflow side by side. Set your monthly income in Settings → Finance → Monthly Income.', tip: 'Net cashflow turns red when obligations exceed income.' },
+            { label: 'Access', desc: 'Open from the Bulsa tab via the "Analytics →" button in the header, or navigate directly to Bulsa Insights from Command Center.', tip: 'The Analytics button appears in the top-right of the Bulsa ledger.' },
+            { label: 'Cashflow Overview', desc: 'Shows monthly income, total obligations, and net cashflow side by side. Set your monthly income in Settings → Bulsa → Monthly Income.', tip: 'Net cashflow turns red when obligations exceed income.' },
             { label: 'Obligation Bar', desc: 'A colour-coded bar shows obligations as a percentage of income. Green = healthy (<60%), orange = caution (60–80%), red = overextended (>80%).' },
-            { label: 'Obligations by Category', desc: 'All active dues are grouped by category with total per group and a proportional bar. Quickly see your biggest spending areas.' },
-            { label: 'Quick Stats', desc: 'At a glance: how many dues are due this week, how many are overdue, and how many have been paid this month.' },
-            { label: 'No Income Set', desc: 'If monthly income is not configured, cashflow fields show "—". Add your income in Settings → Finance → Monthly Income to unlock the full view.' },
+            { label: 'Obligations by Category', desc: 'All active Bulsa items are grouped by category with total per group and a proportional bar. Quickly see your biggest spending areas.' },
+            { label: 'Quick Stats', desc: 'At a glance: how many Bulsa items are due this week, how many are overdue, and how many have been paid this month.' },
+            { label: 'No Income Set', desc: 'If monthly income is not configured, cashflow fields show "—". Add your income in Settings → Bulsa → Monthly Income to unlock the full view.' },
         ]
     },
     {
@@ -225,7 +225,7 @@ const SECTIONS: HelpSection[] = [
             { label: 'AI Key', desc: 'Enter your Gemini API key to enable AI Chat and Intelligence features.' },
             { label: 'Habits', desc: 'Add, edit, and archive habits from the ⚙ icon on the Home screen.' },
             { label: 'Reminders', desc: 'Toggle habit reminders and gawa reminders independently. Both respect quiet hours (8 AM – 10 PM) and fire on mobile app resume.' },
-            { label: 'Monthly Income', desc: 'Set your monthly income (number) to unlock the cashflow overview in Finance Analytics.' },
+            { label: 'Monthly Income', desc: 'Set your monthly income (number) to unlock the cashflow overview in Bulsa Insights.' },
         ]
     },
     {

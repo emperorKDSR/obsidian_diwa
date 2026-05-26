@@ -134,7 +134,7 @@ export const SEARCH_SCOPES = [
     { id: 'all',     label: 'All' },
     { id: 'thought', label: 'Thoughts' },
     { id: 'task',    label: 'Gawa' },
-    { id: 'due',     label: 'Dues' },
+    { id: 'due',     label: 'Bulsa' },
     { id: 'project', label: 'Projects' },
     { id: 'habit',   label: 'Habits' },
 ] as const;
@@ -150,7 +150,7 @@ export const SEARCH_TYPE_ICONS: Record<string, string> = {
 export const SEARCH_QUICKJUMP_TABS = [
     { id: 'timeline',     label: 'Timeline', icon: 'lucide-message-circle' },
     { id: 'review-gawa',  label: 'Gawa',     icon: 'lucide-check-square-2' },
-    { id: 'dues',         label: 'Finance',  icon: 'lucide-wallet' },
+    { id: 'dues',         label: 'Bulsa',    icon: 'lucide-wallet' },
     { id: 'projects',     label: 'Projects', icon: 'lucide-folder-kanban' },
     { id: 'habits',       label: 'Habits',   icon: 'lucide-flame' },
     { id: 'journal',      label: 'Journal',  icon: 'lucide-book-open' },
