@@ -216,9 +216,11 @@ export class ThoughtController {
         if (!ref) return null;
         const existing = this.getThought(ref);
         if (!existing) return null;
+        const isContentOnlyUpdate = thought.content !== undefined && thought.body === undefined;
         const merged = this.normalizeThought({
             ...existing,
             ...thought,
+            ...(isContentOnlyUpdate ? { body: thought.content } : {}),
             filePath: existing.filePath,
             id: existing.id,
             updatedAt: Date.now(),
@@ -251,16 +253,20 @@ export class ThoughtController {
             const file = this.plugin.app.vault.getAbstractFileByPath(existing.filePath);
             if (file instanceof TFile) {
                 await this.plugin.refreshCoordinator.reindexFile(file);
+                this.plugin.refreshCoordinator.bumpReindexCooldown(file.path);
                 const synced = this.plugin.index.thoughtIndex.get(existing.filePath) ?? null;
                 const resolved = this.normalizeThought({ ...(synced ?? existing), ...merged });
-                return this.upsertThought(resolved, true);
+                const result = this.upsertThought(resolved, true);
+                const pathRef = existing.filePath;
+                window.setTimeout(() => this.updatingThoughtPaths.delete(pathRef), 400);
+                return result;
             }
+            this.updatingThoughtPaths.delete(existing.filePath);
             return this.upsertThought(merged);
         } catch (error) {
             console.error('[DIWA ThoughtController] updateThought failed', error);
-            return null;
-        } finally {
             this.updatingThoughtPaths.delete(existing.filePath);
+            return null;
         }
     }
 

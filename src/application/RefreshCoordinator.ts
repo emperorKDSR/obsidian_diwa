@@ -29,6 +29,11 @@ export class RefreshCoordinator {
         if (until > this._suppressNotifyRefreshUntil) this._suppressNotifyRefreshUntil = until;
     }
 
+    /** Prevent immediate follow-up reindex calls from stale intermediate vault events. */
+    bumpReindexCooldown(filePath: string): void {
+        this._reindexCooldown.set(filePath, Date.now());
+    }
+
     async reindexFile(file: TFile): Promise<void> {
         // CRIT-01: Deduplicate concurrent calls from vault 'modify' + metadataCache 'changed'.
         // Both events fire on every local save; a 300ms cooldown window collapses them into one.
