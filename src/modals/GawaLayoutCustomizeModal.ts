@@ -7,6 +7,7 @@ import {
     cloneGawaLayoutPreferences,
     createDefaultGawaLayoutPreferences,
 } from '../gawaLayout';
+import { isTablet } from '../utils';
 import type {
     GawaDesktopBucketId,
     GawaLayoutPreferences,
@@ -32,18 +33,21 @@ export class GawaLayoutCustomizeModal extends Modal {
     onOpen(): void {
         this.draft = cloneGawaLayoutPreferences(this.plugin.settings.gawaLayoutPreferences);
         this.modalEl.addClass('diwa-workspace-popup-shell', 'diwa-gawa-layout-modal');
+        this.modalEl.toggleClass('diwa-gawa-layout-modal--tablet', isTablet());
         this.render();
     }
 
     onClose(): void {
         this.saving = false;
-        this.modalEl.removeClass('diwa-workspace-popup-shell', 'diwa-gawa-layout-modal');
+        this.modalEl.removeClass('diwa-workspace-popup-shell', 'diwa-gawa-layout-modal', 'diwa-gawa-layout-modal--tablet');
         this.contentEl.empty();
     }
 
     private render(): void {
         this.contentEl.empty();
 
+        const tabletLayout = isTablet();
+        this.modalEl.toggleClass('diwa-gawa-layout-modal--tablet', tabletLayout);
         const root = this.contentEl.createEl('div', { cls: 'diwa-gawa-layout-root' });
         const header = root.createEl('div', { cls: 'diwa-gawa-layout-header diwa-workspace-popup-header' });
         header.createEl('span', { cls: 'diwa-workspace-popup-eyebrow', text: 'Gawa customize' });
@@ -51,30 +55,25 @@ export class GawaLayoutCustomizeModal extends Modal {
         const title = titleRow.createEl('div', { cls: 'diwa-workspace-popup-title', text: 'Arrange panes' });
         title.setAttr('role', 'heading');
         title.setAttr('aria-level', '2');
-        const closeBtn = titleRow.createEl('button', {
-            cls: 'diwa-workspace-popup-close',
-            attr: { type: 'button', 'aria-label': 'Close Gawa customize modal' },
-        });
-        closeBtn.setText('✕');
-        closeBtn.addEventListener('click', () => this.close());
         header.createEl('p', {
             cls: 'diwa-workspace-popup-subtitle',
-            text: 'Choose which desktop and tablet panes appear, then reorder them within each existing layout group.',
+            text: 'Toggle panes on or off, then reorder them within each layout bucket.',
         });
 
         const body = root.createEl('div', { cls: 'diwa-gawa-layout-body' });
         const intro = body.createEl('div', { cls: 'diwa-gawa-layout-intro' });
-        intro.createEl('span', { cls: 'diwa-workspace-popup-count', text: 'v1 layout buckets' });
+        intro.createEl('span', { cls: 'diwa-workspace-popup-count diwa-gawa-layout-intro-badge', text: 'Bucket layout stays intact' });
         intro.createEl('p', {
             cls: 'diwa-gawa-layout-intro-copy',
-            text: 'Desktop and tablet keep their current bucket structure. Hidden panes are fully unmounted until you enable them again.',
+            text: 'Hidden panes stay fully unmounted until you re-enable them, while each existing desktop and tablet bucket keeps its current structure.',
         });
 
-        this.renderLayoutGroup(body, 'desktop');
-        this.renderLayoutGroup(body, 'tablet');
+        const layoutGroups: LayoutGroup[] = tabletLayout ? ['tablet', 'desktop'] : ['desktop', 'tablet'];
+        layoutGroups.forEach((layoutGroup) => this.renderLayoutGroup(body, layoutGroup));
 
         const footer = root.createEl('div', { cls: 'diwa-gawa-layout-footer' });
-        const resetBtn = footer.createEl('button', {
+        const dock = footer.createEl('div', { cls: 'diwa-gawa-layout-footer-dock' });
+        const resetBtn = dock.createEl('button', {
             cls: 'diwa-gawa-layout-footer-btn diwa-gawa-layout-footer-btn--ghost',
             text: 'Reset to default',
             attr: { type: 'button' },
@@ -85,7 +84,7 @@ export class GawaLayoutCustomizeModal extends Modal {
             this.render();
         });
 
-        const actions = footer.createEl('div', { cls: 'diwa-gawa-layout-footer-actions' });
+        const actions = dock.createEl('div', { cls: 'diwa-gawa-layout-footer-actions' });
         const cancelBtn = actions.createEl('button', {
             cls: 'diwa-gawa-layout-footer-btn diwa-gawa-layout-footer-btn--ghost',
             text: 'Cancel',
@@ -106,7 +105,10 @@ export class GawaLayoutCustomizeModal extends Modal {
     }
 
     private renderLayoutGroup(parent: HTMLElement, layoutGroup: LayoutGroup): void {
-        const section = parent.createEl('section', { cls: 'diwa-gawa-layout-section' });
+        const section = parent.createEl('section', {
+            cls: `diwa-gawa-layout-section diwa-gawa-layout-section--${layoutGroup}`,
+            attr: { 'data-layout-group': layoutGroup },
+        });
         const sectionHeader = section.createEl('div', { cls: 'diwa-gawa-layout-section-header' });
         sectionHeader.createEl('span', {
             cls: 'diwa-workspace-popup-section-label',
