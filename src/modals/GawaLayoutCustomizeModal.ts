@@ -43,6 +43,27 @@ export class GawaLayoutCustomizeModal extends Modal {
         this.contentEl.empty();
     }
 
+    private captureScrollState(): { top: number; left: number } {
+        const scrollContainer = this.contentEl;
+        return {
+            top: scrollContainer.scrollTop,
+            left: scrollContainer.scrollLeft,
+        };
+    }
+
+    private restoreScrollState(scrollState: { top: number; left: number }): void {
+        window.requestAnimationFrame(() => {
+            this.contentEl.scrollTop = scrollState.top;
+            this.contentEl.scrollLeft = scrollState.left;
+        });
+    }
+
+    private rerenderPreservingScroll(): void {
+        const scrollState = this.captureScrollState();
+        this.render();
+        this.restoreScrollState(scrollState);
+    }
+
     private render(): void {
         this.contentEl.empty();
 
@@ -81,7 +102,7 @@ export class GawaLayoutCustomizeModal extends Modal {
         resetBtn.disabled = this.saving;
         resetBtn.addEventListener('click', () => {
             this.draft = createDefaultGawaLayoutPreferences();
-            this.render();
+            this.rerenderPreservingScroll();
         });
 
         const actions = dock.createEl('div', { cls: 'diwa-gawa-layout-footer-actions' });
@@ -194,7 +215,7 @@ export class GawaLayoutCustomizeModal extends Modal {
             });
             visibilityBtn.addEventListener('click', () => {
                 this.togglePaneVisibility(layoutGroup, bucketId, paneId);
-                this.render();
+                this.rerenderPreservingScroll();
             });
 
             const moveControls = actions.createEl('div', { cls: 'diwa-gawa-layout-move-controls' });
@@ -205,7 +226,7 @@ export class GawaLayoutCustomizeModal extends Modal {
                 index === 0,
                 () => {
                     this.movePane(layoutGroup, bucketId, index, index - 1);
-                    this.render();
+                    this.rerenderPreservingScroll();
                 },
             );
             moveUpBtn.toggleClass('is-disabled', index === 0);
@@ -216,7 +237,7 @@ export class GawaLayoutCustomizeModal extends Modal {
                 index === preference.order.length - 1,
                 () => {
                     this.movePane(layoutGroup, bucketId, index, index + 1);
-                    this.render();
+                    this.rerenderPreservingScroll();
                 },
             );
             moveDownBtn.toggleClass('is-disabled', index === preference.order.length - 1);
@@ -275,7 +296,7 @@ export class GawaLayoutCustomizeModal extends Modal {
     private async save(): Promise<void> {
         if (this.saving) return;
         this.saving = true;
-        this.render();
+        this.rerenderPreservingScroll();
         try {
             await this.onSaveLayout(cloneGawaLayoutPreferences(this.draft));
             new Notice('Gawa layout updated.');
@@ -284,7 +305,7 @@ export class GawaLayoutCustomizeModal extends Modal {
             console.error('[DIWA GAWA] Failed to save layout preferences', error);
             new Notice('Failed to save Gawa layout.');
             this.saving = false;
-            this.render();
+            this.rerenderPreservingScroll();
         }
     }
 }
