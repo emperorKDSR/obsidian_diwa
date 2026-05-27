@@ -68,6 +68,7 @@ export class SynthesisTab extends BaseTab {
             .sort((a, b) => (b.modified || '').localeCompare(a.modified || ''));
         const allContexts = this.collectAllContexts(thoughts);
         const allTopics = this.collectAllTopics(thoughts);
+        const globalTopicsForCards = this.index.getExistingTopics();
 
         this.renderSummaryGrid(
             stage,
@@ -132,7 +133,7 @@ export class SynthesisTab extends BaseTab {
 
         let applyFilters = () => {};
         const cards = thoughts.map((thought) =>
-            this.renderThoughtCard(list, thought, () => applyFilters()),
+            this.renderThoughtCard(list, thought, () => applyFilters(), globalTopicsForCards),
         );
 
         this.renderFilterGroup(
@@ -268,6 +269,7 @@ export class SynthesisTab extends BaseTab {
         list: HTMLElement,
         thought: ThoughtEntry,
         onMetaChange?: () => void,
+        globalTopics?: string[],
     ): SynthesisCardBinding {
         const row = list.createEl('article', { cls: 'diwa-card-row diwa-synth-card-row' });
         try {
@@ -421,6 +423,7 @@ export class SynthesisTab extends BaseTab {
                     applyThoughtMeta(updatedThought, { archived, contexts, topics: nextTopics });
                     onMetaChange?.();
                 },
+                globalTopics,
             );
 
             syncBinding();
@@ -543,6 +546,7 @@ export class SynthesisTab extends BaseTab {
             sync();
             check.disabled = true;
             this.holdInlineMetaRefresh();
+            this.plugin.refreshCoordinator.suppressNotifyRefresh(1500);
 
             try {
                 const updatedThought = await this.plugin.getThoughtController().setSynthesized(thought.filePath, next);
@@ -585,6 +589,7 @@ export class SynthesisTab extends BaseTab {
             const nextContext = select.value;
             const nextContexts = nextContext ? [nextContext] : [];
             this.holdInlineMetaRefresh();
+            this.plugin.refreshCoordinator.suppressNotifyRefresh(1500);
 
             try {
                 const updatedThought = await this.plugin.getThoughtController().assignThoughtContext(
@@ -610,6 +615,7 @@ export class SynthesisTab extends BaseTab {
         contextsProvider: () => string[],
         safeTopics: string[],
         onChanged?: (updatedThought: ThoughtEntry | null, topics: string[]) => void,
+        precomputedGlobalTopics?: string[],
     ): void {
         const editor = cell.createEl('div', { cls: 'diwa-synth-topic-editor' });
         const selectedRow = editor.createEl('div', { cls: 'diwa-synth-topic-selected' });
@@ -627,7 +633,7 @@ export class SynthesisTab extends BaseTab {
         const dataList = editor.createEl('datalist');
         dataList.id = listId;
 
-        const globalTopics = this.normalizeTopicArray(this.index.getExistingTopics());
+        const globalTopics = this.normalizeTopicArray(precomputedGlobalTopics ?? this.index.getExistingTopics());
         let selectedTopics = this.normalizeTopicArray(safeTopics);
         let persisting = false;
 
@@ -703,6 +709,7 @@ export class SynthesisTab extends BaseTab {
                 renderSuggestions();
             }
             this.holdInlineMetaRefresh();
+            this.plugin.refreshCoordinator.suppressNotifyRefresh(1500);
             try {
                 const updatedThought = await this.plugin.getThoughtController().assignThoughtContext(
                     thought.filePath,
