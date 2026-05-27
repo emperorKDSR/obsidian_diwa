@@ -9630,6 +9630,13 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   padding-right: 96px;
 }
 
+.diwa-synth-workspace--redesign .diwa-synth-card-header--meta-only {
+
+  justify-content: flex-end;
+  gap: 0;
+  min-height: 32px;
+}
+
 .diwa-synth-workspace--redesign .diwa-synth-card-title-wrap {
 
   display: flex;

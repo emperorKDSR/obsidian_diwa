@@ -295,11 +295,7 @@ export class SynthesisTab extends BaseTab {
                 binding.topics = [...topics];
             };
 
-            const header = card.createEl('div', { cls: 'diwa-synth-card-header' });
-            const titleWrap = header.createEl('div', { cls: 'diwa-synth-card-title-wrap' });
-            titleWrap.createEl('h3', { text: this.getThoughtTitle(thought), cls: 'diwa-synth-card-title' });
-            titleWrap.createEl('span', { text: thought.filePath, cls: 'diwa-synth-card-path' });
-
+            const header = card.createEl('div', { cls: 'diwa-synth-card-header diwa-synth-card-header--meta-only' });
             const statusMeta = header.createEl('div', { cls: 'diwa-synth-card-status-meta' });
             const statusPill = statusMeta.createEl('span', {
                 text: archived ? 'Processed' : 'Needs review',
