@@ -446,7 +446,7 @@ export class SynthesisTab extends BaseTab {
     }
 
     private renderThoughtCardActions(parent: HTMLElement, thought: ThoughtEntry): void {
-        const openButton = this.renderActionButton(parent, ICON_EYE, 'Open note', () => void this.openThoughtFile(thought.filePath), 'var(--interactive-accent)');
+        const openButton = this.renderActionButton(parent, ICON_EYE, 'Open note', () => void this.openThoughtFile(thought.filePath));
         openButton.classList.add('diwa-synth-note-action', 'diwa-synth-note-action--open');
         const deleteButton = this.renderActionButton(parent, ICON_TRASH, 'Delete note', () => {
             new ConfirmModal(this.app, 'Move this thought to trash?', async () => {
@@ -454,7 +454,7 @@ export class SynthesisTab extends BaseTab {
                 this.plugin.getThoughtController().removeThoughtFromIndex(thought.filePath);
                 this.view.renderView();
             }).open();
-        }, 'var(--text-error)');
+        });
         deleteButton.classList.add('diwa-synth-note-action', 'diwa-synth-note-action--delete');
     }
 

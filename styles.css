@@ -9708,54 +9708,67 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   top: 14px;
   right: 14px;
   display: flex;
-  gap: 8px;
-  padding: 6px;
-  border-radius: 12px;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 14px;
   border: 1px solid var(--background-modifier-border-faint);
-  background: color-mix(in srgb, var(--background-primary) 92%, transparent);
-  backdrop-filter: blur(12px);
-  box-shadow: var(--diwa-shadow);
+  background: color-mix(in srgb, var(--background-primary) 84%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
   z-index: 2;
 }
 
 .diwa-synth-workspace--redesign .diwa-synth-card-actions .diwa-synth-note-action {
 
-  width: 46px;
-  height: 46px;
-  min-width: 46px;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 88%, transparent);
-  background: color-mix(in srgb, var(--background-secondary) 86%, var(--background-primary));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  opacity: 1;
-  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  border-radius: 11px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 72%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 54%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  color: var(--text-faint);
+  opacity: 0.96;
+  transition: transform 0.15s ease, color 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .diwa-synth-workspace--redesign .diwa-synth-card-actions .diwa-synth-note-action svg {
 
-  width: 20px;
-  height: 20px;
-  stroke-width: 2.4;
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.15;
 }
 
 .diwa-synth-workspace--redesign .diwa-synth-card-actions .diwa-synth-note-action:hover,
 .diwa-synth-workspace--redesign .diwa-synth-card-actions .diwa-synth-note-action:focus-visible {
 
   transform: translateY(-1px);
-  border-color: color-mix(in srgb, currentColor 42%, var(--background-modifier-border));
-  background: color-mix(in srgb, var(--background-secondary-alt) 92%, currentColor 8%);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  border-color: color-mix(in srgb, currentColor 28%, var(--background-modifier-border));
+  background: color-mix(in srgb, var(--background-secondary-alt) 94%, currentColor 6%);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14);
 }
 
 .diwa-synth-workspace--redesign .diwa-synth-card-actions .diwa-synth-note-action--open {
+
+  color: var(--text-faint);
+}
+
+.diwa-synth-workspace--redesign .diwa-synth-card-actions .diwa-synth-note-action--open:hover,
+.diwa-synth-workspace--redesign .diwa-synth-card-actions .diwa-synth-note-action--open:focus-visible {
 
   color: var(--interactive-accent);
 }
 
 .diwa-synth-workspace--redesign .diwa-synth-card-actions .diwa-synth-note-action--delete {
+
+  color: var(--text-faint);
+}
+
+.diwa-synth-workspace--redesign .diwa-synth-card-actions .diwa-synth-note-action--delete:hover,
+.diwa-synth-workspace--redesign .diwa-synth-card-actions .diwa-synth-note-action--delete:focus-visible {
 
   color: var(--text-error);
 }
