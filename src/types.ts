@@ -88,7 +88,6 @@ export interface DiwaSettings {
     monthlyIncome: number;
     northStarGoals: string[];
     enableAutoClassification: boolean;
-    lifeMission: string;
     attachmentsFolder: string;
     projectsFolder: string;
     reviewsFolder: string;

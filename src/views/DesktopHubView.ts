@@ -3,7 +3,7 @@ import type DiwaPlugin from '../main';
 import {
     VIEW_TYPE_DESKTOP_HUB,
     PF_ICON_ID, SYNTHESIS_ICON_ID, AI_CHAT_ICON_ID, REVIEW_ICON_ID,
-    SETTINGS_ICON_ID, TIMELINE_ICON_ID, JOURNAL_ICON_ID, COMPASS_ICON_ID,
+    SETTINGS_ICON_ID, TIMELINE_ICON_ID, JOURNAL_ICON_ID,
 } from '../constants';
 import { attachInlineTriggers, attachMediaPasteHandler, isTablet } from '../utils';
 import type { TaskEntry, ThoughtEntry } from '../types';
@@ -354,10 +354,6 @@ export class DesktopHubView extends ItemView {
             text: new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase(),
             cls: 'diwa-dh-topbar-date'
         });
-        const northStar = this.plugin.settings.northStarGoals?.[0];
-        if (northStar) {
-            center.createEl('span', { text: `★ ${northStar}`, cls: 'diwa-dh-topbar-northstar' });
-        }
 
         const right = bar.createEl('div', { cls: 'diwa-dh-topbar-right' });
 
@@ -410,7 +406,6 @@ export class DesktopHubView extends ItemView {
                     { label: 'Projects', icon: 'lucide-briefcase', tab: 'projects' },
                     { label: 'Calendar', icon: 'lucide-calendar', tab: 'calendar' },
                     { label: 'Review', icon: REVIEW_ICON_ID, tab: 'review' },
-                    { label: 'Compass', icon: COMPASS_ICON_ID, tab: 'compass' },
                     { label: 'Voice', icon: 'lucide-mic', tab: 'voice-note' },
                 ],
             },

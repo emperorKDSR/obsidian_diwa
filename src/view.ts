@@ -112,7 +112,6 @@ export class DiwaView extends ItemView {
             case 'dues': return "Bulsa";
             case 'projects': return "Projects";
             case 'synthesis': return "Synthesis";
-            case 'compass': return "Compass";
             case 'review': return "Weekly Review";
             case 'monthly-review': return "Monthly Review";
             case 'voice-note': return "Voice Notes";
@@ -151,7 +150,7 @@ export class DiwaView extends ItemView {
     async setState(state: DiwaViewState, result: ViewStateResult): Promise<void> {
         if (state?.activeTab) {
             // Migrate removed tab to home
-            this.activeTab = ['daily-workspace', 'habits'].includes(state.activeTab) ? 'home' : state.activeTab;
+            this.activeTab = ['daily-workspace', 'habits', 'compass'].includes(state.activeTab) ? 'home' : state.activeTab;
         }
         if (state?.isDedicated !== undefined) this.isDedicated = state.isDedicated;
         await super.setState(state, result);
@@ -231,7 +230,6 @@ export class DiwaView extends ItemView {
         else if (tab === 'dues') instantiate(import('./tabs/DuesTab'), 'DuesTab');
         else if (tab === 'projects') instantiate(import('./tabs/ProjectsTab'), 'ProjectsTab');
         else if (tab === 'synthesis') instantiate(import('./tabs/SynthesisTab'), 'SynthesisTab');
-        else if (tab === 'compass') instantiate(import('./tabs/CompassTab'), 'CompassTab');
         else if (tab === 'review') instantiate(import('./tabs/ReviewTab'), 'ReviewTab');
         else if (tab === 'monthly-review') instantiate(import('./tabs/MonthlyReviewTab'), 'MonthlyReviewTab');
         else if (tab === 'voice-note') instantiate(import('./tabs/VoiceTab'), 'VoiceTab');

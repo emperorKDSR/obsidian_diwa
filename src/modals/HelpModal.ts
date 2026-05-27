@@ -7,10 +7,10 @@ const SECTIONS: HelpSection[] = [
     {
         id: 'home', icon: 'lucide-home', title: 'Command Center', subtitle: 'Your daily launch pad',
         items: [
-            { label: 'Greeting & Date', desc: 'Shows today\'s date, your greeting, and your North Star vision at the top.' },
+            { label: 'Greeting & Date', desc: 'Shows today\'s date and your greeting at the top.' },
             { label: 'Zen Mode 🎯', desc: 'Tap the target icon to collapse all navigation and enter deep focus. Tap again to exit.', tip: 'Best used when you only want to see your intelligence card and capture bar.' },
             { label: 'Intelligence Card', desc: 'Live snapshot: open gawa, unprocessed thoughts, and your total Bulsa obligations. Hit "SYNTHESIZE BRIEFING" to get an AI strategy summary.', tip: 'Requires a Gemini API key configured in Settings → AI.' },
-            { label: 'Navigation Clusters', desc: 'Four grouped rows: ACTION (Focus, Journal, Synthesis, Timeline), MANAGEMENT (Gawa, Bulsa, Projects, Calendar, Weekly, Monthly, Compass, Voice), FEATURES (AI Chat, Compasee, Memento), and SYSTEM (Settings, Manual, Export). Each cluster wraps to the next row automatically on narrow screens.', tip: 'Tap any icon to jump directly to that tab.' },
+            { label: 'Navigation Clusters', desc: 'Four grouped rows: ACTION (Focus, Journal, Synthesis, Timeline), MANAGEMENT (Gawa, Bulsa, Projects, Calendar, Weekly, Monthly, Voice), FEATURES (AI Chat, Compasee, Memento), and SYSTEM (Settings, Manual, Export). Each cluster wraps to the next row automatically on narrow screens.', tip: 'Tap any icon to jump directly to that tab.' },
             { label: 'Tablet Experience', desc: 'On tablets (iPad, etc.), DIWA automatically upgrades to a desktop-like layout: inline capture bar, expanded navigation, sidebar manual, and hover effects.', tip: 'Tablet is detected when the device short-edge is ≥768px.' },
             { label: 'Global Search 🔍', desc: 'Tap the search icon (before Help) or press Mod+Shift+F to open Global Search. Instantly find anything across Thoughts, Gawa, Bulsa, and Projects.', tip: 'Also available via Obsidian command palette: "DIWA: Global Search".' },
         ]
@@ -97,15 +97,7 @@ const SECTIONS: HelpSection[] = [
             { label: 'Navigation', desc: 'Access from the SYSTEM cluster in Command Center, or from the monthly goals "Edit" button.' },
             { label: 'Monthly Stats', desc: 'Auto-calculated gawa done, thoughts captured, and open gawa for the current month.' },
             { label: 'Project Progress', desc: 'Visual progress bars for each project showing done/total ratio.' },
-            { label: 'Next Month\'s Focus', desc: 'Set up to 3 goals for the coming month. Persisted in settings.' },
-        ]
-    },
-    {
-        id: 'compass', icon: 'lucide-compass', title: 'Compass', subtitle: 'Your North Star and long-range direction',
-        items: [
-            { label: 'North Star Goal', desc: 'Your single long-term vision. It appears every day on the Home screen as a constant reminder.' },
-            { label: 'Quarterly Goals', desc: 'Set 90-day priorities aligned to your North Star. Review quarterly.' },
-            { label: 'Purpose Statement', desc: 'Write your personal "why" — the reason behind all your goals.' },
+            { label: 'Next Month\'s Focus', desc: 'Set up to 3 goals for the coming month. Saved to your Monthly review note.' },
         ]
     },
     {
@@ -174,7 +166,7 @@ const SECTIONS: HelpSection[] = [
             { label: 'Stats Panel', desc: 'Right panel shows live workspace stats such as open gawa, overdue items, unsynthesized thoughts, and Bulsa totals. Updates reactively with every vault change.' },
             { label: 'AI Intelligence', desc: 'Hit "SYNTHESIZE BRIEFING" in the right panel to get a Gemini strategy summary based on your current thoughts, gawa, and context.', tip: 'Requires a Gemini API key in Settings → AI.' },
             { label: 'Focus Mode 🎯', desc: 'Desktop Hub opens in Focus Mode by default. Click the 🎯 button in the top bar to collapse the sidebar and right panel — center capture goes full-width for distraction-free input. Click again to restore.', tip: 'Focus Mode state is saved per-window and survives Obsidian restarts.' },
-            { label: 'Navigation Sidebar', desc: 'Hover the left sidebar to expand it. Four groups: ACTION (Capture, Synthesis, Timeline, Journal), MANAGE (Gawa, Bulsa, Projects, Calendar, Monthly, Compass, Voice), FEATURES (AI Chat, Memento, Export), SYSTEM (Settings, Manual).' },
+            { label: 'Navigation Sidebar', desc: 'Hover the left sidebar to expand it. Four groups: ACTION (Capture, Synthesis, Timeline, Journal), MANAGE (Gawa, Bulsa, Projects, Calendar, Monthly, Voice), FEATURES (AI Chat, Memento, Export), SYSTEM (Settings, Manual).' },
         ]
     },
     {

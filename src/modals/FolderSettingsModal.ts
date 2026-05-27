@@ -102,7 +102,7 @@ export class FolderSettingsModal extends Modal {
 
         new Setting(body)
             .setName('Reviews Folder')
-            .setDesc('Root folder for Weekly, Monthly, and Compass review files (sub-folders created automatically).')
+            .setDesc('Root folder for Weekly and Monthly review files (sub-folders created automatically).')
             .addText(text => text
                 .setPlaceholder('000 Bin/DIWA Reviews')
                 .setValue(this.plugin.settings.reviewsFolder ?? '000 Bin/DIWA Reviews')

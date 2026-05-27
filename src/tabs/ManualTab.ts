@@ -10,10 +10,10 @@ const SECTIONS: HelpSection[] = [
     {
         id: 'home', icon: 'lucide-home', title: 'Command Center', subtitle: 'Your daily launch pad',
         items: [
-            { label: 'Greeting & Date', desc: 'Shows today\'s date, your greeting, and your North Star vision at the top.' },
+            { label: 'Greeting & Date', desc: 'Shows today\'s date and your greeting at the top.' },
             { label: 'Zen Mode 🎯', desc: 'Tap the target icon to collapse all navigation and enter deep focus. Tap again to exit.', tip: 'Best used when you only want to see your intelligence card and capture bar.' },
             { label: 'Intelligence Card', desc: 'Live snapshot: open gawa, unprocessed thoughts, and your total Bulsa obligations. Hit "SYNTHESIZE BRIEFING" to get an AI strategy summary.', tip: 'Requires a Gemini API key configured in Settings → AI.' },
-            { label: 'Navigation Clusters', desc: 'Four grouped rows: ACTION (Journal, Synthesis, Timeline), MANAGEMENT (Gawa, Bulsa, Projects, Calendar, Weekly, Monthly, Compass, Voice), FEATURES (AI Chat, Compasee), and SYSTEM (Settings, Manual, Export). Each cluster wraps to the next row automatically on narrow screens.', tip: 'Tap any icon to jump directly to that tab.' },
+            { label: 'Navigation Clusters', desc: 'Four grouped rows: ACTION (Journal, Synthesis, Timeline), MANAGEMENT (Gawa, Bulsa, Projects, Calendar, Weekly, Monthly, Voice), FEATURES (AI Chat, Compasee), and SYSTEM (Settings, Manual, Export). Each cluster wraps to the next row automatically on narrow screens.', tip: 'Tap any icon to jump directly to that tab.' },
             { label: 'Tablet Experience', desc: 'On tablets (iPad, etc.), DIWA automatically upgrades to a desktop-like layout: inline capture bar, expanded navigation, and hover effects.', tip: 'Tablet is detected when the device short-edge is ≥768px.' },
             { label: 'Global Search 🔍', desc: 'Tap the search icon in the header or press Mod+Shift+F to open Global Search. Instantly find anything across Thoughts, Gawa, Bulsa, and Projects.', tip: 'Also available via Obsidian command palette: "MINA: Global Search".' },
         ]
@@ -113,16 +113,6 @@ const SECTIONS: HelpSection[] = [
         ]
     },
     {
-        id: 'compass', icon: 'lucide-compass', title: 'Compass', subtitle: 'Your North Star and long-range direction',
-        items: [
-            { label: 'Access', desc: 'Open from the MANAGEMENT cluster in Command Center. Shows your Quarterly North Star Goals and Life Mission.' },
-            { label: 'North Star Goals', desc: 'Set 3 quarterly goals that define your 90-day strategic priorities. Displayed daily on the Home screen.' },
-            { label: 'Life Mission', desc: 'Write your personal "why" — the reason behind all your goals and actions.' },
-            { label: 'Quarterly Audit', desc: 'Auto-generated stats showing gawa done and Bulsa payments logged for the quarter.' },
-            { label: 'Persistence', desc: 'Compass data saves to Reviews/Compass/YYYY-Qx.md — one file per quarter.', tip: 'Configurable via Folder Config → Reviews Folder.' },
-        ]
-    },
-    {
         id: 'synthesis', icon: 'lucide-git-merge', title: 'Synthesis', subtitle: 'Process thoughts into permanent knowledge',
         items: [
             { label: 'Inbox Feed', desc: 'Unprocessed thoughts appear in the feed. Use the filter bar to switch between Inbox (no context), Mapped (with context), and Done.' },
@@ -206,7 +196,7 @@ const SECTIONS: HelpSection[] = [
         id: 'settings', icon: 'lucide-settings', title: 'Settings', subtitle: 'configure DIWA to your workflow',
         items: [
             { label: 'Folders', desc: 'Set where thoughts, gawa, voice memos, and reviews are stored in your vault. Use Folder Config for a quick modal.' },
-            { label: 'Reviews Folder', desc: 'Root folder for Weekly, Monthly, and Compass review files. Sub-folders Weekly/, Monthly/, Compass/ are auto-created.', tip: 'Default: 000 Bin/DIWA Reviews. Configurable in Folder Config.' },
+            { label: 'Reviews Folder', desc: 'Root folder for Weekly and Monthly review files. Sub-folders Weekly/ and Monthly/ are auto-created.', tip: 'Default: 000 Bin/DIWA Reviews. Configurable in Folder Config.' },
             { label: 'Attachments Folder', desc: 'Folder where pasted or drag-dropped images and files are saved. Used by the image paste feature in capture inputs.', tip: 'Default: 000 Bin/DIWA Attachments. The folder is auto-created on first paste.' },
             { label: 'Contexts', desc: 'Manage your global context tags (#work, #personal, etc.).' },
             { label: 'AI Key', desc: 'Enter your Gemini API key to enable AI Chat and Intelligence features.' },

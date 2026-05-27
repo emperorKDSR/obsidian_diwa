@@ -1,5 +1,5 @@
 import { Plugin, TFile, Notice, WorkspaceLeaf, Platform, moment, addIcon, setIcon, MarkdownRenderer, Menu } from 'obsidian';
-import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, AI_CHAT_ICON_ID, AI_CHAT_ICON_SVG, TIMELINE_ICON_ID, TIMELINE_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, VOICE_ICON_ID, VOICE_ICON_SVG, PROJECT_ICON_ID, PROJECT_ICON_SVG, SYNTHESIS_ICON_ID, SYNTHESIS_ICON_SVG, COMPASS_ICON_ID, COMPASS_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_SEARCH, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_MOBILE_GAWA, VIEW_TYPE_TABLET_HUB, VIEW_TYPE_GRAPH_EXPLORER } from './constants';
+import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, AI_CHAT_ICON_ID, AI_CHAT_ICON_SVG, TIMELINE_ICON_ID, TIMELINE_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, VOICE_ICON_ID, VOICE_ICON_SVG, PROJECT_ICON_ID, PROJECT_ICON_SVG, SYNTHESIS_ICON_ID, SYNTHESIS_ICON_SVG, GRAPH_ICON_ID, GRAPH_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_SEARCH, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_MOBILE_GAWA, VIEW_TYPE_TABLET_HUB, VIEW_TYPE_GRAPH_EXPLORER } from './constants';
 import { DiwaSettings, GawaLayoutPreferences, TaskEntry, ThoughtEntry } from './types';
 import type { GraphExplorerSeed } from './graph/types';
 import { sanitizeGawaLayoutPreferences } from './gawaLayout';
@@ -267,7 +267,7 @@ export default class DiwaPlugin extends Plugin {
 		addIcon(VOICE_ICON_ID, VOICE_ICON_SVG);
 		addIcon(PROJECT_ICON_ID, PROJECT_ICON_SVG);
 		addIcon(SYNTHESIS_ICON_ID, SYNTHESIS_ICON_SVG);
-		addIcon(COMPASS_ICON_ID, COMPASS_ICON_SVG);
+		addIcon(GRAPH_ICON_ID, GRAPH_ICON_SVG);
 		addIcon(REVIEW_ICON_ID, REVIEW_ICON_SVG);
 		addIcon(SETTINGS_ICON_ID, SETTINGS_ICON_SVG);
         addIcon(DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG);
@@ -512,6 +512,10 @@ export default class DiwaPlugin extends Plugin {
 		const loadedData = await this.loadData();
         this.settings = Object.assign({}, DEFAULT_SETTINGS);
         if (loadedData) Object.assign(this.settings, loadedData);
+        const hadLegacyLifeMission = Object.prototype.hasOwnProperty.call(this.settings, 'lifeMission');
+        if (hadLegacyLifeMission) {
+            delete (this.settings as unknown as { lifeMission?: unknown }).lifeMission;
+        }
         this.settings.ai = Object.assign({}, DEFAULT_SETTINGS.ai, this.settings.ai ?? {});
         // Use ?? so saved values are respected; new installs default to false
         this.settings.ai.enabled = this.settings.ai.enabled ?? false;
@@ -538,6 +542,9 @@ export default class DiwaPlugin extends Plugin {
             : 56;
         this.settings.gawaLayoutPreferences = sanitizeGawaLayoutPreferences(this.settings.gawaLayoutPreferences);
         this.settingsInitialized = true;
+        if (hadLegacyLifeMission) {
+            await this.saveData(this.settings);
+        }
 	}
 
 	async saveSettings() {

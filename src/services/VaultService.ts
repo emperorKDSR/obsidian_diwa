@@ -661,50 +661,6 @@ export class VaultService {
         }
     }
 
-    /** Save Compass data to {reviewsFolder}/Compass/YYYY-Qx.md */
-    async saveCompassData(quarterId: string, northStarGoals: string[], lifeMission: string): Promise<void> {
-        const root = (this.settings.reviewsFolder || '000 Bin/DIWA Reviews').trim();
-        const folder = `${root}/Compass`;
-        const path = `${folder}/${quarterId}.md`;
-        const now = this.formatDateTime(new Date());
-        const goalLines = northStarGoals.map((g, i) => `${i + 1}. ${(g || '').trim()}`).join('\n');
-        const content = `---\nquarter: "${quarterId}"\nsaved: "${now}"\n---\n\n# 🧭 Quarterly Compass — ${quarterId}\n\n## ✨ North Star Goals\n${goalLines}\n\n## 🌟 Life Mission\n${lifeMission.trim()}\n`;
-        try {
-            await this.ensureFolder(folder);
-            const existing = this.app.vault.getAbstractFileByPath(path);
-            if (existing instanceof TFile) {
-                await this.app.vault.modify(existing, content);
-            } else {
-                await this.app.vault.create(path, content);
-            }
-        } catch (e) {
-            console.error('[DIWA VaultService] saveCompassData', e);
-            throw e;
-        }
-    }
-
-    /** Load Compass data from {reviewsFolder}/Compass/YYYY-Qx.md */
-    async loadCompassData(quarterId: string): Promise<{ northStarGoals: string[]; lifeMission: string } | null> {
-        const root = (this.settings.reviewsFolder || '000 Bin/DIWA Reviews').trim();
-        const path = `${root}/Compass/${quarterId}.md`;
-        const file = this.app.vault.getAbstractFileByPath(path);
-        if (!(file instanceof TFile)) return null;
-        try {
-            const raw = await this.app.vault.read(file);
-            const body = raw.replace(/^---\n[\s\S]*?\n---\n/, '').trim();
-            const goalsMatch = body.match(/## ✨ North Star Goals\n([\s\S]*?)(?:\n##|$)/);
-            const missionMatch = body.match(/## 🌟 Life Mission\n([\s\S]*?)(?:\n##|$)/);
-            const northStarGoals = goalsMatch
-                ? goalsMatch[1].trim().split('\n').map(l => l.replace(/^\d+\.\s*/, '').trim()).filter((_, i) => i < 3)
-                : [];
-            const lifeMission = missionMatch ? missionMatch[1].trim() : '';
-            return { northStarGoals, lifeMission };
-        } catch (e) {
-            console.error('[DIWA VaultService] loadCompassData', e);
-            return null;
-        }
-    }
-
     /** Load a weekly review file and parse wins/lessons/focus/aiReport sections */
     async loadWeeklyReview(weekId: string): Promise<{ wins: string; lessons: string; focus: string[]; saved: string; aiReport?: string; dayPlans?: Record<string, string> } | null> {
         const root = (this.settings.reviewsFolder || '000 Bin/DIWA Reviews').trim();

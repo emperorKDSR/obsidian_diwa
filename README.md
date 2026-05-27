@@ -58,12 +58,11 @@ Thought-routing workspace with Zero-Inbox logic.
 ### 📊 Finance (Dues)
 Professional **Financial Ledger** reading from YAML-fronted markdown files in the PF folder. Tracks due dates, last payment dates, amounts, and active status. Includes burn-rate analytics and a cashflow dashboard powered by `monthlyIncome`.
 
-### 🧭 Weekly Review & Compass
+### 🧭 Weekly Review
 Multi-layered reflection system:
 - **Weekly Review**: AI-generated weekly brief (5 sections: Assessment, Top Win, Key Insight, Next Week Priority, North Star Pulse), task completion/overdue counts, project and finance glance cards, manual wins/lessons fields
 - **Weekly Plan**: AI-generated day-by-day task distribution for the next week
 - **Monthly Review**: Monthly retrospective with goals tracking
-- **Compass**: Quarterly North Star Goals for long-term direction
 
 ### 🤖 AI Chat (Gemini)
 Full chat interface powered by Gemini (configurable model). Features:
@@ -201,7 +200,7 @@ Copy `main.js`, `manifest.json`, and `styles.css` to your vault's plugin folder:
 | `tasksFolder` | `string` | `000 Bin/DIWA Gawa` | Folder for gawa files |
 | `pfFolder` | `string` | `000 Bin/DIWA PF` | Folder for finance/dues files |
 | `projectsFolder` | `string` | `Projects` | Folder for project files |
-| `reviewsFolder` | `string` | `000 Bin/DIWA Reviews` | Root folder for weekly/monthly/compass review files |
+| `reviewsFolder` | `string` | `000 Bin/DIWA Reviews` | Root folder for weekly/monthly review files |
 | `voiceMemoFolder` | `string` | `000 Bin/DIWA Voice` | Folder for voice recording clips |
 | `attachmentsFolder` | `string` | `000 Bin/DIWA Attachments` | Folder for pasted images and files |
 | `peopleFolder` | `string` | `000 Bin/DIWA People` | Folder for people notes |
@@ -233,7 +232,6 @@ Copy `main.js`, `manifest.json`, and `styles.css` to your vault's plugin folder:
 | Journal | `JournalTab.ts` | Keyword-filtered journal feed |
 | Weekly Review | `ReviewTab.ts` | AI weekly brief + task/project/finance glance |
 | Monthly Review | `MonthlyReviewTab.ts` | Monthly retrospective |
-| Compass | `CompassTab.ts` | North Star goals (quarterly) |
 | Calendar | `CalendarTab.ts` | Month/week calendar view |
 | Timeline (legacy) | `TimelineTab.ts` | Date-based thought navigation |
 | Export | `ExportTab.ts` | Data export |

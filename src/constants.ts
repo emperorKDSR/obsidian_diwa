@@ -109,8 +109,13 @@ export const PROJECT_ICON_SVG = `<g transform="translate(10,10) scale(3.5)"><pat
 export const SYNTHESIS_ICON_ID = "diwa-synthesis-icon";
 export const SYNTHESIS_ICON_SVG = `<g transform="translate(10,10) scale(3.5)"><path d="M9 18h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10 22h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 2a7 7 0 0 0-7 7c0 2.32 1.25 4.34 3.12 5.5L9 18h6l.88-3.5C17.75 13.34 19 11.32 19 9a7 7 0 0 0-7-7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>`;
 
-export const COMPASS_ICON_ID = "diwa-compass-icon";
-export const COMPASS_ICON_SVG = `<g transform="translate(10,10) scale(3.5)"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+export const GRAPH_ICON_ID = "diwa-graph-icon";
+export const GRAPH_ICON_SVG = `<g transform="translate(10,10) scale(3.5)">
+    <circle cx="6" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/>
+    <circle cx="18" cy="6" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/>
+    <circle cx="12" cy="18" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/>
+    <path d="M8.2 7.4l7.6-0.8M7.4 8.9l3.8 6.4M16.8 8.2l-3.6 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>`;
 
 export const REVIEW_ICON_ID = "diwa-review-icon";
 export const REVIEW_ICON_SVG = `<g transform="translate(10,10) scale(3.5)"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><line x1="16" y1="2" x2="16" y2="6" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="2" x2="8" y2="6" fill="none" stroke="currentColor" stroke-width="2"/><line x1="3" y1="10" x2="21" y2="10" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="9 16 11 18 15 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>`;
@@ -195,7 +200,6 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
     monthlyIncome: 0,
     northStarGoals: [],
     enableAutoClassification: false,
-    lifeMission: '',
     attachmentsFolder: '000 Bin/DIWA Attachments',
     projectsFolder: 'Projects',
     reviewsFolder: '000 Bin/DIWA Reviews',

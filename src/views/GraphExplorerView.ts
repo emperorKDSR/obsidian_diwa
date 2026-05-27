@@ -8,7 +8,7 @@ import {
     setIcon,
 } from 'obsidian';
 import type DiwaPlugin from '../main';
-import { COMPASS_ICON_ID, VIEW_TYPE_GRAPH_EXPLORER } from '../constants';
+import { GRAPH_ICON_ID, VIEW_TYPE_GRAPH_EXPLORER } from '../constants';
 import { compileGraphSnapshot } from '../graph/compiler';
 import {
     DEFAULT_GRAPH_NODE_TYPES,
@@ -80,7 +80,7 @@ export class GraphExplorerView extends ItemView {
     }
 
     getIcon(): string {
-        return COMPASS_ICON_ID;
+        return GRAPH_ICON_ID;
     }
 
     getState(): NormalizedGraphExplorerViewState {
