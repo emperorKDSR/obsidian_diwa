@@ -10,6 +10,9 @@ type TimelineEntryType = 'task' | 'thought';
 type TimelineFilter = 'all' | 'tasks' | 'thoughts';
 type TimelineFeedItem = { type: TimelineEntryType; entry: any; day?: string; time: string };
 
+const TIMELINE_CAROUSEL_START_OFFSET = -2;
+const TIMELINE_CAROUSEL_END_OFFSET = 7;
+
 export class TimelineTab extends BaseTab {
     private container: HTMLElement;
     private feedEl: HTMLElement | null = null;
@@ -236,6 +239,27 @@ export class TimelineTab extends BaseTab {
         return [...tasks, ...thoughts].sort((a, b) => b.time.localeCompare(a.time));
     }
 
+    private getCarouselDistanceClass(offset: number): string {
+        if (offset === 0) return 'is-spotlight';
+        const absOffset = Math.abs(offset);
+        if (absOffset === 1) return 'is-near';
+        if (absOffset <= 3) return 'is-mid';
+        return 'is-far';
+    }
+
+    private centerSpotlightTrack(track: HTMLElement) {
+        const spotlight = track.querySelector<HTMLElement>('.diwa-tl-date-item.is-spotlight');
+        if (!spotlight) return;
+
+        const targetLeft = spotlight.offsetLeft - ((track.clientWidth - spotlight.offsetWidth) / 2);
+        const maxScrollLeft = Math.max(track.scrollWidth - track.clientWidth, 0);
+
+        track.scrollTo({
+            left: Math.max(0, Math.min(targetLeft, maxScrollLeft)),
+            behavior: 'smooth'
+        });
+    }
+
     // ── Spotlight Header Carousel ──────────────────────────────────────────
     private renderSpotlightHeader(parent: HTMLElement) {
         const header = parent.createEl('div', { cls: 'diwa-tl-header' });
@@ -278,13 +302,13 @@ export class TimelineTab extends BaseTab {
 
             const track = spotlightRow.createEl('div', { cls: 'diwa-tl-spotlight-track' });
 
-            for (let offset = -2; offset <= 2; offset++) {
+            for (let offset = TIMELINE_CAROUSEL_START_OFFSET; offset <= TIMELINE_CAROUSEL_END_OFFSET; offset++) {
                 const date = selectedMoment.clone().add(offset, 'days');
                 const dateStr = date.format('YYYY-MM-DD');
                 const isSpotlight = offset === 0;
                 const isToday = date.isSame(moment(), 'day');
                 const hasActivity = activityDates.has(dateStr);
-                const distCls = isSpotlight ? 'is-spotlight' : Math.abs(offset) === 1 ? 'is-near' : 'is-far';
+                const distCls = this.getCarouselDistanceClass(offset);
 
                 const item = track.createEl('div', {
                     cls: ['diwa-tl-date-item', distCls, isToday ? 'is-today' : ''].filter(Boolean).join(' ')
@@ -297,6 +321,7 @@ export class TimelineTab extends BaseTab {
             }
 
             this.setupSwipeNavigation(track, selectedMoment);
+            window.setTimeout(() => this.centerSpotlightTrack(track), 0);
 
             const nextBtn = spotlightRow.createEl('button', { cls: 'diwa-tl-nav-btn', attr: { title: 'Next day' } });
             setIcon(nextBtn, 'lucide-chevron-right');
@@ -474,21 +499,34 @@ export class TimelineTab extends BaseTab {
     private setupSwipeNavigation(track: HTMLElement, selectedMoment: moment.Moment) {
         let startX = 0;
         let startTime = 0;
+        let startScrollLeft = 0;
         let dragging = false;
+        let activePointerId: number | null = null;
+
+        const resetDragging = () => {
+            dragging = false;
+            activePointerId = null;
+            track.classList.remove('is-dragging');
+        };
 
         track.addEventListener('pointerdown', (e: PointerEvent) => {
             startX = e.clientX;
             startTime = Date.now();
+            startScrollLeft = track.scrollLeft;
             dragging = true;
-            track.setPointerCapture(e.pointerId);
+            activePointerId = e.pointerId;
+            if (e.pointerType !== 'touch') track.setPointerCapture(e.pointerId);
             track.classList.add('is-dragging');
         });
 
         track.addEventListener('pointerup', (e: PointerEvent) => {
             if (!dragging) return;
-            dragging = false;
-            track.classList.remove('is-dragging');
+            const pointerId = activePointerId;
+            resetDragging();
+            if (pointerId !== null && e.pointerId !== pointerId) return;
             const deltaX = startX - e.clientX;
+            const scrollDelta = Math.abs(track.scrollLeft - startScrollLeft);
+            if (scrollDelta > 8) return;
             const velocity = Math.abs(deltaX) / Math.max(Date.now() - startTime, 1);
             if (Math.abs(deltaX) < 25) return;
             let days = 1;
@@ -501,10 +539,8 @@ export class TimelineTab extends BaseTab {
             this.navigateToDate(newDate.format('YYYY-MM-DD'));
         });
 
-        track.addEventListener('pointercancel', () => {
-            dragging = false;
-            track.classList.remove('is-dragging');
-        });
+        track.addEventListener('pointercancel', resetDragging);
+        track.addEventListener('lostpointercapture', resetDragging);
     }
 
     // ── Day Section — append / prepend ─────────────────────────────────────
