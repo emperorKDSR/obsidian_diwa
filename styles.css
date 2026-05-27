@@ -19171,7 +19171,8 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
   flex-direction: column;
   gap: 16px;
   min-height: 100%;
-  padding: 18px;
+  padding: 18px 18px calc(var(--diwa-footer-clearance) + 24px);
+  scroll-padding-bottom: calc(var(--diwa-footer-clearance) + 24px);
   color: var(--text-normal);
   container-type: inline-size;
   container-name: projects-workspace;
@@ -19737,6 +19738,7 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
   flex-direction: column;
   gap: 10px;
   margin-top: 2px;
+  scroll-margin: 18px 0 36px;
   padding: 14px;
   border-radius: 20px;
   border: 1px solid color-mix(in srgb, var(--background-modifier-border-faint) 84%, transparent);
@@ -19798,7 +19800,7 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
 
 .diwa-milestone-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   min-height: 40px;
   padding: 8px 0;
@@ -19818,9 +19820,91 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
   line-height: 1.45;
 }
 
+.diwa-milestone-row__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.diwa-milestone-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.diwa-milestone-row__actions,
+.diwa-milestone-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.diwa-milestone-row__actions {
+  margin-left: auto;
+}
+
+.diwa-milestone-row.is-editing {
+  padding: 12px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--background-secondary) 74%, transparent);
+}
+
+.diwa-milestone-edit-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
 .diwa-milestone-title.is-done {
   text-decoration: line-through;
   color: var(--text-muted);
+}
+
+.diwa-milestone-btn {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 74%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 78%, transparent);
+  color: var(--text-normal);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.diwa-milestone-btn:hover,
+.diwa-milestone-btn:focus-visible {
+  border-color: color-mix(in srgb, var(--project-color) 22%, var(--background-modifier-border) 78%);
+  background: color-mix(in srgb, var(--project-color) 10%, var(--background-primary) 90%);
+  outline: none;
+}
+
+.diwa-milestone-btn--primary {
+  border-color: color-mix(in srgb, var(--project-color) 26%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--project-color) 18%, transparent), transparent),
+    color-mix(in srgb, var(--background-primary) 72%, var(--project-color) 28%);
+}
+
+.diwa-milestone-btn--danger {
+  border-color: color-mix(in srgb, var(--text-error) 22%, transparent);
+  background: color-mix(in srgb, var(--text-error) 10%, var(--background-primary) 90%);
+  color: var(--text-error);
+}
+
+.diwa-milestone-row__icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
 }
 
 .diwa-milestone-add-row {
@@ -20155,7 +20239,7 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
 
 @container projects-workspace (max-width: 960px) {
   .diwa-projects-shell {
-    padding: 14px;
+    padding: 14px 14px calc(var(--diwa-footer-clearance) + 20px);
   }
 
   .diwa-projects-header {
@@ -20214,6 +20298,10 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
   }
 
   .diwa-milestone-add-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .diwa-milestone-edit-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }

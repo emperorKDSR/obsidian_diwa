@@ -1,4 +1,4 @@
-import { moment, TFile, setIcon } from 'obsidian';
+import { Notice, moment, TFile, setIcon } from 'obsidian';
 import type { DiwaView } from '../view';
 import { BaseTab } from './BaseTab';
 import { NewProjectModal } from '../modals/NewProjectModal';
@@ -36,6 +36,7 @@ const STATUS_LABELS: Record<ProjectEntry['status'], string> = {
 export class ProjectsTab extends BaseTab {
     private filter: ProjectFilter = 'all';
     private expandedIds: Set<string> = new Set();
+    private openMilestoneIds: Set<string> = new Set();
 
     constructor(view: DiwaView) {
         super(view);
@@ -303,10 +304,10 @@ export class ProjectsTab extends BaseTab {
             this.render(rootContainer);
         }, 'diwa-project-action-btn diwa-project-action-btn--danger');
 
-        this.renderMilestonesSection(panel, project, rootContainer);
+        this.renderMilestonesSection(panel, project);
     }
 
-    private renderMilestonesSection(panel: HTMLElement, project: ProjectEntry, rootContainer: HTMLElement): void {
+    private renderMilestonesSection(panel: HTMLElement, project: ProjectEntry): void {
         const wrap = panel.createDiv('diwa-milestones-wrap');
         const toggle = wrap.createEl('button', {
             cls: 'diwa-milestones-toggle',
@@ -317,38 +318,65 @@ export class ProjectsTab extends BaseTab {
         toggle.createSpan({ text: 'Milestones' });
 
         const body = wrap.createDiv('diwa-milestones-body');
-        body.style.display = 'none';
-
-        let isOpen = false;
+        let isOpen = this.openMilestoneIds.has(project.id);
         const updateToggle = () => {
             toggleIcon.empty();
             setIcon(toggleIcon, isOpen ? 'chevron-down' : 'chevron-right');
+            toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            body.style.display = isOpen ? '' : 'none';
         };
         updateToggle();
 
+        if (isOpen) {
+            this.loadAndRenderMilestones(body, project, false);
+        }
+
         toggle.addEventListener('click', () => {
             isOpen = !isOpen;
+            if (isOpen) this.openMilestoneIds.add(project.id);
+            else this.openMilestoneIds.delete(project.id);
             updateToggle();
-            body.style.display = isOpen ? '' : 'none';
-            if (isOpen) this.loadAndRenderMilestones(body, project, rootContainer);
+            if (isOpen) {
+                this.loadAndRenderMilestones(body, project, true);
+            }
         });
     }
 
-    private loadAndRenderMilestones(container: HTMLElement, project: ProjectEntry, rootContainer: HTMLElement): void {
+    private loadAndRenderMilestones(container: HTMLElement, project: ProjectEntry, scrollIntoView = false): void {
         container.empty();
         const loading = container.createEl('span', { text: 'Loading milestones…', cls: 'diwa-milestones-loading' });
         this.vault.readMilestones(project.filePath).then((milestones) => {
             loading.remove();
-            this.renderMilestonesBody(container, milestones, project, rootContainer);
+            this.renderMilestonesBody(container, milestones, project);
+            if (scrollIntoView) {
+                requestAnimationFrame(() => {
+                    container.closest('.diwa-milestones-wrap')?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'nearest',
+                    });
+                });
+            }
         }).catch(() => {
             loading.textContent = 'Failed to load milestones.';
         });
     }
 
-    private renderMilestonesBody(container: HTMLElement, milestones: Milestone[], project: ProjectEntry, rootContainer: HTMLElement): void {
+    private renderMilestonesBody(
+        container: HTMLElement,
+        milestones: Milestone[],
+        project: ProjectEntry,
+        editingMilestoneId: string | null = null,
+    ): void {
         container.empty();
         const done = milestones.filter((milestone) => milestone.done).length;
         const total = milestones.length;
+        const rerender = (nextEditingMilestoneId: string | null = editingMilestoneId) => {
+            this.renderMilestonesBody(container, milestones, project, nextEditingMilestoneId);
+        };
+        const persistMilestones = async (nextEditingMilestoneId: string | null = editingMilestoneId) => {
+            await this.vault.writeMilestones(project.filePath, milestones);
+            rerender(nextEditingMilestoneId);
+        };
 
         if (total > 0) {
             const progressWrap = container.createDiv('diwa-milestone-progress-wrap');
@@ -365,25 +393,106 @@ export class ProjectsTab extends BaseTab {
             });
         } else {
             milestones.forEach((milestone, idx) => {
-                const row = container.createDiv('diwa-milestone-row');
+                const isEditing = editingMilestoneId === milestone.id;
+                const row = container.createDiv(`diwa-milestone-row${isEditing ? ' is-editing' : ''}`);
                 const checkbox = row.createEl('input', { attr: { type: 'checkbox' } }) as HTMLInputElement;
                 checkbox.checked = milestone.done;
                 checkbox.addEventListener('change', async () => {
                     milestones[idx].done = checkbox.checked;
-                    await this.vault.writeMilestones(project.filePath, milestones);
-                    this.renderMilestonesBody(container, milestones, project, rootContainer);
+                    await persistMilestones(isEditing ? milestone.id : null);
                 });
-                row.createEl('span', {
-                    text: milestone.title,
-                    cls: `diwa-milestone-title${milestone.done ? ' is-done' : ''}`,
-                });
-                if (milestone.dueDate) {
-                    row.createEl('span', {
-                        text: moment(milestone.dueDate, ['YYYY-MM-DD', moment.ISO_8601], true).isValid()
-                            ? moment(milestone.dueDate).format('MMM D')
-                            : milestone.dueDate,
-                        cls: 'diwa-chip diwa-chip--date diwa-chip--sm',
+
+                const content = row.createDiv('diwa-milestone-row__content');
+                if (isEditing) {
+                    checkbox.setAttribute('aria-label', `Mark milestone ${milestone.title} complete`);
+
+                    const fieldGrid = content.createDiv('diwa-milestone-edit-grid');
+                    const titleInput = fieldGrid.createEl('input', {
+                        cls: 'diwa-milestone-add-input',
+                        attr: { type: 'text', value: milestone.title, placeholder: 'Milestone title' },
+                    }) as HTMLInputElement;
+                    const dateInput = fieldGrid.createEl('input', {
+                        cls: 'diwa-milestone-add-date',
+                        attr: { type: 'date', value: milestone.dueDate ?? '' },
+                    }) as HTMLInputElement;
+                    const actions = content.createDiv('diwa-milestone-edit-actions');
+                    const saveBtn = actions.createEl('button', {
+                        text: 'Save',
+                        cls: 'diwa-milestone-btn diwa-milestone-btn--primary',
+                        attr: { type: 'button' },
                     });
+                    const cancelBtn = actions.createEl('button', {
+                        text: 'Cancel',
+                        cls: 'diwa-milestone-btn',
+                        attr: { type: 'button' },
+                    });
+                    const deleteBtn = actions.createEl('button', {
+                        text: 'Delete',
+                        cls: 'diwa-milestone-btn diwa-milestone-btn--danger',
+                        attr: { type: 'button' },
+                    });
+
+                    const save = async () => {
+                        const title = titleInput.value.trim();
+                        if (!title) {
+                            new Notice('Milestone title is required.');
+                            titleInput.focus();
+                            return;
+                        }
+                        milestones[idx] = {
+                            ...milestone,
+                            title,
+                            dueDate: dateInput.value || undefined,
+                        };
+                        await persistMilestones(null);
+                    };
+
+                    saveBtn.addEventListener('click', () => { void save(); });
+                    cancelBtn.addEventListener('click', () => rerender(null));
+                    deleteBtn.addEventListener('click', async () => {
+                        milestones.splice(idx, 1);
+                        await persistMilestones(null);
+                    });
+                    titleInput.addEventListener('keydown', (event: KeyboardEvent) => {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            void save();
+                        } else if (event.key === 'Escape') {
+                            event.preventDefault();
+                            rerender(null);
+                        }
+                    });
+                    dateInput.addEventListener('keydown', (event: KeyboardEvent) => {
+                        if (event.key === 'Escape') {
+                            event.preventDefault();
+                            rerender(null);
+                        }
+                    });
+                    titleInput.focus();
+                    titleInput.setSelectionRange(titleInput.value.length, titleInput.value.length);
+                } else {
+                    content.createEl('span', {
+                        text: milestone.title,
+                        cls: `diwa-milestone-title${milestone.done ? ' is-done' : ''}`,
+                    });
+                    if (milestone.dueDate) {
+                        const meta = content.createDiv('diwa-milestone-row__meta');
+                        meta.createEl('span', {
+                            text: moment(milestone.dueDate, ['YYYY-MM-DD', moment.ISO_8601], true).isValid()
+                                ? moment(milestone.dueDate).format('MMM D')
+                                : milestone.dueDate,
+                            cls: 'diwa-chip diwa-chip--date diwa-chip--sm',
+                        });
+                    }
+
+                    const actions = row.createDiv('diwa-milestone-row__actions');
+                    this.buildIconButton(actions, 'Edit milestone', 'pencil', () => {
+                        rerender(milestone.id);
+                    }).addClass('diwa-milestone-row__icon-btn');
+                    this.buildIconButton(actions, 'Delete milestone', 'trash-2', async () => {
+                        milestones.splice(idx, 1);
+                        await persistMilestones(null);
+                    }).addClass('diwa-milestone-row__icon-btn');
                 }
             });
         }
@@ -404,7 +513,11 @@ export class ProjectsTab extends BaseTab {
         });
         addBtn.addEventListener('click', async () => {
             const title = titleInput.value.trim();
-            if (!title) return;
+            if (!title) {
+                new Notice('Milestone title is required.');
+                titleInput.focus();
+                return;
+            }
             const newMilestone: Milestone = {
                 id: `m-${Date.now()}`,
                 title,
@@ -415,7 +528,8 @@ export class ProjectsTab extends BaseTab {
             await this.vault.writeMilestones(project.filePath, milestones);
             titleInput.value = '';
             dateInput.value = '';
-            this.renderMilestonesBody(container, milestones, project, rootContainer);
+            this.renderMilestonesBody(container, milestones, project);
+            titleInput.focus();
         });
         titleInput.addEventListener('keydown', (event: KeyboardEvent) => {
             if (event.key === 'Enter') addBtn.click();
