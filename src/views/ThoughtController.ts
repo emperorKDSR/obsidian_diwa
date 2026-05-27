@@ -4,6 +4,7 @@ import type { ThoughtEntry } from '../types';
 import type { TaskController } from './TaskController';
 import { ThoughtIndex } from './ThoughtIndex';
 import { extractWikiLinks } from '../utils/wikilinks';
+import { normalizeThoughtTopics, toStoredThoughtTopic } from '../utils/topics';
 
 interface ThoughtLinks {
     tasks: string[];
@@ -105,6 +106,7 @@ export class ThoughtController {
         const wikilinks = extractWikiLinks(content);
         const createdText = thought.created || moment(createdAt).format('YYYY-MM-DD HH:mm:ss');
         const modifiedText = thought.modified || moment(updatedAt).format('YYYY-MM-DD HH:mm:ss');
+        const topic = toStoredThoughtTopic(thought.topic);
         return {
             ...thought,
             id,
@@ -127,6 +129,7 @@ export class ThoughtController {
             tags: thought.tags ?? [],
             journalType: thought.journalType ?? null,
             links,
+            topic,
         };
     }
 
@@ -177,7 +180,7 @@ export class ThoughtController {
         return this.upsertThought(indexed, true);
     }
 
-    async addThought(thought: Partial<ThoughtEntry> & { content?: string; context?: string[]; topic?: string | null; project?: string | null; title?: string; journalType?: string | null }): Promise<ThoughtEntry | null> {
+    async addThought(thought: Partial<ThoughtEntry> & { content?: string; context?: string[]; topic?: string | string[] | null; project?: string | null; title?: string; journalType?: string | null }): Promise<ThoughtEntry | null> {
         const content = (thought.content ?? thought.body ?? '').trim();
         const title = String(thought.title || '').trim();
         if (!content && !title) return null;
@@ -211,7 +214,7 @@ export class ThoughtController {
         }
     }
 
-    async updateThought(thought: Partial<ThoughtEntry> & { id?: string; filePath?: string; content?: string; topic?: string | null; title?: string; journalType?: string | null }): Promise<ThoughtEntry | null> {
+    async updateThought(thought: Partial<ThoughtEntry> & { id?: string; filePath?: string; content?: string; topic?: string | string[] | null; title?: string; journalType?: string | null }): Promise<ThoughtEntry | null> {
         const ref = (thought.filePath || thought.id || '').trim();
         if (!ref) return null;
         const existing = this.getThought(ref);
@@ -273,15 +276,34 @@ export class ThoughtController {
     async assignThoughtContext(thoughtIdOrPath: string, contexts: string[], topic?: string | string[]): Promise<ThoughtEntry | null> {
         const thought = this.getThought(thoughtIdOrPath);
         if (!thought) return null;
+        const nextTopic = toStoredThoughtTopic(normalizeThoughtTopics(topic));
         try {
+            this.updatingThoughtPaths.add(thought.filePath);
             await this.plugin.vault.assignContextToThought(thought.filePath, contexts, topic);
             const file = this.plugin.app.vault.getAbstractFileByPath(thought.filePath);
             if (file instanceof TFile) {
                 await this.plugin.refreshCoordinator.reindexFile(file);
+                this.plugin.refreshCoordinator.bumpReindexCooldown(file.path);
+                const synced = this.plugin.index.thoughtIndex.get(thought.filePath) ?? null;
+                const resolved = this.normalizeThought({
+                    ...(synced ?? thought),
+                    context: contexts,
+                    topic: nextTopic,
+                });
+                const result = this.upsertThought(resolved, true);
+                const pathRef = thought.filePath;
+                window.setTimeout(() => this.updatingThoughtPaths.delete(pathRef), 400);
+                return result;
             }
-            return this.syncIndexedThought(thought.filePath);
+            this.updatingThoughtPaths.delete(thought.filePath);
+            return this.upsertThought({
+                ...thought,
+                context: contexts,
+                topic: nextTopic,
+            });
         } catch (error) {
             console.error('[DIWA ThoughtController] assignThoughtContext failed', error);
+            this.updatingThoughtPaths.delete(thought.filePath);
             return null;
         }
     }
@@ -290,15 +312,31 @@ export class ThoughtController {
         const thought = this.getThought(thoughtIdOrPath);
         if (!thought) return null;
         try {
+            this.updatingThoughtPaths.add(thought.filePath);
             if (synthesized) await this.plugin.vault.markAsSynthesized(thought.filePath);
             else await this.plugin.vault.unmarkSynthesized(thought.filePath);
             const file = this.plugin.app.vault.getAbstractFileByPath(thought.filePath);
             if (file instanceof TFile) {
                 await this.plugin.refreshCoordinator.reindexFile(file);
+                this.plugin.refreshCoordinator.bumpReindexCooldown(file.path);
+                const synced = this.plugin.index.thoughtIndex.get(thought.filePath) ?? null;
+                const resolved = this.normalizeThought({
+                    ...(synced ?? thought),
+                    synthesized,
+                });
+                const result = this.upsertThought(resolved, true);
+                const pathRef = thought.filePath;
+                window.setTimeout(() => this.updatingThoughtPaths.delete(pathRef), 400);
+                return result;
             }
-            return this.syncIndexedThought(thought.filePath);
+            this.updatingThoughtPaths.delete(thought.filePath);
+            return this.upsertThought({
+                ...thought,
+                synthesized,
+            });
         } catch (error) {
             console.error('[DIWA ThoughtController] setSynthesized failed', error);
+            this.updatingThoughtPaths.delete(thought.filePath);
             return null;
         }
     }

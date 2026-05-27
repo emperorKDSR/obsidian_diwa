@@ -267,5 +267,8 @@ export class BaseTab {
     /** Optional hook: called when only tasks have changed (avoids full re-render). Override in task-aware tabs. */
     onTasksRefresh?(): void;
 
+    /** Optional hook: called when only thoughts have changed (avoids full re-render). Override in thought-aware tabs. */
+    onThoughtsRefresh?(): void;
+
     render(container: HTMLElement, ...args: any[]): void {}
 }

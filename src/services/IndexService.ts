@@ -2,6 +2,7 @@ import { App, TFile, moment } from 'obsidian';
 import { DiwaSettings, ThoughtEntry, TaskEntry, DueEntry, ProjectEntry, TaskBucketStatus } from '../types';
 import { extractWikiLinks } from '../utils/wikilinks';
 import { getThoughtDisplayTitle, inferJournalType } from '../journal/shared';
+import { normalizeThoughtTopics, toStoredThoughtTopic } from '../utils/topics';
 
 export interface ChecklistItem {
     text: string;
@@ -122,20 +123,15 @@ export class IndexService {
     getExistingTopics(): string[] {
         const seen = new Set<string>();
         for (const entry of this.thoughtIndex.values()) {
-            if (typeof entry.topic === 'string' && entry.topic.trim()) seen.add(entry.topic.trim());
+            for (const topic of normalizeThoughtTopics(entry.topic)) {
+                seen.add(topic);
+            }
         }
         for (const file of this.app.vault.getMarkdownFiles()) {
             if (!this.isThoughtFile(file.path)) continue;
             const cache = this.app.metadataCache.getFileCache(file);
-            const topic = cache?.frontmatter?.topic;
-            if (Array.isArray(topic)) {
-                for (const t of topic) {
-                    const s = String(t).trim();
-                    if (s) seen.add(s);
-                }
-            } else if (topic) {
-                const s = String(topic).trim();
-                if (s) seen.add(s);
+            for (const topic of normalizeThoughtTopics(cache?.frontmatter?.topic)) {
+                seen.add(topic);
             }
         }
         return Array.from(seen).sort();
@@ -399,6 +395,7 @@ export class IndexService {
             ...IndexService.normalizeStringArray(fm.linkedTasks),
             ...IndexService.normalizeLinksArray(fm.links, 'tasks'),
         ]));
+        const topics = normalizeThoughtTopics(fm.topic);
         this.thoughtIndex.set(file.path, {
             id: file.path,
             filePath: file.path,
@@ -412,7 +409,7 @@ export class IndexService {
             createdAt: Number(fm.createdAt || file.stat.ctime || Date.now()),
             updatedAt: Number(fm.updatedAt || file.stat.mtime || Date.now()),
             context,
-            topic: Array.isArray(fm.topic) ? (fm.topic[0] ? String(fm.topic[0]) : null) : (fm.topic || null),
+            topic: toStoredThoughtTopic(topics),
             journalType,
             synthesized: fm.synthesized || false,
             state: fm.state || 'raw',

@@ -194,6 +194,14 @@ export class DiwaView extends ItemView {
         this.renderView();
     }
 
+    refreshThoughts(): void {
+        if (this.currentTab && typeof (this.currentTab as any).onThoughtsRefresh === 'function') {
+            (this.currentTab as any).onThoughtsRefresh();
+            return;
+        }
+        this.renderView();
+    }
+
     forceGawaRerender(): void {
         if (this.activeTab !== 'review-gawa') return;
         if (!this.contentAreaEl) {

@@ -73,6 +73,8 @@ export class RefreshCoordinator {
                     // For task-only updates use incremental refresh to avoid full DOM rebuild
                     if (scope === 'tasks' && typeof (view as any).refreshTasks === 'function') {
                         (view as any).refreshTasks();
+                    } else if (scope === 'thoughts' && typeof (view as any).refreshThoughts === 'function') {
+                        (view as any).refreshThoughts();
                     } else {
                         view.renderView();
                     }

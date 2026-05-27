@@ -2,13 +2,14 @@ import { App, Modal, Notice, setIcon } from 'obsidian';
 import type DiwaPlugin from '../main';
 import { attachInlineTriggers, attachMediaPasteHandler } from '../utils';
 import { attachMobileSheetViewportBehavior } from '../utils/mobileSheetViewport';
+import { normalizeThoughtTopics } from '../utils/topics';
 import { ConfirmModal } from './ConfirmModal';
 
 interface MobilePostComposerOptions {
     editFilePath?: string;
     text?: string;
     contexts?: string[];
-    topic?: string;
+    topic?: string | string[] | null;
 }
 
 export class MobilePostComposerModal extends Modal {
@@ -25,7 +26,7 @@ export class MobilePostComposerModal extends Modal {
     private contextSearch!: HTMLInputElement;
     private topicSearch!: HTMLInputElement;
     private contexts: string[] = [];
-    private topic: string = '';
+    private topics: string[] = [];
     private topicDraft = '';
     private dirty = false;
     private saving = false;
@@ -40,9 +41,8 @@ export class MobilePostComposerModal extends Modal {
         this.plugin = plugin;
         this.options = options;
         this.contexts = this.normalizeContexts(options.contexts ?? []);
-        this.topic = options.topic?.trim() ?? '';
-        this.topicDraft = this.topic;
-        this.initialSnapshot = this.buildSnapshot(options.text ?? '', this.contexts, this.topic);
+        this.topics = normalizeThoughtTopics(options.topic);
+        this.initialSnapshot = this.buildSnapshot(options.text ?? '', this.contexts, this.topics);
     }
 
     onOpen() {
@@ -192,11 +192,15 @@ export class MobilePostComposerModal extends Modal {
                     : `${this.contexts.length} contexts`
         );
         this.topicButton.querySelector<HTMLElement>('.diwa-mobile-post-selector-summary')!.setText(
-            this.topic ? this.topic : 'Choose a topic'
+            this.topics.length === 0
+                ? 'Choose topics'
+                : this.topics.length === 1
+                    ? this.topics[0]
+                    : `${this.topics.length} topics`
         );
         this.contextButton.toggleClass('is-selected', this.contexts.length > 0);
         this.contextButton.toggleClass('is-open', this.contextPickerOpen);
-        this.topicButton.toggleClass('is-selected', !!this.topic);
+        this.topicButton.toggleClass('is-selected', this.topics.length > 0);
         this.topicButton.toggleClass('is-open', this.topicPickerOpen);
         this.refreshChips();
         this.refreshComposerState();
@@ -204,7 +208,7 @@ export class MobilePostComposerModal extends Modal {
 
     private refreshChips() {
         this.chipsEl.empty();
-        if (this.contexts.length === 0 && !this.topic) {
+        if (this.contexts.length === 0 && this.topics.length === 0) {
             this.chipsEl.createEl('span', {
                 cls: 'diwa-mobile-post-chip-hint',
                 text: 'No context or topic yet.',
@@ -227,21 +231,20 @@ export class MobilePostComposerModal extends Modal {
             });
         });
 
-        if (this.topic) {
+        this.topics.forEach((topic) => {
             const topicChip = this.chipsEl.createEl('button', {
                 cls: 'diwa-mobile-post-chip is-topic',
                 type: 'button',
-                attr: { 'aria-label': `Remove topic ${this.topic}` },
+                attr: { 'aria-label': `Remove topic ${topic}` },
             });
-            topicChip.createEl('span', { text: this.topic });
+            topicChip.createEl('span', { text: topic });
             const remove = topicChip.createEl('span', { cls: 'diwa-mobile-post-chip-remove', text: '×' });
             remove.setAttribute('aria-hidden', 'true');
             topicChip.addEventListener('click', () => {
-                this.topic = '';
-                this.topicDraft = '';
+                this.topics = this.topics.filter((value) => value.toLowerCase() !== topic.toLowerCase());
                 this.renderSelection();
             });
-        }
+        });
     }
 
     private renderContextPicker() {
@@ -326,14 +329,14 @@ export class MobilePostComposerModal extends Modal {
         const redrawTopics = () => {
             topicList.empty();
             const q = this.topicSearch.value.toLowerCase().trim();
-            if (this.topic) {
+            if (this.topics.length > 0) {
                 const clearBtn = topicList.createEl('button', {
                     cls: 'diwa-mobile-post-picker-clear',
                     type: 'button',
-                    text: 'Clear topic',
+                    text: 'Clear topics',
                 });
                 clearBtn.addEventListener('click', () => {
-                    this.topic = '';
+                    this.topics = [];
                     this.topicDraft = '';
                     this.renderSelection();
                     this.closePickers();
@@ -343,14 +346,17 @@ export class MobilePostComposerModal extends Modal {
                 .filter(t => !q || t.toLowerCase().includes(q))
                 .sort((a, b) => a.localeCompare(b));
             for (const topic of filtered) {
+                const isSelected = this.topics.some((value) => value.toLowerCase() === topic.toLowerCase());
                 const pill = topicList.createEl('button', {
-                    cls: `diwa-mobile-post-picker-pill${this.topic === topic ? ' is-active' : ''}`,
+                    cls: `diwa-mobile-post-picker-pill${isSelected ? ' is-active' : ''}`,
                     text: topic,
                     type: 'button'
                 });
                 pill.addEventListener('click', () => {
-                    this.topic = topic;
-                    this.topicDraft = topic;
+                    this.topics = isSelected
+                        ? this.topics.filter((value) => value.toLowerCase() !== topic.toLowerCase())
+                        : normalizeThoughtTopics([...this.topics, topic]);
+                    this.topicDraft = '';
                     this.renderSelection();
                     this.closePickers();
                 });
@@ -363,8 +369,8 @@ export class MobilePostComposerModal extends Modal {
                     text: `Add "${createTopic}"`
                 });
                 createBtn.addEventListener('click', () => {
-                    this.topic = createTopic;
-                    this.topicDraft = createTopic;
+                    this.topics = normalizeThoughtTopics([...this.topics, createTopic]);
+                    this.topicDraft = '';
                     this.renderSelection();
                     this.closePickers();
                 });
@@ -381,7 +387,6 @@ export class MobilePostComposerModal extends Modal {
 
     private toggleContextPicker() {
         if (this.saving) return;
-        if (this.topicPickerOpen) this.topicDraft = this.topic;
         this.contextPickerOpen = !this.contextPickerOpen;
         this.topicPickerOpen = false;
         this.renderContextPicker();
@@ -392,7 +397,7 @@ export class MobilePostComposerModal extends Modal {
 
     private toggleTopicPicker() {
         if (this.saving) return;
-        this.topicDraft = this.topic;
+        this.topicDraft = '';
         this.topicPickerOpen = !this.topicPickerOpen;
         this.contextPickerOpen = false;
         this.renderContextPicker();
@@ -402,7 +407,7 @@ export class MobilePostComposerModal extends Modal {
     }
 
     private closePickers() {
-        if (this.topicPickerOpen) this.topicDraft = this.topic;
+        this.topicDraft = '';
         this.contextPickerOpen = false;
         this.topicPickerOpen = false;
         this.renderContextPicker();
@@ -436,14 +441,14 @@ export class MobilePostComposerModal extends Modal {
                     filePath: this.options.editFilePath,
                     content: text,
                     context: this.contexts,
-                    topic: this.topic.trim() || undefined,
+                    topic: this.topics.length > 0 ? [...this.topics] : undefined,
                 });
                 if (!updated) throw new Error('Thought update failed');
             } else {
                 const created = await this.plugin.getThoughtController().addThought({
                     content: text,
                     context: this.contexts,
-                    topic: this.topic.trim() || undefined,
+                    topic: this.topics.length > 0 ? [...this.topics] : undefined,
                 });
                 if (!created) throw new Error('Thought creation failed');
             }
@@ -472,7 +477,7 @@ export class MobilePostComposerModal extends Modal {
 
     private refreshComposerState() {
         const hasText = this.textarea.value.trim().length > 0;
-        this.dirty = this.buildSnapshot(this.textarea.value, this.contexts, this.topic) !== this.initialSnapshot;
+        this.dirty = this.buildSnapshot(this.textarea.value, this.contexts, this.topics) !== this.initialSnapshot;
         this.postBtn.disabled = !hasText || this.saving;
         this.postBtn.setText(this.saving
             ? 'Saving...'
@@ -485,11 +490,11 @@ export class MobilePostComposerModal extends Modal {
         this.errorEl.toggleClass('is-hidden', !message);
     }
 
-    private buildSnapshot(text: string, contexts: string[], topic: string): string {
+    private buildSnapshot(text: string, contexts: string[], topics: string[]): string {
         return JSON.stringify({
             text: text.trim(),
             contexts: this.normalizeContexts(contexts).sort(),
-            topic: topic.trim(),
+            topics: normalizeThoughtTopics(topics).sort(),
         });
     }
 

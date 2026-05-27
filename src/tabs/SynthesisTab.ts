@@ -1,213 +1,545 @@
-import { MarkdownRenderer, Notice, setIcon, TFile } from 'obsidian';
+import { MarkdownRenderer, TFile, moment, setIcon } from 'obsidian';
 import { BaseTab } from './BaseTab';
 import type { ThoughtEntry } from '../types';
 import { ConfirmModal } from '../modals/ConfirmModal';
+import { ICON_EYE, ICON_TRASH } from '../constants';
+import { normalizeThoughtTopics, toStoredThoughtTopic } from '../utils/topics';
+
+type ArchivedFilter = 'false' | 'true' | 'all';
+
+interface FilterOption<T extends string> {
+    value: T;
+    label: string;
+}
+
+interface SynthesisCardBinding {
+    row: HTMLElement;
+    archived: boolean;
+    contexts: string[];
+    topics: string[];
+}
 
 export class SynthesisTab extends BaseTab {
+    private renderToken = 0;
+    private hostContainer: HTMLElement | null = null;
+    private inlineMetaRefreshHoldUntil = 0;
+
     render(container: HTMLElement): void {
-        container.empty();
-        const root = container.createEl('div', { cls: 'diwa-syn-table-root' });
-        root.createEl('h2', { cls: 'diwa-syn-table-title', text: 'Synthesis' });
-        this.renderThoughtTable(root);
+        this.hostContainer = container;
+        void this.renderWorkspace(container);
     }
 
-    private renderThoughtTable(root: HTMLElement): void {
+    onunload(): void {
+        this.hostContainer = null;
+    }
+
+    onThoughtsRefresh(): void {
+        // Inline metadata edits already patch the visible card; ignore the trailing
+        // global refresh burst so the redesigned surface does not flicker.
+        if (Date.now() < this.inlineMetaRefreshHoldUntil) return;
+        if (this.hostContainer?.isConnected) this.render(this.hostContainer);
+    }
+
+    private async renderWorkspace(container: HTMLElement): Promise<void> {
+        const token = ++this.renderToken;
+        container.empty();
+
+        const wrap = container.createEl('div', { cls: 'diwa-tab-wrap diwa-synth-workspace diwa-synth-workspace--redesign' });
+        const header = this.renderPageHeader(
+            wrap,
+            'Synthesis',
+            'Review raw thoughts, refine their metadata, and keep them aligned with the DIWA workspace.'
+        );
+        header.addClass('diwa-synth-page-header');
+
+        const stage = wrap.createEl('div', { cls: 'diwa-synth-stage' });
+        this.renderLoadingState(stage);
+        await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+        if (token !== this.renderToken) return;
+
+        stage.empty();
+
         const thoughts = Array.from(this.index.thoughtIndex.values())
             .sort((a, b) => (b.modified || '').localeCompare(a.modified || ''));
+        const allContexts = this.collectAllContexts(thoughts);
+        const allTopics = this.collectAllTopics(thoughts);
+
+        this.renderSummaryGrid(
+            stage,
+            thoughts.length,
+            thoughts.filter((thought) => !thought.synthesized).length,
+            thoughts.filter((thought) => thought.synthesized).length,
+            allContexts.size,
+        );
 
         if (thoughts.length === 0) {
-            root.createEl('div', {
-                cls: 'diwa-syn-table-empty',
-                text: 'No thought notes found.',
-            });
+            this.renderEmptyStateCard(
+                stage,
+                'No thought notes yet',
+                'Capture or import thoughts first. They will appear here for synthesis review once indexed.',
+            );
             return;
         }
 
-        const filters = root.createEl('div', { cls: 'diwa-syn-table-filters' });
-        const archivedFilter = filters.createEl('select', { cls: 'diwa-syn-table-filter' }) as HTMLSelectElement;
-        archivedFilter.createEl('option', { value: 'false', text: 'Archived: false' });
-        archivedFilter.createEl('option', { value: 'true', text: 'Archived: true' });
-        archivedFilter.createEl('option', { value: 'all', text: 'Archived: all' });
-
-        const contextFilter = filters.createEl('select', { cls: 'diwa-syn-table-filter' }) as HTMLSelectElement;
-        contextFilter.createEl('option', { value: 'all', text: 'Context: all' });
-
-        const topicFilter = filters.createEl('select', { cls: 'diwa-syn-table-filter' }) as HTMLSelectElement;
-        topicFilter.createEl('option', { value: 'all', text: 'Topic: all' });
-
-        const wrap = root.createEl('div', { cls: 'diwa-syn-table-wrap' });
-        const table = wrap.createEl('table', { cls: 'diwa-syn-table' });
-        const thead = table.createEl('thead');
-        const headerRow = thead.createEl('tr');
-        for (const header of ['', 'archived', 'content', 'modified date', 'context', 'topic']) {
-            headerRow.createEl('th', { text: header });
-        }
-
-        const rows: Array<{ row: HTMLElement; archived: boolean; contexts: string[]; topics: string[] }> = [];
-        let applyFilters = () => {};
-        const tbody = table.createEl('tbody');
-        for (const thought of thoughts) {
-            try {
-                rows.push(this.renderTableRow(tbody, thought, () => applyFilters()));
-            } catch (e) {
-                console.error('[DIWA SynthesisTab] Failed to render row', thought?.filePath, e);
-            }
-        }
-
-        const emptyFiltered = root.createEl('div', {
-            cls: 'diwa-syn-table-empty',
-            text: 'No rows match the selected filters.',
+        const controls = stage.createEl('section', { cls: 'diwa-card diwa-synth-controls' });
+        const controlsTop = controls.createEl('div', { cls: 'diwa-synth-controls-top' });
+        const resultChip = controlsTop.createEl('span', { cls: 'diwa-synth-results-chip' });
+        controlsTop.createEl('span', {
+            cls: 'diwa-synth-controls-hint',
+            text: 'Use DIWA-style filters, then edit archive, context, or topics directly from each thought card.',
         });
 
-        const allContexts = new Set<string>();
-        const allTopics = new Set<string>();
-        for (const r of rows) {
-            for (const c of r.contexts) allContexts.add(c);
-            for (const t of r.topics) allTopics.add(t);
-        }
-        for (const c of Array.from(allContexts).sort((a, b) => a.localeCompare(b))) {
-            contextFilter.createEl('option', { value: c, text: `Context: ${c}` });
-        }
-        for (const t of Array.from(allTopics).sort((a, b) => a.localeCompare(b))) {
-            topicFilter.createEl('option', { value: t, text: `Topic: ${t}` });
-        }
+        const filterGrid = controls.createEl('div', { cls: 'diwa-synth-filter-grid' });
+
+        const sortedContexts = Array.from(allContexts).sort((a, b) => a.localeCompare(b));
+        const sortedTopics = Array.from(allTopics).sort((a, b) => a.localeCompare(b));
+
+        let archivedFilter: ArchivedFilter = this.view.synthesisTableArchivedFilter || 'false';
+        let contextFilter = sortedContexts.includes(this.view.synthesisTableContextFilter)
+            ? this.view.synthesisTableContextFilter
+            : 'all';
+        let topicFilter = sortedTopics.includes(this.view.synthesisTableTopicFilter)
+            ? this.view.synthesisTableTopicFilter
+            : 'all';
+
+        this.view.synthesisTableArchivedFilter = archivedFilter;
+        this.view.synthesisTableContextFilter = contextFilter;
+        this.view.synthesisTableTopicFilter = topicFilter;
+
+        const listSection = stage.createEl('section', { cls: 'diwa-synth-list-section' });
+        const list = listSection.createEl('div', { cls: 'diwa-synth-list' });
+        const emptyFiltered = listSection.createEl('div', { cls: 'diwa-synth-empty diwa-synth-empty--filtered' });
+        emptyFiltered.style.display = 'none';
+        this.populateEmptyStateIcon(emptyFiltered, 'funnel');
+        emptyFiltered.createEl('strong', { text: 'No thoughts match these filters', cls: 'diwa-synth-empty-title' });
+        emptyFiltered.createEl('span', {
+            text: 'Try widening the status, context, or topic filters to bring more thoughts back into view.',
+            cls: 'diwa-synth-empty-copy',
+        });
+
+        let applyFilters = () => {};
+        const cards = thoughts.map((thought) =>
+            this.renderThoughtCard(list, thought, () => applyFilters()),
+        );
+
+        this.renderFilterGroup(
+            filterGrid,
+            'Status',
+            [
+                { value: 'false', label: 'Needs review' },
+                { value: 'true', label: 'Processed' },
+                { value: 'all', label: 'All thoughts' },
+            ],
+            () => archivedFilter,
+            (value) => {
+                archivedFilter = value;
+                this.view.synthesisTableArchivedFilter = value;
+                applyFilters();
+            },
+        );
+
+        this.renderFilterGroup(
+            filterGrid,
+            'Context',
+            [{ value: 'all', label: 'All contexts' }, ...sortedContexts.map((value) => ({ value, label: value }))],
+            () => contextFilter,
+            (value) => {
+                contextFilter = value;
+                this.view.synthesisTableContextFilter = value;
+                applyFilters();
+            },
+        );
+
+        this.renderFilterGroup(
+            filterGrid,
+            'Topic',
+            [{ value: 'all', label: 'All topics' }, ...sortedTopics.map((value) => ({ value, label: value }))],
+            () => topicFilter,
+            (value) => {
+                topicFilter = value;
+                this.view.synthesisTableTopicFilter = value;
+                applyFilters();
+            },
+        );
 
         applyFilters = () => {
-            const archived = archivedFilter.value;
-            const context = contextFilter.value;
-            const topic = topicFilter.value;
-            this.view.synthesisTableArchivedFilter = archived === 'true' || archived === 'all' ? archived : 'false';
-            this.view.synthesisTableContextFilter = context || 'all';
-            this.view.synthesisTableTopicFilter = topic || 'all';
             let visible = 0;
-            for (const r of rows) {
-                const archivedOk = archived === 'all'
+            for (const card of cards) {
+                const archivedOk = archivedFilter === 'all'
                     ? true
-                    : archived === 'true'
-                        ? r.archived
-                        : !r.archived;
-                const contextOk = context === 'all'
+                    : archivedFilter === 'true'
+                        ? card.archived
+                        : !card.archived;
+                const contextOk = contextFilter === 'all'
                     ? true
-                    : r.contexts.some((c) => c.toLowerCase() === context.toLowerCase());
-                const topicOk = topic === 'all'
+                    : card.contexts.some((context) => context.toLowerCase() === contextFilter.toLowerCase());
+                const topicOk = topicFilter === 'all'
                     ? true
-                    : r.topics.some((t) => t.toLowerCase() === topic.toLowerCase());
+                    : card.topics.some((topic) => topic.toLowerCase() === topicFilter.toLowerCase());
                 const show = archivedOk && contextOk && topicOk;
-                r.row.style.display = show ? '' : 'none';
+                card.row.style.display = show ? '' : 'none';
                 if (show) visible++;
             }
+
+            resultChip.setText(`${visible} of ${thoughts.length} thoughts visible`);
             emptyFiltered.style.display = visible === 0 ? '' : 'none';
         };
 
-        archivedFilter.addEventListener('change', applyFilters);
-        contextFilter.addEventListener('change', applyFilters);
-        topicFilter.addEventListener('change', applyFilters);
-        archivedFilter.value = this.view.synthesisTableArchivedFilter || 'false';
-        contextFilter.value = this.optionExists(contextFilter, this.view.synthesisTableContextFilter)
-            ? this.view.synthesisTableContextFilter
-            : 'all';
-        topicFilter.value = this.optionExists(topicFilter, this.view.synthesisTableTopicFilter)
-            ? this.view.synthesisTableTopicFilter
-            : 'all';
         applyFilters();
     }
 
-    private renderTableRow(
-        tbody: HTMLElement,
-        thought: ThoughtEntry,
-        onMetaChange?: () => void
-    ): { row: HTMLElement; archived: boolean; contexts: string[]; topics: string[] } {
-        const row = tbody.createEl('tr');
-        let contexts = this.normalizeContexts(thought.context);
-        let topics = this.getThoughtTopics(thought);
-        let archived = !!thought.synthesized;
-        const modified = typeof thought.modified === 'string' && thought.modified ? thought.modified : '';
-        const created = typeof thought.created === 'string' && thought.created ? thought.created : '';
-        const body = typeof thought.body === 'string' ? thought.body : '';
-
-        const openCell = row.createEl('td', { cls: 'diwa-syn-table-open' });
-        this.renderOpenNoteButton(openCell, thought.filePath);
-
-        const archivedCell = row.createEl('td', { cls: 'diwa-syn-table-archived' });
-        this.renderArchivedEditor(archivedCell, thought, (nextArchived) => { archived = nextArchived; onMetaChange?.(); });
-
-        const contentCell = row.createEl('td', { cls: 'diwa-syn-table-content' });
-        const contentHost = contentCell.createEl('div', { cls: 'diwa-syn-table-content-md' });
-        const cleanBody = this.stripFrontmatterAndProperties(body);
-        void MarkdownRenderer.render(
-            this.app,
-            cleanBody || '*No content*',
-            contentHost,
-            thought.filePath,
-            this.view
-        );
-        row.createEl('td', { text: modified || created || '—' });
-
-        const contextCell = row.createEl('td');
-        this.renderContextEditor(
-            contextCell,
-            thought,
-            contexts,
-            () => topics,
-            (nextContexts) => { contexts = nextContexts; onMetaChange?.(); }
-        );
-
-        const topicCell = row.createEl('td');
-        this.renderTopicEditor(
-            topicCell,
-            thought,
-            () => contexts,
-            topics,
-            (nextTopics) => { topics = nextTopics; onMetaChange?.(); }
-        );
-        return { row, archived, contexts, topics };
+    private holdInlineMetaRefresh(ms = 900): void {
+        const holdUntil = Date.now() + ms;
+        if (holdUntil > this.inlineMetaRefreshHoldUntil) {
+            this.inlineMetaRefreshHoldUntil = holdUntil;
+        }
     }
 
-    private renderOpenNoteButton(cell: HTMLElement, filePath: string): void {
-        const actionWrap = cell.createEl('div', { cls: 'diwa-syn-row-actions' });
-        const btn = cell.createEl('button', {
-            cls: 'diwa-syn-open-note-btn',
-            attr: { type: 'button', title: 'Open note' },
-        });
-        actionWrap.appendChild(btn);
-        setIcon(btn, 'file-text');
-        btn.addEventListener('click', async () => {
-            const file = this.app.vault.getAbstractFileByPath(filePath);
-            if (!(file instanceof TFile)) {
-                return;
-            }
-            const leaf = this.app.workspace.getLeaf('window') ?? this.app.workspace.getLeaf(false);
-            await leaf.openFile(file);
-        });
+    private renderSummaryGrid(
+        parent: HTMLElement,
+        totalThoughts: number,
+        rawThoughts: number,
+        processedThoughts: number,
+        contextCount: number,
+    ): void {
+        const summary = parent.createEl('section', { cls: 'diwa-synth-summary-grid' });
+        this.renderSummaryCard(summary, 'Thoughts', totalThoughts, 'Indexed in synthesis');
+        this.renderSummaryCard(summary, 'Needs review', rawThoughts, 'Unprocessed notes');
+        this.renderSummaryCard(summary, 'Processed', processedThoughts, 'Archived in synthesis');
+        this.renderSummaryCard(summary, 'Contexts', contextCount, 'Available focus lanes');
+    }
 
-        const delBtn = actionWrap.createEl('button', {
-            cls: 'diwa-syn-open-note-btn diwa-syn-delete-note-btn',
-            attr: { type: 'button', title: 'Delete note' },
-        });
-        setIcon(delBtn, 'trash-2');
-        delBtn.addEventListener('click', () => {
+    private renderSummaryCard(parent: HTMLElement, label: string, value: number, subtitle: string): void {
+        const card = parent.createEl('div', { cls: 'diwa-synth-summary-card' });
+        card.createEl('span', { text: label, cls: 'diwa-synth-summary-label' });
+        card.createEl('strong', { text: String(value), cls: 'diwa-synth-summary-value' });
+        card.createEl('span', { text: subtitle, cls: 'diwa-synth-summary-sub' });
+    }
+
+    private renderFilterGroup<T extends string>(
+        parent: HTMLElement,
+        label: string,
+        options: Array<FilterOption<T>>,
+        getValue: () => T,
+        onSelect: (value: T) => void,
+    ): void {
+        const group = parent.createEl('div', { cls: 'diwa-synth-filter-group' });
+        group.createEl('span', { text: label, cls: 'diwa-synth-filter-label' });
+        const rail = group.createEl('div', { cls: 'diwa-filter-pills diwa-synth-filter-rail' });
+        const buttons = new Map<T, HTMLButtonElement>();
+
+        const syncButtons = () => {
+            const active = getValue();
+            buttons.forEach((button, value) => {
+                button.classList.toggle('is-active', value === active);
+            });
+        };
+
+        for (const option of options) {
+            const button = rail.createEl('button', {
+                text: option.label,
+                cls: 'diwa-filter-pill diwa-synth-filter-pill',
+                attr: { type: 'button' },
+            });
+            buttons.set(option.value, button);
+            button.addEventListener('click', () => {
+                onSelect(option.value);
+                syncButtons();
+            });
+        }
+
+        syncButtons();
+    }
+
+    private renderThoughtCard(
+        list: HTMLElement,
+        thought: ThoughtEntry,
+        onMetaChange?: () => void,
+    ): SynthesisCardBinding {
+        const row = list.createEl('article', { cls: 'diwa-card-row diwa-synth-card-row' });
+        try {
+            const card = row.createEl('div', { cls: 'diwa-card diwa-synth-card' });
+
+            let contexts = this.normalizeContexts(thought.context);
+            let topics = this.getThoughtTopics(thought);
+            let archived = !!thought.synthesized;
+
+            const binding: SynthesisCardBinding = {
+                row,
+                archived,
+                contexts: [...contexts],
+                topics: [...topics],
+            };
+
+            const syncBinding = () => {
+                binding.archived = archived;
+                binding.contexts = [...contexts];
+                binding.topics = [...topics];
+            };
+
+            const header = card.createEl('div', { cls: 'diwa-synth-card-header' });
+            const titleWrap = header.createEl('div', { cls: 'diwa-synth-card-title-wrap' });
+            titleWrap.createEl('h3', { text: this.getThoughtTitle(thought), cls: 'diwa-synth-card-title' });
+            titleWrap.createEl('span', { text: thought.filePath, cls: 'diwa-synth-card-path' });
+
+            const statusMeta = header.createEl('div', { cls: 'diwa-synth-card-status-meta' });
+            const statusPill = statusMeta.createEl('span', {
+                text: archived ? 'Processed' : 'Needs review',
+                cls: `diwa-synth-status-pill${archived ? ' is-processed' : ''}`,
+            });
+            const updatedBadge = statusMeta.createEl('span', {
+                text: this.formatThoughtTimestamp(thought.modified || thought.created),
+                cls: 'diwa-synth-card-updated',
+            });
+
+            const actions = row.createEl('div', { cls: 'diwa-actions-overlay diwa-synth-card-actions' });
+            this.renderThoughtCardActions(actions, thought);
+
+            const contentGrid = card.createEl('div', { cls: 'diwa-synth-card-grid' });
+            const preview = contentGrid.createEl('section', { cls: 'diwa-synth-card-preview' });
+            const previewBody = preview.createEl('div', { cls: 'diwa-card-text diwa-synth-card-markdown' });
+            const cleanBody = this.stripFrontmatterAndProperties(typeof thought.body === 'string' ? thought.body : '');
+            if (cleanBody) {
+                void MarkdownRenderer.render(this.app, cleanBody, previewBody, thought.filePath, this.view)
+                    .then(() => {
+                        this.hookInternalLinks(previewBody, thought.filePath);
+                        this.hookImageZoom(previewBody);
+                    })
+                    .catch((error) => {
+                        console.error('[DIWA SynthesisTab] Failed to render thought markdown', { filePath: thought.filePath, error });
+                        previewBody.empty();
+                        previewBody.createEl('div', {
+                            text: 'Preview unavailable for this thought. Open the note to inspect the raw content.',
+                            cls: 'diwa-synth-card-empty-preview',
+                        });
+                    });
+            } else {
+                previewBody.createEl('div', {
+                    text: 'No body content yet. Open the note to continue writing.',
+                    cls: 'diwa-synth-card-empty-preview',
+                });
+            }
+
+            const tagRow = preview.createEl('div', { cls: 'diwa-synth-card-tags' });
+            const renderTags = () => {
+                tagRow.empty();
+                if (contexts.length === 0 && topics.length === 0) {
+                    tagRow.createEl('span', { text: 'Needs classification', cls: 'diwa-synth-muted-chip' });
+                    return;
+                }
+
+                for (const context of contexts) tagRow.createEl('span', { text: `#${context}`, cls: 'diwa-context-chip' });
+                for (const topic of topics) tagRow.createEl('span', { text: topic, cls: 'diwa-synth-topic-pill' });
+            };
+            renderTags();
+
+            const rail = contentGrid.createEl('aside', { cls: 'diwa-synth-card-rail' });
+
+            const modifiedField = this.createField(rail, 'Updated');
+            const modifiedValue = modifiedField.createEl('span', {
+                text: this.formatThoughtTimestamp(thought.modified || thought.created),
+                cls: 'diwa-synth-field-value',
+            });
+            const createdField = this.createField(rail, 'Created');
+            createdField.createEl('span', {
+                text: this.formatThoughtTimestamp(thought.created),
+                cls: 'diwa-synth-field-value',
+            });
+
+            const applyThoughtMeta = (
+                updatedThought: ThoughtEntry | null,
+                overrides: { archived?: boolean; contexts?: string[]; topics?: string[] } = {},
+            ) => {
+                if (updatedThought) {
+                    thought.synthesized = !!updatedThought.synthesized;
+                    thought.context = this.normalizeContexts(updatedThought.context);
+                    thought.topic = updatedThought.topic ?? null;
+                    thought.created = updatedThought.created || thought.created;
+                    thought.modified = updatedThought.modified || thought.modified;
+                    thought.updatedAt = updatedThought.updatedAt ?? thought.updatedAt;
+                }
+
+                archived = overrides.archived ?? (updatedThought ? !!updatedThought.synthesized : archived);
+                contexts = overrides.contexts ? [...overrides.contexts] : (updatedThought ? this.normalizeContexts(updatedThought.context) : [...contexts]);
+                topics = overrides.topics
+                    ? this.normalizeTopicArray(overrides.topics)
+                    : (updatedThought ? this.getStoredThoughtTopics(updatedThought) : [...topics]);
+
+                thought.synthesized = archived;
+                thought.context = [...contexts];
+                thought.topic = toStoredThoughtTopic(topics);
+
+                statusPill.setText(archived ? 'Processed' : 'Needs review');
+                statusPill.classList.toggle('is-processed', archived);
+
+                const timestamp = this.formatThoughtTimestamp(thought.modified || thought.created);
+                updatedBadge.setText(timestamp);
+                modifiedValue.setText(timestamp);
+
+                syncBinding();
+                renderTags();
+            };
+
+            const archivedField = this.createField(rail, 'Archive state');
+            this.renderArchivedEditor(archivedField, thought, (updatedThought, nextArchived) => {
+                applyThoughtMeta(updatedThought, { archived: nextArchived, contexts, topics });
+                onMetaChange?.();
+            });
+
+            const contextField = this.createField(rail, 'Context');
+            this.renderContextEditor(
+                contextField,
+                thought,
+                contexts,
+                () => topics,
+                (updatedThought, nextContexts) => {
+                    applyThoughtMeta(updatedThought, { archived, contexts: nextContexts, topics });
+                    onMetaChange?.();
+                },
+            );
+
+            const topicField = this.createField(rail, 'Topic');
+            this.renderTopicEditor(
+                topicField,
+                thought,
+                () => contexts,
+                topics,
+                (updatedThought, nextTopics) => {
+                    applyThoughtMeta(updatedThought, { archived, contexts, topics: nextTopics });
+                    onMetaChange?.();
+                },
+            );
+
+            syncBinding();
+            return binding;
+        } catch (error) {
+            console.error('[DIWA SynthesisTab] Failed to render thought card', { filePath: thought.filePath, error });
+            row.empty();
+            row.addClass('diwa-synth-card-row--error');
+            this.renderThoughtCardFallback(row, thought);
+            return {
+                row,
+                archived: !!thought.synthesized,
+                contexts: this.normalizeContexts(thought.context),
+                topics: this.getStoredThoughtTopics(thought),
+            };
+        }
+    }
+
+    private renderThoughtCardActions(parent: HTMLElement, thought: ThoughtEntry): void {
+        this.renderActionButton(parent, ICON_EYE, 'Open note', () => void this.openThoughtFile(thought.filePath));
+        this.renderActionButton(parent, ICON_TRASH, 'Delete note', () => {
             new ConfirmModal(this.app, 'Move this thought to trash?', async () => {
-                await this.vault.deleteFile(filePath, 'thoughts');
-                this.plugin.getThoughtController().removeThoughtFromIndex(filePath);
+                await this.vault.deleteFile(thought.filePath, 'thoughts');
+                this.plugin.getThoughtController().removeThoughtFromIndex(thought.filePath);
                 this.view.renderView();
             }).open();
-        });
+        }, 'var(--text-error)');
     }
 
-    private renderArchivedEditor(cell: HTMLElement, thought: ThoughtEntry, onChanged?: (archived: boolean) => void): void {
-        const check = cell.createEl('input', { type: 'checkbox' }) as HTMLInputElement;
+    private renderThoughtCardFallback(row: HTMLElement, thought: ThoughtEntry): void {
+        const card = row.createEl('div', { cls: 'diwa-card diwa-synth-card diwa-synth-card--error' });
+        const titleWrap = card.createEl('div', { cls: 'diwa-synth-card-title-wrap' });
+        titleWrap.createEl('h3', { text: this.getThoughtTitle(thought), cls: 'diwa-synth-card-title' });
+        titleWrap.createEl('span', { text: thought.filePath, cls: 'diwa-synth-card-path' });
+        card.createEl('div', {
+            text: 'This thought could not be rendered, but the rest of Synthesis is still available. Open the note to inspect it directly.',
+            cls: 'diwa-synth-card-empty-preview',
+        });
+
+        const actions = row.createEl('div', { cls: 'diwa-actions-overlay diwa-synth-card-actions' });
+        this.renderThoughtCardActions(actions, thought);
+    }
+
+    private createField(parent: HTMLElement, label: string): HTMLElement {
+        const field = parent.createEl('div', { cls: 'diwa-synth-field' });
+        field.createEl('span', { text: label, cls: 'diwa-synth-field-label' });
+        return field;
+    }
+
+    private renderLoadingState(parent: HTMLElement): void {
+        const loading = parent.createEl('div', { cls: 'diwa-synth-loading' });
+        const header = loading.createEl('div', { cls: 'diwa-synth-loading-header' });
+        this.populateEmptyStateIcon(header, 'sparkles');
+        header.createEl('strong', { text: 'Loading synthesis workspace', cls: 'diwa-synth-empty-title' });
+        header.createEl('span', {
+            text: 'Pulling indexed thoughts into the redesigned DIWA workspace view.',
+            cls: 'diwa-synth-empty-copy',
+        });
+
+        const skeletons = loading.createEl('div', { cls: 'diwa-synth-loading-grid' });
+        for (let i = 0; i < 2; i++) {
+            const card = skeletons.createEl('div', { cls: 'diwa-synth-loading-card' });
+            card.createEl('div', { cls: 'diwa-synth-skeleton diwa-synth-skeleton-title' });
+            card.createEl('div', { cls: 'diwa-synth-skeleton diwa-synth-skeleton-line' });
+            card.createEl('div', { cls: 'diwa-synth-skeleton diwa-synth-skeleton-line short' });
+            card.createEl('div', { cls: 'diwa-synth-skeleton diwa-synth-skeleton-tags' });
+        }
+    }
+
+    private renderEmptyStateCard(parent: HTMLElement, title: string, copy: string): void {
+        const empty = parent.createEl('div', { cls: 'diwa-synth-empty' });
+        this.populateEmptyStateIcon(empty, 'lightbulb');
+        empty.createEl('strong', { text: title, cls: 'diwa-synth-empty-title' });
+        empty.createEl('span', { text: copy, cls: 'diwa-synth-empty-copy' });
+    }
+
+    private populateEmptyStateIcon(parent: HTMLElement, icon: string): void {
+        const iconWrap = parent.createEl('div', { cls: 'diwa-synth-empty-icon' });
+        setIcon(iconWrap, icon);
+    }
+
+    private async openThoughtFile(filePath: string): Promise<void> {
+        const file = this.app.vault.getAbstractFileByPath(filePath);
+        if (!(file instanceof TFile)) {
+            return;
+        }
+
+        const leaf = this.app.workspace.getLeaf('window') ?? this.app.workspace.getLeaf(false);
+        await leaf.openFile(file);
+    }
+
+    private renderArchivedEditor(
+        cell: HTMLElement,
+        thought: ThoughtEntry,
+        onChanged?: (updatedThought: ThoughtEntry | null, archived: boolean) => void,
+    ): void {
+        const toggle = cell.createEl('label', { cls: 'diwa-synth-toggle' });
+        const check = toggle.createEl('input', { type: 'checkbox', cls: 'diwa-synth-toggle-input' }) as HTMLInputElement;
         check.checked = !!thought.synthesized;
+
+        const track = toggle.createEl('span', { cls: 'diwa-synth-toggle-track' });
+        track.createEl('span', { cls: 'diwa-synth-toggle-thumb' });
+
+        const copy = toggle.createEl('span', { cls: 'diwa-synth-toggle-copy' });
+        const title = copy.createEl('span', { cls: 'diwa-synth-toggle-title' });
+        copy.createEl('span', {
+            text: 'Controls whether this thought stays in the raw review queue.',
+            cls: 'diwa-synth-toggle-hint',
+        });
+
+        const sync = () => {
+            toggle.classList.toggle('is-checked', check.checked);
+            title.setText(check.checked ? 'Processed' : 'Needs review');
+        };
+
+        sync();
+
         check.addEventListener('change', async () => {
             const next = check.checked;
+            sync();
             check.disabled = true;
+            this.holdInlineMetaRefresh();
+
             try {
-                await this.plugin.getThoughtController().setSynthesized(thought.filePath, next);
-                thought.synthesized = next;
-                onChanged?.(next);
-                await this.refreshAfterMutation(thought.filePath);
-            } catch (e) {
+                const updatedThought = await this.plugin.getThoughtController().setSynthesized(thought.filePath, next);
+                const resolvedArchived = updatedThought?.synthesized ?? next;
+                thought.synthesized = resolvedArchived;
+                onChanged?.(updatedThought, resolvedArchived);
+            } catch (error) {
                 check.checked = !next;
-                console.error('[DIWA SynthesisTab] Failed to update synthesized flag', e);
+                sync();
+                console.error('[DIWA SynthesisTab] Failed to update synthesized flag', error);
             } finally {
                 check.disabled = false;
             }
@@ -219,34 +551,39 @@ export class SynthesisTab extends BaseTab {
         thought: ThoughtEntry,
         safeContexts: string[],
         topicsProvider: () => string[],
-        onChanged?: (contexts: string[]) => void
+        onChanged?: (updatedThought: ThoughtEntry | null, contexts: string[]) => void,
     ): void {
-        const select = cell.createEl('select', { cls: 'diwa-syn-table-select' }) as HTMLSelectElement;
+        const selectWrap = cell.createEl('div', { cls: 'diwa-synth-select-wrap' });
+        const select = selectWrap.createEl('select', { cls: 'diwa-synth-select' }) as HTMLSelectElement;
         const contexts = Array.from(new Set(this.settings.contexts ?? []));
         let current = safeContexts[0] ?? '';
 
-        select.createEl('option', { value: '', text: '—' });
-        for (const ctx of contexts) {
-            select.createEl('option', { value: ctx, text: ctx });
+        select.createEl('option', { value: '', text: 'No context' });
+        for (const context of contexts) {
+            select.createEl('option', { value: context, text: context });
         }
         select.value = current;
+
+        const chevron = selectWrap.createEl('span', { cls: 'diwa-synth-select-chevron' });
+        setIcon(chevron, 'chevron-down');
 
         select.addEventListener('change', async () => {
             select.disabled = true;
             const nextContext = select.value;
             const nextContexts = nextContext ? [nextContext] : [];
+            this.holdInlineMetaRefresh();
+
             try {
-                await this.plugin.getThoughtController().assignThoughtContext(
+                const updatedThought = await this.plugin.getThoughtController().assignThoughtContext(
                     thought.filePath,
                     nextContexts,
-                    topicsProvider()
+                    topicsProvider(),
                 );
                 thought.context = nextContexts;
                 current = nextContext;
-                onChanged?.(nextContexts);
-                await this.refreshAfterMutation(thought.filePath);
-            } catch (e) {
-                console.error('[DIWA SynthesisTab] Failed to update context', e);
+                onChanged?.(updatedThought, nextContexts);
+            } catch (error) {
+                console.error('[DIWA SynthesisTab] Failed to update context', error);
                 select.value = current;
             } finally {
                 select.disabled = false;
@@ -259,24 +596,47 @@ export class SynthesisTab extends BaseTab {
         thought: ThoughtEntry,
         contextsProvider: () => string[],
         safeTopics: string[],
-        onChanged?: (topics: string[]) => void
+        onChanged?: (updatedThought: ThoughtEntry | null, topics: string[]) => void,
     ): void {
-        const editor = cell.createEl('div', { cls: 'diwa-syn-table-topic-editor' });
-        const selectedRow = editor.createEl('div', { cls: 'diwa-syn-topic-selected' });
-        const input = editor.createEl('input', {
-            cls: 'diwa-syn-table-select diwa-syn-topic-input',
+        const editor = cell.createEl('div', { cls: 'diwa-synth-topic-editor' });
+        const selectedRow = editor.createEl('div', { cls: 'diwa-synth-topic-selected' });
+        const inputWrap = editor.createEl('div', { cls: 'diwa-synth-select-wrap' });
+        const input = inputWrap.createEl('input', {
+            cls: 'diwa-synth-select diwa-synth-topic-input',
             attr: { type: 'text', placeholder: 'Add topic and press Enter' },
         }) as HTMLInputElement;
-        const listId = `diwa-syn-topic-list-${Math.abs(this.hashString(thought.filePath))}`;
+        const listId = `diwa-synth-topic-list-${Math.abs(this.hashString(thought.filePath))}`;
         input.setAttribute('list', listId);
+
+        const suggIcon = inputWrap.createEl('span', { cls: 'diwa-synth-select-chevron' });
+        setIcon(suggIcon, 'sparkles');
+
         const dataList = editor.createEl('datalist');
         dataList.id = listId;
 
         const globalTopics = this.normalizeTopicArray(this.index.getExistingTopics());
         let selectedTopics = this.normalizeTopicArray(safeTopics);
+        let persisting = false;
+
+        const syncEditorState = () => {
+            editor.classList.toggle('is-persisting', persisting);
+            input.disabled = persisting;
+        };
+
+        const acquirePersistLock = (): boolean => {
+            if (persisting) return false;
+            persisting = true;
+            syncEditorState();
+            return true;
+        };
+
+        const releasePersistLock = (): void => {
+            persisting = false;
+            syncEditorState();
+        };
 
         const renderSuggestions = () => {
-            const selectedSet = new Set(selectedTopics.map((t) => t.toLowerCase()));
+            const selectedSet = new Set(selectedTopics.map((topic) => topic.toLowerCase()));
             dataList.empty();
             for (const topic of globalTopics) {
                 if (selectedSet.has(topic.toLowerCase())) continue;
@@ -284,68 +644,118 @@ export class SynthesisTab extends BaseTab {
             }
         };
 
-        const persist = async () => {
-            input.disabled = true;
-            try {
-                await this.plugin.getThoughtController().assignThoughtContext(
-                    thought.filePath,
-                    contextsProvider().slice(0, 1),
-                    selectedTopics
-                );
-                thought.topic = selectedTopics.length > 0 ? selectedTopics[0] : null;
-                onChanged?.(selectedTopics);
-                await this.refreshAfterMutation(thought.filePath);
-            } catch (e) {
-                console.error('[DIWA SynthesisTab] Failed to update topic', e);
-            } finally {
-                input.disabled = false;
-            }
-        };
-
         const renderSelected = () => {
             selectedRow.empty();
             if (selectedTopics.length === 0) {
-                selectedRow.createEl('span', { cls: 'diwa-syn-topic-empty', text: '—' });
-            } else {
-                for (const topic of selectedTopics) {
-                    const chip = selectedRow.createEl('button', { cls: 'diwa-syn-topic-chip', text: topic });
-                    chip.type = 'button';
-                    const close = chip.createEl('span', { cls: 'diwa-syn-topic-chip-close', text: '×' });
-                    close.addEventListener('click', async (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        selectedTopics = selectedTopics.filter((t) => t.toLowerCase() !== topic.toLowerCase());
-                        renderSelected();
-                        renderSuggestions();
-                        await persist();
-                    });
-                }
+                selectedRow.createEl('span', { cls: 'diwa-synth-topic-empty', text: 'No topics yet' });
+                return;
+            }
+
+            for (const topic of selectedTopics) {
+                const chip = selectedRow.createEl('button', {
+                    cls: 'diwa-synth-topic-chip',
+                    text: topic,
+                    attr: { type: 'button', 'aria-label': `Remove topic ${topic}` },
+                }) as HTMLButtonElement;
+                chip.disabled = persisting;
+                chip.createEl('span', { cls: 'diwa-synth-topic-chip-close', text: '×' });
+                chip.addEventListener('click', async (event) => {
+                    event.preventDefault();
+                    const previous = [...selectedTopics];
+                    const nextTopics = this.normalizeTopicArray(
+                        selectedTopics.filter((value) => value.toLowerCase() !== topic.toLowerCase()),
+                    );
+                    if (nextTopics.length === selectedTopics.length) return;
+                    if (!acquirePersistLock()) return;
+                    selectedTopics = nextTopics;
+                    renderSelected();
+                    renderSuggestions();
+                    const persisted = await persist(previous, nextTopics, true);
+                    if (persisted) input.value = '';
+                });
+            }
+        };
+
+        const persist = async (
+            previousTopics: string[],
+            nextTopics: string[] = selectedTopics,
+            skipLock = false,
+        ): Promise<boolean> => {
+            const normalizedNextTopics = this.normalizeTopicArray(nextTopics);
+            const normalizedPreviousTopics = this.normalizeTopicArray(previousTopics);
+            if (!skipLock && !acquirePersistLock()) return false;
+            if (!skipLock) {
+                selectedTopics = normalizedNextTopics;
+                renderSelected();
+                renderSuggestions();
+            }
+            this.holdInlineMetaRefresh();
+            try {
+                const updatedThought = await this.plugin.getThoughtController().assignThoughtContext(
+                    thought.filePath,
+                    contextsProvider().slice(0, 1),
+                    normalizedNextTopics,
+                );
+                selectedTopics = normalizedNextTopics;
+                thought.topic = toStoredThoughtTopic(normalizedNextTopics);
+                onChanged?.(updatedThought, normalizedNextTopics);
+                return true;
+            } catch (error) {
+                console.error('[DIWA SynthesisTab] Failed to update topic', error);
+                selectedTopics = normalizedPreviousTopics;
+                return false;
+            } finally {
+                releasePersistLock();
+                renderSelected();
+                renderSuggestions();
             }
         };
 
         const commitInput = async () => {
             const raw = this.sanitizeTopic(input.value);
-            if (!raw) return;
+            if (!raw) {
+                input.value = '';
+                return;
+            }
+
             const anticipated = this.getAnticipatedTopic(raw, globalTopics);
             const next = anticipated ?? raw;
-            if (!selectedTopics.some((t) => t.toLowerCase() === next.toLowerCase())) {
-                selectedTopics.push(next);
-                selectedTopics = this.normalizeTopicArray(selectedTopics);
-                renderSelected();
-                renderSuggestions();
-                await persist();
+            if (selectedTopics.some((topic) => topic.toLowerCase() === next.toLowerCase())) {
+                input.value = '';
+                return;
             }
-            input.value = '';
+
+            const previous = [...selectedTopics];
+            const nextTopics = this.normalizeTopicArray([...selectedTopics, next]);
+            if (!acquirePersistLock()) return;
+            selectedTopics = nextTopics;
+            renderSelected();
+            renderSuggestions();
+            const persisted = await persist(previous, nextTopics, true);
+            if (persisted) input.value = '';
         };
 
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ',') {
-                e.preventDefault();
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ',') {
+                event.preventDefault();
                 void commitInput();
             }
         });
-        input.addEventListener('blur', () => { void commitInput(); });
+        let suppressNextBlurCommit = false;
+        selectedRow.addEventListener('pointerdown', () => {
+            suppressNextBlurCommit = true;
+        });
+        input.addEventListener('blur', (event) => {
+            const nextFocus = event.relatedTarget;
+            if ((nextFocus instanceof Node && selectedRow.contains(nextFocus)) || suppressNextBlurCommit) {
+                suppressNextBlurCommit = false;
+                return;
+            }
+            suppressNextBlurCommit = false;
+            void commitInput();
+        });
 
+        syncEditorState();
         renderSelected();
         renderSuggestions();
     }
@@ -366,28 +776,62 @@ export class SynthesisTab extends BaseTab {
 
     private normalizeContexts(value: unknown): string[] {
         if (!Array.isArray(value)) return [];
-        return value.map((v) => String(v || '').trim()).filter(Boolean);
+        return value.map((entry) => String(entry || '').trim()).filter(Boolean);
+    }
+
+    private collectAllContexts(thoughts: ThoughtEntry[]): Set<string> {
+        const contexts = new Set<string>();
+        for (const thought of thoughts) {
+            for (const context of this.normalizeContexts(thought.context)) {
+                contexts.add(context);
+            }
+        }
+        return contexts;
+    }
+
+    private collectAllTopics(thoughts: ThoughtEntry[]): Set<string> {
+        const topics = new Set<string>();
+        for (const thought of thoughts) {
+            for (const topic of this.getThoughtTopics(thought)) {
+                topics.add(topic);
+            }
+        }
+        return topics;
     }
 
     private getThoughtTopics(thought: ThoughtEntry): string[] {
         const file = this.app.vault.getAbstractFileByPath(thought.filePath);
         if (file instanceof TFile) {
-            const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
-            const raw = fm?.topic;
-            if (Array.isArray(raw)) return raw.map((v) => String(v).trim()).filter(Boolean);
+            const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
+            const raw = frontmatter?.topic;
+            if (Array.isArray(raw)) return raw.map((value) => String(value).trim()).filter(Boolean);
             if (typeof raw === 'string' && raw.trim()) return [raw.trim()];
         }
-        if (typeof thought.topic === 'string' && thought.topic.trim()) return [thought.topic.trim()];
-        return [];
+        return this.getStoredThoughtTopics(thought);
+    }
+
+    private getStoredThoughtTopics(thought: { topic?: string | string[] | null }): string[] {
+        return normalizeThoughtTopics(thought.topic);
+    }
+
+    private getThoughtTitle(thought: ThoughtEntry): string {
+        if (thought.title?.trim()) return thought.title.trim();
+        const fileName = thought.filePath.split('/').pop() || 'Untitled thought';
+        return fileName.replace(/\.md$/i, '');
+    }
+
+    private formatThoughtTimestamp(value: string): string {
+        const parsed = moment(value, ['YYYY-MM-DD HH:mm:ss', 'YYYY-MM-DD'], true);
+        return parsed.isValid() ? parsed.format('MMM D, YYYY · HH:mm') : value || '—';
     }
 
     private normalizeTopicArray(values: string[]): string[] {
         const byKey = new Map<string, string>();
         for (const raw of values) {
-            const s = this.sanitizeTopic(raw);
-            if (!s) continue;
-            const key = s.toLowerCase();
-            if (!byKey.has(key)) byKey.set(key, s);
+            const sanitized = this.sanitizeTopic(raw);
+            if (!sanitized) continue;
+            const key = sanitized.toLowerCase();
+            if (!byKey.has(key)) byKey.set(key, sanitized);
         }
         return Array.from(byKey.values());
     }
@@ -397,28 +841,17 @@ export class SynthesisTab extends BaseTab {
     }
 
     private getAnticipatedTopic(input: string, globalTopics: string[]): string | null {
-        const q = input.toLowerCase();
-        const exact = globalTopics.find((t) => t.toLowerCase() === q);
+        const query = input.toLowerCase();
+        const exact = globalTopics.find((topic) => topic.toLowerCase() === query);
         if (exact) return exact;
-        const prefix = globalTopics.find((t) => t.toLowerCase().startsWith(q));
+        const prefix = globalTopics.find((topic) => topic.toLowerCase().startsWith(query));
         return prefix ?? null;
     }
 
     private hashString(value: string): number {
-        let h = 0;
-        for (let i = 0; i < value.length; i++) h = ((h << 5) - h) + value.charCodeAt(i);
-        return h | 0;
+        let hash = 0;
+        for (let index = 0; index < value.length; index++) hash = ((hash << 5) - hash) + value.charCodeAt(index);
+        return hash | 0;
     }
 
-    private optionExists(select: HTMLSelectElement, value: string): boolean {
-        return Array.from(select.options).some((o) => o.value === value);
-    }
-
-    private async refreshAfterMutation(filePath: string): Promise<void> {
-        const file = this.app.vault.getAbstractFileByPath(filePath);
-        if (file instanceof TFile) {
-            await this.index.indexThoughtFile(file);
-        }
-        this.view.renderView();
-    }
 }

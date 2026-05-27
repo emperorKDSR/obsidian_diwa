@@ -11,6 +11,7 @@ import {
     type GraphNodeType,
     type GraphSnapshot,
 } from './types';
+import { formatThoughtTopics } from '../utils/topics';
 
 const DEFAULT_NODE_CAP = 120;
 const DEFAULT_EDGE_CAP = 240;
@@ -430,6 +431,7 @@ function collectContextNeighbors(
 function createThoughtNode(thought: ThoughtEntry, hop: number, isSeed: boolean): GraphNode {
     const contextText = uniqueStrings(thought.context).map((value) => `#${value}`).join(', ');
     const projectText = thought.project?.trim() ? `Project: ${thought.project.trim()}` : '';
+    const topicText = formatThoughtTopics(thought.topic);
     return {
         id: `thought::${thought.filePath}`,
         type: 'thought',
@@ -444,7 +446,7 @@ function createThoughtNode(thought: ThoughtEntry, hop: number, isSeed: boolean):
             { label: 'Created', value: thought.created || thought.day || 'Unknown' },
             ...(contextText ? [{ label: 'Context', value: contextText }] : []),
             ...(thought.project ? [{ label: 'Project', value: thought.project }] : []),
-            ...(thought.topic ? [{ label: 'Topic', value: String(thought.topic) }] : []),
+            ...(topicText ? [{ label: 'Topic', value: topicText }] : []),
         ],
         thought,
     };

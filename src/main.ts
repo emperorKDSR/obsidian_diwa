@@ -976,7 +976,7 @@ export default class DiwaPlugin extends Plugin {
                 editFilePath: thought.filePath,
                 text: content,
                 contexts: thought.context ?? [],
-                topic: thought.topic ?? undefined,
+                topic: thought.topic,
             }).open();
             return;
         }

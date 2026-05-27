@@ -133,7 +133,7 @@ export interface ThoughtEntry {
     day: string;               // e.g. "2026-03-28"
     allDates: string[];        // all [[YYYY-MM-DD]] links found in full content
     context: string[];         // from frontmatter context list
-    topic?: string | null;     // sub-topic label, e.g. "Meeting"
+    topic?: string | string[] | null; // sub-topic label(s), e.g. "Meeting"
     journalType?: string | null;
     body: string;              // text before first ## reply header
     content?: string;          // canonical full content alias

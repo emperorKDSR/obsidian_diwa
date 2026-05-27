@@ -2,6 +2,7 @@ import { App, FuzzySuggestModal, Modal, Notice, setIcon } from 'obsidian';
 import type DiwaPlugin from '../main';
 import type { TaskEntry, ThoughtEntry } from '../types';
 import { attachInlineTriggers, attachMediaPasteHandler, isTablet } from '../utils';
+import { formatThoughtTopics, normalizeThoughtTopics } from '../utils/topics';
 import { ConfirmModal } from './ConfirmModal';
 import { ContextSuggestModal } from './ContextSuggestModal';
 import { ThoughtPickerModal } from './ThoughtPickerModal';
@@ -68,11 +69,11 @@ export class EditThoughtModal extends Modal {
     private thought: ThoughtEntry;
     private body: string;
     private contexts: string[];
-    private topic: string;
+    private topic: string[];
 
     private initialBody: string;
     private initialContexts: string[];
-    private initialTopic: string;
+    private initialTopic: string[];
     private initialLinkedThoughtRefs: Set<string>;
     private linkedThoughtRefs: Set<string>;
     private initialLinkedTaskRefs: Set<string>;
@@ -93,11 +94,11 @@ export class EditThoughtModal extends Modal {
         this.thought = thought;
         this.body = (thought.body || thought.content || '').trim();
         this.contexts = uniqueValues(thought.context ?? []);
-        this.topic = thought.topic?.trim() ?? '';
+        this.topic = normalizeThoughtTopics(thought.topic);
 
         this.initialBody = this.body;
         this.initialContexts = [...this.contexts];
-        this.initialTopic = this.topic;
+        this.initialTopic = [...this.topic];
 
         const linkedThoughtRefs = this.resolveLinkedThoughtRefs(thought);
         const linkedTaskRefs = this.resolveLinkedTaskRefs(thought.filePath);
@@ -203,7 +204,7 @@ export class EditThoughtModal extends Modal {
         topicHeader.createDiv({ cls: 'diwa-thought-edit-section-label', text: 'Topic' });
         const clearTopicBtn = this.createActionButton(topicHeader, 'x', 'Clear topic');
         clearTopicBtn.addEventListener('click', () => {
-            this.topic = '';
+            this.topic = [];
             this.topicInput.value = '';
             this.refreshSaveState();
         });
@@ -217,11 +218,11 @@ export class EditThoughtModal extends Modal {
                 spellcheck: 'false',
             },
         }) as HTMLInputElement;
-        this.topicInput.value = this.topic;
+        this.topicInput.value = formatThoughtTopics(this.topic);
         const topicListId = `diwa-thought-edit-topic-list-${Math.abs(this.hash(this.thought.filePath))}`;
         this.topicInput.setAttribute('list', topicListId);
         this.topicInput.addEventListener('input', () => {
-            this.topic = this.topicInput.value;
+            this.topic = normalizeThoughtTopics(this.topicInput.value.split(','));
             this.refreshSaveState();
         });
         const topicList = topicField.createEl('datalist');
@@ -231,7 +232,7 @@ export class EditThoughtModal extends Modal {
         }
         topicBlock.createDiv({
             cls: 'diwa-thought-edit-supporting-text',
-            text: 'Topic stays single-value and updates with the thought.',
+            text: 'Separate multiple topics with commas to preserve the full topic set.',
         });
 
         const linksGrid = body.createDiv({ cls: 'diwa-thought-edit-links-grid' });
@@ -383,7 +384,7 @@ export class EditThoughtModal extends Modal {
             });
 
             const meta = [
-                linkedThought.topic?.trim(),
+                ...normalizeThoughtTopics(linkedThought.topic).slice(0, 2),
                 ...(linkedThought.context ?? []).slice(0, 2).map((context) => `#${context}`),
             ].filter(Boolean) as string[];
             if (meta.length > 0) {
@@ -523,7 +524,7 @@ export class EditThoughtModal extends Modal {
                 filePath: this.thought.filePath,
                 content: nextBody,
                 context: uniqueValues(this.contexts),
-                topic: this.topic.trim() || undefined,
+                topic: this.topic.length > 0 ? [...this.topic] : undefined,
             });
             if (!updatedThought) throw new Error('Thought update failed');
             const sourceThoughtRef = updatedThought.filePath;
@@ -553,10 +554,11 @@ export class EditThoughtModal extends Modal {
             this.thought = updatedThought;
             this.body = nextBody;
             this.contexts = uniqueValues(this.contexts);
-            this.topic = this.topic.trim();
+            this.topic = normalizeThoughtTopics(updatedThought.topic);
+            this.topicInput.value = formatThoughtTopics(this.topic);
             this.initialBody = this.body;
             this.initialContexts = [...this.contexts];
-            this.initialTopic = this.topic;
+            this.initialTopic = [...this.topic];
             this.initialLinkedThoughtRefs = new Set(this.linkedThoughtRefs);
             this.initialLinkedTaskRefs = new Set(this.linkedTaskRefs);
             this.plugin.notifyRefresh('all');
@@ -581,7 +583,7 @@ export class EditThoughtModal extends Modal {
 
     private hasUnsavedChanges(): boolean {
         if (this.body.trim() !== this.initialBody.trim()) return true;
-        if (this.topic.trim() !== this.initialTopic.trim()) return true;
+        if (this.topic.join('|') !== this.initialTopic.join('|')) return true;
         if (uniqueValues(this.contexts).join('|') !== uniqueValues(this.initialContexts).join('|')) return true;
         if (!sameSets(this.linkedThoughtRefs, this.initialLinkedThoughtRefs)) return true;
         if (!sameSets(this.linkedTaskRefs, this.initialLinkedTaskRefs)) return true;

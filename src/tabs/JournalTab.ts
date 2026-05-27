@@ -14,6 +14,7 @@ import {
 } from '../journal/shared';
 import type { ThoughtEntry } from '../types';
 import { isTablet } from '../utils';
+import { normalizeThoughtTopics } from '../utils/topics';
 
 interface JournalEditorState extends JournalComposerValue {
     filePath: string | null;
@@ -79,7 +80,7 @@ export class JournalTab extends BaseTab {
                 const journalType = getJournalTypeOption(inferJournalType(entry));
                 const preview = getThoughtPreviewLine(entry, 'Open this entry to keep writing.');
                 const metadataChips = [
-                    ...(entry.topic?.trim() ? [entry.topic.trim()] : []),
+                    ...normalizeThoughtTopics(entry.topic),
                     ...stripReservedJournalContexts(entry.context).slice(0, 2),
                 ];
                 const shouldRenderTypeChip = !LOW_SIGNAL_JOURNAL_RAIL_TYPES.has(journalType.id);
