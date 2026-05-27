@@ -1,23 +1,51 @@
-import { App, Modal, setIcon } from 'obsidian';
-import type { TaskEntry, ThoughtEntry } from '../types';
+import { App, Modal, TFile, moment, setIcon } from 'obsidian';
+import type { TaskEntry, ThoughtEntry, ProjectEntry } from '../types';
 import type DiwaPlugin from '../main';
 import { isTaskDone } from '../utils';
+import { NewProjectModal } from '../modals/NewProjectModal';
+import { EditProjectModal } from '../modals/EditProjectModal';
 
-type MobileView = 'home' | 'tasks' | 'thoughts' | 'ai';
+type MobileView = 'home' | 'tasks' | 'projects' | 'thoughts' | 'ai';
 export type ShellPlatform = 'mobile' | 'tablet' | 'desktop';
+type ProjectFilter = 'all' | 'active' | 'on-hold' | 'completed';
 
 interface ShellNavItem {
     id: MobileView;
     label: string;
     icon: string;
+    shortLabel?: string;
+    ariaLabel?: string;
 }
 
 const SHELL_ITEMS: ShellNavItem[] = [
     { id: 'home', label: 'Home', icon: 'house' },
     { id: 'tasks', label: 'Gawa', icon: 'check-square-2' },
+    { id: 'projects', label: 'Projects', shortLabel: 'Proj', ariaLabel: 'Projects', icon: 'folder-kanban' },
     { id: 'thoughts', label: 'Diwa', icon: 'pen-square' },
     { id: 'ai', label: 'AI', icon: 'sparkles' },
 ];
+
+const PROJECT_FILTERS: { id: ProjectFilter; label: string }[] = [
+    { id: 'all', label: 'All' },
+    { id: 'active', label: 'Active' },
+    { id: 'on-hold', label: 'On Hold' },
+    { id: 'completed', label: 'Completed' },
+];
+
+const PROJECT_STATUS_LABELS: Record<ProjectEntry['status'], string> = {
+    active: 'Active',
+    'on-hold': 'On Hold',
+    completed: 'Completed',
+    archived: 'Archived',
+};
+
+interface ProjectMetrics {
+    tasks: TaskEntry[];
+    openTasks: TaskEntry[];
+    openCount: number;
+    doneCount: number;
+    nextTask?: TaskEntry;
+}
 
 export function getPlatform(app: App): ShellPlatform {
     const isMobile = (app as { isMobile?: boolean }).isMobile ?? false;
@@ -29,6 +57,9 @@ export function getPlatform(app: App): ShellPlatform {
 export class DiwaMobileShell {
     private activeView: MobileView = 'home';
     private activeContexts: Set<string> = new Set();
+    private projectFilter: ProjectFilter = 'all';
+    private expandedProjectIds: Set<string> = new Set();
+    private selectedProjectId: string | null = null;
     private selectedThought: ThoughtEntry | null = null;
     private hostEl: HTMLElement | null = null;
     private shellEl: HTMLElement | null = null;
@@ -118,6 +149,9 @@ export class DiwaMobileShell {
                 break;
             case 'tasks':
                 this.renderTasks(container);
+                break;
+            case 'projects':
+                this.renderProjects(container);
                 break;
             case 'thoughts':
                 this.renderThoughts(container);
@@ -318,6 +352,459 @@ export class DiwaMobileShell {
         });
     }
 
+    private renderProjects(container: HTMLElement): void {
+        const projects = this.getFilteredProjects();
+        this.syncSelectedProject(projects);
+
+        if (this.platform === 'tablet') {
+            this.renderTabletProjects(container, projects);
+            return;
+        }
+
+        this.renderMobileProjects(container, projects);
+    }
+
+    private renderMobileProjects(container: HTMLElement, projects: ProjectEntry[]): void {
+        const wrap = container.createDiv('diwa-mobile-projects');
+        const allProjects = this.getProjectCollection();
+        const activeCount = allProjects.filter((project) => project.status === 'active').length;
+        const openTaskCount = allProjects.reduce((count, project) => count + this.getProjectMetrics(project).openCount, 0);
+        const dueSoonCount = allProjects.filter((project) => {
+            if (!project.due || project.status === 'completed') return false;
+            const due = moment(project.due, ['YYYY-MM-DD', moment.ISO_8601], true);
+            return due.isValid() && due.isSameOrAfter(moment().startOf('day'), 'day') && due.diff(moment().startOf('day'), 'days') <= 7;
+        }).length;
+
+        const hero = wrap.createDiv('diwa-mobile-hero diwa-mobile-project-hero');
+        hero.createDiv({ cls: 'diwa-mobile-hero-eyebrow', text: 'Project workspace' });
+        hero.createDiv({ cls: 'diwa-mobile-hero-title', text: 'Keep initiatives moving without losing the thread.' });
+        hero.createDiv({
+            cls: 'diwa-mobile-hero-subtitle',
+            text: 'Shape outcomes, track the next task, and keep every project touch-safe on the go.',
+        });
+
+        const heroActions = hero.createDiv('diwa-mobile-project-actions');
+        this.createProjectButton(heroActions, 'New project', 'plus', () => this.openNewProjectModal(), true);
+        this.createProjectButton(heroActions, 'Open Gawa', 'check-square-2', () => this.switchView('tasks'));
+
+        const metrics = hero.createDiv('diwa-mobile-hero-stats');
+        this.renderMetricChip(metrics, 'Active', activeCount);
+        this.renderMetricChip(metrics, 'Open tasks', openTaskCount);
+        this.renderMetricChip(metrics, 'Due soon', dueSoonCount);
+
+        this.renderProjectFilterBar(wrap);
+
+        const surface = wrap.createDiv('diwa-mobile-surface diwa-mobile-project-list-surface');
+        this.renderSectionHeader(
+            surface,
+            'Projects',
+            projects.length === 0
+                ? (this.projectFilter === 'all' ? 'No projects yet' : `No ${PROJECT_FILTERS.find((filter) => filter.id === this.projectFilter)?.label.toLowerCase()} projects`)
+                : 'Touch-safe cards for every initiative in flight',
+            `${projects.length}`,
+        );
+
+        const list = surface.createDiv('diwa-mobile-list diwa-mobile-project-list');
+        if (projects.length === 0) {
+            this.renderEmptyState(
+                list,
+                'folder-kanban',
+                'No project cards yet',
+                this.projectFilter === 'all'
+                    ? 'Create a project to start shaping outcomes, dates, and linked work.'
+                    : 'Try another filter or create a project for this lane.'
+            );
+            return;
+        }
+
+        projects.forEach((project) => this.renderMobileProjectCard(list, project));
+    }
+
+    private renderTabletProjects(container: HTMLElement, projects: ProjectEntry[]): void {
+        const wrap = container.createDiv('diwa-tablet-projects');
+        const allProjects = this.getProjectCollection();
+        const hero = wrap.createDiv('diwa-mobile-surface diwa-tablet-projects-hero');
+        hero.createDiv({ cls: 'diwa-mobile-hero-eyebrow', text: 'Project workspace' });
+        hero.createDiv({ cls: 'diwa-mobile-hero-title', text: 'A calmer planning surface for active initiatives.' });
+        hero.createDiv({
+            cls: 'diwa-mobile-hero-subtitle',
+            text: 'Browse your projects on the left and keep the next actions, status, and note access anchored on the right.',
+        });
+        const heroActions = hero.createDiv('diwa-tablet-home-actions');
+        this.createProjectButton(heroActions, 'New project', 'plus', () => this.openNewProjectModal(), true);
+        this.createProjectButton(heroActions, 'Open Gawa', 'check-square-2', () => this.switchView('tasks'));
+        this.createProjectButton(heroActions, 'Review Diwa', 'pen-square', () => this.switchView('thoughts'));
+
+        const heroStats = hero.createDiv('diwa-mobile-hero-stats');
+        this.renderMetricChip(heroStats, 'Active', allProjects.filter((project) => project.status === 'active').length);
+        this.renderMetricChip(heroStats, 'Open tasks', allProjects.reduce((count, project) => count + this.getProjectMetrics(project).openCount, 0));
+        this.renderMetricChip(heroStats, 'Completed', allProjects.filter((project) => project.status === 'completed').length);
+
+        this.renderProjectFilterBar(wrap, true);
+
+        const split = wrap.createDiv('diwa-tablet-projects-split');
+        const listPane = split.createDiv('diwa-mobile-surface diwa-tablet-projects-list-pane');
+        this.renderSectionHeader(
+            listPane,
+            'Project list',
+            projects.length === 0 ? 'Nothing in this lane yet' : 'Select a project for a wider detail view',
+            `${projects.length}`,
+        );
+        const list = listPane.createDiv('diwa-tablet-projects-list');
+        if (projects.length === 0) {
+            this.renderEmptyState(
+                list,
+                'folder-kanban',
+                'No matching projects',
+                'Change the filter or create a project to populate this planning view.'
+            );
+        } else {
+            projects.forEach((project) => this.renderTabletProjectListCard(list, project));
+        }
+
+        const detailPane = split.createDiv('diwa-mobile-surface diwa-tablet-projects-detail-pane');
+        const selectedProject = projects.find((project) => project.id === this.selectedProjectId) ?? projects[0] ?? null;
+        this.renderTabletProjectDetail(detailPane, selectedProject);
+    }
+
+    private renderProjectFilterBar(parent: HTMLElement, compact = false): void {
+        const row = parent.createDiv(`diwa-mobile-project-filter-row${compact ? ' is-compact' : ''}`);
+        PROJECT_FILTERS.forEach((filter) => {
+            const btn = row.createEl('button', {
+                cls: `diwa-chip diwa-mobile-project-filter-chip${this.projectFilter === filter.id ? ' is-active' : ''}`,
+                text: filter.label,
+                attr: { type: 'button' },
+            });
+            btn.addEventListener('click', () => {
+                this.projectFilter = filter.id;
+                this.refreshView();
+            });
+        });
+    }
+
+    private renderMobileProjectCard(parent: HTMLElement, project: ProjectEntry): void {
+        const metrics = this.getProjectMetrics(project);
+        const isExpanded = this.expandedProjectIds.has(project.id);
+        const card = parent.createDiv(`diwa-mobile-project-card${isExpanded ? ' is-expanded' : ''}`);
+        card.style.setProperty('--project-color', project.color || 'var(--interactive-accent)');
+
+        const head = card.createDiv('diwa-mobile-project-card__head');
+        const identity = head.createDiv('diwa-mobile-project-card__identity');
+        identity.createDiv('diwa-mobile-project-card__swatch');
+        const copy = identity.createDiv('diwa-mobile-project-card__copy');
+        copy.createDiv({
+            cls: 'diwa-mobile-project-card__eyebrow',
+            text: project.status === 'completed'
+                ? 'Completed project'
+                : project.due
+                    ? `Due ${this.formatDate(project.due)}`
+                    : 'Project lane',
+        });
+        copy.createDiv({ cls: 'diwa-mobile-project-card__title', text: project.name });
+
+        const status = head.createDiv(`diwa-mobile-project-status diwa-mobile-project-status--${project.status}`);
+        status.setText(PROJECT_STATUS_LABELS[project.status]);
+
+        if (project.goal) {
+            card.createDiv({ cls: 'diwa-mobile-project-card__goal', text: project.goal });
+        }
+
+        const meta = card.createDiv('diwa-mobile-project-card__meta');
+        this.renderProjectMetricChip(meta, `${metrics.openCount} open`);
+        this.renderProjectMetricChip(meta, `${metrics.doneCount} done`);
+        if (project.due) this.renderProjectMetricChip(meta, this.formatDate(project.due), this.isDateOverdue(project.due));
+
+        if (metrics.nextTask) {
+            const next = card.createDiv('diwa-mobile-project-card__next');
+            next.createDiv({ cls: 'diwa-mobile-project-card__next-label', text: 'Next' });
+            next.createDiv({ cls: 'diwa-mobile-project-card__next-title', text: metrics.nextTask.title || metrics.nextTask.body || 'Untitled task' });
+        }
+
+        const actions = card.createDiv('diwa-mobile-project-card__actions');
+        this.createProjectButton(actions, 'Open', 'file-text', () => { void this.openProjectFile(project); });
+        this.createProjectButton(actions, 'Edit', 'pencil', () => this.openEditProjectModal(project));
+        this.createProjectButton(actions, isExpanded ? 'Hide' : 'Details', isExpanded ? 'chevron-up' : 'chevron-down', () => {
+            this.toggleProjectExpanded(project.id);
+        }, true, false);
+
+        if (!isExpanded) return;
+
+        const detail = card.createDiv('diwa-mobile-project-card__detail');
+        const statusRow = detail.createDiv('diwa-mobile-project-card__status-row');
+        PROJECT_FILTERS.filter((filter) => filter.id !== 'all').forEach((statusOption) => {
+            const statusId = statusOption.id as ProjectEntry['status'];
+            const btn = statusRow.createEl('button', {
+                cls: `diwa-mobile-project-status-btn${project.status === statusId ? ' is-active' : ''}`,
+                text: statusOption.label,
+                attr: { type: 'button' },
+            });
+            btn.addEventListener('click', () => {
+                void this.updateProjectStatus(project, statusId);
+            });
+        });
+
+        const taskSection = detail.createDiv('diwa-mobile-project-card__task-list');
+        if (metrics.openTasks.length === 0) {
+            this.renderEmptyState(
+                taskSection,
+                'sparkles',
+                'Nothing open',
+                'Linked tasks will land here as the project grows.'
+            );
+        } else {
+            metrics.openTasks.slice(0, 3).forEach((task) => {
+                this.plugin.renderTaskRow(taskSection, task, { mobile: true, compact: true });
+            });
+        }
+
+        const detailActions = detail.createDiv('diwa-mobile-project-card__actions');
+        this.createProjectButton(detailActions, 'Note', 'link', () => { void this.openProjectFile(project); });
+        this.createProjectButton(detailActions, 'Archive', 'archive', () => { void this.archiveProject(project); }, false, true);
+    }
+
+    private renderTabletProjectListCard(parent: HTMLElement, project: ProjectEntry): void {
+        const metrics = this.getProjectMetrics(project);
+        const card = parent.createDiv(`diwa-tablet-project-list-card${this.selectedProjectId === project.id ? ' is-selected' : ''}`);
+        card.style.setProperty('--project-color', project.color || 'var(--interactive-accent)');
+        card.addEventListener('click', () => {
+            this.selectedProjectId = project.id;
+            this.refreshView();
+        });
+
+        const titleRow = card.createDiv('diwa-tablet-project-list-card__title-row');
+        titleRow.createDiv({ cls: 'diwa-tablet-project-list-card__name', text: project.name });
+        titleRow.createDiv({ cls: `diwa-mobile-project-status diwa-mobile-project-status--${project.status}`, text: PROJECT_STATUS_LABELS[project.status] });
+
+        card.createDiv({
+            cls: 'diwa-tablet-project-list-card__subtitle',
+            text: project.goal || 'No outcome captured yet.',
+        });
+
+        const meta = card.createDiv('diwa-mobile-project-card__meta');
+        this.renderProjectMetricChip(meta, `${metrics.openCount} open`);
+        this.renderProjectMetricChip(meta, `${metrics.doneCount} done`);
+        if (project.due) this.renderProjectMetricChip(meta, this.formatDate(project.due), this.isDateOverdue(project.due));
+    }
+
+    private renderTabletProjectDetail(parent: HTMLElement, project: ProjectEntry | null): void {
+        this.renderSectionHeader(
+            parent,
+            'Project detail',
+            project ? 'A wider planning surface for the selected initiative' : 'Select a project to inspect details',
+        );
+
+        if (!project) {
+            this.renderEmptyState(
+                parent,
+                'folder-kanban',
+                'Nothing selected',
+                'Choose a project on the left to review its status, next tasks, and quick actions.'
+            );
+            return;
+        }
+
+        const metrics = this.getProjectMetrics(project);
+        const detail = parent.createDiv('diwa-tablet-project-detail');
+        detail.style.setProperty('--project-color', project.color || 'var(--interactive-accent)');
+
+        const detailHeader = detail.createDiv('diwa-tablet-project-detail__header');
+        const titleCopy = detailHeader.createDiv('diwa-tablet-project-detail__copy');
+        titleCopy.createDiv({ cls: 'diwa-tablet-project-detail__eyebrow', text: PROJECT_STATUS_LABELS[project.status] });
+        titleCopy.createDiv({ cls: 'diwa-tablet-project-detail__title', text: project.name });
+        detailHeader.createDiv({ cls: `diwa-mobile-project-status diwa-mobile-project-status--${project.status}`, text: PROJECT_STATUS_LABELS[project.status] });
+
+        detail.createDiv({
+            cls: 'diwa-tablet-project-detail__body',
+            text: project.goal || 'No project outcome has been captured yet.',
+        });
+
+        const metricRow = detail.createDiv('diwa-tablet-project-detail__metrics');
+        this.renderDetailMetric(metricRow, 'Open tasks', String(metrics.openCount));
+        this.renderDetailMetric(metricRow, 'Done', String(metrics.doneCount));
+        this.renderDetailMetric(metricRow, 'Due', project.due ? this.formatDate(project.due) : 'Not set', project.due ? this.isDateOverdue(project.due) : false);
+
+        const statusRow = detail.createDiv('diwa-mobile-project-card__status-row');
+        PROJECT_FILTERS.filter((filter) => filter.id !== 'all').forEach((statusOption) => {
+            const statusId = statusOption.id as ProjectEntry['status'];
+            const btn = statusRow.createEl('button', {
+                cls: `diwa-mobile-project-status-btn${project.status === statusId ? ' is-active' : ''}`,
+                text: statusOption.label,
+                attr: { type: 'button' },
+            });
+            btn.addEventListener('click', () => {
+                void this.updateProjectStatus(project, statusId);
+            });
+        });
+
+        const taskList = detail.createDiv('diwa-tablet-project-detail__tasks');
+        this.renderSectionHeader(
+            taskList,
+            'Next work',
+            metrics.openTasks.length === 0 ? 'No linked tasks are currently open' : 'Task previews stay touch-safe and actionable',
+            `${metrics.openTasks.length}`,
+        );
+        if (metrics.openTasks.length === 0) {
+            this.renderEmptyState(
+                taskList,
+                'sparkles',
+                'All clear',
+                'Link or create project tasks in Gawa and they will appear here automatically.'
+            );
+        } else {
+            const taskFeed = taskList.createDiv('diwa-mobile-project-card__task-list');
+            metrics.openTasks.slice(0, 4).forEach((task) => {
+                this.plugin.renderTaskRow(taskFeed, task, { mobile: true, compact: true });
+            });
+        }
+
+        const actions = detail.createDiv('diwa-tablet-project-detail__actions');
+        this.createProjectButton(actions, 'Open note', 'file-text', () => { void this.openProjectFile(project); }, true);
+        this.createProjectButton(actions, 'Edit project', 'pencil', () => this.openEditProjectModal(project));
+        this.createProjectButton(actions, 'Archive', 'archive', () => { void this.archiveProject(project); }, false, true);
+    }
+
+    private renderProjectMetricChip(parent: HTMLElement, label: string, urgent = false): void {
+        parent.createDiv({
+            cls: `diwa-mobile-project-chip${urgent ? ' is-urgent' : ''}`,
+            text: label,
+        });
+    }
+
+    private renderDetailMetric(parent: HTMLElement, label: string, value: string, urgent = false): void {
+        const metric = parent.createDiv(`diwa-tablet-project-detail__metric${urgent ? ' is-urgent' : ''}`);
+        metric.createDiv({ cls: 'diwa-tablet-project-detail__metric-label', text: label });
+        metric.createDiv({ cls: 'diwa-tablet-project-detail__metric-value', text: value });
+    }
+
+    private createProjectButton(
+        parent: HTMLElement,
+        label: string,
+        iconName: string,
+        onClick: () => void,
+        primary = false,
+        danger = false,
+    ): HTMLButtonElement {
+        const button = parent.createEl('button', {
+            cls: `diwa-mobile-project-btn${primary ? ' is-primary' : ''}${danger ? ' is-danger' : ''}`,
+            attr: { type: 'button', 'aria-label': label },
+        }) as HTMLButtonElement;
+        const icon = button.createSpan('diwa-mobile-project-btn-icon');
+        this.applyIcon(icon, iconName);
+        button.createSpan({ cls: 'diwa-mobile-project-btn-label', text: label });
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onClick();
+        });
+        return button;
+    }
+
+    private openNewProjectModal(): void {
+        new NewProjectModal(this.app, this.plugin.vault, (entry) => {
+            this.plugin.index.projectIndex.set(entry.id, entry);
+            this.projectFilter = 'all';
+            this.selectedProjectId = entry.id;
+            this.expandedProjectIds.add(entry.id);
+            this.refreshView();
+        }).open();
+    }
+
+    private openEditProjectModal(project: ProjectEntry): void {
+        new EditProjectModal(this.app, this.plugin.vault, project, (updated) => {
+            this.plugin.index.projectIndex.set(updated.id, updated);
+            this.selectedProjectId = updated.id;
+            this.refreshView();
+        }).open();
+    }
+
+    private async openProjectFile(project: ProjectEntry): Promise<void> {
+        const file = this.app.vault.getAbstractFileByPath(project.filePath);
+        if (file instanceof TFile) {
+            await this.app.workspace.getLeaf(false).openFile(file);
+        }
+    }
+
+    private async updateProjectStatus(project: ProjectEntry, status: ProjectEntry['status']): Promise<void> {
+        const file = this.app.vault.getAbstractFileByPath(project.filePath);
+        if (!(file instanceof TFile)) return;
+        await this.plugin.vault.updateProject(file, { status });
+        project.status = status;
+        this.plugin.index.projectIndex.set(project.id, project);
+        this.refreshView();
+    }
+
+    private async archiveProject(project: ProjectEntry): Promise<void> {
+        const file = this.app.vault.getAbstractFileByPath(project.filePath);
+        if (!(file instanceof TFile)) return;
+        await this.plugin.vault.archiveProject(file);
+        this.plugin.index.projectIndex.delete(project.id);
+        this.expandedProjectIds.delete(project.id);
+        if (this.selectedProjectId === project.id) this.selectedProjectId = null;
+        this.refreshView();
+    }
+
+    private toggleProjectExpanded(projectId: string): void {
+        if (this.expandedProjectIds.has(projectId)) this.expandedProjectIds.delete(projectId);
+        else this.expandedProjectIds.add(projectId);
+        this.refreshView();
+    }
+
+    private syncSelectedProject(projects: ProjectEntry[]): void {
+        if (projects.length === 0) {
+            this.selectedProjectId = null;
+            return;
+        }
+        if (!this.selectedProjectId || !projects.some((project) => project.id === this.selectedProjectId)) {
+            this.selectedProjectId = projects[0].id;
+        }
+    }
+
+    private getFilteredProjects(): ProjectEntry[] {
+        const projects = this.getProjectCollection();
+        if (this.projectFilter === 'all') return projects;
+        return projects.filter((project) => project.status === this.projectFilter);
+    }
+
+    private getProjectCollection(): ProjectEntry[] {
+        return Array.from(this.plugin.index.projectIndex.values())
+            .filter((project) => project.status !== 'archived')
+            .sort((left, right) => {
+                const statusOrder: ProjectEntry['status'][] = ['active', 'on-hold', 'completed', 'archived'];
+                const leftOrder = statusOrder.indexOf(left.status);
+                const rightOrder = statusOrder.indexOf(right.status);
+                if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+                return left.name.localeCompare(right.name);
+            });
+    }
+
+    private getProjectMetrics(project: ProjectEntry): ProjectMetrics {
+        const tasks = this.plugin.getAllTasks().filter((task) => task.project === project.id || task.project === project.name);
+        const openTasks = tasks.filter((task) => !isTaskDone(task));
+        const nextTask = openTasks.slice().sort((left, right) => {
+            if (left.due && right.due) return left.due.localeCompare(right.due);
+            if (left.due) return -1;
+            if (right.due) return 1;
+            return (right.lastUpdate || 0) - (left.lastUpdate || 0);
+        })[0];
+        return {
+            tasks,
+            openTasks,
+            openCount: openTasks.length,
+            doneCount: tasks.length - openTasks.length,
+            nextTask,
+        };
+    }
+
+    private formatDate(date: string): string {
+        const parsed = moment(date, ['YYYY-MM-DD', moment.ISO_8601], true);
+        return parsed.isValid() ? parsed.format('MMM D') : date;
+    }
+
+    private isDateOverdue(date: string): boolean {
+        const parsed = moment(date, ['YYYY-MM-DD', moment.ISO_8601], true);
+        return parsed.isValid() && parsed.isBefore(moment(), 'day');
+    }
+
     private renderThoughts(container: HTMLElement): void {
         const wrap = container.createDiv('diwa-thoughts-wrap');
         const thoughts = this.filterThoughts(this.plugin.getAllThoughts(), this.activeContexts);
@@ -502,7 +989,7 @@ export class DiwaMobileShell {
                     type: 'button',
                     role: 'tab',
                     'aria-selected': isActive ? 'true' : 'false',
-                    'aria-label': item.label,
+                    'aria-label': item.ariaLabel ?? item.label,
                 },
             });
 
@@ -518,7 +1005,11 @@ export class DiwaMobileShell {
     }
 
     private getShellItems(): ShellNavItem[] {
-        return SHELL_ITEMS;
+        const useShortProjectLabel = this.platform === 'mobile' && window.innerWidth <= 390;
+        return SHELL_ITEMS.map((item) => ({
+            ...item,
+            label: item.id === 'projects' && useShortProjectLabel ? (item.shortLabel ?? item.label) : item.label,
+        }));
     }
 
     private renderSectionHeader(

@@ -403,7 +403,7 @@ export class DesktopHubView extends ItemView {
                 items: [
                     { label: 'Gawa', icon: 'lucide-check-square-2', tab: 'review-gawa' },
                     { label: 'Bulsa', icon: PF_ICON_ID, tab: 'dues' },
-                    { label: 'Projects', icon: 'lucide-briefcase', tab: 'projects' },
+                    { label: 'Projects', icon: 'folder-kanban', tab: 'projects' },
                     { label: 'Calendar', icon: 'lucide-calendar', tab: 'calendar' },
                     { label: 'Review', icon: REVIEW_ICON_ID, tab: 'review' },
                     { label: 'Voice', icon: 'lucide-mic', tab: 'voice-note' },

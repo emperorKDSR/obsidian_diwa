@@ -19144,3 +19144,1079 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
     line-height: 1.5;
     color: rgba(255, 255, 255, 0.82);
 }
+
+/* ── Projects module redesign ─────────────────────────────────────────────── */
+.diwa-projects-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100%;
+  padding: 18px;
+  color: var(--text-normal);
+  container-type: inline-size;
+  container-name: projects-workspace;
+}
+
+.diwa-projects-header {
+  border: 1px solid color-mix(in srgb, var(--interactive-accent) 10%, var(--background-modifier-border-faint) 90%);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--interactive-accent) 12%, transparent), transparent 50%),
+    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0)),
+    color-mix(in srgb, var(--background-secondary-alt) 86%, var(--background-primary) 14%);
+  box-shadow: 0 20px 38px color-mix(in srgb, var(--background-primary) 86%, transparent);
+}
+
+.diwa-projects-header__stats {
+  flex: 1 1 280px;
+}
+
+.diwa-projects-actions {
+  flex: 1 1 240px;
+}
+
+.diwa-projects-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 4px 0;
+}
+
+.diwa-projects-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.diwa-projects-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 76%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 76%, transparent);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.diwa-projects-filter-pill__label {
+  white-space: nowrap;
+}
+
+.diwa-projects-filter-pill__count {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--background-primary) 70%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-normal);
+}
+
+.diwa-projects-filter-pill.is-active {
+  border-color: color-mix(in srgb, var(--interactive-accent) 28%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--interactive-accent) 18%, transparent), transparent),
+    color-mix(in srgb, var(--background-primary) 72%, var(--interactive-accent) 28%);
+  color: var(--text-normal);
+  box-shadow: 0 12px 22px color-mix(in srgb, var(--interactive-accent) 10%, transparent);
+  transform: translateY(-1px);
+}
+
+.diwa-projects-summary {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.diwa-projects-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  align-content: start;
+}
+
+.diwa-project-card,
+.diwa-mobile-project-card,
+.diwa-tablet-project-list-card,
+.diwa-tablet-project-detail {
+  --project-color: var(--interactive-accent);
+}
+
+.diwa-project-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px;
+  border-radius: 26px;
+  border: 1px solid color-mix(in srgb, var(--project-color) 18%, var(--background-modifier-border-faint) 82%);
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--project-color) 10%, transparent), transparent 46%),
+    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0)),
+    color-mix(in srgb, var(--background-secondary-alt) 86%, var(--background-primary) 14%);
+  box-shadow: 0 18px 34px color-mix(in srgb, var(--background-primary) 88%, transparent);
+}
+
+.diwa-project-card__head,
+.diwa-mobile-project-card__head,
+.diwa-tablet-project-detail__header,
+.diwa-tablet-project-list-card__title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.diwa-project-card__identity,
+.diwa-mobile-project-card__identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.diwa-project-card__swatch,
+.diwa-mobile-project-card__swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  margin-top: 6px;
+  background: var(--project-color);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--project-color) 12%, transparent);
+  flex-shrink: 0;
+}
+
+.diwa-project-card__copy,
+.diwa-mobile-project-card__copy,
+.diwa-tablet-project-detail__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.diwa-project-card__eyebrow,
+.diwa-mobile-project-card__eyebrow,
+.diwa-tablet-project-detail__eyebrow,
+.diwa-project-modal-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--project-color) 56%, var(--text-faint) 44%);
+}
+
+.diwa-project-card__name,
+.diwa-mobile-project-card__title,
+.diwa-tablet-project-detail__title {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.15;
+  font-weight: 780;
+  letter-spacing: -0.03em;
+  color: var(--text-normal);
+}
+
+.diwa-project-card__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.diwa-project-status-btn,
+.diwa-mobile-project-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 74%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 76%, transparent);
+  color: var(--text-normal);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.diwa-project-status-btn {
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.diwa-project-status-btn:hover,
+.diwa-project-status-btn:focus-visible {
+  border-color: color-mix(in srgb, var(--project-color) 26%, transparent);
+  background: color-mix(in srgb, var(--project-color) 12%, var(--background-primary) 88%);
+  outline: none;
+}
+
+.diwa-project-status-btn--active,
+.diwa-mobile-project-status--active {
+  border-color: color-mix(in srgb, var(--color-green) 24%, var(--background-modifier-border) 76%);
+  background: color-mix(in srgb, var(--color-green) 12%, var(--background-secondary) 88%);
+  color: var(--color-green);
+}
+
+.diwa-project-status-btn--on-hold,
+.diwa-mobile-project-status--on-hold {
+  border-color: color-mix(in srgb, var(--color-orange) 24%, var(--background-modifier-border) 76%);
+  background: color-mix(in srgb, var(--color-orange) 12%, var(--background-secondary) 88%);
+  color: color-mix(in srgb, var(--color-orange) 82%, var(--text-normal) 18%);
+}
+
+.diwa-project-status-btn--completed,
+.diwa-mobile-project-status--completed {
+  border-color: color-mix(in srgb, var(--interactive-accent) 24%, var(--background-modifier-border) 76%);
+  background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-secondary) 88%);
+  color: var(--interactive-accent);
+}
+
+.diwa-project-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 74%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 78%, transparent);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.diwa-project-icon-btn:hover,
+.diwa-project-icon-btn:focus-visible {
+  border-color: color-mix(in srgb, var(--project-color) 26%, transparent);
+  background: color-mix(in srgb, var(--project-color) 12%, var(--background-primary) 88%);
+  color: var(--text-normal);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.diwa-project-card__goal,
+.diwa-tablet-project-list-card__subtitle,
+.diwa-tablet-project-detail__body,
+.diwa-mobile-project-card__goal {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.diwa-project-card__stats,
+.diwa-mobile-project-card__meta,
+.diwa-tablet-project-detail__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.diwa-project-card__stat,
+.diwa-tablet-project-detail__metric {
+  min-width: 92px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border-faint) 84%, transparent);
+  background: color-mix(in srgb, var(--background-primary) 64%, var(--background-secondary) 36%);
+}
+
+.diwa-project-card__stat-label,
+.diwa-tablet-project-detail__metric-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.diwa-project-card__stat-value,
+.diwa-tablet-project-detail__metric-value {
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 760;
+  color: var(--text-normal);
+}
+
+.diwa-project-card__stat.is-urgent,
+.diwa-tablet-project-detail__metric.is-urgent,
+.diwa-mobile-project-chip.is-urgent {
+  border-color: color-mix(in srgb, var(--text-error) 18%, var(--background-modifier-border-faint) 82%);
+  background: color-mix(in srgb, var(--text-error) 8%, var(--background-secondary) 92%);
+}
+
+.diwa-project-card__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.diwa-project-card__progress-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.diwa-project-card__progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--background-modifier-border) 72%, transparent);
+  overflow: hidden;
+}
+
+.diwa-project-card__progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--project-color) 64%, white 36%), var(--project-color));
+}
+
+.diwa-project-card__next,
+.diwa-mobile-project-card__next {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--project-color) 14%, var(--background-modifier-border-faint) 86%);
+  background: color-mix(in srgb, var(--background-primary) 66%, var(--project-color) 34%);
+}
+
+.diwa-project-card__next-label,
+.diwa-mobile-project-card__next-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--project-color) 62%, var(--text-faint) 38%);
+}
+
+.diwa-project-card__next-title,
+.diwa-mobile-project-card__next-title {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--text-normal);
+}
+
+.diwa-project-card__footer,
+.diwa-project-expand__actions,
+.diwa-mobile-project-card__actions,
+.diwa-mobile-project-actions,
+.diwa-tablet-project-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.diwa-project-action-btn,
+.diwa-mobile-project-btn,
+.diwa-epm-cancel-btn,
+.diwa-epm-save-btn {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 74%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 78%, transparent);
+  color: var(--text-normal);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.diwa-project-action-btn:hover,
+.diwa-project-action-btn:focus-visible,
+.diwa-mobile-project-btn:hover,
+.diwa-mobile-project-btn:focus-visible,
+.diwa-epm-cancel-btn:hover,
+.diwa-epm-cancel-btn:focus-visible,
+.diwa-epm-save-btn:hover,
+.diwa-epm-save-btn:focus-visible {
+  border-color: color-mix(in srgb, var(--project-color) 22%, var(--background-modifier-border) 78%);
+  background: color-mix(in srgb, var(--project-color) 10%, var(--background-primary) 90%);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.diwa-project-action-btn--primary,
+.diwa-mobile-project-btn.is-primary,
+.diwa-epm-save-btn {
+  border-color: color-mix(in srgb, var(--project-color) 26%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--project-color) 18%, transparent), transparent),
+    color-mix(in srgb, var(--background-primary) 72%, var(--project-color) 28%);
+  color: var(--text-normal);
+  box-shadow: 0 12px 22px color-mix(in srgb, var(--project-color) 10%, transparent);
+}
+
+.diwa-project-action-btn--danger,
+.diwa-mobile-project-btn.is-danger {
+  border-color: color-mix(in srgb, var(--text-error) 22%, transparent);
+  background: color-mix(in srgb, var(--text-error) 10%, var(--background-primary) 90%);
+  color: var(--text-error);
+}
+
+.diwa-project-action-btn__icon,
+.diwa-mobile-project-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diwa-project-card__expand,
+.diwa-mobile-project-card__detail,
+.diwa-tablet-project-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.diwa-project-card__section,
+.diwa-tablet-project-detail__tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border-faint) 84%, transparent);
+  background: color-mix(in srgb, var(--background-primary) 66%, var(--background-secondary) 34%);
+}
+
+.diwa-project-card__section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.diwa-project-card__section-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.diwa-project-card__section-caption {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-faint);
+}
+
+.diwa-project-expand__tasks,
+.diwa-mobile-project-card__task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.diwa-project-expand__task-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--background-secondary) 70%, transparent);
+}
+
+.diwa-project-expand__dot {
+  width: 16px;
+  height: 16px;
+  color: var(--project-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.diwa-project-expand__task-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.diwa-project-task-empty,
+.diwa-project-empty-state,
+.diwa-projects-empty-surface {
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px dashed color-mix(in srgb, var(--background-modifier-border) 74%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 56%, transparent);
+}
+
+.diwa-project-empty-state {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.diwa-project-empty-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+  color: var(--interactive-accent);
+}
+
+.diwa-project-empty-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 760;
+}
+
+.diwa-project-empty-body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.diwa-milestones-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 2px;
+  padding: 14px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border-faint) 84%, transparent);
+  background: color-mix(in srgb, var(--background-primary) 66%, var(--background-secondary) 34%);
+}
+
+.diwa-milestones-toggle {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-normal);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.diwa-milestones-toggle__icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diwa-milestones-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.diwa-milestones-loading,
+.diwa-milestone-progress-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.diwa-milestone-progress-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.diwa-milestone-progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--background-modifier-border) 72%, transparent);
+  overflow: hidden;
+}
+
+.diwa-milestone-progress {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--project-color) 64%, white 36%), var(--project-color));
+}
+
+.diwa-milestone-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 0;
+}
+
+.diwa-milestone-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+}
+
+.diwa-milestone-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.diwa-milestone-title.is-done {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.diwa-milestone-add-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.diwa-milestone-add-input,
+.diwa-milestone-add-date,
+.diwa-project-modal-body .diwa-field-input,
+.diwa-project-modal-body .diwa-field-textarea,
+.diwa-epm-body .diwa-field-input,
+.diwa-epm-body .diwa-field-textarea {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 76%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 78%, transparent);
+  color: var(--text-normal);
+}
+
+.diwa-milestone-add-input,
+.diwa-milestone-add-date,
+.diwa-project-modal-body .diwa-field-input,
+.diwa-epm-body .diwa-field-input {
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.diwa-project-modal-body .diwa-field-textarea,
+.diwa-epm-body .diwa-field-textarea {
+  min-height: 92px;
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.diwa-status-picker {
+  position: fixed;
+  z-index: 9999;
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 76%, transparent);
+  background: color-mix(in srgb, var(--background-primary) 92%, var(--background-secondary) 8%);
+  box-shadow: 0 22px 40px color-mix(in srgb, var(--background-primary) 84%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.diwa-status-picker__opt {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-normal);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.diwa-status-picker__opt.is-current,
+.diwa-status-picker__opt:hover,
+.diwa-status-picker__opt:focus-visible {
+  border-color: color-mix(in srgb, var(--interactive-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+  outline: none;
+}
+
+.diwa-status-picker__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--interactive-accent);
+}
+
+.diwa-project-modal-body,
+.diwa-epm-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 22px;
+}
+
+.diwa-project-modal-header-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.diwa-project-color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.diwa-color-swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--swatch-color);
+  border: 3px solid transparent;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.34), 0 8px 18px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.diwa-color-swatch.is-selected {
+  transform: scale(1.06);
+  border-color: color-mix(in srgb, var(--background-primary) 82%, white 18%);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--swatch-color) 18%, transparent), inset 0 0 0 1px rgba(255,255,255,0.38);
+}
+
+.diwa-new-project-sheet,
+.diwa-edit-project-sheet {
+  overflow: hidden;
+}
+
+.diwa-epm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 8px 18px 0;
+}
+
+.diwa-epm-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.diwa-epm-color-ring {
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--project-color) 68%, white 32%), var(--project-color));
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--project-color) 14%, transparent);
+  flex-shrink: 0;
+}
+
+.diwa-epm-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 780;
+  letter-spacing: -0.03em;
+}
+
+.diwa-epm-header-close {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 76%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 80%, transparent);
+  color: var(--text-muted);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.diwa-epm-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  border-top: 1px solid var(--background-modifier-border-faint);
+  background: color-mix(in srgb, var(--background-secondary) 80%, var(--background-primary) 20%);
+}
+
+.diwa-epm-cancel-btn,
+.diwa-epm-save-btn {
+  flex: 1 1 0;
+}
+
+.diwa-mobile-nav-btn {
+  min-width: 0;
+}
+
+.diwa-mobile-projects,
+.diwa-tablet-projects {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 16px 24px;
+}
+
+.diwa-mobile-project-hero {
+  gap: 16px;
+}
+
+.diwa-mobile-project-actions,
+.diwa-tablet-project-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.diwa-mobile-project-filter-row {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px;
+  scrollbar-width: none;
+}
+
+.diwa-mobile-project-filter-row::-webkit-scrollbar,
+.diwa-tablet-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.diwa-mobile-project-filter-row.is-compact {
+  padding-top: 0;
+}
+
+.diwa-mobile-project-filter-chip {
+  flex: 0 0 auto;
+}
+
+.diwa-mobile-project-list-surface,
+.diwa-tablet-projects-list-pane,
+.diwa-tablet-projects-detail-pane {
+  gap: 14px;
+}
+
+.diwa-mobile-project-card,
+.diwa-tablet-project-list-card,
+.diwa-tablet-project-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--project-color) 18%, var(--background-modifier-border-faint) 82%);
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--project-color) 10%, transparent), transparent 46%),
+    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0)),
+    color-mix(in srgb, var(--background-secondary-alt) 86%, var(--background-primary) 14%);
+  box-shadow: 0 16px 30px color-mix(in srgb, var(--background-primary) 88%, transparent);
+}
+
+.diwa-tablet-project-list-card {
+  cursor: pointer;
+  transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.diwa-tablet-project-list-card.is-selected,
+.diwa-tablet-project-list-card:hover {
+  border-color: color-mix(in srgb, var(--project-color) 28%, transparent);
+  transform: translateY(-1px);
+  box-shadow: 0 18px 32px color-mix(in srgb, var(--project-color) 10%, transparent);
+}
+
+.diwa-mobile-project-chip {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border-faint) 84%, transparent);
+  background: color-mix(in srgb, var(--background-primary) 68%, var(--background-secondary) 32%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.diwa-mobile-project-card__status-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.diwa-mobile-project-status-btn {
+  min-height: 42px;
+  padding: 0 10px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 76%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 78%, transparent);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.diwa-mobile-project-status-btn.is-active {
+  border-color: color-mix(in srgb, var(--project-color) 26%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--project-color) 16%, transparent), transparent),
+    color-mix(in srgb, var(--background-primary) 72%, var(--project-color) 28%);
+  color: var(--text-normal);
+}
+
+.diwa-tablet-projects-split {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.88fr) minmax(0, 1.12fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.diwa-tablet-projects-list,
+.diwa-mobile-project-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.diwa-tablet-project-detail__tasks {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.diwa-tablet-project-detail__tasks .diwa-mobile-section-head {
+  padding: 0;
+}
+
+.diwa-tablet-tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+@container projects-workspace (max-width: 960px) {
+  .diwa-projects-shell {
+    padding: 14px;
+  }
+
+  .diwa-projects-header {
+    border-radius: 24px;
+  }
+
+  .diwa-projects-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .diwa-projects-actions .diwa-gawa-header-btn {
+    flex: 1 1 calc(50% - 5px);
+    justify-content: center;
+  }
+}
+
+@media (max-width: 960px) {
+  .diwa-tablet-projects-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .diwa-projects-shell,
+  .diwa-mobile-projects,
+  .diwa-tablet-projects {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .diwa-project-card,
+  .diwa-mobile-project-card,
+  .diwa-tablet-project-list-card,
+  .diwa-tablet-project-detail,
+  .diwa-projects-header,
+  .diwa-mobile-hero,
+  .diwa-mobile-surface {
+    border-radius: 22px;
+  }
+
+  .diwa-project-card__footer,
+  .diwa-project-expand__actions,
+  .diwa-mobile-project-card__actions,
+  .diwa-mobile-project-actions,
+  .diwa-tablet-project-detail__actions {
+    flex-direction: column;
+  }
+
+  .diwa-project-action-btn,
+  .diwa-mobile-project-btn,
+  .diwa-epm-cancel-btn,
+  .diwa-epm-save-btn {
+    width: 100%;
+  }
+
+  .diwa-milestone-add-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 390px) {
+  .diwa-mobile-nav-label {
+    font-size: 11px;
+  }
+
+  .diwa-mobile-nav-icon {
+    width: 34px;
+  }
+}
+.diwa-mobile-project-list-surface,
+.diwa-tablet-projects-list-pane,
+.diwa-tablet-projects-detail-pane {
+  display: flex;
+  flex-direction: column;
+}
+
+.diwa-tablet-project-list-card__name {
+  font-size: 16px;
+  font-weight: 760;
+  line-height: 1.25;
+  color: var(--text-normal);
+}

@@ -59,9 +59,9 @@ export class EditProjectModal extends Modal {
     }
 
     private _renderMobileSheet(contentEl: HTMLElement, modalEl: HTMLElement) {
+        modalEl.addClass('diwa-mobile-sheet');
         modalEl.addClass('diwa-edit-project-sheet');
         document.body.addClass('diwa-mobile-active');
-        modalEl.style.setProperty('border-radius', '24px 24px 0 0', 'important');
         contentEl.style.setProperty('padding', '0', 'important');
 
         // Handle bar
@@ -73,6 +73,7 @@ export class EditProjectModal extends Modal {
         const headerLeft = header.createDiv('diwa-epm-header-left');
         const colorRing = headerLeft.createDiv('diwa-epm-color-ring');
         colorRing.style.setProperty('--project-color', this.draftColor);
+        headerLeft.createDiv({ cls: 'diwa-project-modal-eyebrow', text: 'Project workspace' });
         headerLeft.createEl('h3', { text: 'Edit Project', cls: 'diwa-epm-title' });
         const closeBtn = header.createEl('button', { cls: 'diwa-epm-header-close', text: '×' });
         closeBtn.addEventListener('click', () => this.close());
@@ -94,8 +95,20 @@ export class EditProjectModal extends Modal {
     private _renderDesktopModal(contentEl: HTMLElement, modalEl: HTMLElement) {
         modalEl.addClass('diwa-new-project-modal');
         modalEl.addClass('diwa-edit-project-modal');
-        contentEl.createEl('h2', { text: 'Edit Project', cls: 'diwa-modal-title' });
-        this._buildForm(contentEl);
+
+        const header = contentEl.createDiv('diwa-modal-header');
+        const copy = header.createDiv('diwa-project-modal-header-copy');
+        copy.createDiv({ cls: 'diwa-project-modal-eyebrow', text: 'Project workspace' });
+        copy.createEl('h2', { text: 'Edit Project', cls: 'diwa-modal-title' });
+        const closeBtn = header.createEl('button', {
+            cls: 'diwa-modal-close-btn',
+            text: '×',
+            attr: { type: 'button', 'aria-label': 'Close edit project modal' },
+        });
+        closeBtn.addEventListener('click', () => this.close());
+
+        const body = contentEl.createDiv('diwa-project-modal-body');
+        this._buildForm(body);
         const actions = contentEl.createDiv('diwa-modal-actions');
         const cancelBtn = actions.createEl('button', { text: 'Cancel', cls: 'diwa-btn diwa-btn--ghost' });
         cancelBtn.addEventListener('click', () => this.close());
@@ -263,5 +276,4 @@ export class EditProjectModal extends Modal {
         modalEl.addEventListener('touchend', onTouchEnd, { passive: true });
     }
 }
-
 
