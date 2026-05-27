@@ -277,10 +277,10 @@ export default class DiwaPlugin extends Plugin {
         });
 
         this.addCommand({ id: 'diwa-open-workspace', name: 'Diwa Workspace', icon: DESKTOP_HUB_ICON_ID, callback: () => { this.activateWorkspace(); } });
-        this.addCommand({ id: 'diwa-open-journal-input', name: 'DIWA: Open Journal Input', icon: JOURNAL_ICON_ID, callback: () => { void this.activateJournalInput(); } });
-        this.addCommand({ id: 'open-diwa-mobile-gawa', name: 'DIWA: Open Mobile Gawa', icon: 'check-square-2', callback: () => { void this.activateMobileGawa(); } });
-        this.addCommand({ id: 'diwa-open-gawa', name: 'DIWA: Gawa', icon: 'check-square-2', callback: () => { void this.activateGawa(); } });
-        this.addCommand({ id: 'diwa-open-bulsa', name: 'DIWA: Bulsa', icon: PF_ICON_ID, callback: () => { void this.activateBulsa(); } });
+        this.addCommand({ id: 'diwa-open-journal-input', name: 'Open Journal', icon: JOURNAL_ICON_ID, callback: () => { void this.activateJournalInput(); } });
+        this.addCommand({ id: 'open-diwa-mobile-gawa', name: 'Open Mobile Gawa', icon: 'check-square-2', callback: () => { void this.activateMobileGawa(); } });
+        this.addCommand({ id: 'diwa-open-gawa', name: 'Open Gawa', icon: 'check-square-2', callback: () => { void this.activateGawa(); } });
+        this.addCommand({ id: 'diwa-open-bulsa', name: 'Open Bulsa', icon: PF_ICON_ID, callback: () => { void this.activateBulsa(); } });
 
 		this.addSettingTab(new DiwaSettingTab(this.app, this));
         if (!this.settings.legacyMigrated) {
