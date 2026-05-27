@@ -20344,3 +20344,21 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
   line-height: 1.25;
   color: var(--text-normal);
 }
+
+/* Allow rendered markdown text selection for easier copying */
+.diwa-card,
+.diwa-card-text,
+.diwa-ai-bot-bubble,
+.diwa-ai-user-bubble,
+.diwa-synth-card-markdown,
+.diwa-review-ai-content,
+.diwa-review-prev-content,
+.diwa-thought-focus-content,
+.diwa-dh-thought-row-text,
+.diwa-tl-entry-body,
+.diwa-gx-preview-body,
+.diwa-modal-chat .markdown-rendered,
+.diwa-view-comments-modal .markdown-rendered {
+  -webkit-user-select: text;
+  user-select: text;
+}
