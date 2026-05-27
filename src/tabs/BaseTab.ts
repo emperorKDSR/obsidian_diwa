@@ -76,10 +76,18 @@ export class BaseTab {
 
     // sec-013: iconPath is an SVG path string — safe only because all callers use hardcoded constants.
     // Do NOT pass user-supplied strings; migrate callers to setIcon() if extensibility is needed.
-    renderActionButton(parent: HTMLElement, iconPath: string, title: string, onClick: () => void, color: string = 'var(--text-muted)') {
-        const btn = parent.createEl('button', { attr: { title, class: 'diwa-action-btn', style: `color: ${color};` } });
+    renderActionButton(parent: HTMLElement, iconPath: string, title: string, onClick: () => void, color: string = 'var(--text-muted)'): HTMLButtonElement {
+        const btn = parent.createEl('button', {
+            attr: {
+                title,
+                'aria-label': title,
+                class: 'diwa-action-btn',
+                style: `color: ${color};`,
+            },
+        }) as HTMLButtonElement;
         btn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${iconPath}</svg>`;
         btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); onClick(); });
+        return btn;
     }
 
     renderSearchInput(parent: HTMLElement, onSearch: (val: string) => void) {
