@@ -7,6 +7,7 @@ import type { ChatMessage, Task } from './types';
 interface DiwaViewState extends Record<string, unknown> {
     activeTab?: string;
     isDedicated?: boolean;
+    focusedProjectId?: string | null;
 }
 
 export class DiwaView extends ItemView {
@@ -15,6 +16,7 @@ export class DiwaView extends ItemView {
     dueDate: string = moment().format('YYYY-MM-DD');
     activeTab: string = 'home';
     isDedicated: boolean = false;
+    focusedProjectId: string | null = null;
     
     // UI State
     timelineSelectedDate: string = moment().format('YYYY-MM-DD');
@@ -143,7 +145,7 @@ export class DiwaView extends ItemView {
 
     /** Persist activeTab + isDedicated so Obsidian can restore the window on reload. */
     getState(): DiwaViewState {
-        return { activeTab: this.activeTab, isDedicated: this.isDedicated };
+        return { activeTab: this.activeTab, isDedicated: this.isDedicated, focusedProjectId: this.focusedProjectId };
     }
 
     /** Called by Obsidian after setViewState() — apply activeTab/isDedicated then re-render. */
@@ -153,6 +155,7 @@ export class DiwaView extends ItemView {
             this.activeTab = ['daily-workspace', 'habits', 'compass'].includes(state.activeTab) ? 'home' : state.activeTab;
         }
         if (state?.isDedicated !== undefined) this.isDedicated = state.isDedicated;
+        if (state?.focusedProjectId !== undefined) this.focusedProjectId = state.focusedProjectId;
         await super.setState(state, result);
         this.renderView();
     }

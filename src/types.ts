@@ -172,6 +172,7 @@ export interface TaskEntry {
     lastUpdate: number;    // ms timestamp of modified for sorting
     children: ReplyEntry[]; // Support comments/replies on tasks
     project?: string;       // associated project name
+    milestone?: string;
     priority?: 'high' | 'medium' | 'low';
     energy?: 'high' | 'medium' | 'low';
     recurrence?: RecurrenceRule;

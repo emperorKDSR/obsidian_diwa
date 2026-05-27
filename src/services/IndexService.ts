@@ -485,6 +485,7 @@ export class IndexService {
         const energyValue = pickFrontmatter(['energy']) ?? fm.energy;
         const recurrenceValue = pickFrontmatter(['recurrence']) ?? fm.recurrence;
         const recurrenceParentIdValue = pickFrontmatter(['recurrenceParentId']) ?? fm.recurrenceParentId;
+        const milestoneValue = pickFrontmatter(['milestone']) ?? fm.milestone;
         const focusValue = pickFrontmatter(['focus']) ?? fm.focus;
 
         let normalizedStatus: TaskEntry['status'] = 'open';
@@ -553,6 +554,7 @@ export class IndexService {
             context: IndexService.normalizeContext(fm.context ?? fm.contexts),
             children: [],
             project: projectValue ? String(projectValue) : undefined,
+            milestone: milestoneValue ? String(milestoneValue) : undefined,
             priority: priorityValue as TaskEntry['priority'] | undefined,
             energy: energyValue as TaskEntry['energy'] | undefined,
             recurrence: recurrenceValue as TaskEntry['recurrence'] | undefined,

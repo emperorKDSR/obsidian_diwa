@@ -68,7 +68,21 @@ export class VaultService {
         return `---\ntitle: "${safeTitle}"\ncreated: ${created}\nmodified: ${modified}\nday: "[[${dayStr}]]"\narea: DIWA\ncontext:\n${contextYaml}\ntags:\n${tagsYaml}\npinned: ${pinned}\n${journalTypeLine}${topicLine}${projectLine}---\n`;
     }
 
-    private buildTaskFrontmatter(title: string, created: string, modified: string, dayStr: string, status: string, due: string, contexts: string[], project?: string, recurrence?: string, recurrenceParentId?: string, priority?: string, energy?: string): string {
+    private buildTaskFrontmatter(
+        title: string,
+        created: string,
+        modified: string,
+        dayStr: string,
+        status: string,
+        due: string,
+        contexts: string[],
+        project?: string,
+        recurrence?: string,
+        recurrenceParentId?: string,
+        priority?: string,
+        energy?: string,
+        milestone?: string,
+    ): string {
         // sec-006: Sanitize title and contexts before YAML embedding to prevent injection
         const safeTitle = this.sanitizeYamlString(title);
         const safeContexts = contexts.map(c => this.sanitizeContext(c));
@@ -76,12 +90,13 @@ export class VaultService {
         const dueYaml = due ? `"[[${due}]]"` : '""';
         const taskId = generateTaskId();
         const projectLine = project ? `project: "${this.sanitizeYamlString(project)}"\n` : '';
+        const milestoneLine = milestone ? `milestone: "${this.sanitizeYamlString(milestone)}"\n` : '';
         const recurrenceLine = recurrence ? `recurrence: ${recurrence}\n` : '';
         const parentLine = recurrenceParentId ? `recurrenceParentId: "${recurrenceParentId}"\n` : '';
         const priorityLine = priority ? `priority: ${priority}\n` : '';
         const energyLine = energy ? `energy: ${energy}\n` : '';
         const bucketLine = status === 'done' ? 'bucket: done\n' : (status === 'waiting' ? 'bucket: active\n' : 'bucket: backlog\n');
-        return `---\ntitle: "${safeTitle}"\ntaskId: ${taskId}\ncreated: ${created}\nmodified: ${modified}\nday: "[[${dayStr}]]"\narea: DIWA_TASKS\nstatus: ${status}\n${bucketLine}focus: false\ndue: ${dueYaml}\ncontext:\n${contextYaml}\ntags:\n${contextYaml}\n${projectLine}${recurrenceLine}${parentLine}${priorityLine}${energyLine}---\n`;
+        return `---\ntitle: "${safeTitle}"\ntaskId: ${taskId}\ncreated: ${created}\nmodified: ${modified}\nday: "[[${dayStr}]]"\narea: DIWA_TASKS\nstatus: ${status}\n${bucketLine}focus: false\ndue: ${dueYaml}\ncontext:\n${contextYaml}\ntags:\n${contextYaml}\n${projectLine}${milestoneLine}${recurrenceLine}${parentLine}${priorityLine}${energyLine}---\n`;
     }
 
     // sec-006: Strip characters that break YAML string values
@@ -144,7 +159,13 @@ export class VaultService {
         return await this.createFile(folder, filename, fm + text);
     }
 
-    async createTaskFile(text: string, contexts: string[], dueDate?: string, project?: string, opts?: { priority?: string; energy?: string; status?: string; recurrence?: string; recurrenceParentId?: string }): Promise<TFile> {
+    async createTaskFile(
+        text: string,
+        contexts: string[],
+        dueDate?: string,
+        project?: string,
+        opts?: { priority?: string; energy?: string; status?: string; recurrence?: string; recurrenceParentId?: string; milestone?: string },
+    ): Promise<TFile> {
         // arch-08: Normalize <br> → newline at service boundary
         text = text.replace(/<br>/g, '\n');
         const folder = this.settings.tasksFolder.trim() || '000 Bin/DIWA Gawa';
@@ -153,7 +174,21 @@ export class VaultService {
         const dayStr = this.formatDate(now);
         const title = this.extractTitle(text);
         const due = dueDate || '';
-        const fm = this.buildTaskFrontmatter(title, created, created, dayStr, opts?.status ?? 'open', due, contexts, project, opts?.recurrence, opts?.recurrenceParentId, opts?.priority, opts?.energy);
+        const fm = this.buildTaskFrontmatter(
+            title,
+            created,
+            created,
+            dayStr,
+            opts?.status ?? 'open',
+            due,
+            contexts,
+            project,
+            opts?.recurrence,
+            opts?.recurrenceParentId,
+            opts?.priority,
+            opts?.energy,
+            opts?.milestone,
+        );
         const filename = this.generateFilename('task_');
         return await this.createFile(folder, filename, fm + text);
     }
@@ -307,6 +342,7 @@ export class VaultService {
         status:     string;
         contexts:   string[];
         project:    string | null;
+        milestone?: string | null;
         bucketStatus?: 'backlog' | 'active' | 'done' | null;
         focus?: boolean | null;
         bodyText?: string;
@@ -343,6 +379,12 @@ export class VaultService {
                 else { delete fm['recurrence']; }
                 if (updates.project !== null) { fm['project'] = updates.project; }
                 else { delete fm['project']; }
+                if (updates.milestone !== undefined) {
+                    if (updates.milestone !== null) fm['milestone'] = updates.milestone;
+                    else delete fm['milestone'];
+                } else if (updates.project === null) {
+                    delete fm['milestone'];
+                }
             });
 
             // Update body text — preserve any reply sections
@@ -573,7 +615,7 @@ export class VaultService {
         if (entry.due) lines.push(`due: "${entry.due}"`);
         lines.push(`created: "${entry.created}"`);
         if (entry.color) lines.push(`color: "${entry.color}"`);
-        lines.push('---', '', '## Notes', '');
+        lines.push('---', '', '## Milestones', '', '## Notes', '');
         return await this.app.vault.create(path, lines.join('\n'));
     }
 
@@ -587,23 +629,50 @@ export class VaultService {
         });
     }
 
+    private buildFallbackMilestoneId(seed: string): string {
+        let hash = 0;
+        for (let index = 0; index < seed.length; index++) {
+            hash = ((hash << 5) - hash) + seed.charCodeAt(index);
+            hash |= 0;
+        }
+        return `m-${Math.abs(hash).toString(36)}`;
+    }
+
+    private isMilestoneDateToken(value: string): boolean {
+        return /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+    }
+
     async readMilestones(filePath: string): Promise<Milestone[]> {
         const file = this.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) return [];
         try {
             const content = await this.app.vault.read(file);
-            const match = content.match(/## Milestones\n([\s\S]*?)(?=\n##|$)/);
+            const match = content.match(/## Milestones\r?\n([\s\S]*?)(?=\r?\n##|$)/);
             if (!match) return [];
             const lines = match[1].split('\n').filter(l => l.trim().match(/^- \[[ x]\]/));
             return lines.map((line, i) => {
                 const done = line.includes('- [x]');
                 const rest = line.replace(/^- \[[ x]\] /, '').trim();
-                const parts = rest.split(' | ');
+                const parts = rest.split(' | ').map((part) => part.trim()).filter(Boolean);
+                let remainingParts = [...parts];
+                let id: string | undefined;
+                const lastPart = remainingParts[remainingParts.length - 1];
+                if (lastPart?.startsWith('id:')) {
+                    id = lastPart.slice(3).trim() || undefined;
+                    remainingParts = remainingParts.slice(0, -1);
+                }
+                let dueDate: string | undefined;
+                const dueCandidate = remainingParts[remainingParts.length - 1];
+                if (remainingParts.length > 1 && dueCandidate && this.isMilestoneDateToken(dueCandidate)) {
+                    dueDate = dueCandidate;
+                    remainingParts = remainingParts.slice(0, -1);
+                }
+                const title = remainingParts.join(' | ').trim();
                 return {
-                    id: `m-${i}`,
-                    title: parts[0].trim(),
+                    id: id || this.buildFallbackMilestoneId(`${title}|${dueDate ?? ''}|${i}`),
+                    title,
                     done,
-                    dueDate: parts[1]?.trim() || undefined,
+                    dueDate,
                 };
             });
         } catch { return []; }
@@ -613,15 +682,28 @@ export class VaultService {
         const file = this.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) return;
         const content = await this.app.vault.read(file);
-        const milestoneMd = milestones.map(m =>
-            `- [${m.done ? 'x' : ' '}] ${m.title}${m.dueDate ? ' | ' + m.dueDate : ''}`
-        ).join('\n');
+        const milestoneMd = milestones.map((milestone, index) => {
+            const id = milestone.id || this.buildFallbackMilestoneId(`${milestone.title}|${milestone.dueDate ?? ''}|${index}`);
+            return `- [${milestone.done ? 'x' : ' '}] ${milestone.title}${milestone.dueDate ? ` | ${milestone.dueDate}` : ''} | id:${id}`;
+        }).join('\n');
         const section = `## Milestones\n${milestoneMd}`;
-        const sectionRegex = /## Milestones\n[\s\S]*?(?=\n##|$)/;
+        const sectionRegex = /## Milestones\r?\n[\s\S]*?(?=\r?\n##|$)/;
         const newContent = sectionRegex.test(content)
             ? content.replace(sectionRegex, section)
             : content + '\n\n' + section;
         await this.app.vault.modify(file, newContent);
+    }
+
+    async setTaskProjectMilestone(filePath: string, projectId: string | null, milestoneId: string | null): Promise<void> {
+        const file = this.app.vault.getAbstractFileByPath(filePath);
+        if (!(file instanceof TFile)) return;
+        await this.app.fileManager.processFrontMatter(file, (fm) => {
+            fm['modified'] = this.formatDateTime(new Date());
+            if (projectId) fm['project'] = projectId;
+            else delete fm['project'];
+            if (milestoneId) fm['milestone'] = milestoneId;
+            else delete fm['milestone'];
+        });
     }
 
     async archiveProject(file: TFile): Promise<void> {

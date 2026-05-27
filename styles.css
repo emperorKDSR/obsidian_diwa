@@ -20362,3 +20362,385 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
   -webkit-user-select: text;
   user-select: text;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   PROJECT FOCUS WORKSPACE
+   ═══════════════════════════════════════════════════════════════════ */
+.diwa-projects-shell--focus {
+    gap: 18px;
+}
+
+.diwa-project-focus__topbar {
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.diwa-project-focus__topbar-left,
+.diwa-project-focus__topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.diwa-project-focus__identity {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: min(420px, 100%);
+}
+
+.diwa-project-focus__overview {
+    display: grid;
+    gap: 14px;
+}
+
+.diwa-project-focus__hero,
+.diwa-project-focus__stat,
+.diwa-project-focus__panel,
+.diwa-project-focus__task-card,
+.diwa-project-focus__bucket {
+    border: 1px solid var(--background-modifier-border-faint);
+    background: color-mix(in srgb, var(--background-primary) 88%, var(--background-secondary) 12%);
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.06);
+}
+
+.diwa-project-focus__hero {
+    border-radius: 22px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.diwa-project-focus__hero-copy {
+    margin: 0;
+    font-size: 0.96rem;
+    line-height: 1.65;
+    color: var(--text-normal);
+}
+
+.diwa-project-focus__hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.diwa-project-focus__overview-chip {
+    color: var(--text-muted);
+}
+
+.diwa-project-focus__overview-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.diwa-project-focus__stat {
+    border-radius: 18px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.diwa-project-focus__stat-label {
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.diwa-project-focus__stat-value {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--text-normal);
+    letter-spacing: -0.03em;
+}
+
+.diwa-project-focus__stat-detail {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+}
+
+.diwa-project-focus__grid {
+    display: grid;
+    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+    gap: 16px;
+    min-height: 0;
+}
+
+.diwa-project-focus__panel {
+    border-radius: 24px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+}
+
+.diwa-project-focus__panel--planning {
+    align-self: start;
+    position: sticky;
+    top: 0;
+}
+
+.diwa-project-focus__panel-head,
+.diwa-project-focus__task-section-head {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.diwa-project-focus__panel-title,
+.diwa-project-focus__task-section-title,
+.diwa-project-focus__bucket-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--text-normal);
+    letter-spacing: -0.02em;
+}
+
+.diwa-project-focus__panel-caption,
+.diwa-project-focus__task-section-caption,
+.diwa-project-focus__bucket-meta,
+.diwa-project-focus__selection-empty,
+.diwa-project-focus__task-body,
+.diwa-project-focus__task-select-label {
+    font-size: 0.84rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+.diwa-project-focus__milestones,
+.diwa-project-focus__task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.diwa-project-focus__bucket {
+    border-radius: 18px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.diwa-project-focus__bucket:hover,
+.diwa-project-focus__bucket.is-selected,
+.diwa-milestone-row.is-selected {
+    border-color: rgba(var(--interactive-accent-rgb), 0.36);
+    box-shadow: 0 18px 34px rgba(var(--interactive-accent-rgb), 0.12);
+    transform: translateY(-1px);
+}
+
+.diwa-project-focus__bucket-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(var(--interactive-accent-rgb), 0.1);
+    color: var(--interactive-accent);
+    flex-shrink: 0;
+}
+
+.diwa-project-focus__bucket-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.diwa-project-focus__quick-add {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 150px auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.diwa-project-focus__quick-input,
+.diwa-project-focus__quick-date,
+.diwa-project-focus__task-select {
+    width: 100%;
+    border-radius: 14px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary-alt, var(--background-primary));
+    color: var(--text-normal);
+    padding: 10px 12px;
+    font-size: 0.9rem;
+}
+
+.diwa-project-focus__quick-input:focus,
+.diwa-project-focus__quick-date:focus,
+.diwa-project-focus__task-select:focus,
+.diwa-milestone-row__content--selectable:focus-visible,
+.diwa-project-focus__bucket:focus-visible,
+.diwa-project-focus__task-btn:focus-visible {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 3px rgba(var(--interactive-accent-rgb), 0.14);
+}
+
+.diwa-project-focus__task-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.diwa-project-focus__selection-empty {
+    padding: 16px 18px;
+    border-radius: 16px;
+    border: 1px dashed var(--background-modifier-border);
+    background: rgba(var(--interactive-accent-rgb), 0.04);
+}
+
+.diwa-project-focus__task-card {
+    border-radius: 18px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.diwa-project-focus__task-card.is-done {
+    opacity: 0.82;
+}
+
+.diwa-project-focus__task-main {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.diwa-project-focus__task-main > input[type='checkbox'] {
+    margin-top: 3px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.diwa-project-focus__task-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+}
+
+.diwa-project-focus__task-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-normal);
+    line-height: 1.5;
+}
+
+.diwa-project-focus__task-title.is-done {
+    color: var(--text-muted);
+    text-decoration: line-through;
+}
+
+.diwa-project-focus__task-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.diwa-project-focus__task-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-end;
+}
+
+.diwa-project-focus__task-select-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: min(220px, 100%);
+    flex: 1 1 220px;
+}
+
+.diwa-project-focus__task-select-label {
+    font-weight: 700;
+}
+
+.diwa-project-focus__task-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 12px;
+    border: 1px solid var(--background-modifier-border);
+    background: transparent;
+    color: var(--text-normal);
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.diwa-project-focus__task-btn:hover {
+    background: rgba(var(--interactive-accent-rgb), 0.08);
+    border-color: rgba(var(--interactive-accent-rgb), 0.24);
+}
+
+.diwa-project-focus__task-status,
+.diwa-project-focus__task-priority,
+.diwa-project-focus__stat-chip,
+.diwa-project-focus__selected-chip {
+    background: rgba(var(--interactive-accent-rgb), 0.08);
+    border: 1px solid rgba(var(--interactive-accent-rgb), 0.18);
+    color: var(--interactive-accent);
+}
+
+.diwa-milestone-row--focus {
+    border-radius: 18px;
+    padding: 10px 12px;
+    border: 1px solid var(--background-modifier-border-faint);
+    background: color-mix(in srgb, var(--background-primary) 90%, var(--background-secondary) 10%);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.diwa-milestone-row--focus .diwa-milestone-row__content {
+    min-width: 0;
+}
+
+.diwa-milestone-row__content--selectable {
+    cursor: pointer;
+}
+
+.diwa-milestone-row__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+@media (max-width: 1024px) {
+    .diwa-project-focus__overview-stats,
+    .diwa-project-focus__grid,
+    .diwa-project-focus__quick-add {
+        grid-template-columns: 1fr;
+    }
+
+    .diwa-project-focus__panel--planning {
+        position: static;
+    }
+}
+
+body.is-mobile .diwa-project-focus__panel,
+body.is-mobile .diwa-project-focus__hero,
+body.is-mobile .diwa-project-focus__stat,
+body.is-mobile .diwa-project-focus__task-card,
+body.is-mobile .diwa-project-focus__bucket {
+    border-radius: 18px;
+}
