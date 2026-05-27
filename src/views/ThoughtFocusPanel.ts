@@ -4,6 +4,7 @@ import type { TaskController } from './TaskController';
 import type { ThoughtController } from './ThoughtController';
 import type { ThoughtProcessor } from './ThoughtProcessor';
 import type DiwaPlugin from '../main';
+import { enableImageZoom } from '../utils/imageZoom';
 
 export class ThoughtFocusPanel {
     private hostEl: HTMLElement | null = null;
@@ -148,7 +149,8 @@ export class ThoughtFocusPanel {
         this.titleEl.setText(title.length > 48 ? `${title.slice(0, 45)}...` : title);
 
         this.contentEl.empty();
-        void MarkdownRenderer.render(this.app, thought.body || thought.content || thought.title || '', this.contentEl, thought.filePath, this.markdownHost);
+        await MarkdownRenderer.render(this.app, thought.body || thought.content || thought.title || '', this.contentEl, thought.filePath, this.markdownHost);
+        enableImageZoom(this.app, this.contentEl);
         this.renderAIState(thought);
 
         const next = await this.thoughtProcessor.getNextBestThought(thought);

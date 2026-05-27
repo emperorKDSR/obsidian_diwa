@@ -29,6 +29,7 @@ import { RefreshCoordinator, type RefreshScope } from './application/RefreshCoor
 import { TaskController } from './views/TaskController';
 import { ThoughtController } from './views/ThoughtController';
 import { ThoughtProcessor } from './views/ThoughtProcessor';
+import { enableImageZoom } from './utils/imageZoom';
 
 class TaskIndexCompat {
     constructor(private readonly plugin: DiwaPlugin) {}
@@ -834,6 +835,7 @@ export default class DiwaPlugin extends Plugin {
     private async renderThoughtContent(el: HTMLElement, content: string, thought: ThoughtEntry): Promise<void> {
         el.empty();
         await MarkdownRenderer.render(this.app, content, el, thought.filePath || '', this);
+        enableImageZoom(this.app, el);
     }
 
     private attachThoughtLongPress(cardEl: HTMLElement, thought: ThoughtEntry): void {

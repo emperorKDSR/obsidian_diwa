@@ -10,6 +10,7 @@ import type { TaskEntry, ThoughtEntry } from '../types';
 import { DesktopTaskPaneView } from './DesktopTaskPane';
 import { TaskController } from './TaskController';
 import { ThoughtController } from './ThoughtController';
+import { enableImageZoom } from '../utils/imageZoom';
 
 interface FeedRowRef {
     rootEl: HTMLElement;
@@ -1060,6 +1061,7 @@ export class DesktopHubView extends ItemView {
                 while (stagedEl.firstChild) {
                     currentRow.textEl.appendChild(stagedEl.firstChild);
                 }
+                enableImageZoom(this.app, currentRow.textEl);
             })
             .catch((error) => {
                 if (!this._closed) {
