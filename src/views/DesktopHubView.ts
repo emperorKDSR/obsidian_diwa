@@ -5,7 +5,7 @@ import {
     PF_ICON_ID, SYNTHESIS_ICON_ID, AI_CHAT_ICON_ID, REVIEW_ICON_ID,
     SETTINGS_ICON_ID, TIMELINE_ICON_ID, JOURNAL_ICON_ID, COMPASS_ICON_ID,
 } from '../constants';
-import { attachInlineTriggers, isTablet } from '../utils';
+import { attachInlineTriggers, attachMediaPasteHandler, isTablet } from '../utils';
 import type { TaskEntry, ThoughtEntry } from '../types';
 import { DesktopTaskPaneView } from './DesktopTaskPane';
 import { TaskController } from './TaskController';
@@ -1432,6 +1432,11 @@ export class DesktopHubView extends ItemView {
                 undefined,
                 undefined,
                 this.plugin.settings.peopleFolder,
+            );
+            attachMediaPasteHandler(
+                this.app,
+                textarea,
+                () => this.plugin.settings.attachmentsFolder ?? '000 Bin/DIWA Attachments',
             );
 
             textarea.addEventListener('keydown', async (event: KeyboardEvent) => {
