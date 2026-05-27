@@ -20744,3 +20744,344 @@ body.is-mobile .diwa-project-focus__task-card,
 body.is-mobile .diwa-project-focus__bucket {
     border-radius: 18px;
 }
+
+/* ── Timeline module refresh ───────────────────────────────────────────── */
+.diwa-tl-wrap {
+    gap: 18px;
+    padding: 18px 18px calc(var(--diwa-footer-clearance) + 24px);
+    background:
+        radial-gradient(circle at top left, color-mix(in srgb, var(--interactive-accent) 10%, transparent), transparent 34%),
+        linear-gradient(180deg, color-mix(in srgb, var(--background-primary) 92%, var(--background-secondary) 8%), var(--background-primary));
+}
+
+.diwa-tl-header-slot {
+    background: transparent;
+}
+
+.diwa-tl-header,
+.diwa-tl-feed > :not(.diwa-tl-sentinel) {
+    width: min(100%, calc(var(--diwa-content-max-width) + 48px));
+    margin-inline: auto;
+}
+
+.diwa-tl-header {
+    padding: 24px;
+    border: 1px solid color-mix(in srgb, var(--interactive-accent) 10%, var(--background-modifier-border-faint) 90%);
+    border-radius: 28px;
+    background:
+        radial-gradient(circle at top left, color-mix(in srgb, var(--interactive-accent) 12%, transparent), transparent 48%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0)),
+        color-mix(in srgb, var(--background-secondary-alt) 86%, var(--background-primary) 14%);
+    box-shadow: 0 20px 42px color-mix(in srgb, var(--background-primary) 88%, transparent);
+    gap: 18px;
+}
+
+.diwa-tl-header-bar {
+    gap: 12px;
+}
+
+.diwa-tl-title {
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    color: var(--interactive-accent);
+}
+
+.diwa-tl-search-btn,
+.diwa-tl-nav-btn,
+.diwa-tl-search-close {
+    border: 1px solid color-mix(in srgb, var(--background-modifier-border) 76%, transparent);
+    background: color-mix(in srgb, var(--background-primary) 76%, transparent);
+    color: var(--text-muted);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.diwa-tl-search-btn:hover,
+.diwa-tl-search-btn.is-active,
+.diwa-tl-nav-btn:hover,
+.diwa-tl-search-close:hover {
+    color: var(--text-normal);
+    border-color: color-mix(in srgb, var(--interactive-accent) 26%, var(--background-modifier-border));
+    background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-primary));
+}
+
+.diwa-tl-capture-fab {
+    padding: 8px 15px 8px 11px;
+    border-radius: 999px;
+    box-shadow: 0 14px 30px rgba(var(--interactive-accent-rgb), 0.22);
+}
+
+.diwa-tl-capture-fab:hover {
+    box-shadow: 0 18px 34px rgba(var(--interactive-accent-rgb), 0.3);
+}
+
+.diwa-tl-spotlight-row {
+    gap: 8px;
+}
+
+.diwa-tl-spotlight-track {
+    padding: 6px;
+    border: 1px solid color-mix(in srgb, var(--background-modifier-border) 78%, transparent);
+    border-radius: 24px;
+    background: color-mix(in srgb, var(--background-primary) 74%, transparent);
+}
+
+.diwa-tl-date-item {
+    min-width: clamp(60px, 10vw, 78px);
+    border-radius: 18px;
+    border: 1px solid transparent;
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.diwa-tl-date-item.is-spotlight {
+    border-color: color-mix(in srgb, var(--interactive-accent) 32%, var(--background-modifier-border));
+    background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary));
+    box-shadow: 0 14px 24px rgba(var(--interactive-accent-rgb), 0.12);
+}
+
+.diwa-tl-date-item:not(.is-spotlight):hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--interactive-accent) 18%, var(--background-modifier-border));
+    background: color-mix(in srgb, var(--background-primary) 70%, var(--background-secondary-alt) 30%);
+}
+
+.diwa-tl-spotlight-subtitle {
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    color: var(--text-muted);
+}
+
+.diwa-tl-search-bar {
+    padding: 0;
+}
+
+.diwa-tl-search-input {
+    min-height: 48px;
+    padding-inline: 16px;
+    border: 1px solid color-mix(in srgb, var(--background-modifier-border) 82%, transparent);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--background-primary) 82%, transparent);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.diwa-tl-search-hint {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.diwa-tl-feed {
+    padding: 0;
+    scrollbar-gutter: stable both-edges;
+}
+
+.diwa-tl-day-section {
+    margin-bottom: 18px;
+    padding: 18px 20px 10px;
+    border: 1px solid color-mix(in srgb, var(--background-modifier-border) 82%, transparent);
+    border-radius: 24px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0)),
+        color-mix(in srgb, var(--background-secondary) 78%, var(--background-primary) 22%);
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+}
+
+.diwa-tl-day-section:first-of-type {
+    padding-top: 18px;
+}
+
+.diwa-tl-day-header {
+    top: 0;
+    margin-bottom: 18px;
+    padding: 2px 4px 14px;
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--background-secondary) 88%, transparent), color-mix(in srgb, var(--background-secondary) 74%, transparent));
+    backdrop-filter: blur(12px);
+}
+
+.diwa-tl-day-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+}
+
+.diwa-tl-day-count {
+    min-width: 32px;
+    text-align: center;
+    padding: 4px 10px;
+}
+
+.diwa-tl-day-empty {
+    padding: 14px 0 18px;
+}
+
+.diwa-tl-spine-wrap {
+    padding-left: 30px;
+}
+
+.diwa-tl-spine-wrap::before {
+    left: 8px;
+    top: 2px;
+    bottom: 10px;
+    width: 3px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--interactive-accent) 24%, transparent), color-mix(in srgb, var(--background-modifier-border) 86%, transparent));
+}
+
+.diwa-tl-entry {
+    margin-bottom: 18px;
+}
+
+.diwa-tl-entry-node {
+    left: -22px;
+    top: 18px;
+    width: 12px;
+    height: 12px;
+    border-width: 3px;
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--background-secondary) 82%, transparent);
+}
+
+.diwa-tl-entry-card {
+    padding: 16px 18px 14px;
+    border-radius: 22px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
+        color-mix(in srgb, var(--background-primary) 86%, var(--background-secondary-alt) 14%);
+    border-color: color-mix(in srgb, var(--background-modifier-border) 84%, transparent);
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+}
+
+.diwa-tl-entry-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    opacity: 0.9;
+}
+
+.diwa-tl-entry-card--thought::before {
+    background: linear-gradient(180deg, #8b5cf6, color-mix(in srgb, #8b5cf6 24%, transparent));
+}
+
+.diwa-tl-entry-card--task::before {
+    background: linear-gradient(180deg, #22c55e, color-mix(in srgb, #22c55e 24%, transparent));
+}
+
+.diwa-tl-entry-card--thought {
+    border-color: color-mix(in srgb, #8b5cf6 18%, var(--background-modifier-border));
+}
+
+.diwa-tl-entry-card--task {
+    border-color: color-mix(in srgb, #22c55e 18%, var(--background-modifier-border));
+}
+
+.diwa-tl-entry-meta {
+    margin-bottom: 12px;
+    padding-right: 58px;
+}
+
+.diwa-tl-type-badge {
+    padding: 5px 10px;
+    border-radius: 999px;
+}
+
+.diwa-tl-entry-time {
+    font-size: 0.72rem;
+}
+
+.diwa-tl-entry-body {
+    font-size: 0.94rem;
+    line-height: 1.72;
+    margin-bottom: 12px;
+}
+
+.diwa-tl-entry-body ul,
+.diwa-tl-entry-body ol,
+.diwa-tl-entry-body blockquote,
+.diwa-tl-entry-body pre {
+    margin-block: 12px;
+}
+
+.diwa-tl-entry-body img.diwa-tl-entry-thumbnail {
+    display: block;
+    width: min(100%, 220px);
+    max-width: 100%;
+    max-height: 170px;
+    object-fit: cover;
+    border-radius: 18px;
+    border: 1px solid color-mix(in srgb, var(--background-modifier-border) 78%, transparent);
+    background: color-mix(in srgb, var(--background-secondary) 82%, var(--background-primary) 18%);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+    margin: 14px 0;
+}
+
+.diwa-tl-entry-footer {
+    gap: 8px;
+}
+
+.diwa-tl-due,
+.diwa-tl-ctx-pill {
+    padding-block: 4px;
+    border-radius: 999px;
+}
+
+.diwa-tl-entry-actions {
+    top: 14px;
+    right: 14px;
+    gap: 6px;
+}
+
+.diwa-tl-entry-card:hover .diwa-tl-entry-actions,
+.diwa-tl-entry-card:focus-within .diwa-tl-entry-actions,
+body.is-mobile .diwa-tl-entry-actions {
+    opacity: 1;
+}
+
+.diwa-tl-action-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--background-primary) 82%, transparent);
+    backdrop-filter: blur(8px);
+}
+
+.diwa-tl-search-empty {
+    width: min(100%, calc(var(--diwa-content-max-width) + 48px));
+    margin: 0 auto;
+    padding: 32px 24px;
+    border: 1px dashed color-mix(in srgb, var(--background-modifier-border) 80%, transparent);
+    border-radius: 22px;
+    background: color-mix(in srgb, var(--background-secondary) 72%, var(--background-primary) 28%);
+}
+
+@media (max-width: 768px) {
+    .diwa-tl-wrap {
+        gap: 14px;
+        padding: 14px 12px calc(var(--diwa-footer-clearance) + 14px);
+    }
+
+    .diwa-tl-header,
+    .diwa-tl-day-section {
+        border-radius: 20px;
+    }
+
+    .diwa-tl-header {
+        padding: 18px;
+    }
+
+    .diwa-tl-day-section {
+        padding: 16px 14px 8px;
+    }
+
+    .diwa-tl-entry-card {
+        padding: 14px 14px 12px;
+    }
+
+    .diwa-tl-entry-meta {
+        padding-right: 0;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .diwa-tl-entry-body img.diwa-tl-entry-thumbnail {
+        width: min(100%, 180px);
+        max-height: 140px;
+    }
+}

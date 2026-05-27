@@ -4,6 +4,7 @@ import { BaseTab } from "./BaseTab";
 import { EditEntryModal } from '../modals/EditEntryModal';
 import { ConfirmModal } from '../modals/ConfirmModal';
 import { parseContextString } from '../utils';
+import { enableImageZoom } from '../utils/imageZoom';
 
 export class TimelineTab extends BaseTab {
     private container: HTMLElement;
@@ -530,6 +531,11 @@ export class TimelineTab extends BaseTab {
         this.feedEl?.querySelectorAll('[data-date-header]').forEach(el => this.dayObserver!.observe(el));
     }
 
+    private enhanceEntryBody(body: HTMLElement): void {
+        body.querySelectorAll('img').forEach((img) => img.addClass('diwa-tl-entry-thumbnail'));
+        enableImageZoom(this.app, body);
+    }
+
     // ── Entry Card ─────────────────────────────────────────────────────────
     private async buildEntryCard(item: { type: 'task' | 'thought'; entry: any; time: string }): Promise<HTMLElement> {
         const entryEl = document.createElement('div');
@@ -558,6 +564,7 @@ export class TimelineTab extends BaseTab {
         body.className = 'diwa-tl-entry-body';
         await MarkdownRenderer.render(this.app, item.entry.body || item.entry.title || '', body, item.entry.filePath, this.view);
         this.hookInternalLinks(body, item.entry.filePath);
+        this.enhanceEntryBody(body);
         card.appendChild(body);
 
         const footer = document.createElement('div');
@@ -644,4 +651,3 @@ export class TimelineTab extends BaseTab {
         ).open();
     }
 }
-
