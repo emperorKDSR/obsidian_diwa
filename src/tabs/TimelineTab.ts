@@ -6,6 +6,10 @@ import { ConfirmModal } from '../modals/ConfirmModal';
 import { parseContextString } from '../utils';
 import { enableImageZoom } from '../utils/imageZoom';
 
+type TimelineEntryType = 'task' | 'thought';
+type TimelineFilter = 'all' | 'tasks' | 'thoughts';
+type TimelineFeedItem = { type: TimelineEntryType; entry: any; day?: string; time: string };
+
 export class TimelineTab extends BaseTab {
     private container: HTMLElement;
     private feedEl: HTMLElement | null = null;
@@ -21,6 +25,7 @@ export class TimelineTab extends BaseTab {
     private _searchHintEl: HTMLElement | null = null;
     private _searchDebounce: ReturnType<typeof setTimeout> | null = null;
     private _renderGen = 0;
+    private _feedFilter: TimelineFilter = 'all';
 
     constructor(view: DiwaView) { super(view); }
 
@@ -129,6 +134,108 @@ export class TimelineTab extends BaseTab {
         }
     }
 
+    private _matchesFeedFilter(type: TimelineEntryType): boolean {
+        return this._feedFilter === 'all'
+            || (this._feedFilter === 'tasks' && type === 'task')
+            || (this._feedFilter === 'thoughts' && type === 'thought');
+    }
+
+    private _setFeedFilter(filter: TimelineFilter) {
+        if (filter === this._feedFilter) return;
+        this._feedFilter = filter;
+
+        if (this.isSearchMode) {
+            if (this.headerEl) {
+                this.headerEl.empty();
+                this.renderSpotlightHeader(this.headerEl);
+            }
+            const gen = ++this._renderGen;
+            if (this.feedEl) this._runSearch(this._searchQuery, gen);
+            return;
+        }
+
+        this.initTimeline();
+    }
+
+    private _renderFeedFilter(parent: HTMLElement) {
+        const filterBar = parent.createDiv({ cls: 'diwa-seg-bar diwa-tl-filter-toggle' });
+        const filters: { value: TimelineFilter; label: string }[] = [
+            { value: 'all', label: 'ALL' },
+            { value: 'tasks', label: 'TASKS' },
+            { value: 'thoughts', label: 'THOUGHTS' },
+        ];
+
+        filters.forEach((filter) => {
+            const btn = filterBar.createEl('button', {
+                text: filter.label,
+                cls: `diwa-seg-btn${this._feedFilter === filter.value ? ' is-active' : ''}`,
+                attr: { type: 'button', 'aria-pressed': this._feedFilter === filter.value ? 'true' : 'false' }
+            }) as HTMLButtonElement;
+            btn.addEventListener('click', () => this._setFeedFilter(filter.value));
+        });
+    }
+
+    private _getFilterLabel(): string {
+        switch (this._feedFilter) {
+            case 'tasks':
+                return 'tasks';
+            case 'thoughts':
+                return 'thoughts';
+            default:
+                return 'results';
+        }
+    }
+
+    private _getDayEmptyText(): string {
+        switch (this._feedFilter) {
+            case 'tasks':
+                return 'No tasks on this day.';
+            case 'thoughts':
+                return 'No thoughts captured.';
+            default:
+                return 'Nothing captured.';
+        }
+    }
+
+    private _collectActivityDates(): Set<string> {
+        const dates = new Set<string>();
+
+        if (this._feedFilter !== 'thoughts') {
+            for (const task of this.index.taskIndex.values()) {
+                if (task.day) dates.add(task.day);
+                if (task.due) dates.add(task.due);
+            }
+        }
+
+        if (this._feedFilter !== 'tasks') {
+            for (const thought of this.index.thoughtIndex.values()) {
+                if (Array.isArray(thought.allDates) && thought.allDates.length > 0) {
+                    thought.allDates.forEach((day: string) => dates.add(day));
+                } else if (thought.day) {
+                    dates.add(thought.day);
+                }
+            }
+        }
+
+        return dates;
+    }
+
+    private _collectDayEntries(dateStr: string): TimelineFeedItem[] {
+        const tasks: TimelineFeedItem[] = this._matchesFeedFilter('task')
+            ? Array.from(this.index.taskIndex.values())
+                .filter(t => t.day === dateStr || t.due === dateStr)
+                .map(t => ({ type: 'task', entry: t, day: t.day || t.due || '', time: (t.created || '').split(' ')[1] || '00:00:00' }))
+            : [];
+
+        const thoughts: TimelineFeedItem[] = this._matchesFeedFilter('thought')
+            ? Array.from(this.index.thoughtIndex.values())
+                .filter(t => t.day === dateStr || (Array.isArray(t.allDates) && t.allDates.includes(dateStr)))
+                .map(t => ({ type: 'thought', entry: t, day: t.day || '', time: (t.created || '').split(' ')[1] || '00:00:00' }))
+            : [];
+
+        return [...tasks, ...thoughts].sort((a, b) => b.time.localeCompare(a.time));
+    }
+
     // ── Spotlight Header Carousel ──────────────────────────────────────────
     private renderSpotlightHeader(parent: HTMLElement) {
         const header = parent.createEl('div', { cls: 'diwa-tl-header' });
@@ -154,13 +261,12 @@ export class TimelineTab extends BaseTab {
         fab.createEl('span', { text: 'NEW', cls: 'diwa-tl-fab-label' });
         fab.addEventListener('click', () => this.openCapture());
 
+        this._renderFeedFilter(header);
+
         if (this.isSearchMode) {
             this._renderSearchBar(header);
         } else {
-            const activityDates = new Set<string>([
-                ...Array.from(this.index.thoughtIndex.values()).map(t => t.day),
-                ...Array.from(this.index.taskIndex.values()).map(t => t.day),
-            ]);
+            const activityDates = this._collectActivityDates();
 
             const selectedMoment = moment(this.view.timelineSelectedDate, 'YYYY-MM-DD');
             const spotlightRow = header.createEl('div', { cls: 'diwa-tl-spotlight-row' });
@@ -298,41 +404,45 @@ export class TimelineTab extends BaseTab {
 
         if (!q) {
             this._updateSearchHint('', null);
-            this.feedEl.createEl('div', { cls: 'diwa-tl-search-empty', text: 'Type to search… (use "and" / "or" for multi-criteria)' });
+            const baseText = this._feedFilter === 'all'
+                ? 'Type to search…'
+                : `Type to search ${this._feedFilter}…`;
+            this.feedEl.createEl('div', { cls: 'diwa-tl-search-empty', text: `${baseText} (use "and" / "or" for multi-criteria)` });
             return;
         }
 
         const groups = this._parseQuery(q);
 
         // Filter: one result per file (no multi-date duplicates)
-        type FeedItem = { type: 'task' | 'thought'; entry: any; day: string; time: string };
-        const results: FeedItem[] = [];
+        const results: TimelineFeedItem[] = [];
 
         for (const t of this.index.taskIndex.values()) {
+            if (!this._matchesFeedFilter('task')) continue;
             if (this._matchesEntry(t, groups))
                 results.push({ type: 'task', entry: t, day: t.day || t.due || '', time: (t.created || '').split(' ')[1] || '00:00' });
         }
 
         for (const t of this.index.thoughtIndex.values()) {
+            if (!this._matchesFeedFilter('thought')) continue;
             if (this._matchesEntry(t, groups))
                 results.push({ type: 'thought', entry: t, day: t.day || '', time: (t.created || '').split(' ')[1] || '00:00' });
         }
 
         // Sort by day desc, time desc
         results.sort((a, b) => {
-            const dc = b.day.localeCompare(a.day);
+            const dc = (b.day || '').localeCompare(a.day || '');
             return dc !== 0 ? dc : b.time.localeCompare(a.time);
         });
 
         this._updateSearchHint(query, results.length);
 
         if (results.length === 0) {
-            this.feedEl.createEl('div', { cls: 'diwa-tl-search-empty', text: `No results for "${query}"` });
+            this.feedEl.createEl('div', { cls: 'diwa-tl-search-empty', text: `No ${this._getFilterLabel()} for "${query}"` });
             return;
         }
 
         // Group by day
-        const byDay = new Map<string, FeedItem[]>();
+        const byDay = new Map<string, TimelineFeedItem[]>();
         for (const item of results) {
             const d = item.day || '0000-00-00';
             if (!byDay.has(d)) byDay.set(d, []);
@@ -453,21 +563,13 @@ export class TimelineTab extends BaseTab {
         dayHeader.appendChild(countEl);
         section.appendChild(dayHeader);
 
-        type FeedItem = { type: 'task' | 'thought'; entry: any; time: string };
-        const tasks = Array.from(this.index.taskIndex.values())
-            .filter(t => t.day === dateStr || t.due === dateStr);
-        const thoughts = Array.from(this.index.thoughtIndex.values())
-            .filter(t => t.day === dateStr || t.allDates.includes(dateStr));
-        const entries: FeedItem[] = [
-            ...tasks.map(t => ({ type: 'task' as const, entry: t, time: (t.created || '').split(' ')[1] || '00:00:00' })),
-            ...thoughts.map(t => ({ type: 'thought' as const, entry: t, time: (t.created || '').split(' ')[1] || '00:00:00' }))
-        ].sort((a, b) => b.time.localeCompare(a.time));
+        const entries = this._collectDayEntries(dateStr);
 
         if (entries.length === 0) {
             countEl.textContent = '—';
             const emptyEl = document.createElement('div');
             emptyEl.className = 'diwa-tl-day-empty';
-            emptyEl.textContent = 'Nothing captured.';
+            emptyEl.textContent = this._getDayEmptyText();
             section.appendChild(emptyEl);
         } else {
             countEl.textContent = String(entries.length);
@@ -537,7 +639,7 @@ export class TimelineTab extends BaseTab {
     }
 
     // ── Entry Card ─────────────────────────────────────────────────────────
-    private async buildEntryCard(item: { type: 'task' | 'thought'; entry: any; time: string }): Promise<HTMLElement> {
+    private async buildEntryCard(item: TimelineFeedItem): Promise<HTMLElement> {
         const entryEl = document.createElement('div');
         entryEl.className = 'diwa-tl-entry';
 
