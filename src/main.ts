@@ -190,7 +190,6 @@ export default class DiwaPlugin extends Plugin {
                 }
                 else if (this.index.isTaskFile(f.path)) await this.index.indexTaskFile(f as TFile);
                 else if (this.index.isDueFile(f.path)) await this.index.buildDueIndex();
-                else if (f.path.startsWith((this.settings.habitsFolder || '000 Bin/DIWA Habits').replace(/\\/g, '/'))) await this.index.refreshHabitIndex();
                 this.notifyRefresh(scope);
             }));
 
@@ -252,7 +251,7 @@ export default class DiwaPlugin extends Plugin {
         this.registerView(VIEW_TYPE_SEARCH, (leaf) => new SearchView(leaf, this));
         this.registerView(VIEW_TYPE_GRAPH_EXPLORER, (leaf) => new GraphExplorerView(leaf, this));
 
-        // Reminders: hourly nudge for habits and due tasks
+        // Reminders: hourly nudge for due tasks
         this.registerInterval(window.setInterval(() => this._checkReminders(), 60 * 60 * 1000));
         this.registerDomEvent(document, 'visibilitychange', () => {
             if (document.visibilityState === 'visible') this._checkReminders();
@@ -658,9 +657,6 @@ export default class DiwaPlugin extends Plugin {
         if (this.index.isThoughtFile(path)) return 'thoughts';
         if (this.index.isDueFile(path)) return 'all';
 
-        const habitsFolder = (this.settings.habitsFolder || '000 Bin/DIWA Habits').replace(/\\/g, '/');
-        if (path.startsWith(habitsFolder)) return 'all';
-
         const captureFolder = this.settings.captureFolder.trim() || '000 Bin/DIWA';
         const captureFile = this.settings.captureFilePath.trim() || 'Daily Capture.md';
         if (path === `${captureFolder}/${captureFile}`) return 'all';
@@ -1025,14 +1021,6 @@ export default class DiwaPlugin extends Plugin {
         const hour = new Date().getHours();
         if (hour < 8 || hour > 22) return;
 
-        if (this.settings.reminderHabitsEnabled) {
-            const allHabits = this.settings.habits?.filter(h => !h.archived) ?? [];
-            const completed = this.index.habitStatusIndex ?? [];
-            const incomplete = allHabits.filter(h => !completed.includes(h.id));
-            if (incomplete.length > 0) {
-            }
-        }
-
         if (this.settings.reminderTasksEnabled) {
             const today = new Date().toISOString().split('T')[0];
             let dueCount = 0;
@@ -1041,18 +1029,6 @@ export default class DiwaPlugin extends Plugin {
             }
             if (dueCount > 0) {
             }
-        }
-    }
-
-    async getHabitStatus(date: string): Promise<string[]> {
-        return this.index ? this.index.habitStatusIndex : [];
-    }
-
-    async toggleHabit(date: string, habitId: string): Promise<void> {
-        if (this.vault) {
-            await this.vault.toggleHabit(date, habitId);
-            await this.index.refreshHabitIndex();
-            this.notifyRefresh();
         }
     }
 }

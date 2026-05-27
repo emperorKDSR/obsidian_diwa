@@ -1,4 +1,4 @@
-import { moment, TFile } from 'obsidian';
+import { moment } from 'obsidian';
 import type { DiwaView } from '../view';
 import { BaseTab } from './BaseTab';
 
@@ -46,42 +46,7 @@ export class MonthlyReviewTab extends BaseTab {
         statCard('Thoughts', monthThoughts.length, `${processedThoughts.length} processed`);
         statCard('Open Gawa', allOpen.length, 'remaining');
 
-        // 3. Habit Adherence — scan all daily files in the current month (QW-01)
-        const habitsSection = wrap.createEl('div', { cls: 'diwa-monthly-section' });
-        habitsSection.createEl('h3', { text: 'Habit Adherence', cls: 'diwa-section-label' });
-
-        const habits = (this.settings.habits || []).filter(h => !h.archived);
-        if (habits.length === 0) {
-            this.renderEmptyState(habitsSection, 'No habits configured. Add habits in Settings → Habits.');
-        } else {
-            const daysInMonth = now.daysInMonth();
-            // Count completions per habit by reading each day's frontmatter
-            const folder = (this.settings.habitsFolder || '000 Bin/DIWA Habits').trim();
-            const habitCounts = new Map<string, number>(habits.map(h => [h.id, 0]));
-            for (let d = 1; d <= now.date(); d++) {
-                const dateStr = now.clone().date(d).format('YYYY-MM-DD');
-                const file = this.plugin.app.vault.getAbstractFileByPath(`${folder}/${dateStr}.md`);
-                if (!(file instanceof TFile)) continue;
-                const cache = this.plugin.app.metadataCache.getFileCache(file);
-                const completed: string[] = Array.isArray(cache?.frontmatter?.['completed'])
-                    ? cache.frontmatter['completed'].map(String) : [];
-                for (const id of completed) {
-                    if (habitCounts.has(id)) habitCounts.set(id, (habitCounts.get(id) ?? 0) + 1);
-                }
-            }
-            for (const habit of habits) {
-                const done = habitCounts.get(habit.id) ?? 0;
-                const pct = now.date() > 0 ? Math.round((done / now.date()) * 100) : 0;
-                const row = habitsSection.createEl('div', { cls: 'diwa-monthly-habit-row' });
-                row.createEl('span', { text: `${habit.icon || '•'} ${habit.name}`, cls: 'diwa-monthly-habit-name' });
-                const right = row.createEl('span', { cls: 'diwa-monthly-habit-stats' });
-                right.createEl('span', { text: `${done}/${daysInMonth}`, cls: 'diwa-monthly-habit-count' });
-                const pctColor = pct >= 80 ? 'var(--color-green)' : pct >= 50 ? 'var(--interactive-accent)' : 'var(--text-faint)';
-                right.createEl('span', { text: `${pct}%`, cls: 'diwa-monthly-habit-pct', attr: { style: `color: ${pctColor}` } });
-            }
-        }
-
-        // 4. Project Progress
+        // 3. Project Progress
         const projectsSection = wrap.createEl('div', { cls: 'diwa-monthly-section' });
         projectsSection.createEl('h3', { text: 'Project Progress', cls: 'diwa-section-label' });
 
@@ -109,7 +74,7 @@ export class MonthlyReviewTab extends BaseTab {
             });
         }
 
-        // 5. Next Month Focus
+        // 4. Next Month Focus
         const focusSection = wrap.createEl('div', { cls: 'diwa-monthly-focus' });
         focusSection.createEl('h3', { text: 'Next Month\'s Focus', cls: 'diwa-monthly-focus-title' });
 
@@ -137,5 +102,4 @@ export class MonthlyReviewTab extends BaseTab {
         }
     }
 }
-
 

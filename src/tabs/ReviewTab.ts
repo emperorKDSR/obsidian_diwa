@@ -6,7 +6,6 @@ import type { ProjectEntry, TaskEntry, DueEntry, WeeklyReportContext } from '../
 
 interface GlanceData {
     tasks: { completed: TaskEntry[]; overdue: TaskEntry[] };
-    habits: { habit: { id: string; name: string; icon: string }; count: number }[];
     projects: ProjectEntry[];
     finance: { paid: DueEntry[]; overdue: DueEntry[] };
 }
@@ -46,33 +45,6 @@ export class ReviewTab extends BaseTab {
         const start = moment().subtract(1, 'week').startOf('isoWeek');
         const end = moment().subtract(1, 'week').endOf('isoWeek');
         return `Week ${weekNum}  ·  ${start.format('MMM D')}–${end.format('MMM D')}`;
-    }
-
-    private getHabitHighlightText(): string {
-        const habits = (this.settings.habits || []).filter(h => !h.archived);
-        if (habits.length === 0) return '';
-        const weekStart = moment().startOf('isoWeek');
-        const habitsFolder = (this.settings.habitsFolder || '000 Bin/DIWA Habits').replace(/\\/g, '/');
-        const completionCounts: Map<string, number> = new Map();
-        habits.forEach(h => completionCounts.set(h.id, 0));
-        for (let d = 0; d < 7; d++) {
-            const dateStr = moment(weekStart).add(d, 'days').format('YYYY-MM-DD');
-            const file = this.app.vault.getAbstractFileByPath(`${habitsFolder}/${dateStr}.md`);
-            if (!(file instanceof TFile)) continue;
-            const cache = this.app.metadataCache.getFileCache(file);
-            const completed: string[] = Array.isArray(cache?.frontmatter?.['completed']) ? cache!.frontmatter!['completed'].map(String) : [];
-            completed.forEach(id => {
-                if (completionCounts.has(id)) completionCounts.set(id, (completionCounts.get(id) || 0) + 1);
-            });
-        }
-        let best: { habit: (typeof habits)[0]; count: number } | null = null;
-        habits.forEach(h => {
-            const count = completionCounts.get(h.id) || 0;
-            if (!best || count > best.count) best = { habit: h, count };
-        });
-        if (!best || (best as { habit: (typeof habits)[0]; count: number }).count === 0) return '';
-        const b = best as { habit: (typeof habits)[0]; count: number };
-        return `**${b.habit.icon} ${b.habit.name}** — 🔥 ${b.count}/7 days this week`;
     }
 
     private createSection(parent: HTMLElement, id: string, emoji: string, label: string): { section: HTMLElement; body: HTMLElement; toggle: HTMLElement } {
@@ -209,24 +181,6 @@ export class ReviewTab extends BaseTab {
             focusInputs.push(inp);
         }
 
-        // Habit Highlight section (read-only)
-        const { body: habitBody } = this.createSection(rightCol, 'habit-highlight', '💡', 'HABIT HIGHLIGHT');
-        const highlightText = this.getHabitHighlightText();
-        if (highlightText) {
-            const hlCard = habitBody.createEl('div', { cls: 'diwa-review-habit-highlight' });
-            const habits = (this.settings.habits || []).filter(h => !h.archived);
-            const found = habits.find(h => highlightText.includes(h.name));
-            hlCard.createEl('span', { cls: 'diwa-review-habit-highlight-emoji', text: found?.icon || '💡' });
-            const hlInfo = hlCard.createEl('div', { cls: 'diwa-review-habit-highlight-info' });
-            hlInfo.createEl('div', { cls: 'diwa-review-habit-name', text: found?.name || 'Top Habit' });
-            hlInfo.createEl('div', { cls: 'diwa-review-habit-streak', text: highlightText.split('—')[1]?.trim() || '' });
-        } else {
-            habitBody.createEl('div', {
-                cls: 'diwa-review-habit-highlight--empty',
-                text: 'No habit data yet — complete habits to see highlights'
-            });
-        }
-
         // ── Next Week Plan Section ──────────────────────────────────
         this._renderWeekPlanSection(wrap, dayPlans, markDirty, () => ({ wins, lessons, focus }));
 
@@ -241,7 +195,7 @@ export class ReviewTab extends BaseTab {
             saveBtn.textContent = 'Saving…';
             saveBtn.disabled = true;
             try {
-                await this.vault.saveWeeklyReview(weekId, dateRange, wins, lessons, focus, highlightText, this.view.weeklyAiReport ?? undefined, dayPlans);
+                await this.vault.saveWeeklyReview(weekId, dateRange, wins, lessons, focus, this.view.weeklyAiReport ?? undefined, dayPlans);
                 isDirty = false;
                 dirtyDot.style.display = 'none';
                 saveBtn.textContent = '✓  Saved';
@@ -711,21 +665,6 @@ export class ReviewTab extends BaseTab {
             .map(t => t.title || t.body.split('\n')[0])
             .slice(0, 8);
 
-        const habits = (this.settings.habits || []).filter(h => !h.archived);
-        const habitsFolder = (this.settings.habitsFolder || '000 Bin/DIWA Habits').replace(/\\/g, '/');
-        const habitCounts: Map<string, number> = new Map();
-        habits.forEach(h => habitCounts.set(h.id, 0));
-        for (let d = 0; d < 7; d++) {
-            const dateStr = moment(weekStart).add(d, 'days').format('YYYY-MM-DD');
-            const file = this.app.vault.getAbstractFileByPath(`${habitsFolder}/${dateStr}.md`);
-            if (!(file instanceof TFile)) continue;
-            const cache = this.app.metadataCache.getFileCache(file);
-            const done: string[] = Array.isArray(cache?.frontmatter?.['completed'])
-                ? cache!.frontmatter!['completed'].map(String) : [];
-            done.forEach(id => { if (habitCounts.has(id)) habitCounts.set(id, (habitCounts.get(id) || 0) + 1); });
-        }
-        const habitData = habits.map(h => ({ name: h.name, icon: h.icon, count: habitCounts.get(h.id) || 0 }));
-
         const activeProjects = Array.from(this.index.projectIndex.values())
             .filter(p => p.status !== 'archived' && p.status !== 'completed')
             .map(p => `${p.name} (${p.status})${p.goal ? ': ' + p.goal : ''}`)
@@ -746,7 +685,6 @@ export class ReviewTab extends BaseTab {
             wins,
             lessons,
             focus,
-            habitData,
             completedTasks,
             overdueTasks,
             activeProjects,
@@ -877,7 +815,6 @@ export class ReviewTab extends BaseTab {
             glanceBody.empty();
             const data = this.computeGlanceData(weekId);
             this.renderGlanceTasks(glanceBody, data.tasks);
-            this.renderGlanceHabits(glanceBody, data.habits);
             this.renderGlanceProjects(glanceBody, data.projects);
             this.renderGlanceFinance(glanceBody, data.finance);
         };
@@ -908,22 +845,6 @@ export class ReviewTab extends BaseTab {
             return moment(t.due, 'YYYY-MM-DD').isBefore(today, 'day');
         });
 
-        // Habits
-        const habits = (this.settings.habits || []).filter(h => !h.archived);
-        const habitsFolder = (this.settings.habitsFolder || '000 Bin/DIWA Habits').replace(/\\/g, '/');
-        const counts: Map<string, number> = new Map();
-        habits.forEach(h => counts.set(h.id, 0));
-        for (let d = 0; d < 7; d++) {
-            const dateStr = moment(weekStart).add(d, 'days').format('YYYY-MM-DD');
-            const file = this.app.vault.getAbstractFileByPath(`${habitsFolder}/${dateStr}.md`);
-            if (!(file instanceof TFile)) continue;
-            const cache = this.app.metadataCache.getFileCache(file);
-            const done: string[] = Array.isArray(cache?.frontmatter?.['completed'])
-                ? cache!.frontmatter!['completed'].map(String) : [];
-            done.forEach(id => { if (counts.has(id)) counts.set(id, (counts.get(id) || 0) + 1); });
-        }
-        const habitsData = habits.map(h => ({ habit: h, count: counts.get(h.id) || 0 }));
-
         // Projects active this week
         const projects = Array.from(this.index.projectIndex.values()).filter(p => {
             if (p.status === 'archived') return false;
@@ -946,7 +867,7 @@ export class ReviewTab extends BaseTab {
             return moment(d.dueMoment).isBefore(today, 'day');
         });
 
-        return { tasks: { completed, overdue }, habits: habitsData, projects, finance: { paid: finPaid, overdue: finOverdue } };
+        return { tasks: { completed, overdue }, projects, finance: { paid: finPaid, overdue: finOverdue } };
     }
 
     private renderGlanceTasks(parent: HTMLElement, tasks: { completed: TaskEntry[]; overdue: TaskEntry[] }): void {
@@ -967,24 +888,6 @@ export class ReviewTab extends BaseTab {
         if (tasks.completed.length === 0 && tasks.overdue.length === 0) {
             list.createEl('li', { cls: 'diwa-glance-item diwa-glance-item--empty', text: 'No task activity this week' });
         }
-    }
-
-    private renderGlanceHabits(parent: HTMLElement, habits: { habit: { id: string; name: string; icon: string }; count: number }[]): void {
-        if (habits.length === 0) return;
-        const card = parent.createEl('div', { cls: 'diwa-glance-card' });
-        const hdr = card.createEl('div', { cls: 'diwa-glance-card__header' });
-        hdr.createEl('span', { cls: 'diwa-glance-card__icon', text: '🔁' });
-        hdr.createEl('span', { cls: 'diwa-glance-card__title', text: 'HABITS' });
-
-        habits.forEach(({ habit, count }) => {
-            const row = card.createEl('div', { cls: 'diwa-glance-habit-row' });
-            row.createEl('span', { cls: 'diwa-glance-habit-icon', text: habit.icon });
-            row.createEl('span', { cls: 'diwa-glance-habit-name', text: habit.name });
-            const barWrap = row.createEl('div', { cls: 'diwa-glance-habit-bar' });
-            const fill = barWrap.createEl('div', { cls: 'diwa-glance-habit-fill' });
-            fill.style.width = `${Math.round((count / 7) * 100)}%`;
-            row.createEl('span', { cls: 'diwa-glance-habit-count', text: `${count}/7` });
-        });
     }
 
     private renderGlanceProjects(parent: HTMLElement, projects: ProjectEntry[]): void {
@@ -1022,6 +925,5 @@ export class ReviewTab extends BaseTab {
         });
     }
 }
-
 
 

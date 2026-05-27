@@ -112,7 +112,6 @@ export class ExportTab extends BaseTab {
                 tasks: Array.from(this.index.taskIndex.values()),
                 projects: Array.from(this.index.projectIndex.values()),
                 settings: {
-                    habits: safeSettings.habits,
                     contexts: safeSettings.contexts,
                     weeklyGoals: safeSettings.weeklyGoals,
                     monthlyGoals: safeSettings.monthlyGoals,

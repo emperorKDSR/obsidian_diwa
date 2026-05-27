@@ -7,7 +7,7 @@ import { VIEW_TYPE_SEARCH, VIEW_TYPE_DIWA, SEARCH_SCOPES, SEARCH_TYPE_ICONS, SEA
 import type { SearchMatches } from 'obsidian';
 
 interface RichResult {
-    type: 'thought' | 'task' | 'due' | 'project' | 'habit';
+    type: 'thought' | 'task' | 'due' | 'project';
     title: string;
     titleMatches: SearchMatches | null;
     body: string;
@@ -159,7 +159,7 @@ export class SearchView extends ItemView {
         const simple = prepareSimpleSearch(query);
 
         const allCandidates: RichResult[] = [];
-        const counts: Record<string, number> = { all: 0, thought: 0, task: 0, due: 0, project: 0, habit: 0 };
+        const counts: Record<string, number> = { all: 0, thought: 0, task: 0, due: 0, project: 0 };
 
         // Thoughts
         this.plugin.index.thoughtIndex.forEach(t => {
@@ -224,23 +224,7 @@ export class SearchView extends ItemView {
             });
         });
 
-        // Habits
-        (this.plugin.settings.habits || []).forEach((h: any) => {
-            const tR = fuzzy(h.name);
-            if (!tR) return;
-            counts.habit++;
-            const done = this.plugin.index.habitStatusIndex.includes(h.id);
-            allCandidates.push({
-                type: 'habit', title: `${h.icon ?? ''} ${h.name}`.trim(),
-                titleMatches: tR.matches,
-                body: '', bodyMatches: null,
-                score: tR.score * 2,
-                meta: done ? '✓ Done today' : '',
-                filePath: undefined, tabId: 'habits', id: h.id,
-            });
-        });
-
-        counts.all = counts.thought + counts.task + counts.due + counts.project + counts.habit;
+        counts.all = counts.thought + counts.task + counts.due + counts.project;
 
         // Sort by score desc
         allCandidates.sort((a, b) => b.score - a.score);
@@ -341,7 +325,7 @@ export class SearchView extends ItemView {
                 return;
             }
         }
-        // Fallback: navigate MINA view tab (habits + unresolved paths)
+        // Fallback: navigate DIWA view tab when the result is a tab route
         const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DIWA);
         if (leaves.length > 0) {
             const view = leaves[0].view as any;

@@ -411,13 +411,7 @@ export class DesktopHubView extends ItemView {
                     { label: 'Calendar', icon: 'lucide-calendar', tab: 'calendar' },
                     { label: 'Review', icon: REVIEW_ICON_ID, tab: 'review' },
                     { label: 'Compass', icon: COMPASS_ICON_ID, tab: 'compass' },
-                ],
-            },
-            {
-                title: 'Track',
-                items: [
                     { label: 'Voice', icon: 'lucide-mic', tab: 'voice-note' },
-                    { label: 'Habits', icon: 'lucide-flame', tab: 'habits' },
                 ],
             },
             {

@@ -4,7 +4,7 @@ import { isTablet } from '../utils';
 import { VIEW_TYPE_DIWA, SEARCH_SCOPES, SEARCH_TYPE_ICONS, SEARCH_QUICKJUMP_TABS } from '../constants';
 
 interface SearchResult {
-    type: 'thought' | 'task' | 'due' | 'project' | 'habit';
+    type: 'thought' | 'task' | 'due' | 'project';
     title: string;
     preview: string;
     meta: string;
@@ -265,7 +265,7 @@ export class SearchModal extends Modal {
     private performSearch(query: string) {
         const index = this.plugin.index;
         const results: SearchResult[] = [];
-        const counts: Record<string, number> = { all: 0, thought: 0, task: 0, due: 0, project: 0, habit: 0 };
+        const counts: Record<string, number> = { all: 0, thought: 0, task: 0, due: 0, project: 0 };
 
         // Search thoughts
         if (this.activeScope === SCOPE_ALL || this.activeScope === 'thought') {
@@ -327,24 +327,7 @@ export class SearchModal extends Modal {
             });
         }
 
-        // Search habits
-        if (this.activeScope === SCOPE_ALL || this.activeScope === 'habit') {
-            const habits = this.plugin.settings.habits || [];
-            habits.forEach(h => {
-                if (h.name.toLowerCase().includes(query)) {
-                    counts.habit++;
-                    if (results.filter(r => r.type === 'habit').length < 5) {
-                        const done = index.habitStatusIndex.includes(h.id);
-                        results.push({
-                            type: 'habit', title: `${h.icon} ${h.name}`, preview: done ? '✓ Done today' : 'Not yet',
-                            meta: '', tabId: 'habits', id: h.id
-                        });
-                    }
-                }
-            });
-        }
-
-        counts.all = counts.thought + counts.task + counts.due + counts.project + counts.habit;
+        counts.all = counts.thought + counts.task + counts.due + counts.project;
         this.allResults = results;
 
         // Update scope counts
@@ -481,4 +464,3 @@ export class SearchModal extends Modal {
         return dateStr.split(' ')[0];
     }
 }
-

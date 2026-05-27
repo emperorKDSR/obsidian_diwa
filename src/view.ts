@@ -55,7 +55,6 @@ export class DiwaView extends ItemView {
     tasksDetailPath: string | null = null;
     tasksSecondaryMode: 'inbox' | 'overdue' | 'done' | null = null;
     _taskTogglePending: number = 0;       // > 0 = suppress vault-event re-renders
-    _habitTogglePending: number = 0;      // > 0 = suppress vault-event re-renders (CommandCenter habits)
     _checklistTogglePending: number = 0;  // > 0 = suppress vault-event re-renders
     _capturePending: number = 0;          // > 0 = capture bar is expanded; suppress re-renders
     checklistOrder: string[] = [];        // persisted drag-reorder keys: "filePath:lineIndex"
@@ -117,7 +116,6 @@ export class DiwaView extends ItemView {
             case 'review': return "Weekly Review";
             case 'monthly-review': return "Monthly Review";
             case 'voice-note': return "Voice Notes";
-            case 'habits': return "Habits";
             case 'settings': return "Settings";
             case 'timeline': return "Timeline";
             case 'journal': return "Journal";
@@ -153,7 +151,7 @@ export class DiwaView extends ItemView {
     async setState(state: DiwaViewState, result: ViewStateResult): Promise<void> {
         if (state?.activeTab) {
             // Migrate removed tab to home
-            this.activeTab = state.activeTab === 'daily-workspace' ? 'home' : state.activeTab;
+            this.activeTab = ['daily-workspace', 'habits'].includes(state.activeTab) ? 'home' : state.activeTab;
         }
         if (state?.isDedicated !== undefined) this.isDedicated = state.isDedicated;
         await super.setState(state, result);
@@ -237,7 +235,6 @@ export class DiwaView extends ItemView {
         else if (tab === 'review') instantiate(import('./tabs/ReviewTab'), 'ReviewTab');
         else if (tab === 'monthly-review') instantiate(import('./tabs/MonthlyReviewTab'), 'MonthlyReviewTab');
         else if (tab === 'voice-note') instantiate(import('./tabs/VoiceTab'), 'VoiceTab');
-        else if (tab === 'habits') instantiate(import('./tabs/HabitsTab'), 'HabitsTab');
         else if (tab === 'settings') instantiate(import('./tabs/SettingsTab'), 'SettingsTab');
         else if (tab === 'timeline') instantiate(import('./tabs/TimelineTab'), 'TimelineTab');
         else if (tab === 'journal') instantiate(import('./tabs/JournalTab'), 'JournalTab');

@@ -161,7 +161,6 @@ export class IndexService {
         this._thoughtDoneChecklistMap.forEach(items => result.push(...items));
         return result;
     }
-    habitStatusIndex: string[] = [];
     projectIndex: Map<string, ProjectEntry> = new Map();
     
     // Performance Cache (Synchronous Access)
@@ -215,7 +214,6 @@ export class IndexService {
             this.buildTaskIndex(),
             this.buildDueIndex(),
             this.buildChecklistIndex(),
-            this.refreshHabitIndex(),
             this.buildProjectIndex()
         ]);
         this.rebuildCalculatedState();
@@ -257,32 +255,6 @@ export class IndexService {
                     });
                 }
             });
-        }
-    }
-
-    async refreshHabitIndex(): Promise<void> {
-        const todayStr = moment().format('YYYY-MM-DD');
-        const habitsFolder = (this.settings.habitsFolder || '000 Bin/DIWA Habits').replace(/\\/g, '/');
-        const path = `${habitsFolder}/${todayStr}.md`;
-        const file = this.app.vault.getAbstractFileByPath(path);
-        this.habitStatusIndex = [];
-        if (file instanceof TFile) {
-            // Primary: use metadataCache (fast, no file read)
-            const cache = this.app.metadataCache.getFileCache(file);
-            const completed = cache?.frontmatter?.['completed'];
-            if (Array.isArray(completed)) {
-                this.habitStatusIndex = completed.map(String);
-            } else {
-                // Fallback: parse the completed: [...] line directly (covers cache lag)
-                const content = await this.app.vault.read(file);
-                const match = content.match(/^completed:\s*\[([^\]]*)\]/m);
-                if (match) {
-                    this.habitStatusIndex = match[1]
-                        .split(',')
-                        .map(s => s.trim().replace(/['"]/g, ''))
-                        .filter(Boolean);
-                }
-            }
         }
     }
 

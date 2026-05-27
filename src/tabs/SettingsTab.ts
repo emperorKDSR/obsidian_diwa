@@ -2,7 +2,6 @@ import { moment, Platform, Notice, TFile } from 'obsidian';
 import type { DiwaView } from '../view';
 import { BaseTab } from "./BaseTab";
 import { FolderSettingsModal } from '../modals/FolderSettingsModal';
-import { HabitConfigModal } from '../modals/HabitConfigModal';
 
 export class SettingsTab extends BaseTab {
     constructor(view: DiwaView) { super(view); }
@@ -36,15 +35,6 @@ export class SettingsTab extends BaseTab {
         folderConfigBtn.createSpan({ text: 'Folder Config' });
         folderConfigBtn.addEventListener('click', () => {
             new FolderSettingsModal(this.view.plugin.app, this.view.plugin).open();
-        });
-
-        const habitConfigBtn = actionRow.createEl('button', {
-            cls: actionBtnStyle
-        });
-        habitConfigBtn.createSpan({ text: '✨' });
-        habitConfigBtn.createSpan({ text: 'Habit Config' });
-        habitConfigBtn.addEventListener('click', () => {
-            new HabitConfigModal(this.view.plugin.app, this.view.plugin).open();
         });
 
         const field = (label: string, desc: string, inputFn: (row: HTMLElement) => void) => {

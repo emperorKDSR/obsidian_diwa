@@ -101,17 +101,6 @@ export class FolderSettingsModal extends Modal {
                 }));
 
         new Setting(body)
-            .setName('Habits Folder')
-            .setDesc('Where daily habit completion files are stored.')
-            .addText(text => text
-                .setPlaceholder('000 Bin/DIWA Habits')
-                .setValue(this.plugin.settings.habitsFolder)
-                .onChange(async (value) => {
-                    this.plugin.settings.habitsFolder = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(body)
             .setName('Reviews Folder')
             .setDesc('Root folder for Weekly, Monthly, and Compass review files (sub-folders created automatically).')
             .addText(text => text
@@ -140,4 +129,3 @@ export class FolderSettingsModal extends Modal {
         this.contentEl.empty();
     }
 }
-

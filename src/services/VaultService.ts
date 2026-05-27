@@ -414,41 +414,6 @@ export class VaultService {
         }
     }
 
-    async getHabitStatus(date: string): Promise<string[]> {
-        const folder = this.settings.habitsFolder.trim() || '000 Bin/DIWA Habits';
-        const path = `${folder}/${date}.md`;
-        const file = this.app.vault.getAbstractFileByPath(path);
-        if (!(file instanceof TFile)) return [];
-        try {
-            const content = await this.app.vault.read(file);
-            const fmMatch = content.match(/^---\n([\s\S]*?)\n---\n/);
-            if (!fmMatch) return [];
-            const fmLines = fmMatch[1].split('\n');
-            const completedLine = fmLines.find(l => l.startsWith('completed:'));
-            if (!completedLine) return [];
-            const idsMatch = completedLine.match(/completed:\s*\[(.*)\]/);
-            return idsMatch ? idsMatch[1].split(',').map(id => id.trim().replace(/^['"]|['"]$/g, '')).filter(id => id) : [];
-        } catch { return []; }
-    }
-
-    async toggleHabit(date: string, habitId: string): Promise<void> {
-        const folder = (this.settings.habitsFolder.trim() || '000 Bin/DIWA Habits').replace(/\\/g, '/');
-        const path = `${folder}/${date}.md`;
-        let file = this.app.vault.getAbstractFileByPath(path) as TFile | null;
-        if (!(file instanceof TFile)) {
-            await this.ensureFolder(folder);
-            file = await this.app.vault.create(path, `---\ndate: ${date}\ncompleted: []\n---\n\n# Habits — ${date}\n`);
-        }
-        // Use processFrontMatter to surgically update only the completed array,
-        // preserving any notes or body content already written to this file.
-        await this.app.fileManager.processFrontMatter(file, (fm) => {
-            const current: string[] = Array.isArray(fm['completed']) ? fm['completed'].map(String) : [];
-            fm['completed'] = current.includes(habitId)
-                ? current.filter(id => id !== habitId)
-                : [...current, habitId];
-        });
-    }
-
     async markAsSynthesized(filePath: string): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) return;
@@ -547,7 +512,7 @@ export class VaultService {
     }
 
     /** Save a weekly review to {reviewsFolder}/Weekly/YYYY-Www.md */
-    async saveWeeklyReview(weekId: string, dateRange: string, wins: string, lessons: string, focus: string[], habitHighlight: string, aiReport?: string, dayPlans?: Record<string, string>): Promise<void> {
+    async saveWeeklyReview(weekId: string, dateRange: string, wins: string, lessons: string, focus: string[], aiReport?: string, dayPlans?: Record<string, string>): Promise<void> {
         const root = (this.settings.reviewsFolder || '000 Bin/DIWA Reviews').trim();
         const folder = `${root}/Weekly`;
         const path = `${folder}/${weekId}.md`;
@@ -562,7 +527,7 @@ export class VaultService {
                 .join('\n');
             dayPlanSection = `\n\n# 📅 Next Week Plan\n${lines}`;
         }
-        const content = `---\nweek: "${weekId}"\ndate_range: "${dateRange}"\nsaved: "${now}"\n---\n\n# 🏆 Wins\n${wins.trim()}\n\n# 📚 Lessons\n${lessons.trim()}\n\n# 🎯 Focus\n${focusLines}\n\n# 💡 Habit Highlight\n${habitHighlight}${dayPlanSection}${aiSection}\n`;
+        const content = `---\nweek: "${weekId}"\ndate_range: "${dateRange}"\nsaved: "${now}"\n---\n\n# 🏆 Wins\n${wins.trim()}\n\n# 📚 Lessons\n${lessons.trim()}\n\n# 🎯 Focus\n${focusLines}${dayPlanSection}${aiSection}\n`;
         try {
             await this.ensureFolder(folder);
             const existing = this.app.vault.getAbstractFileByPath(path);

@@ -136,7 +136,6 @@ export const SEARCH_SCOPES = [
     { id: 'task',    label: 'Gawa' },
     { id: 'due',     label: 'Bulsa' },
     { id: 'project', label: 'Projects' },
-    { id: 'habit',   label: 'Habits' },
 ] as const;
 
 export const SEARCH_TYPE_ICONS: Record<string, string> = {
@@ -144,7 +143,6 @@ export const SEARCH_TYPE_ICONS: Record<string, string> = {
     task:    'lucide-check-square-2',
     due:     'lucide-wallet',
     project: 'lucide-folder-kanban',
-    habit:   'lucide-flame',
 };
 
 export const SEARCH_QUICKJUMP_TABS = [
@@ -152,7 +150,6 @@ export const SEARCH_QUICKJUMP_TABS = [
     { id: 'review-gawa',  label: 'Gawa',     icon: 'lucide-check-square-2' },
     { id: 'dues',         label: 'Bulsa',    icon: 'lucide-wallet' },
     { id: 'projects',     label: 'Projects', icon: 'lucide-folder-kanban' },
-    { id: 'habits',       label: 'Habits',   icon: 'lucide-flame' },
     { id: 'journal',      label: 'Journal',  icon: 'lucide-book-open' },
 ];
 
@@ -193,8 +190,6 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
     isCompactView: false,
     customModes: [],
     customModeOrders: {},
-    habitsFolder: '000 Bin/DIWA Habits',
-    habits: [],
     weeklyGoals: [],
     monthlyGoals: [],
     monthlyIncome: 0,
@@ -204,7 +199,6 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
     attachmentsFolder: '000 Bin/DIWA Attachments',
     projectsFolder: 'Projects',
     reviewsFolder: '000 Bin/DIWA Reviews',
-    reminderHabitsEnabled: true,
     reminderTasksEnabled: true,
     mobileBottomBarHeight: 56,
     peopleFolder: '000 Bin/DIWA People',

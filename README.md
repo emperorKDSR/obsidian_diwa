@@ -1,6 +1,6 @@
 # DIWA — Personal OS for Obsidian
 
-**DIWA** is a professional-grade Personal Operating System plugin for [Obsidian](https://obsidian.md). It transforms your vault into a unified hub for thoughts, tasks, habits, projects, finance, and AI-powered synthesis — across mobile, tablet, and desktop.
+**DIWA** is a professional-grade Personal Operating System plugin for [Obsidian](https://obsidian.md). It transforms your vault into a unified hub for thoughts, tasks, projects, finance, and AI-powered synthesis — across mobile, tablet, and desktop.
 
 Current release: **v3.0.0** · See [CHANGELOG.md](./CHANGELOG.md) for full history.
 
@@ -12,7 +12,7 @@ Current release: **v3.0.0** · See [CHANGELOG.md](./CHANGELOG.md) for full histo
 A dedicated popout window (`VIEW_TYPE_DESKTOP_HUB`) for desktop users only. Renders a premium 3-column cockpit:
 - **LEFT**: Icon-only nav sidebar that hover-expands to 180 px with group labels
 - **CENTER**: Thought capture textarea + live Today's Feed (newest-first)
-- **RIGHT**: 5-stat reactive grid (Open Gawa, Overdue, Unsynth Thoughts, Total Dues, Habits ratio) + AI Intelligence briefing
+- **RIGHT**: 5-stat reactive grid covering key task, thought, dues, and project signals + AI Intelligence briefing
 - Opens in Focus Mode by default so the capture pane starts distraction-free
 
 Opens via the ribbon icon or `DIWA: Open Desktop Hub` command. Mobile shows a notice instead.
@@ -60,7 +60,7 @@ Professional **Financial Ledger** reading from YAML-fronted markdown files in th
 
 ### 🧭 Weekly Review & Compass
 Multi-layered reflection system:
-- **Weekly Review**: AI-generated weekly brief (5 sections: Assessment, Top Win, Key Insight, Next Week Priority, North Star Pulse), habit completion matrix, task completion/overdue counts, manual wins/lessons fields
+- **Weekly Review**: AI-generated weekly brief (5 sections: Assessment, Top Win, Key Insight, Next Week Priority, North Star Pulse), task completion/overdue counts, project and finance glance cards, manual wins/lessons fields
 - **Weekly Plan**: AI-generated day-by-day task distribution for the next week
 - **Monthly Review**: Monthly retrospective with goals tracking
 - **Compass**: Quarterly North Star Goals for long-term direction
@@ -78,7 +78,7 @@ Full chat interface powered by Gemini (configurable model). Features:
 Record audio directly in the vault with one tap. Auto-transcription via Gemini with configurable target language. Transcripts routed to the standard capture flow.
 
 ### 🔍 Global Search
-Spotlight-style cross-domain search across all DIWA data types (Thoughts, Gawa, Dues, Projects, Habits). Keyboard-navigable, zero-latency (reads from in-memory indices). Hotkey: `Mod+Shift+F`.
+Spotlight-style cross-domain search across all DIWA data types (Thoughts, Gawa, Dues, Projects). Keyboard-navigable, zero-latency (reads from in-memory indices). Hotkey: `Mod+Shift+F`.
 
 ### 📅 Daily Workspace
 Configurable daily dashboard surfaced from the hub. Toggleable sections:
@@ -91,9 +91,6 @@ Configurable daily dashboard surfaced from the hub. Toggleable sections:
 
 ### 📁 Projects
 Full project lifecycle management. Each project is a YAML-fronted markdown file with fields: `id`, `name`, `status`, `goal`, `due`, `created`, `color`. Supports milestones and linked thought threads. Project filter available in Timeline and Gawa.
-
-### 🌿 Habits
-Daily habit tracker backed by date-keyed YAML files. Configurable habit list with icons. Hourly reminders (quiet hours: 8 AM – 10 PM). Habit completion history feeds into the Weekly Review.
 
 ### 📓 Journal
 Filtered thought feed surfacing entries tagged with journal-specific keywords.
@@ -203,7 +200,6 @@ Copy `main.js`, `manifest.json`, and `styles.css` to your vault's plugin folder:
 | `thoughtsFolder` | `string` | `000 Bin/DIWA` | Folder for thought files |
 | `tasksFolder` | `string` | `000 Bin/DIWA Gawa` | Folder for gawa files |
 | `pfFolder` | `string` | `000 Bin/DIWA PF` | Folder for finance/dues files |
-| `habitsFolder` | `string` | `000 Bin/DIWA Habits` | Folder for daily habit logs |
 | `projectsFolder` | `string` | `Projects` | Folder for project files |
 | `reviewsFolder` | `string` | `000 Bin/DIWA Reviews` | Root folder for weekly/monthly/compass review files |
 | `voiceMemoFolder` | `string` | `000 Bin/DIWA Voice` | Folder for voice recording clips |
@@ -217,7 +213,6 @@ Copy `main.js`, `manifest.json`, and `styles.css` to your vault's plugin folder:
 | `contexts` | `string[]` | `[]` | All registered context tags |
 | `hiddenContexts` | `string[]` | `[]` | Contexts hidden from the Synthesis panel |
 | `monthlyIncome` | `number` | `0` | Used for the Finance cashflow dashboard |
-| `reminderHabitsEnabled` | `boolean` | `true` | Hourly habit reminders |
 | `reminderTasksEnabled` | `boolean` | `true` | Hourly task-due reminders |
 
 ---
@@ -226,7 +221,7 @@ Copy `main.js`, `manifest.json`, and `styles.css` to your vault's plugin folder:
 
 | Tab | File | Description |
 |-----|------|-------------|
-| Hub Home | `view.ts` / `home` | Primary hub surface — capture, habits, navigation |
+| Hub Home | `view.ts` / `home` | Primary hub surface — capture, workspace, navigation |
 | Gawa | `GawaTab.ts` | Tactical Gawa Ledger with status filters |
 | Timeline | `TimelineTab.ts` | Infinite-scroll thought feed |
 | Synthesis | `SynthesisTab.ts` | Zero-Inbox context-routing workspace |
@@ -235,9 +230,8 @@ Copy `main.js`, `manifest.json`, and `styles.css` to your vault's plugin folder:
 | Finance | `DuesTab.ts` | Financial dues ledger |
 | Finance Analytics | `FinanceAnalyticsTab.ts` | Cashflow and burn-rate dashboard |
 | Projects | `ProjectsTab.ts` | Project lifecycle management |
-| Habits | `HabitsTab.ts` | Daily habit tracker |
 | Journal | `JournalTab.ts` | Keyword-filtered journal feed |
-| Weekly Review | `ReviewTab.ts` | AI weekly brief + habit matrix |
+| Weekly Review | `ReviewTab.ts` | AI weekly brief + task/project/finance glance |
 | Monthly Review | `MonthlyReviewTab.ts` | Monthly retrospective |
 | Compass | `CompassTab.ts` | North Star goals (quarterly) |
 | Calendar | `CalendarTab.ts` | Month/week calendar view |

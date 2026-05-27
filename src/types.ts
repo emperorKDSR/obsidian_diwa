@@ -83,8 +83,6 @@ export interface DiwaSettings {
     isCompactView: boolean;
     customModes: CustomMode[];
     customModeOrders: Record<string, string[]>;
-    habitsFolder: string;
-    habits: Habit[];
     weeklyGoals: string[];
     monthlyGoals: string[];
     monthlyIncome: number;
@@ -94,7 +92,6 @@ export interface DiwaSettings {
     attachmentsFolder: string;
     projectsFolder: string;
     reviewsFolder: string;
-    reminderHabitsEnabled: boolean;
     reminderTasksEnabled: boolean;
     mobileBottomBarHeight: number;
     legacyMigrated?: boolean;
@@ -109,13 +106,6 @@ export interface Milestone {
     title: string;
     done: boolean;
     dueDate?: string;
-}
-
-export interface Habit {
-    id: string;
-    name: string;
-    icon: string; // e.g. "💧", "🧘"
-    archived?: boolean;
 }
 
 export interface CustomMode {
@@ -251,7 +241,6 @@ export interface WeeklyReportContext {
     wins: string;
     lessons: string;
     focus: string[];
-    habitData: { name: string; icon: string; count: number }[];
     completedTasks: string[];
     overdueTasks: string[];
     activeProjects: string[];

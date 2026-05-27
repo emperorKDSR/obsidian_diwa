@@ -1,4 +1,4 @@
-import { moment, setIcon, TFile, Notice } from 'obsidian';
+import { moment, setIcon, Notice } from 'obsidian';
 import type { DiwaView } from '../view';
 import { BaseTab } from './BaseTab';
 import type { TaskEntry } from '../types';
@@ -13,11 +13,10 @@ export class CalendarTab extends BaseTab {
 
     render(container: HTMLElement) {
         container.empty();
-        const habitMap = this._buildHabitMap();
         const wrap = container.createEl('div', { cls: 'diwa-cal-wrap' });
         this._renderHeader(wrap, () => this.render(container));
-        this._renderGrid(wrap, habitMap, () => this.render(container));
-        this._renderDetail(wrap, habitMap, container);
+        this._renderGrid(wrap, () => this.render(container));
+        this._renderDetail(wrap, container);
 
         // Pre-load day plans for week view intention chips (async, one-shot)
         if (this.view.calendarViewMode === 'week') {
@@ -37,24 +36,6 @@ export class CalendarTab extends BaseTab {
             start: vm.clone().startOf('month').startOf('isoWeek'),
             end: vm.clone().endOf('month').endOf('isoWeek'),
         };
-    }
-
-    private _buildHabitMap(): Map<string, Set<string>> {
-        const map = new Map<string, Set<string>>();
-        const folder = (this.settings.habitsFolder || '000 Bin/DIWA Habits').replace(/\\/g, '/');
-        const { start, end } = this._getDisplayRange();
-        const cur = start.clone();
-        while (cur.isSameOrBefore(end, 'day')) {
-            const d = cur.format('YYYY-MM-DD');
-            const file = this.app.vault.getAbstractFileByPath(`${folder}/${d}.md`);
-            if (file instanceof TFile) {
-                const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
-                const completed: string[] = Array.isArray(fm?.['completed']) ? fm!['completed'].map(String) : [];
-                if (completed.length) map.set(d, new Set(completed));
-            }
-            cur.add(1, 'day');
-        }
-        return map;
     }
 
     private _renderHeader(parent: HTMLElement, onRefresh: () => void) {
@@ -117,7 +98,7 @@ export class CalendarTab extends BaseTab {
         });
     }
 
-    private _renderGrid(parent: HTMLElement, habitMap: Map<string, Set<string>>, onRefresh: () => void) {
+    private _renderGrid(parent: HTMLElement, onRefresh: () => void) {
         const gridWrap = parent.createEl('div', { cls: 'diwa-cal-grid-wrap' });
 
         const dayLabels = gridWrap.createEl('div', { cls: 'diwa-cal-weekdays' });
@@ -148,8 +129,6 @@ export class CalendarTab extends BaseTab {
         const today = moment().format('YYYY-MM-DD');
         const { start, end } = this._getDisplayRange();
         const viewMonth = this.view.calendarViewMonth;
-        const habits = (this.settings.habits || []).filter(h => !h.archived);
-
         const cur = start.clone();
         while (cur.isSameOrBefore(end, 'day')) {
             const dateStr = cur.format('YYYY-MM-DD');
@@ -171,8 +150,6 @@ export class CalendarTab extends BaseTab {
             const dayTasks = tasksByDate.get(dateStr) || [];
             const openTasks = dayTasks.filter(t => t.status !== 'done');
             const dueCount = dueCountByDate.get(dateStr) || 0;
-            const habitCount = habitMap.get(dateStr)?.size || 0;
-
             if (openTasks.length > 0) {
                 const dot = dots.createEl('span', { cls: 'diwa-cal-dot diwa-cal-dot--task' });
                 if (openTasks.length > 1) dot.createEl('sup', { text: String(openTasks.length) });
@@ -180,14 +157,6 @@ export class CalendarTab extends BaseTab {
             if (dueCount > 0) {
                 const dot = dots.createEl('span', { cls: 'diwa-cal-dot diwa-cal-dot--due' });
                 if (dueCount > 1) dot.createEl('sup', { text: String(dueCount) });
-            }
-            if (habitCount > 0 && habits.length > 0) {
-                const pct = Math.round((habitCount / habits.length) * 100);
-                const dot = dots.createEl('span', {
-                    cls: `diwa-cal-dot diwa-cal-dot--habit${pct === 100 ? ' is-full' : ''}`,
-                    attr: { title: `${habitCount}/${habits.length} habits` }
-                });
-                if (pct < 100) dot.createEl('sup', { text: `${habitCount}` });
             }
 
             // Intention chip from week planner (week view only)
@@ -214,7 +183,7 @@ export class CalendarTab extends BaseTab {
         }
     }
 
-    private _renderDetail(parent: HTMLElement, habitMap: Map<string, Set<string>>, renderContainer: HTMLElement) {
+    private _renderDetail(parent: HTMLElement, renderContainer: HTMLElement) {
         const dateStr = this.view.calendarSelectedDate;
         const detail = parent.createEl('div', { cls: 'diwa-cal-detail' });
 
@@ -300,23 +269,8 @@ export class CalendarTab extends BaseTab {
             });
         }
 
-        const habits = (this.settings.habits || []).filter(h => !h.archived);
-        if (habits.length > 0) {
-            const completed = habitMap.get(dateStr) || new Set<string>();
-            detail.createEl('div', { cls: 'diwa-cal-detail-section-title', text: `Habits · ${completed.size}/${habits.length}` });
-            const list = detail.createEl('div', { cls: 'diwa-cal-detail-list diwa-cal-detail-list--habits' });
-            habits.forEach(h => {
-                const done = completed.has(h.id);
-                const item = list.createEl('div', { cls: `diwa-cal-detail-item diwa-cal-detail-item--habit${done ? ' is-done' : ''}` });
-                item.createEl('span', { cls: 'diwa-cal-detail-habit-icon', text: h.icon });
-                item.createEl('span', { cls: 'diwa-cal-detail-item-title', text: h.name });
-                const icon = item.createEl('span', { cls: 'diwa-cal-detail-item-icon diwa-cal-detail-item-icon--right' });
-                setIcon(icon, done ? 'check-circle-2' : 'circle');
-            });
-        }
-
-        if (tasks.length === 0 && dues.length === 0 && habits.length === 0) {
-            this.renderEmptyState(detail, 'No dues or habits — tap + above to plan a task.');
+        if (tasks.length === 0 && dues.length === 0) {
+            this.renderEmptyState(detail, 'No dues — tap + above to plan a task.');
         }
     }
 
@@ -343,4 +297,3 @@ export class CalendarTab extends BaseTab {
         } catch { /* no review for this week */ }
     }
 }
-

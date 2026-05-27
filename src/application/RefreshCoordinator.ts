@@ -43,15 +43,13 @@ export class RefreshCoordinator {
         if (now - last < 300) return;
         this._reindexCooldown.set(file.path, now);
 
-        const habitsFolder = (this.settings.habitsFolder || '000 Bin/DIWA Habits').replace(/\\/g, '/');
         const capPath = `${this.settings.captureFolder.trim() || '000 Bin/DIWA'}/${this.settings.captureFilePath.trim() || 'Daily Capture.md'}`;
 
         if (this.index.isThoughtFile(file.path)) await this.index.indexThoughtFile(file);
         else if (this.index.isTaskFile(file.path)) await this.index.indexTaskFile(file);
         else if (this.index.isDueFile(file.path)) await this.index.buildDueIndex();
 
-        if (file.path.startsWith(habitsFolder)) await this.index.refreshHabitIndex();
-        else if (file.path === capPath) await this.index.buildChecklistIndex();
+        if (file.path === capPath) await this.index.buildChecklistIndex();
     }
 
     notifyRefresh(scope: RefreshScope = 'all'): void {
@@ -71,7 +69,7 @@ export class RefreshCoordinator {
                 const view = leaf.view as DiwaView;
                 if (view && typeof view.renderView === 'function') {
                     // Don't re-render while the user is mid-toggle — let optimistic UI stand
-                    if (view._taskTogglePending > 0 || view._habitTogglePending > 0 || view._checklistTogglePending > 0 || view._capturePending > 0 || view._synthesisCaptPending > 0 || view._mergePending > 0) continue;
+                    if (view._taskTogglePending > 0 || view._checklistTogglePending > 0 || view._capturePending > 0 || view._synthesisCaptPending > 0 || view._mergePending > 0) continue;
                     // For task-only updates use incremental refresh to avoid full DOM rebuild
                     if (scope === 'tasks' && typeof (view as any).refreshTasks === 'function') {
                         (view as any).refreshTasks();

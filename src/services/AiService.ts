@@ -305,7 +305,6 @@ WEEKLY GOALS:
 ${ctx.weeklyGoals.filter(Boolean).join('\n') || 'Not set'}
 <<SOURCE_END>>
 
-${safeBlock(`HABITS THIS WEEK`, ctx.habitData.map(h => `${h.icon} ${h.name}: ${h.count}/7 days`))}
 ${safeBlock(`TASKS COMPLETED (${ctx.completedTasks.length})`, ctx.completedTasks.slice(0, 12))}
 ${safeBlock(`TASKS OVERDUE (${ctx.overdueTasks.length})`, ctx.overdueTasks.slice(0, 5))}
 ${safeBlock(`ACTIVE PROJECTS`, ctx.activeProjects)}
