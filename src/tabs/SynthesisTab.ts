@@ -20,15 +20,12 @@ interface SynthesisCardBinding {
 }
 
 export class SynthesisTab extends BaseTab {
-    private renderToken = 0;
     private hostContainer: HTMLElement | null = null;
     private inlineMetaRefreshHoldUntil = 0;
 
     render(container: HTMLElement): void {
         this.hostContainer = container;
-        this.renderWorkspace(container).catch((error) => {
-            console.error('[DIWA SynthesisTab] Unhandled error in renderWorkspace', error);
-        });
+        this.renderWorkspace(container);
     }
 
     onunload(): void {
@@ -47,8 +44,7 @@ export class SynthesisTab extends BaseTab {
         // force full rerenders that can leave the loading state stuck onscreen.
     }
 
-    private async renderWorkspace(container: HTMLElement): Promise<void> {
-        const token = ++this.renderToken;
+    private renderWorkspace(container: HTMLElement): void {
         container.empty();
 
         const wrap = container.createEl('div', { cls: 'diwa-tab-wrap diwa-synth-workspace diwa-synth-workspace--redesign' });
@@ -60,18 +56,13 @@ export class SynthesisTab extends BaseTab {
         header.addClass('diwa-synth-page-header');
 
         const stage = wrap.createEl('div', { cls: 'diwa-synth-stage' });
-        this.renderLoadingState(stage);
-        await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-        if (token !== this.renderToken) return;
 
         try {
-            stage.empty();
-
             const thoughts = Array.from(this.index.thoughtIndex.values())
                 .sort((a, b) => (b.modified || '').localeCompare(a.modified || ''));
             const allContexts = this.collectAllContexts(thoughts);
             const allTopics = this.collectAllTopics(thoughts);
-            const globalTopicsForCards = this.index.getExistingTopics();
+            const globalTopicsForCards = Array.from(allTopics).sort((a, b) => a.localeCompare(b));
 
             this.renderSummaryGrid(
                 stage,
@@ -288,7 +279,7 @@ export class SynthesisTab extends BaseTab {
             const card = row.createEl('div', { cls: 'diwa-card diwa-synth-card' });
 
             let contexts = this.normalizeContexts(thought.context);
-            let topics = this.getThoughtTopics(thought);
+            let topics = this.getStoredThoughtTopics(thought);
             let archived = !!thought.synthesized;
 
             const binding: SynthesisCardBinding = {
@@ -483,26 +474,6 @@ export class SynthesisTab extends BaseTab {
         const field = parent.createEl('div', { cls: 'diwa-synth-field' });
         field.createEl('span', { text: label, cls: 'diwa-synth-field-label' });
         return field;
-    }
-
-    private renderLoadingState(parent: HTMLElement): void {
-        const loading = parent.createEl('div', { cls: 'diwa-synth-loading' });
-        const header = loading.createEl('div', { cls: 'diwa-synth-loading-header' });
-        this.populateEmptyStateIcon(header, 'sparkles');
-        header.createEl('strong', { text: 'Loading synthesis workspace', cls: 'diwa-synth-empty-title' });
-        header.createEl('span', {
-            text: 'Pulling indexed thoughts into the redesigned DIWA workspace view.',
-            cls: 'diwa-synth-empty-copy',
-        });
-
-        const skeletons = loading.createEl('div', { cls: 'diwa-synth-loading-grid' });
-        for (let i = 0; i < 2; i++) {
-            const card = skeletons.createEl('div', { cls: 'diwa-synth-loading-card' });
-            card.createEl('div', { cls: 'diwa-synth-skeleton diwa-synth-skeleton-title' });
-            card.createEl('div', { cls: 'diwa-synth-skeleton diwa-synth-skeleton-line' });
-            card.createEl('div', { cls: 'diwa-synth-skeleton diwa-synth-skeleton-line short' });
-            card.createEl('div', { cls: 'diwa-synth-skeleton diwa-synth-skeleton-tags' });
-        }
     }
 
     private renderEmptyStateCard(parent: HTMLElement, title: string, copy: string): void {
@@ -824,22 +795,11 @@ export class SynthesisTab extends BaseTab {
     private collectAllTopics(thoughts: ThoughtEntry[]): Set<string> {
         const topics = new Set<string>();
         for (const thought of thoughts) {
-            for (const topic of this.getThoughtTopics(thought)) {
+            for (const topic of this.getStoredThoughtTopics(thought)) {
                 topics.add(topic);
             }
         }
         return topics;
-    }
-
-    private getThoughtTopics(thought: ThoughtEntry): string[] {
-        const file = this.app.vault.getAbstractFileByPath(thought.filePath);
-        if (file instanceof TFile) {
-            const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
-            const raw = frontmatter?.topic;
-            if (Array.isArray(raw)) return raw.map((value) => String(value).trim()).filter(Boolean);
-            if (typeof raw === 'string' && raw.trim()) return [raw.trim()];
-        }
-        return this.getStoredThoughtTopics(thought);
     }
 
     private getStoredThoughtTopics(thought: { topic?: string | string[] | null }): string[] {
