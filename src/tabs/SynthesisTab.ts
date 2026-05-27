@@ -40,6 +40,11 @@ export class SynthesisTab extends BaseTab {
         if (this.hostContainer?.isConnected) this.render(this.hostContainer);
     }
 
+    onTasksRefresh(): void {
+        // Synthesis is thought-only; ignore task-only refreshes so task sync does not
+        // force full rerenders that can leave the loading state stuck onscreen.
+    }
+
     private async renderWorkspace(container: HTMLElement): Promise<void> {
         const token = ++this.renderToken;
         container.empty();
@@ -73,11 +78,19 @@ export class SynthesisTab extends BaseTab {
         );
 
         if (thoughts.length === 0) {
-            this.renderEmptyStateCard(
-                stage,
-                'No thought notes yet',
-                'Capture or import thoughts first. They will appear here for synthesis review once indexed.',
-            );
+            if (!this.plugin.getThoughtController().isReady()) {
+                this.renderEmptyStateCard(
+                    stage,
+                    'Indexing thought notes',
+                    'DIWA is still building the thought index. Synthesis will populate automatically once indexing is complete.',
+                );
+            } else {
+                this.renderEmptyStateCard(
+                    stage,
+                    'No thought notes yet',
+                    'Capture or import thoughts first. They will appear here for synthesis review once indexed.',
+                );
+            }
             return;
         }
 
