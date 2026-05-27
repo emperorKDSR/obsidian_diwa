@@ -26,7 +26,9 @@ export class SynthesisTab extends BaseTab {
 
     render(container: HTMLElement): void {
         this.hostContainer = container;
-        void this.renderWorkspace(container);
+        this.renderWorkspace(container).catch((error) => {
+            console.error('[DIWA SynthesisTab] Unhandled error in renderWorkspace', error);
+        });
     }
 
     onunload(): void {
@@ -62,144 +64,154 @@ export class SynthesisTab extends BaseTab {
         await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
         if (token !== this.renderToken) return;
 
-        stage.empty();
+        try {
+            stage.empty();
 
-        const thoughts = Array.from(this.index.thoughtIndex.values())
-            .sort((a, b) => (b.modified || '').localeCompare(a.modified || ''));
-        const allContexts = this.collectAllContexts(thoughts);
-        const allTopics = this.collectAllTopics(thoughts);
-        const globalTopicsForCards = this.index.getExistingTopics();
+            const thoughts = Array.from(this.index.thoughtIndex.values())
+                .sort((a, b) => (b.modified || '').localeCompare(a.modified || ''));
+            const allContexts = this.collectAllContexts(thoughts);
+            const allTopics = this.collectAllTopics(thoughts);
+            const globalTopicsForCards = this.index.getExistingTopics();
 
-        this.renderSummaryGrid(
-            stage,
-            thoughts.length,
-            thoughts.filter((thought) => !thought.synthesized).length,
-            thoughts.filter((thought) => thought.synthesized).length,
-            allContexts.size,
-        );
+            this.renderSummaryGrid(
+                stage,
+                thoughts.length,
+                thoughts.filter((thought) => !thought.synthesized).length,
+                thoughts.filter((thought) => thought.synthesized).length,
+                allContexts.size,
+            );
 
-        if (thoughts.length === 0) {
-            if (!this.plugin.getThoughtController().isReady()) {
-                this.renderEmptyStateCard(
-                    stage,
-                    'Indexing thought notes',
-                    'DIWA is still building the thought index. Synthesis will populate automatically once indexing is complete.',
-                );
-            } else {
-                this.renderEmptyStateCard(
-                    stage,
-                    'No thought notes yet',
-                    'Capture or import thoughts first. They will appear here for synthesis review once indexed.',
-                );
+            if (thoughts.length === 0) {
+                if (!this.plugin.getThoughtController().isReady()) {
+                    this.renderEmptyStateCard(
+                        stage,
+                        'Indexing thought notes',
+                        'DIWA is still building the thought index. Synthesis will populate automatically once indexing is complete.',
+                    );
+                } else {
+                    this.renderEmptyStateCard(
+                        stage,
+                        'No thought notes yet',
+                        'Capture or import thoughts first. They will appear here for synthesis review once indexed.',
+                    );
+                }
+                return;
             }
-            return;
+
+            const controls = stage.createEl('section', { cls: 'diwa-card diwa-synth-controls' });
+            const controlsTop = controls.createEl('div', { cls: 'diwa-synth-controls-top' });
+            const resultChip = controlsTop.createEl('span', { cls: 'diwa-synth-results-chip' });
+            controlsTop.createEl('span', {
+                cls: 'diwa-synth-controls-hint',
+                text: 'Use DIWA-style filters, then edit archive, context, or topics directly from each thought card.',
+            });
+
+            const filterGrid = controls.createEl('div', { cls: 'diwa-synth-filter-grid' });
+
+            const sortedContexts = Array.from(allContexts).sort((a, b) => a.localeCompare(b));
+            const sortedTopics = Array.from(allTopics).sort((a, b) => a.localeCompare(b));
+
+            let archivedFilter: ArchivedFilter = this.view.synthesisTableArchivedFilter || 'false';
+            let contextFilter = sortedContexts.includes(this.view.synthesisTableContextFilter)
+                ? this.view.synthesisTableContextFilter
+                : 'all';
+            let topicFilter = sortedTopics.includes(this.view.synthesisTableTopicFilter)
+                ? this.view.synthesisTableTopicFilter
+                : 'all';
+
+            this.view.synthesisTableArchivedFilter = archivedFilter;
+            this.view.synthesisTableContextFilter = contextFilter;
+            this.view.synthesisTableTopicFilter = topicFilter;
+
+            const listSection = stage.createEl('section', { cls: 'diwa-synth-list-section' });
+            const list = listSection.createEl('div', { cls: 'diwa-synth-list' });
+            const emptyFiltered = listSection.createEl('div', { cls: 'diwa-synth-empty diwa-synth-empty--filtered' });
+            emptyFiltered.style.display = 'none';
+            this.populateEmptyStateIcon(emptyFiltered, 'funnel');
+            emptyFiltered.createEl('strong', { text: 'No thoughts match these filters', cls: 'diwa-synth-empty-title' });
+            emptyFiltered.createEl('span', {
+                text: 'Try widening the status, context, or topic filters to bring more thoughts back into view.',
+                cls: 'diwa-synth-empty-copy',
+            });
+
+            let applyFilters = () => {};
+            const cards = thoughts.map((thought) =>
+                this.renderThoughtCard(list, thought, () => applyFilters(), globalTopicsForCards),
+            );
+
+            this.renderFilterGroup(
+                filterGrid,
+                'Status',
+                [
+                    { value: 'false', label: 'Needs review' },
+                    { value: 'true', label: 'Processed' },
+                    { value: 'all', label: 'All thoughts' },
+                ],
+                () => archivedFilter,
+                (value) => {
+                    archivedFilter = value;
+                    this.view.synthesisTableArchivedFilter = value;
+                    applyFilters();
+                },
+            );
+
+            this.renderFilterGroup(
+                filterGrid,
+                'Context',
+                [{ value: 'all', label: 'All contexts' }, ...sortedContexts.map((value) => ({ value, label: value }))],
+                () => contextFilter,
+                (value) => {
+                    contextFilter = value;
+                    this.view.synthesisTableContextFilter = value;
+                    applyFilters();
+                },
+            );
+
+            this.renderFilterGroup(
+                filterGrid,
+                'Topic',
+                [{ value: 'all', label: 'All topics' }, ...sortedTopics.map((value) => ({ value, label: value }))],
+                () => topicFilter,
+                (value) => {
+                    topicFilter = value;
+                    this.view.synthesisTableTopicFilter = value;
+                    applyFilters();
+                },
+            );
+
+            applyFilters = () => {
+                let visible = 0;
+                for (const card of cards) {
+                    const archivedOk = archivedFilter === 'all'
+                        ? true
+                        : archivedFilter === 'true'
+                            ? card.archived
+                            : !card.archived;
+                    const contextOk = contextFilter === 'all'
+                        ? true
+                        : card.contexts.some((context) => context.toLowerCase() === contextFilter.toLowerCase());
+                    const topicOk = topicFilter === 'all'
+                        ? true
+                        : card.topics.some((topic) => topic.toLowerCase() === topicFilter.toLowerCase());
+                    const show = archivedOk && contextOk && topicOk;
+                    card.row.style.display = show ? '' : 'none';
+                    if (show) visible++;
+                }
+
+                resultChip.setText(`${visible} of ${thoughts.length} thoughts visible`);
+                emptyFiltered.style.display = visible === 0 ? '' : 'none';
+            };
+
+            applyFilters();
+        } catch (error) {
+            console.error('[DIWA SynthesisTab] Render phase failed', { error });
+            stage.empty();
+            this.renderEmptyStateCard(
+                stage,
+                'Synthesis error',
+                'An unexpected error prevented the workspace from rendering. Open the developer console for details.',
+            );
         }
-
-        const controls = stage.createEl('section', { cls: 'diwa-card diwa-synth-controls' });
-        const controlsTop = controls.createEl('div', { cls: 'diwa-synth-controls-top' });
-        const resultChip = controlsTop.createEl('span', { cls: 'diwa-synth-results-chip' });
-        controlsTop.createEl('span', {
-            cls: 'diwa-synth-controls-hint',
-            text: 'Use DIWA-style filters, then edit archive, context, or topics directly from each thought card.',
-        });
-
-        const filterGrid = controls.createEl('div', { cls: 'diwa-synth-filter-grid' });
-
-        const sortedContexts = Array.from(allContexts).sort((a, b) => a.localeCompare(b));
-        const sortedTopics = Array.from(allTopics).sort((a, b) => a.localeCompare(b));
-
-        let archivedFilter: ArchivedFilter = this.view.synthesisTableArchivedFilter || 'false';
-        let contextFilter = sortedContexts.includes(this.view.synthesisTableContextFilter)
-            ? this.view.synthesisTableContextFilter
-            : 'all';
-        let topicFilter = sortedTopics.includes(this.view.synthesisTableTopicFilter)
-            ? this.view.synthesisTableTopicFilter
-            : 'all';
-
-        this.view.synthesisTableArchivedFilter = archivedFilter;
-        this.view.synthesisTableContextFilter = contextFilter;
-        this.view.synthesisTableTopicFilter = topicFilter;
-
-        const listSection = stage.createEl('section', { cls: 'diwa-synth-list-section' });
-        const list = listSection.createEl('div', { cls: 'diwa-synth-list' });
-        const emptyFiltered = listSection.createEl('div', { cls: 'diwa-synth-empty diwa-synth-empty--filtered' });
-        emptyFiltered.style.display = 'none';
-        this.populateEmptyStateIcon(emptyFiltered, 'funnel');
-        emptyFiltered.createEl('strong', { text: 'No thoughts match these filters', cls: 'diwa-synth-empty-title' });
-        emptyFiltered.createEl('span', {
-            text: 'Try widening the status, context, or topic filters to bring more thoughts back into view.',
-            cls: 'diwa-synth-empty-copy',
-        });
-
-        let applyFilters = () => {};
-        const cards = thoughts.map((thought) =>
-            this.renderThoughtCard(list, thought, () => applyFilters(), globalTopicsForCards),
-        );
-
-        this.renderFilterGroup(
-            filterGrid,
-            'Status',
-            [
-                { value: 'false', label: 'Needs review' },
-                { value: 'true', label: 'Processed' },
-                { value: 'all', label: 'All thoughts' },
-            ],
-            () => archivedFilter,
-            (value) => {
-                archivedFilter = value;
-                this.view.synthesisTableArchivedFilter = value;
-                applyFilters();
-            },
-        );
-
-        this.renderFilterGroup(
-            filterGrid,
-            'Context',
-            [{ value: 'all', label: 'All contexts' }, ...sortedContexts.map((value) => ({ value, label: value }))],
-            () => contextFilter,
-            (value) => {
-                contextFilter = value;
-                this.view.synthesisTableContextFilter = value;
-                applyFilters();
-            },
-        );
-
-        this.renderFilterGroup(
-            filterGrid,
-            'Topic',
-            [{ value: 'all', label: 'All topics' }, ...sortedTopics.map((value) => ({ value, label: value }))],
-            () => topicFilter,
-            (value) => {
-                topicFilter = value;
-                this.view.synthesisTableTopicFilter = value;
-                applyFilters();
-            },
-        );
-
-        applyFilters = () => {
-            let visible = 0;
-            for (const card of cards) {
-                const archivedOk = archivedFilter === 'all'
-                    ? true
-                    : archivedFilter === 'true'
-                        ? card.archived
-                        : !card.archived;
-                const contextOk = contextFilter === 'all'
-                    ? true
-                    : card.contexts.some((context) => context.toLowerCase() === contextFilter.toLowerCase());
-                const topicOk = topicFilter === 'all'
-                    ? true
-                    : card.topics.some((topic) => topic.toLowerCase() === topicFilter.toLowerCase());
-                const show = archivedOk && contextOk && topicOk;
-                card.row.style.display = show ? '' : 'none';
-                if (show) visible++;
-            }
-
-            resultChip.setText(`${visible} of ${thoughts.length} thoughts visible`);
-            emptyFiltered.style.display = visible === 0 ? '' : 'none';
-        };
-
-        applyFilters();
     }
 
     private holdInlineMetaRefresh(ms = 900): void {

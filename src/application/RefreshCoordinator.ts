@@ -53,68 +53,88 @@ export class RefreshCoordinator {
     }
 
     notifyRefresh(scope: RefreshScope = 'all'): void {
-        if (Date.now() < this._suppressNotifyRefreshUntil) return;
         this._pendingRefreshScope = this.mergeRefreshScope(this._pendingRefreshScope, scope);
         if (this._indexDebounceTimer) clearTimeout(this._indexDebounceTimer);
-        
+
+        if (Date.now() < this._suppressNotifyRefreshUntil) {
+            const deferMs = Math.max(50, this._suppressNotifyRefreshUntil - Date.now() + 50);
+            this._indexDebounceTimer = setTimeout(() => {
+                this._indexDebounceTimer = null;
+                this._dispatchRefresh();
+            }, deferMs);
+            return;
+        }
+
         // Task-only updates flush on next-frame cadence; other scopes batch to absorb sync bursts
         const debounceMs = this._pendingRefreshScope === 'tasks' ? 16 : 400;
-        
         this._indexDebounceTimer = setTimeout(() => {
-            if (Date.now() < this._suppressNotifyRefreshUntil) return;
-            const scope = this._pendingRefreshScope ?? 'all';
-            this._pendingRefreshScope = null;
-            const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DIWA);
-            for (const leaf of leaves) {
-                const view = leaf.view as DiwaView;
-                if (view && typeof view.renderView === 'function') {
-                    // Don't re-render while the user is mid-toggle — let optimistic UI stand
-                    if (view._taskTogglePending > 0 || view._checklistTogglePending > 0 || view._capturePending > 0 || view._synthesisCaptPending > 0 || view._mergePending > 0) continue;
-                    // For task-only updates use incremental refresh to avoid full DOM rebuild
-                    if (scope === 'tasks' && typeof (view as any).refreshTasks === 'function') {
-                        (view as any).refreshTasks();
-                    } else if (scope === 'thoughts' && typeof (view as any).refreshThoughts === 'function') {
-                        (view as any).refreshThoughts();
-                    } else {
-                        view.renderView();
-                    }
-                }
-            }
-            // Refresh any open Desktop Hub leaves
-            const hubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB);
-            for (const leaf of hubLeaves) {
-                const view = leaf.view as DesktopHubView;
-                if (view && typeof view.renderView === 'function') {
-                    if (scope === 'tasks' && typeof view.updateTaskPaneFromIndex === 'function') {
-                        view.updateTaskPaneFromIndex();
-                        continue;
-                    }
-                    if (view._capturePending > 0 || view._taskPending > 0) continue;
-                    view.renderView();
-                }
-            }
-            const graphLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_GRAPH_EXPLORER);
-            for (const leaf of graphLeaves) {
-                const view = leaf.view as GraphExplorerView;
-                if (view && typeof view.renderView === 'function') {
-                    view.renderView();
-                }
-            }
-            const mobileHubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB);
-            for (const leaf of mobileHubLeaves) {
-                const view = leaf.view as MobileHubView;
-                if (view && typeof view.renderView === 'function') {
-                    view.renderView();
-                }
-            }
-            const tabletHubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB);
-            for (const leaf of tabletHubLeaves) {
-                const view = leaf.view as MobileHubView;
-                if (view && typeof view.renderView === 'function') {
-                    view.renderView();
-                }
-            }
+            this._indexDebounceTimer = null;
+            this._dispatchRefresh();
         }, debounceMs);
+    }
+
+    private _dispatchRefresh(): void {
+        if (Date.now() < this._suppressNotifyRefreshUntil) {
+            const deferMs = Math.max(50, this._suppressNotifyRefreshUntil - Date.now() + 50);
+            this._indexDebounceTimer = setTimeout(() => {
+                this._indexDebounceTimer = null;
+                this._dispatchRefresh();
+            }, deferMs);
+            return;
+        }
+
+        const scope = this._pendingRefreshScope ?? 'all';
+        this._pendingRefreshScope = null;
+        const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DIWA);
+        for (const leaf of leaves) {
+            const view = leaf.view as DiwaView;
+            if (view && typeof view.renderView === 'function') {
+                // Don't re-render while the user is mid-toggle — let optimistic UI stand
+                if (view._taskTogglePending > 0 || view._checklistTogglePending > 0 || view._capturePending > 0 || view._synthesisCaptPending > 0 || view._mergePending > 0) continue;
+                // For task-only updates use incremental refresh to avoid full DOM rebuild
+                if (scope === 'tasks' && typeof (view as any).refreshTasks === 'function') {
+                    (view as any).refreshTasks();
+                } else if (scope === 'thoughts' && typeof (view as any).refreshThoughts === 'function') {
+                    (view as any).refreshThoughts();
+                } else {
+                    view.renderView();
+                }
+            }
+        }
+        // Refresh any open Desktop Hub leaves
+        const hubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB);
+        for (const leaf of hubLeaves) {
+            const view = leaf.view as DesktopHubView;
+            if (view && typeof view.renderView === 'function') {
+                if (scope === 'tasks' && typeof view.updateTaskPaneFromIndex === 'function') {
+                    view.updateTaskPaneFromIndex();
+                    continue;
+                }
+                if (view._capturePending > 0 || view._taskPending > 0) continue;
+                view.renderView();
+            }
+        }
+        const graphLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_GRAPH_EXPLORER);
+        for (const leaf of graphLeaves) {
+            const view = leaf.view as GraphExplorerView;
+            if (view && typeof view.renderView === 'function') {
+                view.renderView();
+            }
+        }
+        const mobileHubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB);
+        for (const leaf of mobileHubLeaves) {
+            const view = leaf.view as MobileHubView;
+            if (view && typeof view.renderView === 'function') {
+                view.renderView();
+            }
+        }
+        const tabletHubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB);
+        for (const leaf of tabletHubLeaves) {
+            const view = leaf.view as MobileHubView;
+            if (view && typeof view.renderView === 'function') {
+                view.renderView();
+            }
+        }
     }
 
     private mergeRefreshScope(current: RefreshScope | null, next: RefreshScope): RefreshScope {
