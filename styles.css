@@ -7591,8 +7591,24 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   opacity: 0;
   pointer-events: none;
 }
-.diwa-dh-wrap.is-focus-mode .diwa-dh-center-inner {
-  max-width: none;
+.diwa-dh-wrap.is-focus-mode .diwa-dh-feed-section {
+  display: none;
+}
+.diwa-dh-wrap.is-focus-mode .diwa-dh-capture-section,
+.diwa-dh-wrap.is-focus-mode .diwa-dh-capture-panel,
+.diwa-dh-wrap.is-focus-mode .diwa-dh-capture-panel-body,
+.diwa-dh-wrap.is-focus-mode .diwa-dh-capture {
+  flex: 1;
+  min-height: 0;
+}
+.diwa-dh-wrap.is-focus-mode .diwa-dh-capture-section {
+  padding-bottom: 28px;
+}
+.diwa-dh-wrap.is-focus-mode .diwa-dh-capture-textarea {
+  flex: 1;
+  min-height: 0;
+  height: 100% !important;
+  overflow-y: auto;
 }
 
 /* ── Responsive fallback: narrow windows ───────────────────────── */

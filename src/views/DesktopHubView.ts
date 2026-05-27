@@ -225,6 +225,9 @@ export class DesktopHubView extends ItemView {
         }
 
         this._wrapEl?.toggleClass('is-focus-mode', this.isFocusMode);
+        if (this.isFocusMode) {
+            this.closeFeedPopover();
+        }
         this.applyRightPaneWidth();
 
         // Only rebuild topbar when focus mode changes or topbar is new.
@@ -244,6 +247,7 @@ export class DesktopHubView extends ItemView {
 
         if (this._centerEl) {
             this.renderCenter(this._centerEl);
+            this.syncCaptureTextareaHeight();
         }
 
         this.updateTaskPaneFromIndex();
@@ -263,6 +267,7 @@ export class DesktopHubView extends ItemView {
         }
         if (this._centerEl) {
             this.renderCenter(this._centerEl);
+            this.syncCaptureTextareaHeight();
         }
     }
 
@@ -1397,10 +1402,7 @@ export class DesktopHubView extends ItemView {
             this._captureInputEl = textarea;
             this._captureHintEl = contextHint;
 
-            const autosize = () => {
-                textarea.style.height = 'auto';
-                textarea.style.height = `${Math.max(42, textarea.scrollHeight)}px`;
-            };
+            const autosize = () => this.syncCaptureTextareaHeight();
             textarea.addEventListener('input', autosize);
             requestAnimationFrame(autosize);
             capture.addEventListener('click', (event) => {
@@ -1460,6 +1462,17 @@ export class DesktopHubView extends ItemView {
             });
         }
         this.updateCaptureHint();
+    }
+
+    private syncCaptureTextareaHeight(): void {
+        const textarea = this._captureInputEl;
+        if (!textarea) return;
+        if (this.isFocusMode && !this.isMobile()) {
+            textarea.style.removeProperty('height');
+            return;
+        }
+        textarea.style.height = 'auto';
+        textarea.style.height = `${Math.max(42, textarea.scrollHeight)}px`;
     }
 
     private renderFeedSearch(parent: HTMLElement): void {
