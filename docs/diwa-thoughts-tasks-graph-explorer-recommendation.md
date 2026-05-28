@@ -3,7 +3,7 @@
 **Document type:** Product + technical design recommendation  
 **Status:** Documentation/design only — implementation intentionally deferred  
 **Repository:** `emperorKDSR/obsidian_diwa`  
-**Version context:** `7.3.48` (`package.json`)  
+**Version context:** `10.0.0` (`package.json`)  
 **Audience:** Product/design council, engineering council, Obsidian architecture review, Life-OS planning
 
 ---
@@ -55,7 +55,7 @@ The graph should **not** be positioned as:
 
 - a vault-wide gimmick map
 - a passive visualization layer
-- a replacement for DIWA, Gawa, Synthesis, or Projects
+- a replacement for DIWA Workspace, Gawa, Review, or Projects
 - an excuse to render every possible relationship in the vault
 
 The graph should be a **power workspace for structured thinking and action**, especially on desktop.
@@ -778,10 +778,10 @@ Implementation should remain deferred until explicitly authorized.
 - `src/services/IndexService.ts`
 - `src/application/RefreshCoordinator.ts`
 - `src/views/DesktopHubView.ts`
-- `src/views/SearchView.ts`
+- `src/view.ts`
 - `src/views/ThoughtFocusPanel.ts`
 - `src/tabs/GawaTab.ts`
-- `src/tabs/SynthesisTab.ts`
+- `src/views/DesktopTaskPane.ts`
 - `src/views/LinkModal.ts`
 - `src/modals/ConvertToTaskModal.ts`
 - `src/modals/EditThoughtModal.ts`

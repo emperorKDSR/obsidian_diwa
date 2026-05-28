@@ -260,7 +260,7 @@ export class DiwaMobileShell {
         hero.createDiv({ cls: 'diwa-mobile-hero-title', text: 'A calm control center for capture and follow-through.' });
         hero.createDiv({
             cls: 'diwa-mobile-hero-subtitle',
-            text: 'Capture fast, check today’s focus, and jump into thoughts or AI without losing context.',
+            text: 'Capture fast, check today’s focus, and jump into Gawa, Projects, or thoughts without losing context.',
         });
 
         const heroActions = hero.createDiv('diwa-tablet-home-actions');

@@ -1,245 +1,181 @@
 # DIWA — Personal OS for Obsidian
 
-**DIWA** is a professional-grade Personal Operating System plugin for [Obsidian](https://obsidian.md). It transforms your vault into a unified hub for thoughts, tasks, projects, finance, and AI-powered synthesis — across mobile, tablet, and desktop.
+**DIWA** is an Obsidian plugin for capturing thoughts, managing gawa, tracking projects and Bulsa, reviewing your week, and keeping a journal from one connected workspace across desktop, tablet, and mobile.
 
-Current release: **v3.0.0** · See [CHANGELOG.md](./CHANGELOG.md) for full history.
+Current release: **v10.0.0** · See [CHANGELOG.md](./CHANGELOG.md) for release history.
 
 ---
 
-## Features
+## Current module set
 
-### 🖥 Desktop Hub
-A dedicated popout window (`VIEW_TYPE_DESKTOP_HUB`) for desktop users only. Renders a premium 3-column cockpit:
-- **LEFT**: Icon-only nav sidebar that hover-expands to 180 px with group labels
-- **CENTER**: Thought capture textarea + live Today's Feed (newest-first)
-- **RIGHT**: 5-stat reactive grid covering key task, thought, dues, and project signals + AI Intelligence briefing
-- Opens in Focus Mode by default so the capture pane starts distraction-free
+DIWA’s primary workspace navigation is now:
 
-Opens via the ribbon icon or `DIWA: Open Desktop Hub` command. Mobile shows a notice instead.
+1. **Workspace**
+2. **Projects**
+3. **Gawa**
+4. **Bulsa**
+5. **Review**
+6. **Journal**
 
-### 📱 Mobile Hub / Tablet Hub
-Responsive hub surfaces for smaller screens. Mobile uses a single-column layout; tablet uses a denser split view. Both reuse the same capture, feed, and context workflows while keeping touch targets and spacing platform-appropriate.
+Supporting tabs and tools still in the plugin:
+- **Settings**
+- **Manual**
+- **Bulsa Insights**
+- **Monthly Review**
+- **Export & Backup**
+- **Graph Explorer** (desktop thought/task actions)
 
-### 🧠 Quick Capture
-Capture thoughts and gawa instantly with datetime-stamped YAML notes. Supports inline context tagging (`⌘K`), `@`-mention triggers for people notes, `/`-trigger for people suggestions, and media paste (images saved to the attachments folder).
+The current 10.0.0 line no longer includes the removed Search, AI, Voice, Timeline, Synthesis, or Calendar modules.
 
-### ✅ Gawa
-High-performance **Tactical Gawa Ledger** with segmented status filtering (`open` / `done` / `waiting` / `someday`). Each gawa item is a standalone YAML file with support for:
-- Priority (`high` / `medium` / `low`)
-- Energy level (`high` / `medium` / `low`)
-- Due dates (wikilink-formatted `[[YYYY-MM-DD]]`)
-- Recurrence rules (`daily` / `weekly` / `biweekly` / `monthly`)
-- Project association
-- Threaded comments/replies
+---
 
-### 💡 Timeline
-Infinite-scroll thought feed with full-body note rendering. Spotlight carousel for pinned and recent items. Date-based navigation. Each entry supports inline editing, pinning, context assignment, and comment threads.
+## Feature overview
 
-Thought cards also include a **Convert to Task** action that opens a task-title/due-date picker and keeps the source thought link on the new task.
+### Workspace
+- `Open Workspace` routes to the right shell for your platform.
+- **Desktop:** dedicated workspace window with sidebar navigation, capture/feed center column, and right task pane.
+- **Tablet:** dense touch layout with top tabs and quick actions.
+- **Mobile:** bottom-nav shell for Workspace, Projects, Gawa, and thoughts.
+- **Focus Mode** collapses desktop chrome so the center workspace can expand.
 
-### 🗂 Synthesis
-Thought-routing workspace with Zero-Inbox logic.
+### Quick capture
+- Capture **thoughts** and **gawa** from the same flow.
+- Supports `#` contexts, `/` people insertion, `[[` note links, and `@date` triggers.
+- Handles pasted or dropped files/images in supported editors.
+- Keyboard shortcuts: `⌘K / Ctrl+K` to open capture, `⌘↵ / Ctrl+↵` to save.
 
-**How it works:**
-1. Thoughts with no context appear in the **Inbox** feed (right panel)
-2. Select one or more contexts from the left panel to prime them
-3. Click **Assign** on any thought card to map it to the selected contexts
-4. Switch to **Mapped** to review contextualised thoughts
-5. Click **Done** (or **Done All**) to mark them as synthesised
+### Projects
+- YAML-backed project notes with name, goal, status, due date, and color.
+- Statuses: `active`, `on-hold`, `completed`, `archived`.
+- Built-in milestone tracking stored in the project note body.
+- Thoughts and tasks can be linked to projects during capture or editing.
 
-**Context panel features:**
-- Alphabetical sorting with live search/filter
-- Multi-select: prime multiple contexts and assign all at once
-- Hide/unhide contexts (eye icon) — persisted in settings
-- Select mode + Merge: combine multiple thoughts into a single note
+### Gawa
+- Task workspace with Open / Done / Waiting / Someday organization.
+- Supports due dates, priority, energy, recurrence, comments, and project links.
+- Available from nav or the `Open Gawa` command.
 
-**Layout:** 1/3 context panel (left) + 2/3 note feed (right) on desktop/tablet. Single-pane on phone.
+### Bulsa
+- Recurring dues ledger backed by notes in the configured Bulsa folder.
+- Current ledger toggles between **Active** dues and **All History**.
+- Payment logging updates fields such as `last_payment_date` and `next_duedate`.
+- `Bulsa Insights` adds income, cashflow, and category breakdown views.
 
-### 📊 Finance (Dues)
-Professional **Financial Ledger** reading from YAML-fronted markdown files in the PF folder. Tracks due dates, last payment dates, amounts, and active status. Includes burn-rate analytics and a cashflow dashboard powered by `monthlyIncome`.
+### Review
+- **Weekly Review** summarizes work, Bulsa activity, and planning for the next week.
+- Week plans support day-by-day intention setting and task assignment.
+- Review notes are stored under `Reviews/Weekly/`.
+- **Monthly Review** still exists as a supporting DIWA tab, but it is not pinned in the main workspace nav.
 
-### 🧭 Weekly Review
-Multi-layered reflection system:
-- **Weekly Review**: AI-generated weekly brief (5 sections: Assessment, Top Win, Key Insight, Next Week Priority, North Star Pulse), task completion/overdue counts, project and finance glance cards, manual wins/lessons fields
-- **Weekly Plan**: AI-generated day-by-day task distribution for the next week
-- **Monthly Review**: Monthly retrospective with goals tracking
+### Journal
+- `Open Journal` jumps directly into the journal surface.
+- Desktop uses a split archive/composer layout.
+- Mobile opens directly into the composer.
+- Entries support titles, journal types, and inline attachments.
 
-### 🤖 AI Chat (Gemini)
-Full chat interface powered by Gemini (configurable model). Features:
-- Web search toggle (Google Search grounding)
-- File and image grounding (drag-and-drop)
-- Session history saved to vault as markdown
-- Inline source citations (`[1]`, `[2]` → wikilinks)
-- Vault-aware system prompt: injects up to 50 recent thoughts as context
-- Injection-boundary security: vault data wrapped in `<<SOURCE_START>>` / `<<SOURCE_END>>`
+### Export & backup
+- `Export & Backup` remains a supporting DIWA tab rather than a main-nav module.
+- Thoughts CSV is written to the thoughts folder.
+- Gawa CSV is written to the gawa folder.
+- Full JSON backups are written to the thoughts folder.
 
-### 🎙 Voice Notes
-Record audio directly in the vault with one tap. Auto-transcription via Gemini with configurable target language. Transcripts routed to the standard capture flow.
+### Graph Explorer
+- Desktop thought and task actions can open **DIWA Graph Explorer** in a dedicated window.
+- The graph is seeded from the selected thought or task instead of scanning the entire vault from the UI layer.
 
-### 🔍 Global Search
-Spotlight-style cross-domain search across all DIWA data types (Thoughts, Gawa, Dues, Projects). Keyboard-navigable, zero-latency (reads from in-memory indices). Hotkey: `Mod+Shift+F`.
+---
 
-### 📅 Daily Workspace
-Configurable daily dashboard surfaced from the hub. Toggleable sections:
-- Daily checklist (from the capture file)
-- Gawa due today
-- Financial dues
-- Recent thoughts
-- Pinned thoughts
-- AI summary
+## Commands
 
-### 📁 Projects
-Full project lifecycle management. Each project is a YAML-fronted markdown file with fields: `id`, `name`, `status`, `goal`, `due`, `created`, `color`. Supports milestones and linked thought threads. Project filter available in Timeline and Gawa.
+Current command palette actions registered in `main.ts`:
 
-### 📓 Journal
-Filtered thought feed surfacing entries tagged with journal-specific keywords.
-
-### 📤 Export
-Export thoughts and tasks to various formats for external use.
+- `Open Workspace`
+- `Open Journal`
+- `Open Gawa`
+- `Open Bulsa`
 
 ---
 
 ## Architecture
 
-```
-Shared Kernel
-  ├── src/types.ts
-  └── src/constants.ts
+```text
+Composition root
+  └── src/main.ts
 
-Presentation
+Primary workspace routing
   ├── src/view.ts
-  ├── src/views/*.ts
-  ├── src/tabs/*.ts
-  └── src/modals/*.ts
+  ├── src/views/DesktopHubView.ts
+  ├── src/views/MobileHubView.ts
+  ├── src/views/TabletHubView.ts
+  └── src/mobile/DiwaMobileShell.ts
 
-Application
-  ├── src/application/RefreshCoordinator.ts
-  ├── src/utils/task*.ts
-  └── UI orchestration / use-case layers
+Feature tabs
+  ├── src/tabs/GawaTab.ts
+  ├── src/tabs/ProjectsTab.ts
+  ├── src/tabs/DuesTab.ts
+  ├── src/tabs/FinanceAnalyticsTab.ts
+  ├── src/tabs/ReviewTab.ts
+  ├── src/tabs/MonthlyReviewTab.ts
+  ├── src/tabs/JournalTab.ts
+  ├── src/tabs/ExportTab.ts
+  ├── src/tabs/ManualTab.ts
+  └── src/tabs/SettingsTab.ts
 
-Infrastructure
-  ├── src/services/VaultService.ts
+Supporting services
   ├── src/services/IndexService.ts
-  ├── src/services/AiService.ts
+  ├── src/services/VaultService.ts
   ├── src/services/TaskLinkService.ts
-  └── src/services/TaskReflectionService.ts
-
-DiwaPlugin (main.ts) acts as the composition root that wires the layers together.
+  ├── src/services/TaskReflectionService.ts
+  └── src/application/RefreshCoordinator.ts
 ```
 
-### Data Model
-All thoughts and tasks are individual YAML-fronted markdown files:
-
-**Thought frontmatter:**
-```yaml
 ---
-title: "Note title"
-created: 2025-01-15 09:30:00
-modified: 2025-01-15 09:30:00
-day: "[[2025-01-15]]"
-area: DIWA
-context:
-  - work
-topic: Meeting
-tags:
-  - work/Meeting
-pinned: false
----
-```
 
-**Task frontmatter:**
-```yaml
----
-title: "Task title"
-created: 2025-01-15 09:30:00
-modified: 2025-01-15 09:30:00
-day: "[[2025-01-15]]"
-area: DIWA_TASKS
-status: open
-due: "[[2025-01-20]]"
-context:
-  - work
-priority: high
-energy: medium
-recurrence: weekly
----
-```
+## Storage notes
 
-### Reactive Nerve System
-Vault events (`create`, `modify`, `delete`, `rename`) and `metadataCache.changed` (for cloud sync reliability) trigger selective re-indexing of the affected file only. `RefreshCoordinator` owns the 400 ms refresh debounce and file-path cooldown, while optimistic UI flags (`_taskTogglePending`, `_capturePending`, etc.) suppress re-renders during interaction.
+DIWA primarily stores data as Markdown files with frontmatter.
 
-### State Persistence
-UI state that must survive `renderView()` is stored on `DiwaView` fields:
-- `tasksViewMode` — active task filter segment
-- `synthesisFeedFilter` / `activeSynthesisContexts` / `synthesisShowHidden` — Synthesis panel state
-- `chatHistory` / `currentChatFile` / `webSearchEnabled` / `groundedFiles` — AI Chat state
-- `calendarViewMonth` / `calendarViewMode` — Calendar state
-- `isZenMode` — Zen Mode toggle
+Key folders and outputs:
+- `thoughtsFolder` → thought notes
+- `tasksFolder` → gawa notes and CSV task exports
+- `pfFolder` → Bulsa notes
+- `projectsFolder` → project notes
+- `reviewsFolder/Weekly` → weekly review notes
+- `reviewsFolder/Monthly` → monthly review notes
+- `attachmentsFolder` → pasted and dropped files
+- `peopleFolder` → people notes created from the `/` picker
 
 ---
 
-## Build & Deploy
+## Settings reference
+
+These are the current user-facing settings surfaces documented in the plugin UI:
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `thoughtsFolder` | `string` | `000 Bin/DIWA` | Folder for thought notes |
+| `tasksFolder` | `string` | `000 Bin/DIWA Gawa` | Folder for gawa notes |
+| `pfFolder` | `string` | `000 Bin/DIWA PF` | Folder for Bulsa notes |
+| `peopleFolder` | `string` | `000 Bin/DIWA People` | Folder used by the people picker |
+| `attachmentsFolder` | `string` | `000 Bin/DIWA Attachments` | Folder for pasted/dropped files |
+| `newNoteFolder` | `string` | `000 Bin` | Default folder for newly created notes |
+| `reviewsFolder` | `string` | `000 Bin/DIWA Reviews` | Root folder for weekly/monthly reviews |
+| `dateFormat` | `string` | `YYYY-MM-DD` | Display/storage date format |
+| `timeFormat` | `string` | `HH:mm` | Display/storage time format |
+| `monthlyIncome` | `number` | `0` | Used by Bulsa Insights cashflow views |
+| `reminderTasksEnabled` | `boolean` | `true` | Enables hourly gawa reminders |
+| `mobileBottomBarHeight` | `number` | `56` | Reserved space for the Obsidian mobile toolbar |
+
+---
+
+## Build & deploy
 
 ```bash
 npm run build
 ```
 
-Copy `main.js`, `manifest.json`, and `styles.css` to your vault's plugin folder:
+Copy `main.js`, `manifest.json`, and `styles.css` into:
 
-```
+```text
 <vault>/.obsidian/plugins/diwa/
 ```
-
----
-
-## Settings Reference
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `thoughtsFolder` | `string` | `000 Bin/DIWA` | Folder for thought files |
-| `tasksFolder` | `string` | `000 Bin/DIWA Gawa` | Folder for gawa files |
-| `pfFolder` | `string` | `000 Bin/DIWA PF` | Folder for finance/dues files |
-| `projectsFolder` | `string` | `Projects` | Folder for project files |
-| `reviewsFolder` | `string` | `000 Bin/DIWA Reviews` | Root folder for weekly/monthly review files |
-| `voiceMemoFolder` | `string` | `000 Bin/DIWA Voice` | Folder for voice recording clips |
-| `attachmentsFolder` | `string` | `000 Bin/DIWA Attachments` | Folder for pasted images and files |
-| `peopleFolder` | `string` | `000 Bin/DIWA People` | Folder for people notes |
-| `aiChatFolder` | `string` | `000 Bin/DIWA AI Chat` | Folder for saved AI chat sessions |
-| `geminiApiKey` | `string` | `''` | Google AI Studio API key (stored masked) |
-| `geminiModel` | `string` | `gemini-1.5-pro` | Gemini model ID |
-| `maxOutputTokens` | `number` | `65536` | Max tokens per AI response |
-| `transcriptionLanguage` | `string` | `English` | Target language for audio transcription |
-| `contexts` | `string[]` | `[]` | All registered context tags |
-| `hiddenContexts` | `string[]` | `[]` | Contexts hidden from the Synthesis panel |
-| `monthlyIncome` | `number` | `0` | Used for the Finance cashflow dashboard |
-| `reminderTasksEnabled` | `boolean` | `true` | Hourly task-due reminders |
-
----
-
-## Tabs Reference
-
-| Tab | File | Description |
-|-----|------|-------------|
-| Hub Home | `view.ts` / `home` | Primary hub surface — capture, workspace, navigation |
-| Gawa | `GawaTab.ts` | Tactical Gawa Ledger with status filters |
-| Timeline | `TimelineTab.ts` | Infinite-scroll thought feed |
-| Synthesis | `SynthesisTab.ts` | Zero-Inbox context-routing workspace |
-| AI Chat | `AiTab.ts` | Gemini chat with vault grounding |
-| Voice | `VoiceTab.ts` | Voice recording and transcription |
-| Finance | `DuesTab.ts` | Financial dues ledger |
-| Finance Analytics | `FinanceAnalyticsTab.ts` | Cashflow and burn-rate dashboard |
-| Projects | `ProjectsTab.ts` | Project lifecycle management |
-| Journal | `JournalTab.ts` | Keyword-filtered journal feed |
-| Weekly Review | `ReviewTab.ts` | AI weekly brief + task/project/finance glance |
-| Monthly Review | `MonthlyReviewTab.ts` | Monthly retrospective |
-| Calendar | `CalendarTab.ts` | Month/week calendar view |
-| Timeline (legacy) | `TimelineTab.ts` | Date-based thought navigation |
-| Export | `ExportTab.ts` | Data export |
-| Manual | `ManualTab.ts` | In-app help (mirrors HelpModal) |
-| Settings | `SettingsTab.ts` | Settings tab |
-
----
-
-## Versioning
-
-Follows `MAJOR.MINOR.PATCH`. See [CHANGELOG.md](./CHANGELOG.md) for full history.

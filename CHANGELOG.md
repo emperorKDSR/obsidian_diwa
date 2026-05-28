@@ -1,3 +1,12 @@
+
+## [10.0.0] — Documentation Sync
+
+### Changed
+- Reconciled the in-plugin Manual and Help modal with the current Workspace, Projects, Gawa, Bulsa, Review, and Journal surface.
+- Removed stale Search and AI references from repository docs and in-plugin copy after those modules were removed from the product.
+- Clarified that Monthly Review and Export & Backup remain supporting tabs instead of primary workspace navigation entries.
+- Updated release naming from legacy MINA wording to DIWA.
+
 ## [3.0.0] — Explicit 3-Layer Refactor
 
 ### Added
