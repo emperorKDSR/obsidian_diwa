@@ -1,4 +1,9 @@
 
+## [10.2.1] — Mobile Workspace Overflow Fix
+
+### Fixed
+- Prevented the mobile DIWA home capture card text from overflowing on narrow viewports by constraining the CTA box sizing and allowing capture and section copy to wrap safely.
+
 ## [10.2.0] — Graph Explorer Removal
 
 ### Removed
@@ -1415,4 +1420,3 @@ Deleted 5 tab files that had no entry point in the Command Center and were unrea
 - **VaultService** — unified file I/O with YAML injection-safe frontmatter builders
 - **AiService** — Gemini integration with chunked base64, injection boundary markers, model allowlist, and API key header security
 - **17 tabs, 17 modals** — full Personal OS feature set
-

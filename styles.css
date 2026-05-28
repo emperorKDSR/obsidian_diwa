@@ -10247,6 +10247,7 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   gap: 14px;
   min-height: 64px;
   width: 100%;
+  box-sizing: border-box;
   border: 1px solid color-mix(in srgb, var(--interactive-accent) 14%, var(--background-modifier-border) 86%);
   border-radius: 20px;
   background:
@@ -10287,6 +10288,7 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 
 .diwa-mobile-capture-copy {
   display: flex;
+  flex: 1 1 auto;
   min-width: 0;
   flex-direction: column;
   gap: 3px;
@@ -10296,12 +10298,16 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   font-size: 15px;
   font-weight: 700;
   color: var(--text-normal);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .diwa-mobile-capture-subtitle {
   font-size: 12px;
   line-height: 1.45;
   color: var(--text-muted);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .diwa-mobile-hero-stats {
@@ -10367,6 +10373,8 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   font-size: 15px;
   font-weight: 650;
   line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .diwa-mobile-section-count {
