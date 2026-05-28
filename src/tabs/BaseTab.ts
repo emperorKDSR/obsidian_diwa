@@ -20,7 +20,6 @@ export class BaseTab {
     
     // Services shortcuts
     get vault() { return this.plugin.vault; }
-    get ai() { return this.plugin.ai; }
     get index() { return this.plugin.index; }
 
     /** ob-dry-01: Render a standard page header with nav row + h2 title */

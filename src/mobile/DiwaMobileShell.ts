@@ -5,7 +5,7 @@ import { isTaskDone } from '../utils';
 import { NewProjectModal } from '../modals/NewProjectModal';
 import { EditProjectModal } from '../modals/EditProjectModal';
 
-type MobileView = 'home' | 'tasks' | 'projects' | 'thoughts' | 'ai';
+type MobileView = 'home' | 'tasks' | 'projects' | 'thoughts';
 export type ShellPlatform = 'mobile' | 'tablet' | 'desktop';
 type ProjectFilter = 'all' | 'active' | 'on-hold' | 'completed';
 
@@ -19,10 +19,9 @@ interface ShellNavItem {
 
 const SHELL_ITEMS: ShellNavItem[] = [
     { id: 'home', label: 'Home', icon: 'house' },
-    { id: 'tasks', label: 'Gawa', icon: 'check-square-2' },
     { id: 'projects', label: 'Projects', shortLabel: 'Proj', ariaLabel: 'Projects', icon: 'folder-kanban' },
+    { id: 'tasks', label: 'Gawa', icon: 'check-square-2' },
     { id: 'thoughts', label: 'Diwa', icon: 'pen-square' },
-    { id: 'ai', label: 'AI', icon: 'sparkles' },
 ];
 
 const PROJECT_FILTERS: { id: ProjectFilter; label: string }[] = [
@@ -156,9 +155,6 @@ export class DiwaMobileShell {
             case 'thoughts':
                 this.renderThoughts(container);
                 break;
-            case 'ai':
-                this.renderAI(container);
-                break;
         }
     }
 
@@ -277,8 +273,8 @@ export class DiwaMobileShell {
         );
         capture.addClass('is-primary');
         this.createActionButton(heroActions, 'Open Gawa', 'check-square-2', () => this.switchView('tasks'), 'diwa-mobile-quick-action');
+        this.createActionButton(heroActions, 'Open Projects', 'folder-kanban', () => this.switchView('projects'), 'diwa-mobile-quick-action');
         this.createActionButton(heroActions, 'Review Diwa', 'pen-square', () => this.switchView('thoughts'), 'diwa-mobile-quick-action');
-        this.createActionButton(heroActions, 'Open AI', 'sparkles', () => this.switchView('ai'), 'diwa-mobile-quick-action');
 
         const metrics = hero.createDiv('diwa-mobile-hero-stats');
         this.renderMetricChip(metrics, 'Focus', focusTasks.length);
@@ -942,14 +938,6 @@ export class DiwaMobileShell {
         });
         const body = detail.createDiv('diwa-tablet-thought-detail-body');
         this.plugin.renderThoughtCard(body, resolved, { mobile: true });
-    }
-
-    private renderAI(container: HTMLElement): void {
-        const wrap = container.createDiv('diwa-mobile-ai');
-        const shell = wrap.createDiv('diwa-mobile-ai-shell');
-        this.renderSectionHeader(shell, 'AI companion', 'Insight, planning, and recall from your vault');
-        const content = shell.createDiv('diwa-mobile-ai-body');
-        this.plugin.renderAIView(content);
     }
 
     private renderTopTabs(container: HTMLElement): void {

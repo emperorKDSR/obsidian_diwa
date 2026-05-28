@@ -12,23 +12,9 @@ const SECTIONS: HelpSection[] = [
         items: [
             { label: 'Greeting & Date', desc: 'Shows today\'s date and your greeting at the top.' },
             { label: 'Zen Mode 🎯', desc: 'Tap the target icon to collapse all navigation and enter deep focus. Tap again to exit.', tip: 'Best used when you only want to see your intelligence card and capture bar.' },
-            { label: 'Intelligence Card', desc: 'Live snapshot: open gawa, unprocessed thoughts, and your total Bulsa obligations. Hit "SYNTHESIZE BRIEFING" to get an AI strategy summary.', tip: 'Requires a Gemini API key configured in Settings → AI.' },
-            { label: 'Navigation Clusters', desc: 'Four grouped rows: ACTION (Journal), MANAGEMENT (Gawa, Bulsa, Projects, Weekly, Monthly), FEATURES (AI Chat, Compasee), and SYSTEM (Settings, Manual, Export). Each cluster wraps to the next row automatically on narrow screens.', tip: 'Tap any icon to jump directly to that tab.' },
+            { label: 'Intelligence Card', desc: 'Live snapshot: open gawa, unprocessed thoughts, and your total Bulsa obligations.' },
+            { label: 'Navigation Clusters', desc: 'Workspace stays pinned at the top, followed by primary modules (Projects, Gawa, Bulsa, Review, Journal) and the system tools row (Settings, Manual, Export).', tip: 'Tap any icon to jump directly to that tab.' },
             { label: 'Tablet Experience', desc: 'On tablets (iPad, etc.), DIWA automatically upgrades to a desktop-like layout: inline capture bar, expanded navigation, and hover effects.', tip: 'Tablet is detected when the device short-edge is ≥768px.' },
-            { label: 'Global Search 🔍', desc: 'Tap the search icon in the header or press Mod+Shift+F to open Global Search. Instantly find anything across Thoughts, Gawa, Bulsa, and Projects.', tip: 'Also available via Obsidian command palette: "MINA: Global Search".' },
-        ]
-    },
-    {
-        id: 'search', icon: 'lucide-search', title: 'Global Search', subtitle: 'Find anything across DIWA instantly',
-        items: [
-            { label: 'Opening Search', desc: 'Tap the 🔍 icon in the Command Center header, or press Mod+Shift+F. On phone, a search pill sits between the greeting and capture bar.', tip: 'Also available via Obsidian command palette: "MINA: Global Search".' },
-            { label: 'Search Pill (Phone)', desc: 'On phone, a tappable search pill sits in the Command Center between the greeting and the capture bar. Tapping it opens the full-screen search overlay directly.', tip: 'The pill only appears on phone-sized screens — on tablet/desktop use the header icon.' },
-            { label: 'Mobile Full-Screen Mode', desc: 'On phone, search opens as a full-screen iOS Spotlight-style takeover: 16px input (prevents iOS zoom), results scroll above the keyboard automatically, and safe-area insets are respected for notched phones.' },
-            { label: 'Swipe to Dismiss', desc: 'On phone, swipe down on the search overlay or tap the ← back button to close.', tip: 'The back button appears in the top-left corner of the full-screen overlay.' },
-            { label: 'Scope Filters', desc: 'Use the pill buttons (All / Thoughts / Gawa / Bulsa / Projects) to narrow results to a specific type. Counts update live as you type.' },
-            { label: 'Keyboard Navigation', desc: '↑↓ arrow keys move through results. Enter opens the focused item. Escape closes the overlay.', tip: 'Typing always returns focus to the input — you never lose your place.' },
-            { label: 'Quick Jump', desc: 'When search is empty, a Quick Jump grid lets you instantly navigate to any tab. Displays as 2 columns on phone, 3 columns on tablet/desktop.' },
-            { label: 'Match Highlighting', desc: 'Your query is highlighted wherever it matches result titles, making it easy to confirm relevance at a glance.' },
         ]
     },
     {
@@ -62,7 +48,6 @@ const SECTIONS: HelpSection[] = [
         id: 'thoughts', icon: 'lucide-brain', title: 'Thoughts', subtitle: 'Browse and process your captured ideas',
         items: [
             { label: 'Thought Feed', desc: 'Captured thoughts live in the workspace feed, where you can review them, search them, and turn them into tasks or notes.' },
-            { label: 'Search', desc: 'Use Global Search to find thoughts by content, title, or context tag from anywhere in DIWA.' },
             { label: 'Convert to Task', desc: 'Tap the checklist icon on any thought card to turn it into a task. Pick a title and optional due date — the new task keeps the source thought link.' },
             { label: 'Edit & Reply', desc: 'Tap a thought card to edit its content, add a reply thread, or delete it.' },
             { label: 'Project Link', desc: 'Thoughts can be linked to a project using the folder icon in the edit modal.' },
@@ -93,7 +78,6 @@ const SECTIONS: HelpSection[] = [
         id: 'review', icon: 'lucide-calendar-check', title: 'Weekly Review', subtitle: 'Reflect and plan every week',
         items: [
             { label: 'Week at a Glance ⚡', desc: 'Auto-generated panel showing gawa completed, active projects, and Bulsa paid/overdue.', tip: 'Tap ↻ to refresh. Tap ⌄ to collapse.' },
-            { label: 'AI Weekly Brief 🤖', desc: 'Tap "✨ Generate AI Brief" at the bottom of the review to get a Gemini-powered 5-section brief: Week Assessment, Top Win, Key Insight, Next Week Priority, and North Star Pulse.', tip: 'Requires a Gemini API key. The brief is generated from your actual vault data — gawa, thoughts, projects, and goals.' },
             { label: 'Wins', desc: 'Write what went well this week — celebrate progress, big and small.' },
             { label: 'Lessons Learned', desc: 'Capture what you\'d do differently. Turns mistakes into growth.' },
             { label: 'Next Week\'s Focus', desc: 'Set 1–3 priorities for the coming week. These appear on your Home screen.' },
@@ -109,17 +93,6 @@ const SECTIONS: HelpSection[] = [
             { label: 'Monthly Stats', desc: 'Auto-calculated gawa done, thoughts captured, and open gawa for the current month.' },
             { label: 'Project Progress', desc: 'Visual progress bars for each project showing done/total ratio.' },
             { label: 'Next Month\'s Focus', desc: 'Set up to 3 goals for the coming month. Saved to Reviews/Monthly/ folder.', tip: 'Persisted as Markdown so it survives plugin reinstalls.' },
-        ]
-    },
-    {
-        id: 'ai', icon: 'lucide-sparkles', title: 'AI Chat', subtitle: 'Gemini 2.5 Pro intelligence',
-        items: [
-            { label: 'Chat', desc: 'Ask DIWA anything — strategy, writing help, idea development, or note analysis. Powered by Gemini 2.5 Pro.' },
-            { label: 'Keyboard', desc: 'Press Enter to send, Shift+Enter for a new line.', tip: 'The send button also works on mobile.' },
-            { label: 'Web Search', desc: 'Toggle the globe icon (🌐) in the header to let AI pull current information from the internet.' },
-            { label: 'Ground on Notes', desc: 'Attach vault files via the paperclip icon. File chips appear above the input — tap × to remove.' },
-            { label: 'New Chat', desc: 'Tap "+ New" to start a fresh conversation. Previous chats are auto-saved to vault.' },
-            { label: 'Setup', desc: 'Add your Gemini API key via the gear icon in the AI header. Free tier at ai.google.dev.', tip: 'Default model: gemini-2.5-pro. The Intelligence briefing on Home also uses this key.' },
         ]
     },
     {
@@ -156,11 +129,10 @@ const SECTIONS: HelpSection[] = [
     {
         id: 'settings', icon: 'lucide-settings', title: 'Settings', subtitle: 'configure DIWA to your workflow',
         items: [
-            { label: 'Folders', desc: 'Set where thoughts, gawa, voice memos, and reviews are stored in your vault. Use Folder Config for a quick modal.' },
+            { label: 'Folders', desc: 'Set where thoughts, gawa, attachments, and reviews are stored in your vault. Use Folder Config for a quick modal.' },
             { label: 'Reviews Folder', desc: 'Root folder for Weekly and Monthly review files. Sub-folders Weekly/ and Monthly/ are auto-created.', tip: 'Default: 000 Bin/DIWA Reviews. Configurable in Folder Config.' },
             { label: 'Attachments Folder', desc: 'Folder where pasted or drag-dropped images and files are saved. Used by the image paste feature in capture inputs.', tip: 'Default: 000 Bin/DIWA Attachments. The folder is auto-created on first paste.' },
             { label: 'Contexts', desc: 'Manage your global context tags (#work, #personal, etc.).' },
-            { label: 'AI Key', desc: 'Enter your Gemini API key to enable AI Chat and Intelligence features.' },
             { label: 'Reminders', desc: 'Toggle gawa reminders. Reminders respect quiet hours (8 AM – 10 PM) and fire on mobile app resume.' },
             { label: 'Monthly Income', desc: 'Set your monthly income (number) to unlock the cashflow overview in Bulsa Insights.' },
         ]

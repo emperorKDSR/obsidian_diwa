@@ -1,10 +1,5 @@
 import { TFile } from 'obsidian';
 
-export interface ChatMessage {
-    role: 'user' | 'model';
-    text: string;
-}
-
 export interface ProjectEntry {
     id: string;
     name: string;
@@ -15,14 +10,6 @@ export interface ProjectEntry {
     color?: string;
     filePath: string;
     milestones?: Milestone[];
-}
-
-export interface AISettingsConfig {
-    enabled: boolean;
-    model: string;
-    temperature: number;
-    enableSuggestions: boolean;
-    enableSummaries: boolean;
 }
 
 export type GawaPaneId =
@@ -59,11 +46,7 @@ export interface DiwaSettings {
     contexts: string[];
     hiddenContexts: string[];
     selectedContexts: string[];
-    geminiApiKey: string;
-    geminiModel: string;
-    maxOutputTokens: number;
     newNoteFolder: string;
-    aiChatFolder: string;
     dailySectionStates: Record<string, boolean>;
     showDailySections: boolean;
     showDailyChecklist: boolean;
@@ -85,7 +68,6 @@ export interface DiwaSettings {
     monthlyGoals: string[];
     monthlyIncome: number;
     northStarGoals: string[];
-    enableAutoClassification: boolean;
     attachmentsFolder: string;
     projectsFolder: string;
     reviewsFolder: string;
@@ -94,7 +76,6 @@ export interface DiwaSettings {
     legacyMigrated?: boolean;
     peopleFolder: string;
     contextOrder: string[];
-    ai: AISettingsConfig;
     gawaLayoutPreferences: GawaLayoutPreferences;
 }
 
@@ -147,12 +128,6 @@ export interface ThoughtEntry {
         tasks: string[];       // linked task IDs (file paths in current implementation)
         thoughts: string[];    // linked thought IDs
     };
-    aiProcessed?: boolean;
-    aiResult?: {
-        intent?: 'explore' | 'analyze' | 'plan' | 'recall';
-        summary?: string;
-        topics?: string[];
-    } | null;
 }
 
 export interface TaskEntry {
@@ -230,20 +205,3 @@ export interface DueEntry {
 }
 
 export type FileOrCreate = TFile | string;
-
-
-export interface WeeklyReportContext {
-    weekId: string;
-    dateRange: string;
-    wins: string;
-    lessons: string;
-    focus: string[];
-    completedTasks: string[];
-    overdueTasks: string[];
-    activeProjects: string[];
-    weeklyGoals: string[];
-    northStarGoals: string[];
-    recentThoughts: string[];
-    dayPlans?: Record<string, string>;
-}
-

@@ -1,5 +1,5 @@
 import { Plugin, TFile, Notice, WorkspaceLeaf, Platform, moment, addIcon, setIcon, MarkdownRenderer, Menu } from 'obsidian';
-import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, AI_CHAT_ICON_ID, AI_CHAT_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, PROJECT_ICON_ID, PROJECT_ICON_SVG, GRAPH_ICON_ID, GRAPH_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_SEARCH, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_MOBILE_GAWA, VIEW_TYPE_TABLET_HUB, VIEW_TYPE_GRAPH_EXPLORER } from './constants';
+import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, PROJECT_ICON_ID, PROJECT_ICON_SVG, GRAPH_ICON_ID, GRAPH_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_MOBILE_GAWA, VIEW_TYPE_TABLET_HUB, VIEW_TYPE_GRAPH_EXPLORER } from './constants';
 import { DiwaSettings, GawaLayoutPreferences, TaskEntry, ThoughtEntry } from './types';
 import type { GraphExplorerSeed } from './graph/types';
 import { sanitizeGawaLayoutPreferences } from './gawaLayout';
@@ -9,7 +9,6 @@ import { DesktopHubView } from './views/DesktopHubView';
 import { MobileHubView } from './views/MobileHubView';
 import { MobileGawaView } from './views/MobileGawaView';
 import { TabletHubView } from './views/TabletHubView';
-import { SearchView } from './views/SearchView';
 import { GraphExplorerView } from './views/GraphExplorerView';
 import { DiwaSettingTab } from './settings';
 import { EditEntryModal } from './modals/EditEntryModal';
@@ -18,8 +17,6 @@ import { EditTaskModal } from './modals/EditTaskModal';
 import { MobilePostComposerModal } from './modals/MobilePostComposerModal';
 import { ConfirmModal } from './modals/ConfirmModal';
 
-import { AiService } from './services/AiService';
-import { AIProcessor } from './services/AIProcessor';
 import { VaultService } from './services/VaultService';
 import { IndexService } from './services/IndexService';
 import { TaskLinkService } from './services/TaskLinkService';
@@ -63,12 +60,9 @@ export default class DiwaPlugin extends Plugin {
 	settings: DiwaSettings;
     settingsInitialized: boolean = false;
     zenCaptureDraft: string = '';
-    aiMode: 'off' | 'assist' | 'active' = 'assist';
     private pendingJournalInputFocus = false;
     
     // Services
-    ai: AiService;
-    aiProcessor: AIProcessor;
     vault: VaultService;
     index: IndexService;
     // Compatibility facade for runtime callers expecting plugin.taskIndex.getAll()/set()
@@ -108,26 +102,14 @@ export default class DiwaPlugin extends Plugin {
 
     getThoughtProcessor(): ThoughtProcessor {
         if (!this.thoughtProcessor) {
-            this.thoughtProcessor = new ThoughtProcessor(this.getThoughtController(), this.aiProcessor, () => this.shouldUseAI());
+            this.thoughtProcessor = new ThoughtProcessor(this.getThoughtController());
             console.warn('[DIWA] ThoughtProcessor was missing and has been re-created');
         }
         return this.thoughtProcessor;
     }
 
-    getAIConfig() {
-        return this.settings.ai;
-    }
-
     isMobile(): boolean {
         return (this.app as { isMobile?: boolean }).isMobile ?? Platform.isMobile;
-    }
-
-    shouldUseAI(): boolean {
-        return this.aiMode !== 'off' && !!this.aiProcessor?.available && !!this.getAIConfig()?.enabled;
-    }
-
-    setAIMode(mode: 'off' | 'assist' | 'active'): void {
-        this.aiMode = mode;
     }
 
 	async onload() {
@@ -136,16 +118,13 @@ export default class DiwaPlugin extends Plugin {
         this.applyDeviceBodyClasses();
 
         // Initialize Services
-        this.ai = new AiService(this.app, this.settings);
-        const apiClient = this.ai;
-        this.aiProcessor = new AIProcessor(apiClient, this.getAIConfig());
         this.vault = new VaultService(this.app, this.settings);
         this.index = new IndexService(this.app, this.settings);
         this.taskIndex = new TaskIndexCompat(this);
         this.controller = new TaskController(this);
         this.taskController = this.controller;
         this.thoughtController = new ThoughtController(this);
-        this.thoughtProcessor = new ThoughtProcessor(this.thoughtController, this.aiProcessor, () => this.shouldUseAI());
+        this.thoughtProcessor = new ThoughtProcessor(this.thoughtController);
         console.log('TaskIndex initialized:', this.taskIndex);
         console.log('[DIWA] Shared TaskController initialized:', this.controller);
         this.taskLink = new TaskLinkService(this.app, this.settings, this.index);
@@ -248,7 +227,6 @@ export default class DiwaPlugin extends Plugin {
         this.registerView(VIEW_TYPE_MOBILE_HUB,  (leaf) => new MobileHubView(leaf, this));
         this.registerView(VIEW_TYPE_MOBILE_GAWA, (leaf) => new MobileGawaView(leaf, this));
         this.registerView(VIEW_TYPE_TABLET_HUB,  (leaf) => new TabletHubView(leaf, this));
-        this.registerView(VIEW_TYPE_SEARCH, (leaf) => new SearchView(leaf, this));
         this.registerView(VIEW_TYPE_GRAPH_EXPLORER, (leaf) => new GraphExplorerView(leaf, this));
 
         // Reminders: hourly nudge for due tasks
@@ -260,7 +238,6 @@ export default class DiwaPlugin extends Plugin {
 		addIcon(KATANA_ICON_ID, KATANA_ICON_SVG);
 		addIcon(JOURNAL_ICON_ID, JOURNAL_ICON_SVG);
 		addIcon(DAILY_ICON_ID, DAILY_ICON_SVG);
-		addIcon(AI_CHAT_ICON_ID, AI_CHAT_ICON_SVG);
 		addIcon(GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG);
 		addIcon(PF_ICON_ID, PF_ICON_SVG);
 		addIcon(PROJECT_ICON_ID, PROJECT_ICON_SVG);
@@ -386,23 +363,6 @@ export default class DiwaPlugin extends Plugin {
         await this.activateView('dues');
     }
 
-    async activateSearchView() {
-        const { workspace } = this.app;
-        if (!Platform.isDesktop) {
-            return;
-        }
-        const existing = workspace.getLeavesOfType(VIEW_TYPE_SEARCH);
-        if (existing.length > 0) {
-            workspace.revealLeaf(existing[0]);
-            return;
-        }
-        const leaf = workspace.getLeaf('window');
-        if (leaf) {
-            await leaf.setViewState({ type: VIEW_TYPE_SEARCH, active: true });
-            workspace.revealLeaf(leaf);
-        }
-    }
-
     async openGraphExplorer(seed: GraphExplorerSeed): Promise<WorkspaceLeaf | null> {
         if (!Platform.isDesktop) {
             new Notice('Graph Explorer is currently available on desktop only.');
@@ -512,22 +472,24 @@ export default class DiwaPlugin extends Plugin {
         if (hadLegacyLifeMission) {
             delete (this.settings as unknown as { lifeMission?: unknown }).lifeMission;
         }
-        this.settings.ai = Object.assign({}, DEFAULT_SETTINGS.ai, this.settings.ai ?? {});
-        const legacySettings = this.settings as DiwaSettings & { voiceMemoFolder?: string; transcriptionLanguage?: string };
+        const legacySettings = this.settings as DiwaSettings & {
+            voiceMemoFolder?: string;
+            transcriptionLanguage?: string;
+            geminiApiKey?: string;
+            geminiModel?: string;
+            maxOutputTokens?: number;
+            aiChatFolder?: string;
+            enableAutoClassification?: boolean;
+            ai?: unknown;
+        };
         delete legacySettings.voiceMemoFolder;
         delete legacySettings.transcriptionLanguage;
-        // Use ?? so saved values are respected; new installs default to false
-        this.settings.ai.enabled = this.settings.ai.enabled ?? false;
-        this.settings.ai.enableSuggestions = this.settings.ai.enableSuggestions ?? false;
-        this.settings.ai.enableSummaries = this.settings.ai.enableSummaries !== false;
-        // enableFeedSuggestions removed — no migration needed
-        if (typeof this.settings.ai.model !== 'string' || !this.settings.ai.model.trim()) {
-            this.settings.ai.model = DEFAULT_SETTINGS.ai.model;
-        }
-        const aiTemperature = Number(this.settings.ai.temperature);
-        this.settings.ai.temperature = Number.isFinite(aiTemperature)
-            ? Math.max(0, Math.min(2, aiTemperature))
-            : DEFAULT_SETTINGS.ai.temperature;
+        delete legacySettings.geminiApiKey;
+        delete legacySettings.geminiModel;
+        delete legacySettings.maxOutputTokens;
+        delete legacySettings.aiChatFolder;
+        delete legacySettings.enableAutoClassification;
+        delete legacySettings.ai;
         // Sanitize: remove null/non-string entries that can creep in from malformed YAML frontmatter
         if (this.settings.contexts) {
             this.settings.contexts = this.settings.contexts.filter((c: any) => c && typeof c === 'string');
@@ -550,7 +512,6 @@ export default class DiwaPlugin extends Plugin {
 	    if (!this.settingsInitialized) return;
         this.settings.gawaLayoutPreferences = sanitizeGawaLayoutPreferences(this.settings.gawaLayoutPreferences);
 	    await this.saveData(this.settings);
-	    if (this.ai) this.ai.updateSettings(this.settings);
 	    if (this.vault) this.vault.updateSettings(this.settings);
 	    if (this.index) this.index.updateSettings(this.settings);
 	    if (this.taskLink) this.taskLink.updateSettings(this.settings);
@@ -995,32 +956,6 @@ export default class DiwaPlugin extends Plugin {
             this.getThoughtController().removeThoughtFromIndex(thought.filePath);
             this.notifyRefresh('thoughts');
         }).open();
-    }
-
-    renderAIView(container: HTMLElement): void {
-        container.empty();
-        const card = container.createDiv('diwa-mobile-ai-card');
-        card.createDiv({ cls: 'diwa-mobile-ai-title', text: 'DIWA AI' });
-        card.createDiv({
-            cls: 'diwa-mobile-ai-subtitle',
-            text: 'Use AI chat for synthesis, planning, and recall based on your vault context.',
-        });
-
-        const openAiBtn = card.createEl('button', {
-            cls: 'diwa-mobile-ai-open-btn',
-            text: 'Open AI Chat',
-            attr: { type: 'button' },
-        });
-        openAiBtn.addEventListener('click', () => {
-            void this.activateView('diwa-ai');
-        });
-
-        const captureBtn = card.createEl('button', {
-            cls: 'diwa-mobile-ai-capture-btn',
-            text: 'Capture First',
-            attr: { type: 'button' },
-        });
-        captureBtn.addEventListener('click', () => this.openCaptureModal());
     }
 
     private _checkReminders(): void {

@@ -104,7 +104,7 @@ export class ExportTab extends BaseTab {
         btn.textContent = 'Creating…';
         try {
             const dateStr = moment().format('YYYYMMDD');
-            const { geminiApiKey, ...safeSettings } = this.settings as any;
+            const safeSettings = { ...this.settings };
             const backup = {
                 version: '1.14.0',
                 exportedAt: new Date().toISOString(),

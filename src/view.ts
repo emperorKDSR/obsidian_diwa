@@ -2,7 +2,7 @@ import { ItemView, WorkspaceLeaf, moment, TFile, Platform, ViewStateResult } fro
 import { VIEW_TYPE_DIWA, KATANA_ICON_ID } from './constants';
 import type DiwaPlugin from './main';
 import { BaseTab } from './tabs/BaseTab';
-import type { ChatMessage, Task } from './types';
+import type { Task } from './types';
 
 interface DiwaViewState extends Record<string, unknown> {
     activeTab?: string;
@@ -37,16 +37,6 @@ export class DiwaView extends ItemView {
     // key = "filePath:lineIndex", value = YYYY-MM-DD — keeps completed items visible for the day
     checklistCompletedToday: Map<string, { text: string; date: string }> = new Map();
     
-    // AI State
-    chatHistory: ChatMessage[] = [];
-    isAiLoading: boolean = false;
-    webSearchEnabled: boolean = false;
-    groundedFiles: TFile[] = [];
-    groundedNotesBar: HTMLElement;
-    chatContainer: HTMLElement;
-    currentChatFile: string | null = null;
-    weeklyAiReport: string | null = null;
-
     // Week Plan State
     weekPlanDraft: Record<string, string> | null = null;
     weekPlanTargetMode: 'next' | 'this' = 'next';
@@ -73,14 +63,13 @@ export class DiwaView extends ItemView {
 
     private normalizeTabId(tab?: string | null): string {
         const nextTab = tab ?? 'home';
-        return ['daily-workspace', 'habits', 'compass', 'timeline', 'synthesis', 'calendar', 'voice-note'].includes(nextTab) ? 'home' : nextTab;
+        return ['daily-workspace', 'habits', 'compass', 'timeline', 'synthesis', 'calendar', 'voice-note', 'diwa-ai', 'search'].includes(nextTab) ? 'home' : nextTab;
     }
 
     getModeTitle(): string {
         switch (this.activeTab) {
             case 'review-thoughts': return "Thoughts";
             case 'review-gawa': return "Gawa";
-            case 'diwa-ai': return "AI Chat";
             case 'dues': return "Bulsa";
             case 'projects': return "Projects";
             case 'review': return "Weekly Review";
@@ -203,7 +192,6 @@ export class DiwaView extends ItemView {
 
         const tab = this.activeTab;
         if (tab === 'review-gawa') instantiate(import('./tabs/GawaTab'), 'GawaTab');
-        else if (tab === 'diwa-ai') instantiate(import('./tabs/AiTab'), 'AiTab');
         else if (tab === 'dues') instantiate(import('./tabs/DuesTab'), 'DuesTab');
         else if (tab === 'projects') instantiate(import('./tabs/ProjectsTab'), 'ProjectsTab');
         else if (tab === 'review') instantiate(import('./tabs/ReviewTab'), 'ReviewTab');
@@ -227,11 +215,6 @@ export class DiwaView extends ItemView {
             this.currentTab = null;
             this.currentTabId = null;
         }
-    }
-
-    // Bridge methods to Services
-    async callGemini(msg: string, files: TFile[] = [], search: boolean = false, history?: any[]) {
-        return await this.plugin.ai.callGemini(msg, files, search, history, this.plugin.index.thoughtIndex);
     }
 
     matchesSearch(query: string, fields: string[]): boolean {

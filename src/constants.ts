@@ -6,7 +6,6 @@ export const VIEW_TYPE_DESKTOP_HUB = "diwa-desktop-hub";
 export const VIEW_TYPE_MOBILE_HUB  = "diwa-mobile-hub";
 export const VIEW_TYPE_MOBILE_GAWA = "diwa-mobile-gawa";
 export const VIEW_TYPE_TABLET_HUB  = "diwa-tablet-hub";
-export const VIEW_TYPE_SEARCH = "diwa-search-view";
 export const VIEW_TYPE_GRAPH_EXPLORER = "diwa-graph-explorer";
 
 // Desktop Hub ribbon icon — three-pane cockpit layout
@@ -52,15 +51,6 @@ export const DAILY_ICON_ID = "diwa-daily-icon";
 export const DAILY_ICON_SVG = `<g transform="translate(10,10) scale(3.5)">
     <circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/>
     <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-</g>`;
-
-export const AI_CHAT_ICON_ID = "diwa-ai-icon";
-export const AI_CHAT_ICON_SVG = `<g transform="translate(10,10) scale(3.5)">
-    <rect x="5" y="6" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-    <circle cx="9" cy="11" r="1.5" fill="currentColor"/>
-    <circle cx="15" cy="11" r="1.5" fill="currentColor"/>
-    <path d="M12 2v4M8 2h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-    <path d="M9 15h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
 </g>`;
 
 export const GRUNDFOS_ICON_ID = "diwa-grundfos-icon";
@@ -118,30 +108,6 @@ export const ICON_EYE = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" 
 export const ICON_EYE_OFF = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24M1 1l22 22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
 export const ICON_CHECKLIST = '<polyline points="9 11 12 14 22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
 
-// ── Search shared constants ────────────────────────────────────────────────
-
-export const SEARCH_SCOPES = [
-    { id: 'all',     label: 'All' },
-    { id: 'thought', label: 'Thoughts' },
-    { id: 'task',    label: 'Gawa' },
-    { id: 'due',     label: 'Bulsa' },
-    { id: 'project', label: 'Projects' },
-] as const;
-
-export const SEARCH_TYPE_ICONS: Record<string, string> = {
-    thought: 'lucide-message-circle',
-    task:    'lucide-check-square-2',
-    due:     'lucide-wallet',
-    project: 'lucide-folder-kanban',
-};
-
-export const SEARCH_QUICKJUMP_TABS = [
-    { id: 'review-gawa',  label: 'Gawa',     icon: 'lucide-check-square-2' },
-    { id: 'dues',         label: 'Bulsa',    icon: 'lucide-wallet' },
-    { id: 'projects',     label: 'Projects', icon: 'lucide-folder-kanban' },
-    { id: 'journal',      label: 'Journal',  icon: 'lucide-book-open' },
-];
-
 export const DEFAULT_SETTINGS: DiwaSettings = {
     captureFolder: '000 Bin',
 	captureFilePath: 'diwa.md',
@@ -150,17 +116,13 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
     tasksFolder: '000 Bin/DIWA Gawa',
     pfFolder: '000 Bin/DIWA PF',
 	dateFormat: 'YYYY-MM-DD',
-    timeFormat: 'HH:mm',
-    contexts: [],
-    hiddenContexts: [],
-    selectedContexts: [],
-        contextOrder: [],
-    geminiApiKey: '',
-    geminiModel: 'gemini-1.5-pro',
-    maxOutputTokens: 65536,
-    newNoteFolder: '000 Bin',
-    aiChatFolder: '000 Bin/DIWA AI Chat',
-    dailySectionStates: {},
+	timeFormat: 'HH:mm',
+	contexts: [],
+	hiddenContexts: [],
+	selectedContexts: [],
+	contextOrder: [],
+	newNoteFolder: '000 Bin',
+	dailySectionStates: {},
     showDailySections: true,
     showDailyChecklist: true,
     showDailyTasks: true,
@@ -181,7 +143,6 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
     monthlyGoals: [],
     monthlyIncome: 0,
     northStarGoals: [],
-    enableAutoClassification: false,
     attachmentsFolder: '000 Bin/DIWA Attachments',
     projectsFolder: 'Projects',
     reviewsFolder: '000 Bin/DIWA Reviews',
@@ -190,11 +151,4 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
     peopleFolder: '000 Bin/DIWA People',
     legacyMigrated: false,
     gawaLayoutPreferences: createDefaultGawaLayoutPreferences(),
-    ai: {
-        enabled: false,
-        model: 'gpt-4o-mini',
-        temperature: 0.7,
-        enableSuggestions: false,
-        enableSummaries: true,
-    },
-}
+};

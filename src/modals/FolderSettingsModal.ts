@@ -78,18 +78,6 @@ export class FolderSettingsModal extends Modal {
                     await this.plugin.saveSettings();
                 }));
 
-
-        new Setting(body)
-            .setName('AI Chat Folder')
-            .setDesc('Where AI chat sessions are saved.')
-            .addText(text => text
-                .setPlaceholder('000 Bin/DIWA AI Chat')
-                .setValue(this.plugin.settings.aiChatFolder)
-                .onChange(async (value) => {
-                    this.plugin.settings.aiChatFolder = value;
-                    await this.plugin.saveSettings();
-                }));
-
         new Setting(body)
             .setName('Reviews Folder')
             .setDesc('Root folder for Weekly and Monthly review files (sub-folders created automatically).')

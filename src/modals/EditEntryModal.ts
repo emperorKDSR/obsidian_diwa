@@ -245,7 +245,6 @@ export class EditEntryModal extends Modal {
         });
 
         this._attachInlineTriggers(textArea, setDueDate);
-        this._attachAutoClassify(textArea);
         attachMediaPasteHandler(this.app, textArea, () => this.plugin.settings.attachmentsFolder);
 
         // Short delay — just enough for modal animation to start
@@ -617,25 +616,6 @@ export class EditEntryModal extends Modal {
         modalEl.addEventListener('touchend', onTouchEnd, { passive: true });
     }
 
-    /** ── AI AUTO-CLASSIFY (sec-004) ─────────────────── */
-    private _attachAutoClassify(textArea: HTMLTextAreaElement) {
-        if (!this.plugin.settings.enableAutoClassification) return;
-        textArea.addEventListener('input', () => {
-            if (this.classificationTimeout) clearTimeout(this.classificationTimeout);
-            this.classificationTimeout = setTimeout(async () => {
-                const text = textArea.value;
-                if (text.length < 15) return;
-                const projects = this.plugin.index.getProjects();
-                const prompt = `Classify this note into one of these projects: ${projects.join(', ')}. Note: "${text}". Return ONLY the name or "None".`;
-                try {
-                    const result = await this.plugin.ai.callGemini(prompt, [], false, [], this.plugin.index.thoughtIndex);
-                    const match = projects.find(p => result.includes(p));
-                    if (match) this.currentProject = match;
-                } catch (_) {}
-            }, 1500);
-        });
-    }
-
     /** ── DESKTOP / TABLET PATH ───────────────────────── */
     private _renderDesktop(contentEl: HTMLElement, modalEl: HTMLElement) {
         modalEl.addClass('diwa-clean-modal');
@@ -815,23 +795,6 @@ export class EditEntryModal extends Modal {
 
         attachMediaPasteHandler(this.app, textArea, () => this.plugin.settings.attachmentsFolder);
 
-        if (this.plugin.settings.enableAutoClassification) {
-            textArea.addEventListener('input', () => {
-                if (this.classificationTimeout) clearTimeout(this.classificationTimeout);
-                this.classificationTimeout = setTimeout(async () => {
-                    const text = textArea.value;
-                    if (text.length < 15) return;
-                    const projects = this.plugin.index.getProjects();
-                    const prompt = `Classify this note into one of these projects: ${projects.join(', ')}. Note: "${text}". Return ONLY the name or "None".`;
-                    try {
-                        const result = await this.plugin.ai.callGemini(prompt, [], false, [], this.plugin.index.thoughtIndex);
-                        const match = projects.find(p => result.includes(p));
-                        if (match) { this.currentProject = match; updateProjectChip(match); }
-                    } catch (_) {}
-                }, 1500);
-            });
-        }
-
         setTimeout(() => { textArea.focus(); textArea.setSelectionRange(textArea.value.length, textArea.value.length); }, 80);
     }
 
@@ -844,4 +807,3 @@ export class EditEntryModal extends Modal {
         this.contentEl.empty();
     }
 }
-

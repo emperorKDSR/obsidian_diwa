@@ -11,10 +11,6 @@ export class ThoughtFocusPanel {
     private rootEl: HTMLElement | null = null;
     private titleEl: HTMLElement | null = null;
     private contentEl: HTMLElement | null = null;
-    private aiModeEl: HTMLElement | null = null;
-    private aiLoadingEl: HTMLElement | null = null;
-    private aiContainerEl: HTMLElement | null = null;
-    private aiTriggerBtn: HTMLButtonElement | null = null;
     private guidedNextEl: HTMLElement | null = null;
     private guidedClustersEl: HTMLElement | null = null;
     private relatedEl: HTMLElement | null = null;
@@ -29,8 +25,6 @@ export class ThoughtFocusPanel {
     private index = -1;
     private expandedClusterLabel: string | null = null;
     private currentThoughtId: string | null = null;
-    private aiInFlight = new Set<string>();
-    private aiCache = new Map<string, NonNullable<ThoughtEntry['aiResult']>>();
 
     constructor(
         private app: App,
@@ -58,17 +52,9 @@ export class ThoughtFocusPanel {
         this.forwardBtn = header.createEl('button', { cls: 'diwa-thought-focus-nav', attr: { type: 'button', title: 'Forward' } }) as HTMLButtonElement;
         setIcon(this.forwardBtn, 'arrow-right');
         this.titleEl = header.createEl('div', { cls: 'diwa-thought-focus-title', text: 'Thought Focus' });
-        this.aiModeEl = header.createEl('div', { cls: 'diwa-thought-focus-ai-mode' });
 
         const body = this.rootEl.createEl('div', { cls: 'diwa-thought-focus-body' });
         this.contentEl = body.createEl('div', { cls: 'diwa-thought-focus-content' });
-        this.aiLoadingEl = body.createEl('div', { cls: 'ai-loading' });
-        this.aiContainerEl = body.createEl('div', { cls: 'ai-container' });
-        this.aiTriggerBtn = body.createEl('button', {
-            cls: 'ai-trigger-btn',
-            text: '🧠 Analyze',
-            attr: { type: 'button' },
-        }) as HTMLButtonElement;
         this.guidedNextEl = body.createEl('div', { cls: 'guided-next', attr: { style: 'display:none;' } });
         this.guidedClustersEl = body.createEl('div', { cls: 'guided-clusters', attr: { style: 'display:none;' } });
         this.relatedEl = body.createEl('div', { cls: 'diwa-thought-focus-section' });
@@ -79,13 +65,6 @@ export class ThoughtFocusPanel {
         this.mobileBackBtn.addEventListener('click', () => this.closeMobile());
         this.backBtn.addEventListener('click', () => this.goBack());
         this.forwardBtn.addEventListener('click', () => this.goForward());
-        this.aiTriggerBtn.addEventListener('click', () => {
-            const thoughtId = this.currentThoughtId;
-            if (!thoughtId) return;
-            const thought = this.thoughtController.getThought(thoughtId);
-            if (!thought) return;
-            void this.triggerAI(thought);
-        });
         this.updateNavState();
     }
 
@@ -110,9 +89,6 @@ export class ThoughtFocusPanel {
             this.openMobile(thought.id || thought.filePath);
         }
         void this.render(thought);
-        window.setTimeout(() => {
-            void this.triggerAI(thought);
-        }, 0);
         this.updateNavState();
     }
 
@@ -144,14 +120,12 @@ export class ThoughtFocusPanel {
     private async render(thought: ThoughtEntry): Promise<void> {
         if (!this.rootEl || !this.titleEl || !this.contentEl || !this.guidedNextEl || !this.guidedClustersEl || !this.relatedEl || !this.recallEl || !this.tasksEl || !this.notesEl) return;
         this.rootEl.removeClass('is-hidden');
-        this.aiModeEl?.setText(this.plugin.shouldUseAI() ? '🤖 Assist Mode' : '');
         const title = (thought.title || thought.content || thought.body || thought.filePath).split('\n').find((line) => line.trim())?.trim() || 'Thought';
         this.titleEl.setText(title.length > 48 ? `${title.slice(0, 45)}...` : title);
 
         this.contentEl.empty();
         await MarkdownRenderer.render(this.app, thought.body || thought.content || thought.title || '', this.contentEl, thought.filePath, this.markdownHost);
         enableImageZoom(this.app, this.contentEl);
-        this.renderAIState(thought);
 
         const next = await this.thoughtProcessor.getNextBestThought(thought);
         this.guidedNextEl.empty();
@@ -182,81 +156,6 @@ export class ThoughtFocusPanel {
         this.renderThoughtList(this.recallEl, 'Related Past Thoughts', this.thoughtProcessor.recall(thought));
         this.renderTasks(this.tasksEl, this.taskController.getLinkedTasksForThought(thought.filePath));
         this.renderNotes(this.notesEl, thought.wikilinks || []);
-    }
-
-    private async triggerAI(thought: ThoughtEntry): Promise<void> {
-        const thoughtKey = thought.id || thought.filePath;
-        if (!thoughtKey) return;
-        if (!this.plugin.shouldUseAI() || !this.plugin.aiProcessor?.available) return;
-        if (this.aiInFlight.has(thoughtKey)) return;
-        if (thought.aiProcessed && thought.aiResult) {
-            this.aiCache.set(thoughtKey, thought.aiResult);
-            if ((this.currentThoughtId || '') === thoughtKey) this.renderAI(thought.aiResult);
-            return;
-        }
-        const existing = this.aiCache.get(thoughtKey);
-        if (existing) {
-            thought.aiProcessed = true;
-            thought.aiResult = existing;
-            if ((this.currentThoughtId || '') === thoughtKey) this.renderAI(existing);
-            return;
-        }
-
-        this.aiInFlight.add(thoughtKey);
-        if ((this.currentThoughtId || '') === thoughtKey) this.setAILoading(true);
-        try {
-            const source = thought.content || thought.body || thought.title || '';
-            const result = await this.plugin.aiProcessor.analyzeThought(source);
-            thought.aiProcessed = true;
-            thought.aiResult = result;
-            this.aiCache.set(thoughtKey, result);
-            if ((this.currentThoughtId || '') === thoughtKey) this.renderAI(result);
-        } catch (error) {
-            console.warn('AI error:', error);
-        } finally {
-            this.aiInFlight.delete(thoughtKey);
-            if ((this.currentThoughtId || '') === thoughtKey) this.setAILoading(false);
-        }
-    }
-
-    private setAILoading(flag: boolean): void {
-        if (!this.aiLoadingEl) return;
-        this.aiLoadingEl.setText(flag ? '⏳ Analyzing...' : '');
-        if (this.aiTriggerBtn) this.aiTriggerBtn.disabled = flag;
-    }
-
-    private renderAIState(thought: ThoughtEntry): void {
-        const thoughtKey = thought.id || thought.filePath;
-        if (!thoughtKey || !this.aiContainerEl || !this.aiTriggerBtn) return;
-        this.aiContainerEl.empty();
-        if (!this.plugin.shouldUseAI() || !this.plugin.aiProcessor?.available) {
-            this.setAILoading(false);
-            this.aiTriggerBtn.style.display = 'none';
-            return;
-        }
-        const cached = thought.aiResult || this.aiCache.get(thoughtKey);
-        if (cached) {
-            this.aiTriggerBtn.style.display = 'none';
-            this.setAILoading(false);
-            this.renderAI(cached);
-            return;
-        }
-        if (this.aiInFlight.has(thoughtKey)) {
-            this.aiTriggerBtn.style.display = 'none';
-            this.setAILoading(true);
-            return;
-        }
-        this.setAILoading(false);
-        this.aiTriggerBtn.style.display = '';
-    }
-
-    private renderAI(result: NonNullable<ThoughtEntry['aiResult']>): void {
-        if (!this.aiContainerEl || !result) return;
-        this.aiContainerEl.empty();
-        const section = this.aiContainerEl.createEl('div', { cls: 'ai-section' });
-        section.createEl('div', { cls: 'ai-label', text: '🧠 AI Insight' });
-        section.createEl('div', { cls: 'ai-content', text: result.summary || '' });
-        if (this.aiTriggerBtn) this.aiTriggerBtn.style.display = 'none';
     }
 
     private renderGuidedClusters(currentThought: ThoughtEntry): void {

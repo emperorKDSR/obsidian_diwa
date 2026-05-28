@@ -2,7 +2,7 @@ import { ItemView, WorkspaceLeaf, setIcon, Notice, ViewStateResult, MarkdownRend
 import type DiwaPlugin from '../main';
 import {
     VIEW_TYPE_DESKTOP_HUB,
-    PF_ICON_ID, AI_CHAT_ICON_ID, REVIEW_ICON_ID,
+    PF_ICON_ID, REVIEW_ICON_ID,
     SETTINGS_ICON_ID, JOURNAL_ICON_ID,
 } from '../constants';
 import { attachInlineTriggers, attachMediaPasteHandler, isTablet } from '../utils';
@@ -393,21 +393,14 @@ export class DesktopHubView extends ItemView {
 
         const groups: { title: string; variant?: 'primary' | 'utility'; items: { label: string; icon: string; tab: string; onClick?: () => Promise<void> | void }[] }[] = [
             {
-                title: 'Core',
+                title: 'Modules',
                 variant: 'primary',
                 items: [
-                    { label: 'Search', icon: 'lucide-search', tab: 'search', onClick: () => this.plugin.activateSearchView() },
-                    { label: 'Journal', icon: JOURNAL_ICON_ID, tab: 'journal' },
-                    { label: 'AI Chat', icon: AI_CHAT_ICON_ID, tab: 'diwa-ai' },
-                ],
-            },
-            {
-                title: 'Manage',
-                items: [
+                    { label: 'Projects', icon: 'folder-kanban', tab: 'projects' },
                     { label: 'Gawa', icon: 'lucide-check-square-2', tab: 'review-gawa' },
                     { label: 'Bulsa', icon: PF_ICON_ID, tab: 'dues' },
-                    { label: 'Projects', icon: 'folder-kanban', tab: 'projects' },
                     { label: 'Review', icon: REVIEW_ICON_ID, tab: 'review' },
+                    { label: 'Journal', icon: JOURNAL_ICON_ID, tab: 'journal' },
                 ],
             },
             {

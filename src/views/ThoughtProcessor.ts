@@ -1,5 +1,4 @@
 import type { ThoughtEntry } from '../types';
-import type { AIProcessor } from '../services/AIProcessor';
 import type { ThoughtController } from './ThoughtController';
 
 export interface ThoughtCluster {
@@ -8,17 +7,7 @@ export interface ThoughtCluster {
 }
 
 export class ThoughtProcessor {
-    private ai: AIProcessor | null;
-    private shouldUseAI: () => boolean;
-
-    constructor(
-        private controller: ThoughtController,
-        aiProcessor: AIProcessor | null,
-        shouldUseAI?: () => boolean,
-    ) {
-        this.ai = aiProcessor;
-        this.shouldUseAI = shouldUseAI ?? (() => !!this.ai?.available);
-    }
+    constructor(private controller: ThoughtController) {}
 
     score(thought: ThoughtEntry): number {
         return (
@@ -54,16 +43,6 @@ export class ThoughtProcessor {
     }
 
     async findRelatedWithMeta(thought: ThoughtEntry): Promise<{ thoughts: ThoughtEntry[]; usedAI: boolean }> {
-        if (this.ai && this.ai.available && this.shouldUseAI()) {
-            const thoughts = await this.ai.findRelatedThoughts(
-                thought,
-                this.controller.getAllThoughts(),
-            );
-            const usedAI = !!this.ai.available;
-            if (!usedAI) return { thoughts: this.ruleBasedFindRelated(thought), usedAI: false };
-            return { thoughts, usedAI: true };
-        }
-
         return { thoughts: this.ruleBasedFindRelated(thought), usedAI: false };
     }
 
@@ -88,10 +67,6 @@ export class ThoughtProcessor {
     }
 
     async detectIntent(thought: ThoughtEntry): Promise<'explore' | 'analyze' | 'plan' | 'recall'> {
-        if (this.ai && this.shouldUseAI()) {
-            const result = await this.ai.analyzeThought(thought.content || thought.body || '');
-            return result.intent;
-        }
         return this.ruleBasedDetectIntent(thought);
     }
 

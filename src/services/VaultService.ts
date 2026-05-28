@@ -551,13 +551,12 @@ export class VaultService {
     }
 
     /** Save a weekly review to {reviewsFolder}/Weekly/YYYY-Www.md */
-    async saveWeeklyReview(weekId: string, dateRange: string, wins: string, lessons: string, focus: string[], aiReport?: string, dayPlans?: Record<string, string>): Promise<void> {
+    async saveWeeklyReview(weekId: string, dateRange: string, wins: string, lessons: string, focus: string[], dayPlans?: Record<string, string>): Promise<void> {
         const root = (this.settings.reviewsFolder || '000 Bin/DIWA Reviews').trim();
         const folder = `${root}/Weekly`;
         const path = `${folder}/${weekId}.md`;
         const now = this.formatDateTime(new Date());
         const focusLines = focus.map((f, i) => `${i + 1}. ${f.trim()}`).join('\n');
-        const aiSection = aiReport ? `\n\n# 🤖 AI Weekly Brief\n${aiReport.trim()}` : '';
         let dayPlanSection = '';
         if (dayPlans && Object.values(dayPlans).some(v => v.trim())) {
             const lines = Object.entries(dayPlans)
@@ -566,7 +565,7 @@ export class VaultService {
                 .join('\n');
             dayPlanSection = `\n\n# 📅 Next Week Plan\n${lines}`;
         }
-        const content = `---\nweek: "${weekId}"\ndate_range: "${dateRange}"\nsaved: "${now}"\n---\n\n# 🏆 Wins\n${wins.trim()}\n\n# 📚 Lessons\n${lessons.trim()}\n\n# 🎯 Focus\n${focusLines}${dayPlanSection}${aiSection}\n`;
+        const content = `---\nweek: "${weekId}"\ndate_range: "${dateRange}"\nsaved: "${now}"\n---\n\n# 🏆 Wins\n${wins.trim()}\n\n# 📚 Lessons\n${lessons.trim()}\n\n# 🎯 Focus\n${focusLines}${dayPlanSection}\n`;
         try {
             await this.ensureFolder(folder);
             const existing = this.app.vault.getAbstractFileByPath(path);
@@ -740,8 +739,8 @@ export class VaultService {
         }
     }
 
-    /** Load a weekly review file and parse wins/lessons/focus/aiReport sections */
-    async loadWeeklyReview(weekId: string): Promise<{ wins: string; lessons: string; focus: string[]; saved: string; aiReport?: string; dayPlans?: Record<string, string> } | null> {
+    /** Load a weekly review file and parse wins/lessons/focus sections */
+    async loadWeeklyReview(weekId: string): Promise<{ wins: string; lessons: string; focus: string[]; saved: string; dayPlans?: Record<string, string> } | null> {
         const root = (this.settings.reviewsFolder || '000 Bin/DIWA Reviews').trim();
         const path = `${root}/Weekly/${weekId}.md`;
         const file = this.app.vault.getAbstractFileByPath(path);
@@ -778,7 +777,6 @@ export class VaultService {
                 lessons: sections['lessons'] || '',
                 focus,
                 saved,
-                aiReport: sections['ai weekly brief'] || undefined,
                 dayPlans
             };
         } catch (e) {

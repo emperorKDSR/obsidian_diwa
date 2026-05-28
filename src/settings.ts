@@ -41,24 +41,6 @@ export class DiwaSettingTab extends PluginSettingTab {
                     });
             });
 
-        containerEl.createEl('h3', { text: 'AI Configuration' });
-        containerEl.createEl('p', {
-            text: 'Populate only these fields: API key, model, and temperature.',
-        });
-        // sec-002: API key masked as password — was plain text
-        new Setting(containerEl).setName('Gemini API Key').setDesc('Your Google AI Studio API key.').addText(text => {
-            text.setPlaceholder('AIza...').setValue(this.plugin.settings.geminiApiKey).onChange(async (value) => { this.plugin.settings.geminiApiKey = value; await this.plugin.saveSettings(); });
-            text.inputEl.type = 'password';
-        });
-        new Setting(containerEl).setName('AI Model').setDesc('Model used by AIProcessor (e.g. gemini-2.5-flash or gpt-4o-mini).').addText(text => text.setPlaceholder('gpt-4o-mini').setValue(this.plugin.settings.ai.model).onChange(async (value) => {
-            const model = (value || 'gpt-4o-mini').trim();
-            this.plugin.settings.ai.model = model;
-            // Keep legacy Gemini model in sync when a Gemini model is provided.
-            if (model.startsWith('gemini-')) this.plugin.settings.geminiModel = model;
-            await this.plugin.saveSettings();
-        }));
-        new Setting(containerEl).setName('AI Temperature').setDesc('Creativity control for AIProcessor calls (0.0 to 2.0).').addText(text => text.setPlaceholder('0.7').setValue(String(this.plugin.settings.ai.temperature)).onChange(async (value) => { const parsed = Number(value); this.plugin.settings.ai.temperature = Number.isFinite(parsed) ? Math.max(0, Math.min(2, parsed)) : 0.7; await this.plugin.saveSettings(); }));
-
         containerEl.createEl('h3', { text: 'Bulsa' });
         new Setting(containerEl).setName('Monthly Income').setDesc('Used for the cashflow overview in Bulsa Insights.').addText(text => text.setPlaceholder('0').setValue(this.plugin.settings.monthlyIncome.toString()).onChange(async (value) => { this.plugin.settings.monthlyIncome = parseFloat(value) || 0; await this.plugin.saveSettings(); }));
 

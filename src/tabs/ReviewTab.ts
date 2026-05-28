@@ -2,7 +2,7 @@ import { moment, setIcon, MarkdownRenderer, Platform, TFile, Notice } from 'obsi
 import type { DiwaView } from '../view';
 import { BaseTab } from "./BaseTab";
 import { EditTaskModal } from '../modals/EditTaskModal';
-import type { ProjectEntry, TaskEntry, DueEntry, WeeklyReportContext } from '../types';
+import type { ProjectEntry, TaskEntry, DueEntry } from '../types';
 
 interface GlanceData {
     tasks: { completed: TaskEntry[]; overdue: TaskEntry[] };
@@ -126,11 +126,6 @@ export class ReviewTab extends BaseTab {
         }
         const dayPlans = this.view.weekPlanDraft;
 
-        // Restore any previously generated AI report (session-level or from saved file)
-        if (existing?.aiReport && !this.view.weeklyAiReport) {
-            this.view.weeklyAiReport = existing.aiReport;
-        }
-
         const wrap = container.createEl('div', { cls: 'diwa-review-wrap' });
         wrap.setAttribute('container-type', 'inline-size');
 
@@ -195,7 +190,7 @@ export class ReviewTab extends BaseTab {
             saveBtn.textContent = 'Saving…';
             saveBtn.disabled = true;
             try {
-                await this.vault.saveWeeklyReview(weekId, dateRange, wins, lessons, focus, this.view.weeklyAiReport ?? undefined, dayPlans);
+                await this.vault.saveWeeklyReview(weekId, dateRange, wins, lessons, focus, dayPlans);
                 isDirty = false;
                 dirtyDot.style.display = 'none';
                 saveBtn.textContent = '✓  Saved';
@@ -220,9 +215,6 @@ export class ReviewTab extends BaseTab {
         wrap.addEventListener('keydown', (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); doSave(); }
         });
-
-        // ── AI Weekly Brief ───────────────────────────────────────
-        this._renderAiSection(wrap, weekId, dateRange, () => ({ wins, lessons, focus }), doSave);
 
         // ── Previous Week Card ────────────────────────────────────
         const prevCard = wrap.createEl('div', { cls: 'diwa-review-prev-card is-collapsed' });
@@ -433,40 +425,6 @@ export class ReviewTab extends BaseTab {
                 grid.createEl('div', { cls: 'diwa-weekplan-empty', text: 'Start with a theme, then assign or create the 1–3 things that make each day a success.' });
             }
 
-            // AI Week Architect button
-            const aiRow = planBody.createEl('div', { cls: 'diwa-weekplan-ai-row' });
-            const aiBtn = aiRow.createEl('button', { cls: 'diwa-weekplan-ai-btn', text: '✨ AI Week Architect' });
-            aiBtn.addEventListener('click', async () => {
-                aiBtn.disabled = true;
-                aiBtn.textContent = '⏳ Planning…';
-
-                const { wins, lessons, focus } = getFormData();
-                const weekId = this.getWeekId();
-                const dateRange = this.getWeekDateRange();
-                const ctx = this._buildWeeklyReportContext(weekId, dateRange, wins, lessons, focus);
-
-                // Attach open tasks with metadata for AI prompt
-                const openTasks = Array.from(this.index.taskIndex.values())
-                    .filter(t => t.status === 'open' && !t.due)
-                    .map(t => ({ title: t.title, priority: t.priority, energy: t.energy, project: t.project }));
-                (ctx as any)._openTasks = openTasks;
-
-                const targetDates: string[] = [];
-                for (let d = 0; d < 7; d++) {
-                    targetDates.push(baseWeek.clone().add(d, 'days').format('YYYY-MM-DD'));
-                }
-
-                try {
-                    const result = await this.ai.generateWeekPlan(ctx, targetDates);
-                    this._showAiStagingPanel(planBody, result, dayPlans, markDirty, renderPlan);
-                    aiBtn.textContent = '✨ AI Week Architect';
-                    aiBtn.disabled = false;
-                } catch (e: any) {
-                    aiBtn.textContent = '⚠ ' + (e?.message || 'Failed');
-                    aiBtn.disabled = false;
-                    setTimeout(() => { aiBtn.textContent = '✨ AI Week Architect'; }, 3000);
-                }
-            });
         };
 
         // Render toggle buttons
@@ -544,257 +502,6 @@ export class ReviewTab extends BaseTab {
 
         // Auto-focus search
         requestAnimationFrame(() => searchInput.focus());
-    }
-
-    private _showAiStagingPanel(
-        container: HTMLElement,
-        result: Record<string, { intention: string; tasks: string[] }>,
-        dayPlans: Record<string, string>,
-        markDirty: () => void,
-        onDone: () => void
-    ): void {
-        // Remove existing panel
-        container.querySelector('.diwa-weekplan-staging')?.remove();
-
-        const panel = container.createEl('div', { cls: 'diwa-weekplan-staging' });
-        const header = panel.createEl('div', { cls: 'diwa-weekplan-staging__header' });
-        header.createEl('span', { cls: 'diwa-weekplan-staging__title', text: '✨ AI Suggestions' });
-
-        const applyAllBtn = header.createEl('button', { cls: 'diwa-weekplan-staging__apply-all', text: 'Apply All' });
-        const dismissAllBtn = header.createEl('button', { cls: 'diwa-weekplan-staging__dismiss', text: '✕' });
-
-        const body = panel.createEl('div', { cls: 'diwa-weekplan-staging__body' });
-
-        // Track accepted state per item
-        const accepted: Map<string, { intention: boolean; tasks: Set<string> }> = new Map();
-
-        const dayKeys = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-        Object.entries(result).sort(([a], [b]) => a.localeCompare(b)).forEach(([date, plan]) => {
-            const dayMoment = moment(date, 'YYYY-MM-DD');
-            const dayIdx = dayMoment.isoWeekday() - 1;
-            const dayLabel = dayIdx >= 0 && dayIdx < 7 ? `${dayKeys[dayIdx]} · ${dayMoment.format('MMM D')}` : date;
-
-            accepted.set(date, { intention: false, tasks: new Set() });
-
-            const dayRow = body.createEl('div', { cls: 'diwa-weekplan-staging__day' });
-            dayRow.createEl('div', { cls: 'diwa-weekplan-staging__day-label', text: dayLabel });
-
-            if (plan.intention) {
-                const intentionRow = dayRow.createEl('div', { cls: 'diwa-weekplan-staging__item' });
-                intentionRow.createEl('span', { cls: 'diwa-weekplan-staging__item-text', text: `🎯 ${plan.intention}` });
-                const acceptBtn = intentionRow.createEl('button', { cls: 'diwa-weekplan-staging__accept', text: '✓' });
-                acceptBtn.addEventListener('click', () => {
-                    accepted.get(date)!.intention = true;
-                    acceptBtn.classList.add('is-accepted');
-                    acceptBtn.disabled = true;
-                });
-            }
-
-            if (plan.tasks && plan.tasks.length > 0) {
-                plan.tasks.forEach(taskTitle => {
-                    const taskRow = dayRow.createEl('div', { cls: 'diwa-weekplan-staging__item' });
-                    taskRow.createEl('span', { cls: 'diwa-weekplan-staging__item-text', text: `○ ${taskTitle}` });
-                    const acceptBtn = taskRow.createEl('button', { cls: 'diwa-weekplan-staging__accept', text: '✓' });
-                    acceptBtn.addEventListener('click', () => {
-                        accepted.get(date)!.tasks.add(taskTitle);
-                        acceptBtn.classList.add('is-accepted');
-                        acceptBtn.disabled = true;
-                    });
-                });
-            }
-        });
-
-        const applyAccepted = async () => {
-            // Apply intentions
-            for (const [date, state] of accepted) {
-                if (state.intention && result[date]?.intention) {
-                    dayPlans[date] = result[date].intention;
-                }
-            }
-
-            // Apply task assignments
-            const allTasks = Array.from(this.index.taskIndex.values());
-            for (const [date, state] of accepted) {
-                for (const taskTitle of state.tasks) {
-                    const match = allTasks.find(t => t.status === 'open' && !t.due && t.title === taskTitle);
-                    if (match) {
-                        await this.vault.editTask(match.filePath, match.body, match.context, date);
-                    }
-                }
-            }
-
-            markDirty();
-            panel.remove();
-            onDone();
-        };
-
-        applyAllBtn.addEventListener('click', async () => {
-            // Mark everything accepted
-            for (const [date, state] of accepted) {
-                state.intention = true;
-                if (result[date]?.tasks) result[date].tasks.forEach(t => state.tasks.add(t));
-            }
-            await applyAccepted();
-        });
-
-        dismissAllBtn.addEventListener('click', () => panel.remove());
-
-        // Add an "Apply Selected" button at the bottom
-        const footer = panel.createEl('div', { cls: 'diwa-weekplan-staging__footer' });
-        const applySelectedBtn = footer.createEl('button', { cls: 'diwa-weekplan-staging__apply-selected', text: 'Apply Selected' });
-        applySelectedBtn.addEventListener('click', applyAccepted);
-    }
-
-    private _buildWeeklyReportContext(weekId: string, dateRange: string, wins: string, lessons: string, focus: string[]): WeeklyReportContext {
-        const weekStart = moment().startOf('isoWeek');
-        const weekEnd = moment().endOf('isoWeek');
-
-        const allTasks = Array.from(this.index.taskIndex.values());
-        const completedTasks = allTasks
-            .filter(t => {
-                if (t.status !== 'done') return false;
-                const mod = moment(t.modified, 'YYYY-MM-DD HH:mm:ss');
-                return mod.isSameOrAfter(weekStart) && mod.isSameOrBefore(weekEnd);
-            })
-            .map(t => t.title || t.body.split('\n')[0])
-            .slice(0, 15);
-
-        const overdueTasks = allTasks
-            .filter(t => t.status === 'open' && !!t.due && moment(t.due, 'YYYY-MM-DD').isBefore(moment(), 'day'))
-            .map(t => t.title || t.body.split('\n')[0])
-            .slice(0, 8);
-
-        const activeProjects = Array.from(this.index.projectIndex.values())
-            .filter(p => p.status !== 'archived' && p.status !== 'completed')
-            .map(p => `${p.name} (${p.status})${p.goal ? ': ' + p.goal : ''}`)
-            .slice(0, 6);
-
-        const recentThoughts = Array.from(this.index.thoughtIndex.values())
-            .filter(t => {
-                const created = moment(t.created, 'YYYY-MM-DD HH:mm:ss');
-                return created.isSameOrAfter(weekStart) && created.isSameOrBefore(weekEnd);
-            })
-            .sort((a, b) => b.lastThreadUpdate - a.lastThreadUpdate)
-            .slice(0, 10)
-            .map(t => t.body.split('\n')[0].substring(0, 120));
-
-        return {
-            weekId,
-            dateRange,
-            wins,
-            lessons,
-            focus,
-            completedTasks,
-            overdueTasks,
-            activeProjects,
-            weeklyGoals: this.settings.weeklyGoals || [],
-            northStarGoals: this.settings.northStarGoals || [],
-            recentThoughts
-        };
-    }
-
-    private _renderAiSection(
-        parent: HTMLElement,
-        weekId: string,
-        dateRange: string,
-        getFormData: () => { wins: string; lessons: string; focus: string[] },
-        doSave: () => Promise<void>
-    ): void {
-        const section = parent.createEl('div', { cls: 'diwa-review-ai-section' });
-        const sectionHeader = section.createEl('div', { cls: 'diwa-review-ai-header' });
-        const titleEl = sectionHeader.createEl('span', { cls: 'diwa-review-ai-title' });
-        setIcon(titleEl.createEl('span', { cls: 'diwa-review-ai-title-icon' }), 'lucide-sparkles');
-        titleEl.createEl('span', { text: 'AI Weekly Brief' });
-
-        const actionsEl = sectionHeader.createEl('div', { cls: 'diwa-review-ai-actions' });
-
-        const resultCard = section.createEl('div', { cls: 'diwa-review-ai-card' });
-
-        const showResult = (report: string) => {
-            resultCard.removeClass('is-empty');
-            resultCard.empty();
-            const content = resultCard.createEl('div', { cls: 'diwa-review-ai-content' });
-            MarkdownRenderer.render(this.app, report, content, '', this.view);
-            this.hookInternalLinks(content, '');
-        };
-
-        const showLoading = () => {
-            resultCard.removeClass('is-empty');
-            resultCard.empty();
-            const loadingEl = resultCard.createEl('div', { cls: 'diwa-review-ai-loading' });
-            loadingEl.createEl('span', { cls: 'diwa-ai-dot' });
-            loadingEl.createEl('span', { cls: 'diwa-ai-dot' });
-            loadingEl.createEl('span', { cls: 'diwa-ai-dot' });
-        };
-
-        const showError = (msg: string) => {
-            resultCard.removeClass('is-empty');
-            resultCard.empty();
-            resultCard.createEl('div', { cls: 'diwa-review-ai-error', text: `⚠ ${msg}` });
-        };
-
-        // Build action buttons — rebuilt after generate
-        const buildActions = (hasReport: boolean) => {
-            actionsEl.empty();
-
-            if (hasReport) {
-                const copyBtn = actionsEl.createEl('button', { cls: 'diwa-review-ai-action-btn', text: 'Copy' });
-                setIcon(copyBtn.createEl('span', { cls: 'diwa-review-ai-btn-icon' }), 'lucide-copy');
-                copyBtn.addEventListener('click', async () => {
-                    try {
-                        await navigator.clipboard.writeText(this.view.weeklyAiReport || '');
-                    } catch {
-                    }
-                });
-
-                const saveBtn = actionsEl.createEl('button', { cls: 'diwa-review-ai-action-btn', text: 'Save to Review' });
-                setIcon(saveBtn.createEl('span', { cls: 'diwa-review-ai-btn-icon' }), 'lucide-save');
-                saveBtn.addEventListener('click', async () => {
-                    saveBtn.disabled = true;
-                    saveBtn.textContent = 'Saving…';
-                    try {
-                        await doSave();
-                        saveBtn.textContent = '✓ Saved';
-                        setTimeout(() => {
-                            saveBtn.textContent = 'Save to Review';
-                            saveBtn.disabled = false;
-                        }, 1800);
-                    } catch {
-                        saveBtn.textContent = '⚠ Failed';
-                        saveBtn.disabled = false;
-                    }
-                });
-            }
-
-            const genBtn = actionsEl.createEl('button', { cls: 'diwa-review-ai-gen-btn', text: hasReport ? '↺ Regenerate' : '✨ Generate AI Brief' });
-            genBtn.addEventListener('click', async () => {
-                genBtn.disabled = true;
-                const { wins, lessons, focus } = getFormData();
-                const ctx = this._buildWeeklyReportContext(weekId, dateRange, wins, lessons, focus);
-                showLoading();
-                try {
-                    const report = await this.ai.generateWeeklyReport(ctx);
-                    this.view.weeklyAiReport = report;
-                    showResult(report);
-                    buildActions(true);
-                } catch (e: any) {
-                    showError(e?.message || 'Generation failed');
-                    buildActions(false);
-                } finally {
-                    genBtn.disabled = false;
-                }
-            });
-        };
-
-        // Initial state — restore if we have a cached report
-        if (this.view.weeklyAiReport) {
-            showResult(this.view.weeklyAiReport);
-            buildActions(true);
-        } else {
-            resultCard.classList.add('is-empty');
-            buildActions(false);
-        }
     }
 
     private renderGlancePanel(parent: HTMLElement, weekId: string): void {
@@ -925,5 +632,4 @@ export class ReviewTab extends BaseTab {
         });
     }
 }
-
 
