@@ -63,9 +63,7 @@ export interface DiwaSettings {
     geminiModel: string;
     maxOutputTokens: number;
     newNoteFolder: string;
-    voiceMemoFolder: string;
     aiChatFolder: string;
-    transcriptionLanguage: string;
     dailySectionStates: Record<string, boolean>;
     showDailySections: boolean;
     showDailyChecklist: boolean;
@@ -233,7 +231,6 @@ export interface DueEntry {
 
 export type FileOrCreate = TFile | string;
 
-export type VoiceState = 'idle' | 'recording' | 'processing' | 'reviewing' | 'confirmed';
 
 export interface WeeklyReportContext {
     weekId: string;
@@ -250,9 +247,3 @@ export interface WeeklyReportContext {
     dayPlans?: Record<string, string>;
 }
 
-export interface ReviewData {
-    transcript: string;
-    clipFile: TFile | null;
-    durationMs: number;
-    clipFileName: string;
-}

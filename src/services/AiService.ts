@@ -243,37 +243,6 @@ FORMAT: Use Markdown. Be concise. Use bullet points or headers only when they ge
         }
     }
 
-    async transcribeAudio(file: TFile): Promise<string> {        const { geminiModel, transcriptionLanguage } = this.settings;
-        // ai-block-3: Validate key before network call
-        const apiKey = AiService.validateApiKey(this.settings.geminiApiKey);
-        // ai-04: Resolve model against allowlist
-        const modelId = AiService.resolveModel(geminiModel || 'gemini-1.5-flash', 'gemini-1.5-flash');
-
-        const audioBuffer = await this.app.vault.readBinary(file);
-        const base64 = AiService.bufferToBase64(audioBuffer);
-        const mimeType = (file.extension === 'm4a' || file.extension === 'mp4') ? 'audio/mp4' : `audio/${file.extension}`;
-        const body = { 
-            "contents": [{ 
-                "parts": [{ 
-                    "text": `Transcribe this audio recording and translate the output to ${transcriptionLanguage}. Temporal Context: ${moment().format('dddd, MMMM D, YYYY')}.` 
-                }, { 
-                    "inline_data": { "mime_type": mimeType, "data": base64 } 
-                }] 
-            }] 
-        };
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
-        const resp = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-            body: JSON.stringify(body)
-        });
-        if (resp.status === 429) throw new Error(`Transcription rate limit reached (HTTP 429). Model: ${modelId}. Please wait and try again.`);
-        if (resp.status === 404) throw new Error(`Transcription model not found (HTTP 404). Model ID "${modelId}" is invalid.`);
-        if (!resp.ok) throw new Error(`Transcription Failed (HTTP ${resp.status}). Model: ${modelId}`);
-        const data = await resp.json(); 
-        return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Transcription failed.";
-    }
-
     async generateWeeklyReport(ctx: WeeklyReportContext): Promise<string> {
         const apiKey = AiService.validateApiKey(this.settings.geminiApiKey);
 

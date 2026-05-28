@@ -173,7 +173,7 @@ export class SearchView extends ItemView {
                 body: t.body || '', bodyMatches: bR?.matches ?? null,
                 score: (tR ? tR.score * 2 : 0) + (bR ? bR.score : 0),
                 meta: this.relativeDate(t.created),
-                filePath: t.filePath, tabId: 'timeline', id: t.filePath,
+                filePath: t.filePath, tabId: 'home', id: t.filePath,
             });
         });
 

@@ -13,7 +13,7 @@ const SECTIONS: HelpSection[] = [
             { label: 'Greeting & Date', desc: 'Shows today\'s date and your greeting at the top.' },
             { label: 'Zen Mode 🎯', desc: 'Tap the target icon to collapse all navigation and enter deep focus. Tap again to exit.', tip: 'Best used when you only want to see your intelligence card and capture bar.' },
             { label: 'Intelligence Card', desc: 'Live snapshot: open gawa, unprocessed thoughts, and your total Bulsa obligations. Hit "SYNTHESIZE BRIEFING" to get an AI strategy summary.', tip: 'Requires a Gemini API key configured in Settings → AI.' },
-            { label: 'Navigation Clusters', desc: 'Four grouped rows: ACTION (Journal, Synthesis, Timeline), MANAGEMENT (Gawa, Bulsa, Projects, Calendar, Weekly, Monthly, Voice), FEATURES (AI Chat, Compasee), and SYSTEM (Settings, Manual, Export). Each cluster wraps to the next row automatically on narrow screens.', tip: 'Tap any icon to jump directly to that tab.' },
+            { label: 'Navigation Clusters', desc: 'Four grouped rows: ACTION (Journal), MANAGEMENT (Gawa, Bulsa, Projects, Weekly, Monthly), FEATURES (AI Chat, Compasee), and SYSTEM (Settings, Manual, Export). Each cluster wraps to the next row automatically on narrow screens.', tip: 'Tap any icon to jump directly to that tab.' },
             { label: 'Tablet Experience', desc: 'On tablets (iPad, etc.), DIWA automatically upgrades to a desktop-like layout: inline capture bar, expanded navigation, and hover effects.', tip: 'Tablet is detected when the device short-edge is ≥768px.' },
             { label: 'Global Search 🔍', desc: 'Tap the search icon in the header or press Mod+Shift+F to open Global Search. Instantly find anything across Thoughts, Gawa, Bulsa, and Projects.', tip: 'Also available via Obsidian command palette: "MINA: Global Search".' },
         ]
@@ -59,13 +59,12 @@ const SECTIONS: HelpSection[] = [
         ]
     },
     {
-        id: 'thoughts', icon: 'lucide-brain', title: 'Thoughts & Timeline', subtitle: 'Browse and search your captured ideas',
+        id: 'thoughts', icon: 'lucide-brain', title: 'Thoughts', subtitle: 'Browse and process your captured ideas',
         items: [
-            { label: 'Timeline View', desc: 'All thoughts listed newest-first. Use the date carousel to jump to a specific day.' },
-            { label: 'Search', desc: 'Type in the search bar to filter thoughts by content, title, or context tag.' },
+            { label: 'Thought Feed', desc: 'Captured thoughts live in the workspace feed, where you can review them, search them, and turn them into tasks or notes.' },
+            { label: 'Search', desc: 'Use Global Search to find thoughts by content, title, or context tag from anywhere in DIWA.' },
             { label: 'Convert to Task', desc: 'Tap the checklist icon on any thought card to turn it into a task. Pick a title and optional due date — the new task keeps the source thought link.' },
             { label: 'Edit & Reply', desc: 'Tap a thought card to edit its content, add a reply thread, or delete it.' },
-            { label: 'Pin a Thought', desc: 'Pin important thoughts to keep them anchored at the top of the timeline.' },
             { label: 'Project Link', desc: 'Thoughts can be linked to a project using the folder icon in the edit modal.' },
         ]
     },
@@ -113,18 +112,6 @@ const SECTIONS: HelpSection[] = [
         ]
     },
     {
-        id: 'synthesis', icon: 'lucide-git-merge', title: 'Synthesis', subtitle: 'Process thoughts into permanent knowledge',
-        items: [
-            { label: 'Inbox Feed', desc: 'Unprocessed thoughts appear in the feed. Use the filter bar to switch between Inbox (no context), Mapped (with context), and Done.' },
-            { label: 'Inline Quick Capture', desc: 'A capture bar sits at the top of the feed (desktop + tablet). Click it to expand and type a thought directly into Synthesis without opening a modal.', tip: 'If contexts are primed, the thought auto-attaches them and lands in the Mapped filter.' },
-            { label: 'Context Priming', desc: 'Click a context in the left panel to "prime" it. Primed contexts auto-tag new inline captures and filter the feed.' },
-            { label: 'Drag & Drop', desc: 'Drag a thought card onto the canvas to synthesize it into your Master Note. It\'s automatically marked as processed.' },
-            { label: 'Quick Process', desc: 'Tap "✓ Process" on any card to mark it as processed without synthesizing.' },
-            { label: 'Master Notes', desc: 'Create new insight notes with "+ New Insight". Merged thoughts are linked via wiki-links.' },
-            { label: 'Zero-Inbox Goal', desc: 'Keep your inbox empty by regularly processing ideas.', tip: 'Weekly Review is the perfect time to clear your thought inbox.' },
-        ]
-    },
-    {
         id: 'ai', icon: 'lucide-sparkles', title: 'AI Chat', subtitle: 'Gemini 2.5 Pro intelligence',
         items: [
             { label: 'Chat', desc: 'Ask DIWA anything — strategy, writing help, idea development, or note analysis. Powered by Gemini 2.5 Pro.' },
@@ -136,14 +123,6 @@ const SECTIONS: HelpSection[] = [
         ]
     },
     {
-        id: 'voice', icon: 'lucide-mic', title: 'Voice Notes', subtitle: 'Capture and transcribe audio',
-        items: [
-            { label: 'Record', desc: 'Tap and hold the microphone button to record. Release to stop.' },
-            { label: 'Transcribe', desc: 'After recording, tap "Transcribe" to convert speech to text using Gemini AI.' },
-            { label: 'Review & Save', desc: 'Edit the transcription text before saving it as a thought or note.' },
-        ]
-    },
-    {
         id: 'journal', icon: 'lucide-book-open', title: 'Journal', subtitle: 'Daily freeform writing',
         items: [
             { label: 'Desktop Layout', desc: 'Desktop Journal now opens as a split writing workspace: a left archive rail with titles only, plus a right-side composer for writing and editing.' },
@@ -151,24 +130,6 @@ const SECTIONS: HelpSection[] = [
             { label: 'Titles & Types', desc: 'Every entry now has a dedicated title field and a journal-type pill row (Reflection, Realization, Gratitude, Idea, Note, or Free Write).' },
             { label: 'Files & Images', desc: 'Paste, drag, or attach files directly in the composer. DIWA saves them to your Attachments folder and inserts a vault-relative link inline.' },
             { label: 'Quick Access', desc: 'Use the command palette action “DIWA: Open Journal Input” to jump directly into the Journal composer, especially on mobile.' },
-        ]
-    },
-    {
-        id: 'timeline', icon: 'lucide-clock', title: 'Timeline', subtitle: 'Chronological history of all activity',
-        items: [
-            { label: 'All Entries', desc: 'Thoughts, gawa, and notes shown in date order. Scroll to explore your history.' },
-            { label: 'Date Jump', desc: 'Use the date carousel at the top to navigate to a specific day.' },
-        ]
-    },
-    {
-        id: 'calendar', icon: 'lucide-calendar', title: 'Calendar View', subtitle: 'Visual month & week overview',
-        items: [
-            { label: 'Access', desc: 'Open from the MANAGEMENT cluster in Command Center (Calendar icon).' },
-            { label: 'Month / Week Toggle', desc: 'Switch between a full month grid and a focused 7-day week view using the toggle in the top-right.', tip: 'Week view shows mini task lists inside each day cell.' },
-            { label: 'Event Dots', desc: 'Each day cell shows coloured dots: accent = gawa due, orange = Bulsa items due. A count badge appears when there are multiple.' },
-            { label: 'Day Detail Panel', desc: 'Tap any day cell to see its full detail panel below the grid: gawa with priority badges and Bulsa items with amounts.' },
-            { label: 'Navigation', desc: 'Use ◀ ▶ to move between months or weeks. "Today" snaps back to the current date instantly.' },
-            { label: 'State Persistence', desc: 'Your selected date, view mode, and current month are remembered even when the tab re-renders after vault changes.' },
         ]
     },
     {

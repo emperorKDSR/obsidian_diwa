@@ -1,4 +1,4 @@
-import { App, Modal, setIcon, Platform } from 'obsidian';
+import { App, Modal, setIcon, Platform, TFile } from 'obsidian';
 import type DiwaPlugin from '../main';
 import { isTablet } from '../utils';
 import { VIEW_TYPE_DIWA, SEARCH_SCOPES, SEARCH_TYPE_ICONS, SEARCH_QUICKJUMP_TABS } from '../constants';
@@ -8,6 +8,7 @@ interface SearchResult {
     title: string;
     preview: string;
     meta: string;
+    filePath?: string;
     tabId: string;
     id: string;
 }
@@ -250,15 +251,27 @@ export class SearchModal extends Modal {
 
     private activateResult(result: SearchResult) {
         this.close();
-        // Use setTimeout to let the modal fully close before re-rendering the view
+        // Use setTimeout to let the modal fully close before opening the result
         setTimeout(() => {
-            const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DIWA);
-            if (leaves.length > 0) {
-                const view = leaves[0].view as any;
-                this.app.workspace.setActiveLeaf(leaves[0], { focus: true });
-                view.activeTab = result.tabId;
-                view.renderView();
-            }
+            void (async () => {
+                if (result.filePath) {
+                    const file = this.app.vault.getAbstractFileByPath(result.filePath);
+                    if (file instanceof TFile) {
+                        const leaf = this.app.workspace.getLeaf(false);
+                        await leaf.openFile(file);
+                        return;
+                    }
+                }
+                const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DIWA);
+                if (leaves.length > 0) {
+                    const view = leaves[0].view as any;
+                    this.app.workspace.setActiveLeaf(leaves[0], { focus: true });
+                    view.activeTab = result.tabId;
+                    view.renderView();
+                } else {
+                    await this.plugin.activateView(result.tabId, false);
+                }
+            })();
         }, 50);
     }
 
@@ -275,7 +288,7 @@ export class SearchModal extends Modal {
                     if (results.filter(r => r.type === 'thought').length < 5) {
                         results.push({
                             type: 'thought', title: t.title, preview: t.context.join(', ') || t.body.slice(0, 60),
-                            meta: this.relativeDate(t.created), tabId: 'timeline', id: t.filePath
+                            meta: this.relativeDate(t.created), filePath: t.filePath, tabId: 'home', id: t.filePath
                         });
                     }
                 }
@@ -290,7 +303,7 @@ export class SearchModal extends Modal {
                     if (results.filter(r => r.type === 'task').length < 5) {
                         results.push({
                             type: 'task', title: t.title, preview: t.project || t.context.join(', '),
-                            meta: t.due ? `Due: ${t.due}` : this.relativeDate(t.created), tabId: 'review-gawa', id: t.filePath
+                            meta: t.due ? `Due: ${t.due}` : this.relativeDate(t.created), filePath: t.filePath, tabId: 'review-gawa', id: t.filePath
                         });
                     }
                 }
@@ -305,7 +318,7 @@ export class SearchModal extends Modal {
                     if (results.filter(r => r.type === 'due').length < 5) {
                         results.push({
                             type: 'due', title: d.title, preview: d.amount ? `$${d.amount}` : '',
-                            meta: d.dueDate || '', tabId: 'dues', id: d.path
+                            meta: d.dueDate || '', filePath: d.path, tabId: 'dues', id: d.path
                         });
                     }
                 }
@@ -320,7 +333,7 @@ export class SearchModal extends Modal {
                     if (results.filter(r => r.type === 'project').length < 5) {
                         results.push({
                             type: 'project', title: p.name, preview: p.goal.slice(0, 60),
-                            meta: p.status, tabId: 'projects', id: p.id
+                            meta: p.status, filePath: p.filePath, tabId: 'projects', id: p.id
                         });
                     }
                 }

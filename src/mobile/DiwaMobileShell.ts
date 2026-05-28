@@ -947,7 +947,7 @@ export class DiwaMobileShell {
     private renderAI(container: HTMLElement): void {
         const wrap = container.createDiv('diwa-mobile-ai');
         const shell = wrap.createDiv('diwa-mobile-ai-shell');
-        this.renderSectionHeader(shell, 'AI companion', 'Synthesis, planning, and recall from your vault');
+        this.renderSectionHeader(shell, 'AI companion', 'Insight, planning, and recall from your vault');
         const content = shell.createDiv('diwa-mobile-ai-body');
         this.plugin.renderAIView(content);
     }

@@ -10,7 +10,7 @@ const SECTIONS: HelpSection[] = [
             { label: 'Greeting & Date', desc: 'Shows today\'s date and your greeting at the top.' },
             { label: 'Zen Mode 🎯', desc: 'Tap the target icon to collapse all navigation and enter deep focus. Tap again to exit.', tip: 'Best used when you only want to see your intelligence card and capture bar.' },
             { label: 'Intelligence Card', desc: 'Live snapshot: open gawa, unprocessed thoughts, and your total Bulsa obligations. Hit "SYNTHESIZE BRIEFING" to get an AI strategy summary.', tip: 'Requires a Gemini API key configured in Settings → AI.' },
-            { label: 'Navigation Clusters', desc: 'Four grouped rows: ACTION (Focus, Journal, Synthesis, Timeline), MANAGEMENT (Gawa, Bulsa, Projects, Calendar, Weekly, Monthly, Voice), FEATURES (AI Chat, Compasee, Memento), and SYSTEM (Settings, Manual, Export). Each cluster wraps to the next row automatically on narrow screens.', tip: 'Tap any icon to jump directly to that tab.' },
+            { label: 'Navigation Clusters', desc: 'Four grouped rows: ACTION (Focus, Journal), MANAGEMENT (Gawa, Bulsa, Projects, Weekly, Monthly), FEATURES (AI Chat, Compasee, Memento), and SYSTEM (Settings, Manual, Export). Each cluster wraps to the next row automatically on narrow screens.', tip: 'Tap any icon to jump directly to that tab.' },
             { label: 'Tablet Experience', desc: 'On tablets (iPad, etc.), DIWA automatically upgrades to a desktop-like layout: inline capture bar, expanded navigation, sidebar manual, and hover effects.', tip: 'Tablet is detected when the device short-edge is ≥768px.' },
             { label: 'Global Search 🔍', desc: 'Tap the search icon (before Help) or press Mod+Shift+F to open Global Search. Instantly find anything across Thoughts, Gawa, Bulsa, and Projects.', tip: 'Also available via Obsidian command palette: "DIWA: Global Search".' },
         ]
@@ -24,7 +24,7 @@ const SECTIONS: HelpSection[] = [
             { label: 'Swipe to Dismiss', desc: 'On phone, swipe down on the search overlay or tap the ← back button to close. Supports reduced-motion preferences.', tip: 'The back button appears in the top-left corner of the full-screen overlay.' },
             { label: 'Scope Filters', desc: 'Use the pill buttons (All / Thoughts / Gawa / Bulsa / Projects) to narrow results to a specific type. Counts update live as you type.' },
             { label: 'Keyboard Navigation', desc: '↑↓ arrow keys move through results. Enter opens the focused item. Escape closes the overlay.', tip: 'Typing always returns focus to the input — you never lose your place.' },
-            { label: 'Quick Jump', desc: 'When search is empty, a Quick Jump grid lets you instantly navigate to any tab — Timeline, Gawa, Bulsa, Projects, or Journal. Displays as 2 columns on phone, 3 columns on tablet/desktop.', tip: 'Quick Jump tiles are touch-optimised (56px+ height) for easy tapping on phone.' },
+            { label: 'Quick Jump', desc: 'When search is empty, a Quick Jump grid lets you instantly navigate to key DIWA tabs — Gawa, Bulsa, Projects, or Journal. Displays as 2 columns on phone, 3 columns on tablet/desktop.', tip: 'Quick Jump tiles are touch-optimised (56px+ height) for easy tapping on phone.' },
             { label: 'Match Highlighting', desc: 'Your query is highlighted wherever it matches result titles, making it easy to confirm relevance at a glance.' },
             { label: 'Result Types', desc: 'Each result shows a colour-coded icon (purple=thought, accent=task, amber=due, green=project), title, preview, and date/status.' },
         ]
@@ -52,12 +52,11 @@ const SECTIONS: HelpSection[] = [
         ]
     },
     {
-        id: 'thoughts', icon: 'lucide-brain', title: 'Thoughts & Timeline', subtitle: 'Browse and search your captured ideas',
+        id: 'thoughts', icon: 'lucide-brain', title: 'Thoughts', subtitle: 'Browse and process your captured ideas',
         items: [
-            { label: 'Timeline View', desc: 'All thoughts listed newest-first. Use the date carousel to jump to a specific day.' },
-            { label: 'Search', desc: 'Type in the search bar to filter thoughts by content, title, or context tag.' },
+            { label: 'Thought Feed', desc: 'Captured thoughts live in the workspace feed, where you can review them, search them, and turn them into tasks or notes.' },
+            { label: 'Search', desc: 'Use Global Search to find thoughts by content, title, or context tag from anywhere in DIWA.' },
             { label: 'Edit & Reply', desc: 'Tap a thought card to edit its content, add a reply thread, or delete it.' },
-            { label: 'Pin a Thought', desc: 'Pin important thoughts to keep them anchored at the top of the timeline.' },
             { label: 'Project Link', desc: 'Thoughts can be linked to a project using the folder icon in the edit modal.' },
         ]
     },
@@ -100,16 +99,7 @@ const SECTIONS: HelpSection[] = [
             { label: 'Next Month\'s Focus', desc: 'Set up to 3 goals for the coming month. Saved to your Monthly review note.' },
         ]
     },
-    {
-        id: 'synthesis', icon: 'lucide-git-merge', title: 'Synthesis', subtitle: 'Process thoughts into permanent knowledge',
-        items: [
-            { label: 'Inbox Feed', desc: 'Unprocessed thoughts appear in the sidebar with count badge. Use the search filter to find specific thoughts.' },
-            { label: 'Drag & Drop', desc: 'Drag a thought card onto the canvas to synthesize it into your Master Note. It\'s automatically marked as processed.' },
-            { label: 'Quick Process', desc: 'Tap "✓ Process" on any card to mark it as processed without synthesizing.' },
-            { label: 'Master Notes', desc: 'Create new insight notes with "+ New Insight". Merged thoughts are linked via wiki-links.' },
-            { label: 'Zero-Inbox Goal', desc: 'Keep your inbox empty by regularly processing ideas.', tip: 'Weekly Review is the perfect time to clear your thought inbox.' },
-        ]
-    },
+
     {
         id: 'ai', icon: 'lucide-sparkles', title: 'AI Chat', subtitle: 'Gemini 2.5 Pro intelligence',
         items: [
@@ -123,14 +113,7 @@ const SECTIONS: HelpSection[] = [
             { label: 'Setup', desc: 'Add your Gemini API key via the gear icon in the AI header. Free tier at ai.google.dev.', tip: 'Default model: gemini-2.5-pro. The Intelligence briefing on Home also uses this key.' },
         ]
     },
-    {
-        id: 'voice', icon: 'lucide-mic', title: 'Voice Notes', subtitle: 'Capture and transcribe audio',
-        items: [
-            { label: 'Record', desc: 'Tap and hold the microphone button to record. Release to stop.' },
-            { label: 'Transcribe', desc: 'After recording, tap "Transcribe" to convert speech to text using Gemini AI.' },
-            { label: 'Review & Save', desc: 'Edit the transcription text before saving it as a thought or note.' },
-        ]
-    },
+
     {
         id: 'journal', icon: 'lucide-book-open', title: 'Journal', subtitle: 'Daily freeform writing',
         items: [
@@ -141,16 +124,9 @@ const SECTIONS: HelpSection[] = [
         ]
     },
     {
-        id: 'timeline', icon: 'lucide-clock', title: 'Timeline', subtitle: 'Chronological history of all activity',
-        items: [
-            { label: 'All Entries', desc: 'Thoughts, gawa, and notes shown in date order. Scroll to explore your history.' },
-            { label: 'Date Jump', desc: 'Use the date carousel at the top to navigate to a specific day.' },
-        ]
-    },
-    {
         id: 'settings', icon: 'lucide-settings', title: 'Settings', subtitle: 'Configure DIWA to your workflow',
         items: [
-            { label: 'Folders', desc: 'Set where thoughts, gawa, voice memos, and reviews are stored in your vault.' },
+            { label: 'Folders', desc: 'Set where thoughts, gawa, AI chats, and reviews are stored in your vault.' },
             { label: 'Contexts', desc: 'Manage your global context tags (#work, #personal, etc.).' },
             { label: 'AI Key', desc: 'Enter your Gemini API key to enable AI Chat and Intelligence features.' },
             { label: 'Reminders', desc: 'Toggle gawa reminders. Reminders respect quiet hours (8 AM – 10 PM).' },
@@ -166,17 +142,16 @@ const SECTIONS: HelpSection[] = [
             { label: 'Stats Panel', desc: 'Right panel shows live workspace stats such as open gawa, overdue items, unsynthesized thoughts, and Bulsa totals. Updates reactively with every vault change.' },
             { label: 'AI Intelligence', desc: 'Hit "SYNTHESIZE BRIEFING" in the right panel to get a Gemini strategy summary based on your current thoughts, gawa, and context.', tip: 'Requires a Gemini API key in Settings → AI.' },
             { label: 'Focus Mode 🎯', desc: 'Desktop Hub opens in Focus Mode by default. Click the 🎯 button in the top bar to collapse the sidebar and right panel — center capture goes full-width for distraction-free input. Click again to restore.', tip: 'Focus Mode state is saved per-window and survives Obsidian restarts.' },
-            { label: 'Navigation Sidebar', desc: 'Hover the left sidebar to expand it. Four groups: ACTION (Capture, Synthesis, Timeline, Journal), MANAGE (Gawa, Bulsa, Projects, Calendar, Monthly, Voice), FEATURES (AI Chat, Memento, Export), SYSTEM (Settings, Manual).' },
+            { label: 'Navigation Sidebar', desc: 'Hover the left sidebar to expand it. Three groups: CORE (Search, Journal, AI Chat), MANAGE (Gawa, Bulsa, Projects, Review), and SYSTEM (Settings, Manual).' },
         ]
     },
     {
-        id: 'thoughts', icon: 'lucide-brain', title: 'Thoughts & Timeline', subtitle: 'Browse and search your captured ideas',
+        id: 'thoughts', icon: 'lucide-brain', title: 'Thoughts', subtitle: 'Browse and process your captured ideas',
         items: [
-            { label: 'Timeline View', desc: 'All thoughts listed newest-first. Use the date carousel to jump to a specific day.' },
+            { label: 'Thought Feed', desc: 'Captured thoughts live in the workspace feed, where you can review them, search them, and turn them into tasks or notes.' },
             { label: 'Convert to Task', desc: 'Tap the checklist icon on any thought card to turn it into a task. Pick a task title and optional due date — DIWA keeps the source thought link on the new task.' },
-            { label: 'Search', desc: 'Type in the search bar to filter thoughts by content, title, or context tag.' },
+            { label: 'Search', desc: 'Use Global Search to find thoughts by content, title, or context tag from anywhere in DIWA.' },
             { label: 'Edit & Reply', desc: 'Tap a thought card to edit its content, add a reply thread, or delete it.' },
-            { label: 'Pin a Thought', desc: 'Pin important thoughts to keep them anchored at the top of the timeline.' },
             { label: 'Project Link', desc: 'Thoughts can be linked to a project using the folder icon in the edit modal.' },
         ]
     },

@@ -63,12 +63,6 @@ export const AI_CHAT_ICON_SVG = `<g transform="translate(10,10) scale(3.5)">
     <path d="M9 15h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
 </g>`;
 
-export const TIMELINE_ICON_ID = "diwa-timeline-icon";
-export const TIMELINE_ICON_SVG = `<g transform="translate(10,10) scale(3.5)">
-    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-    <path d="M12 6v6l4 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-</g>`;
-
 export const GRUNDFOS_ICON_ID = "diwa-grundfos-icon";
 export const GRUNDFOS_ICON_SVG = `<g transform="translate(10,10) scale(3.5)">
     <circle cx="9" cy="14" r="5" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -89,13 +83,6 @@ export const PF_ICON_SVG = `<g transform="translate(10,10) scale(3.5)">
     <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>`;
 
-export const VOICE_ICON_ID = "diwa-voice-icon";
-export const VOICE_ICON_SVG = `<g transform="translate(10,10) scale(3.5)">
-    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M19 10v1a7 7 0 0 1-14 0v-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <line x1="12" y1="18" x2="12" y2="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <line x1="8" y1="22" x2="16" y2="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-</g>`;
 
 export const SETTINGS_ICON_ID = "diwa-settings-icon";
 export const SETTINGS_ICON_SVG = `<g transform="translate(10,10) scale(3.5)">
@@ -106,8 +93,6 @@ export const SETTINGS_ICON_SVG = `<g transform="translate(10,10) scale(3.5)">
 export const PROJECT_ICON_ID = "diwa-project-icon";
 export const PROJECT_ICON_SVG = `<g transform="translate(10,10) scale(3.5)"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>`;
 
-export const SYNTHESIS_ICON_ID = "diwa-synthesis-icon";
-export const SYNTHESIS_ICON_SVG = `<g transform="translate(10,10) scale(3.5)"><path d="M9 18h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10 22h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 2a7 7 0 0 0-7 7c0 2.32 1.25 4.34 3.12 5.5L9 18h6l.88-3.5C17.75 13.34 19 11.32 19 9a7 7 0 0 0-7-7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>`;
 
 export const GRAPH_ICON_ID = "diwa-graph-icon";
 export const GRAPH_ICON_SVG = `<g transform="translate(10,10) scale(3.5)">
@@ -151,7 +136,6 @@ export const SEARCH_TYPE_ICONS: Record<string, string> = {
 };
 
 export const SEARCH_QUICKJUMP_TABS = [
-    { id: 'timeline',     label: 'Timeline', icon: 'lucide-message-circle' },
     { id: 'review-gawa',  label: 'Gawa',     icon: 'lucide-check-square-2' },
     { id: 'dues',         label: 'Bulsa',    icon: 'lucide-wallet' },
     { id: 'projects',     label: 'Projects', icon: 'lucide-folder-kanban' },
@@ -175,9 +159,7 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
     geminiModel: 'gemini-1.5-pro',
     maxOutputTokens: 65536,
     newNoteFolder: '000 Bin',
-    voiceMemoFolder: '000 Bin/DIWA Voice',
     aiChatFolder: '000 Bin/DIWA AI Chat',
-    transcriptionLanguage: 'English',
     dailySectionStates: {},
     showDailySections: true,
     showDailyChecklist: true,

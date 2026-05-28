@@ -534,25 +534,6 @@ export class VaultService {
         });
     }
 
-    async createVoiceSidecar(audioFilename: string, audioFolder: string, durationMs: number, transcript: string): Promise<void> {
-        const baseName = audioFilename.replace(/\.[^.]+$/, '');
-        const sidecarName = `${baseName}.md`;
-        const sidecarPath = `${audioFolder}/${sidecarName}`;
-        const now = this.formatDateTime(new Date());
-        const safeTrans = transcript.replace(/"/g, "'").replace(/\n/g, ' ');
-        const content = `---\nsource: "${audioFilename}"\nduration_ms: ${durationMs}\ntranscript: "${safeTrans}"\ncreated: ${now}\n---\n\n${transcript}\n`;
-        try {
-            await this.ensureFolder(audioFolder);
-            const existing = this.app.vault.getAbstractFileByPath(sidecarPath);
-            if (existing instanceof TFile) {
-                await this.app.vault.modify(existing, content);
-            } else {
-                await this.app.vault.create(sidecarPath, content);
-            }
-        } catch (e) {
-            console.error('[DIWA VaultService] createVoiceSidecar', e);
-        }
-    }
 
     // sec-010: savePayment — was previously a missing method called via unsafe (app as any) lookup
     async savePayment(file: TFile, paymentDate: string, nextDueDate: string, notes: string, attachedFiles: File[]): Promise<void> {

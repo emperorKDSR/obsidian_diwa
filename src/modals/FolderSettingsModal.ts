@@ -78,16 +78,6 @@ export class FolderSettingsModal extends Modal {
                     await this.plugin.saveSettings();
                 }));
 
-        new Setting(body)
-            .setName('Voice Memo Folder')
-            .setDesc('Where recorded voice notes are stored.')
-            .addText(text => text
-                .setPlaceholder('000 Bin/DIWA Voice')
-                .setValue(this.plugin.settings.voiceMemoFolder)
-                .onChange(async (value) => {
-                    this.plugin.settings.voiceMemoFolder = value;
-                    await this.plugin.saveSettings();
-                }));
 
         new Setting(body)
             .setName('AI Chat Folder')

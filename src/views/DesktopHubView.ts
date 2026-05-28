@@ -2,8 +2,8 @@ import { ItemView, WorkspaceLeaf, setIcon, Notice, ViewStateResult, MarkdownRend
 import type DiwaPlugin from '../main';
 import {
     VIEW_TYPE_DESKTOP_HUB,
-    PF_ICON_ID, SYNTHESIS_ICON_ID, AI_CHAT_ICON_ID, REVIEW_ICON_ID,
-    SETTINGS_ICON_ID, TIMELINE_ICON_ID, JOURNAL_ICON_ID,
+    PF_ICON_ID, AI_CHAT_ICON_ID, REVIEW_ICON_ID,
+    SETTINGS_ICON_ID, JOURNAL_ICON_ID,
 } from '../constants';
 import { attachInlineTriggers, attachMediaPasteHandler, isTablet } from '../utils';
 import type { TaskEntry, ThoughtEntry } from '../types';
@@ -397,9 +397,7 @@ export class DesktopHubView extends ItemView {
                 variant: 'primary',
                 items: [
                     { label: 'Search', icon: 'lucide-search', tab: 'search', onClick: () => this.plugin.activateSearchView() },
-                    { label: 'Synthesis', icon: SYNTHESIS_ICON_ID, tab: 'synthesis' },
                     { label: 'Journal', icon: JOURNAL_ICON_ID, tab: 'journal' },
-                    { label: 'Timeline', icon: TIMELINE_ICON_ID, tab: 'timeline' },
                     { label: 'AI Chat', icon: AI_CHAT_ICON_ID, tab: 'diwa-ai' },
                 ],
             },
@@ -409,9 +407,7 @@ export class DesktopHubView extends ItemView {
                     { label: 'Gawa', icon: 'lucide-check-square-2', tab: 'review-gawa' },
                     { label: 'Bulsa', icon: PF_ICON_ID, tab: 'dues' },
                     { label: 'Projects', icon: 'folder-kanban', tab: 'projects' },
-                    { label: 'Calendar', icon: 'lucide-calendar', tab: 'calendar' },
                     { label: 'Review', icon: REVIEW_ICON_ID, tab: 'review' },
-                    { label: 'Voice', icon: 'lucide-mic', tab: 'voice-note' },
                 ],
             },
             {

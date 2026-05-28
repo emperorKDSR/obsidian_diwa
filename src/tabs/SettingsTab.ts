@@ -91,7 +91,6 @@ export class SettingsTab extends BaseTab {
                 }
             });
         });
-        field('Transcription Language', 'Language for audio transcription.', row => input(row, this.view.plugin.settings.transcriptionLanguage, 'English', 'text', async v => { this.view.plugin.settings.transcriptionLanguage = v; await this.view.plugin.saveSettings(); }));
         field('Monthly Income', 'For cashflow tracking in Bulsa Insights.', row => {
             const inp = row.createEl('input', { type: 'number', attr: { value: this.view.plugin.settings.monthlyIncome.toString(), style: 'font-size: 0.85em; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--background-modifier-border); background: var(--background-primary); color: var(--text-normal); width: 100%; box-sizing: border-box;' } });
             inp.addEventListener('change', async () => { this.view.plugin.settings.monthlyIncome = parseFloat(inp.value) || 0; await this.view.plugin.saveSettings(); });

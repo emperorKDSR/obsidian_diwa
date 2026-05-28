@@ -18,37 +18,10 @@ export class DiwaView extends ItemView {
     isDedicated: boolean = false;
     focusedProjectId: string | null = null;
     
-    // UI State
-    timelineSelectedDate: string = moment().format('YYYY-MM-DD');
-    timelineScrollBody: HTMLElement;
-    timelineCarousel: HTMLElement;
-
     collapsedThreads: Set<string> = new Set();
     activeMasterNote: TFile | null = null;
-    activeSynthesisContext: string | null = null;
-    activeSynthesisContexts: string[] = [];
-    synthesisFeedFilter: 'no-context' | 'with-context' | 'processed' = 'no-context';
-    synthesisShowHidden: boolean = false;
 
     searchQuery: string = '';
-
-    // Synthesis Inline Capture State
-    synthesisCaptureExpanded: boolean = false;
-    synthesisCaptureDraft: string = '';
-    _synthesisCaptPending: number = 0;
-
-    // Synthesis select/merge mode
-    synthesisSelectMode: boolean = false;
-    synthesisSelectedPaths: Set<string> = new Set();
-    synthesisCtxStripCollapsed: boolean = false;
-    synthesisActiveCtxFilter: string | null = null;
-    synthesisContextMode: 'filter' | 'prime' = 'filter';
-    synthesisInspectorPath: string | null = null;
-    synthesisLastSelectedPath: string | null = null;
-    synthesisTableArchivedFilter: 'false' | 'true' | 'all' = 'false';
-    synthesisTableContextFilter: string = 'all';
-    synthesisTableTopicFilter: string = 'all';
-    _mergePending: number = 0;
 
     // Gawa state — persists across re-renders (viewMode survives vault events)
     tasksViewMode: string = 'open';
@@ -74,20 +47,12 @@ export class DiwaView extends ItemView {
     currentChatFile: string | null = null;
     weeklyAiReport: string | null = null;
 
-    // Calendar State
-    calendarViewMonth: string = moment().format('YYYY-MM');
-    calendarSelectedDate: string = moment().format('YYYY-MM-DD');
-    calendarViewMode: 'month' | 'week' = 'month';
-
     // Week Plan State
     weekPlanDraft: Record<string, string> | null = null;
     weekPlanTargetMode: 'next' | 'this' = 'next';
 
     // Journal State
     journalSearch: string = '';
-
-    // Voice State
-    isRecording: boolean = false;
 
     // Managed current tab instance for lifecycle cleanup
     private currentTab: BaseTab | null = null;
@@ -106,6 +71,11 @@ export class DiwaView extends ItemView {
     }
     getIcon() { return KATANA_ICON_ID; }
 
+    private normalizeTabId(tab?: string | null): string {
+        const nextTab = tab ?? 'home';
+        return ['daily-workspace', 'habits', 'compass', 'timeline', 'synthesis', 'calendar', 'voice-note'].includes(nextTab) ? 'home' : nextTab;
+    }
+
     getModeTitle(): string {
         switch (this.activeTab) {
             case 'review-thoughts': return "Thoughts";
@@ -113,15 +83,11 @@ export class DiwaView extends ItemView {
             case 'diwa-ai': return "AI Chat";
             case 'dues': return "Bulsa";
             case 'projects': return "Projects";
-            case 'synthesis': return "Synthesis";
             case 'review': return "Weekly Review";
             case 'monthly-review': return "Monthly Review";
-            case 'voice-note': return "Voice Notes";
             case 'settings': return "Settings";
-            case 'timeline': return "Timeline";
             case 'journal': return "Journal";
             case 'manual': return "Manual";
-            case 'calendar': return "Calendar";
             case 'export': return "Export";
             case 'finance-analytics': return "Bulsa Insights";
             case 'milestones': return "Project Milestones";
@@ -151,8 +117,7 @@ export class DiwaView extends ItemView {
     /** Called by Obsidian after setViewState() — apply activeTab/isDedicated then re-render. */
     async setState(state: DiwaViewState, result: ViewStateResult): Promise<void> {
         if (state?.activeTab) {
-            // Migrate removed tab to home
-            this.activeTab = ['daily-workspace', 'habits', 'compass'].includes(state.activeTab) ? 'home' : state.activeTab;
+            this.activeTab = this.normalizeTabId(state.activeTab);
         }
         if (state?.isDedicated !== undefined) this.isDedicated = state.isDedicated;
         if (state?.focusedProjectId !== undefined) this.focusedProjectId = state.focusedProjectId;
@@ -161,6 +126,7 @@ export class DiwaView extends ItemView {
     }
 
     renderView() {
+        this.activeTab = this.normalizeTabId(this.activeTab);
         const container = this.containerEl.children[1] as HTMLElement;
         container.addClass('diwa-view-root');
         if (!this.contentAreaEl || !container.contains(this.contentAreaEl)) {
@@ -240,15 +206,11 @@ export class DiwaView extends ItemView {
         else if (tab === 'diwa-ai') instantiate(import('./tabs/AiTab'), 'AiTab');
         else if (tab === 'dues') instantiate(import('./tabs/DuesTab'), 'DuesTab');
         else if (tab === 'projects') instantiate(import('./tabs/ProjectsTab'), 'ProjectsTab');
-        else if (tab === 'synthesis') instantiate(import('./tabs/SynthesisTab'), 'SynthesisTab');
         else if (tab === 'review') instantiate(import('./tabs/ReviewTab'), 'ReviewTab');
         else if (tab === 'monthly-review') instantiate(import('./tabs/MonthlyReviewTab'), 'MonthlyReviewTab');
-        else if (tab === 'voice-note') instantiate(import('./tabs/VoiceTab'), 'VoiceTab');
         else if (tab === 'settings') instantiate(import('./tabs/SettingsTab'), 'SettingsTab');
-        else if (tab === 'timeline') instantiate(import('./tabs/TimelineTab'), 'TimelineTab');
         else if (tab === 'journal') instantiate(import('./tabs/JournalTab'), 'JournalTab');
         else if (tab === 'manual') instantiate(import('./tabs/ManualTab'), 'ManualTab');
-        else if (tab === 'calendar') instantiate(import('./tabs/CalendarTab'), 'CalendarTab');
         else if (tab === 'export') instantiate(import('./tabs/ExportTab'), 'ExportTab');
         else if (tab === 'finance-analytics') instantiate(import('./tabs/FinanceAnalyticsTab'), 'FinanceAnalyticsTab');
     }
@@ -270,10 +232,6 @@ export class DiwaView extends ItemView {
     // Bridge methods to Services
     async callGemini(msg: string, files: TFile[] = [], search: boolean = false, history?: any[]) {
         return await this.plugin.ai.callGemini(msg, files, search, history, this.plugin.index.thoughtIndex);
-    }
-
-    async transcribeAudio(file: TFile) {
-        return await this.plugin.ai.transcribeAudio(file);
     }
 
     matchesSearch(query: string, fields: string[]): boolean {
