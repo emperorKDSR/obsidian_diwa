@@ -2,7 +2,7 @@
 
 **DIWA** is an Obsidian plugin for capturing thoughts, managing gawa, tracking projects and Bulsa, reviewing your week, and keeping a journal from one connected workspace across desktop, tablet, and mobile.
 
-Current release: **v10.2.2** · See [CHANGELOG.md](./CHANGELOG.md) for release history.
+Current release: **v10.2.3** · See [CHANGELOG.md](./CHANGELOG.md) for release history.
 
 ---
 
@@ -19,12 +19,11 @@ DIWA’s primary workspace navigation is now:
 
 Supporting tabs and tools still in the plugin:
 - **Settings**
-- **Manual**
 - **Bulsa Insights**
 - **Monthly Review**
 - **Export & Backup**
 
-The current 10.2.2 line no longer includes the removed Search, AI, Voice, Timeline, Synthesis, or Calendar modules.
+The current 10.2.3 line no longer includes the removed Search, AI, Voice, Timeline, Synthesis, or Calendar modules.
 
 ---
 
@@ -113,7 +112,6 @@ Feature tabs
   ├── src/tabs/MonthlyReviewTab.ts
   ├── src/tabs/JournalTab.ts
   ├── src/tabs/ExportTab.ts
-  ├── src/tabs/ManualTab.ts
   └── src/tabs/SettingsTab.ts
 
 Supporting services

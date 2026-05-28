@@ -394,7 +394,6 @@ export class DesktopHubView extends ItemView {
                 variant: 'utility',
                 items: [
                     { label: 'Settings', icon: SETTINGS_ICON_ID, tab: 'settings' },
-                    { label: 'Manual', icon: 'lucide-book-open', tab: 'manual' },
                 ],
             },
         ];

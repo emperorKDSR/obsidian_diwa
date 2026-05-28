@@ -25,6 +25,24 @@ import { ThoughtController } from './views/ThoughtController';
 import { ThoughtProcessor } from './views/ThoughtProcessor';
 import { enableImageZoom } from './utils/imageZoom';
 
+const OPENABLE_DIWA_TAB_IDS = new Set([
+    'review-gawa',
+    'dues',
+    'projects',
+    'review',
+    'monthly-review',
+    'settings',
+    'journal',
+    'export',
+    'finance-analytics',
+]);
+
+const REMOVED_DIWA_TAB_FALLBACKS: Record<string, string> = {
+    manual: 'settings',
+};
+
+const DEFAULT_OPENABLE_DIWA_TAB_ID = 'settings';
+
 class TaskIndexCompat {
     constructor(private readonly plugin: DiwaPlugin) {}
 
@@ -368,9 +386,15 @@ export default class DiwaPlugin extends Plugin {
         return pending;
     }
 
+    private normalizeDiwaTabId(tabId?: string | null): string {
+        const requestedTab = tabId ?? 'home';
+        const nextTab = REMOVED_DIWA_TAB_FALLBACKS[requestedTab] ?? requestedTab;
+        return OPENABLE_DIWA_TAB_IDS.has(nextTab) ? nextTab : DEFAULT_OPENABLE_DIWA_TAB_ID;
+    }
+
     async activateView(tabId?: string, isDedicated: boolean = false) {
         const { workspace } = this.app;
-        const targetTab = tabId || 'home';
+        const targetTab = this.normalizeDiwaTabId(tabId);
         const leaves = workspace.getLeavesOfType(VIEW_TYPE_DIWA);
         let targetLeaf: WorkspaceLeaf | null = null;
         for (const leaf of leaves) {

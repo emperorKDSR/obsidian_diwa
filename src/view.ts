@@ -4,6 +4,36 @@ import type DiwaPlugin from './main';
 import { BaseTab } from './tabs/BaseTab';
 import type { Task } from './types';
 
+const LEGACY_HOME_TAB_IDS = new Set([
+    'daily-workspace',
+    'habits',
+    'compass',
+    'timeline',
+    'synthesis',
+    'calendar',
+    'voice-note',
+    'diwa-ai',
+    'search',
+]);
+
+const REMOVED_TAB_FALLBACKS: Record<string, string> = {
+    manual: 'settings',
+};
+
+const RENDERABLE_TAB_IDS = new Set([
+    'review-gawa',
+    'dues',
+    'projects',
+    'review',
+    'monthly-review',
+    'settings',
+    'journal',
+    'export',
+    'finance-analytics',
+]);
+
+const DEFAULT_DIWA_TAB_ID = 'settings';
+
 interface DiwaViewState extends Record<string, unknown> {
     activeTab?: string;
     isDedicated?: boolean;
@@ -63,7 +93,14 @@ export class DiwaView extends ItemView {
 
     private normalizeTabId(tab?: string | null): string {
         const nextTab = tab ?? 'home';
-        return ['daily-workspace', 'habits', 'compass', 'timeline', 'synthesis', 'calendar', 'voice-note', 'diwa-ai', 'search'].includes(nextTab) ? 'home' : nextTab;
+        if (LEGACY_HOME_TAB_IDS.has(nextTab)) return 'home';
+        return REMOVED_TAB_FALLBACKS[nextTab] ?? nextTab;
+    }
+
+    private resolveActiveTab(tab?: string | null): string {
+        const normalizedTab = this.normalizeTabId(tab);
+        if (RENDERABLE_TAB_IDS.has(normalizedTab)) return normalizedTab;
+        return DEFAULT_DIWA_TAB_ID;
     }
 
     getModeTitle(): string {
@@ -76,7 +113,6 @@ export class DiwaView extends ItemView {
             case 'monthly-review': return "Monthly Review";
             case 'settings': return "Settings";
             case 'journal': return "Journal";
-            case 'manual': return "Manual";
             case 'export': return "Export";
             case 'finance-analytics': return "Bulsa Insights";
             case 'milestones': return "Project Milestones";
@@ -106,7 +142,7 @@ export class DiwaView extends ItemView {
     /** Called by Obsidian after setViewState() — apply activeTab/isDedicated then re-render. */
     async setState(state: DiwaViewState, result: ViewStateResult): Promise<void> {
         if (state?.activeTab) {
-            this.activeTab = this.normalizeTabId(state.activeTab);
+            this.activeTab = this.resolveActiveTab(state.activeTab);
         }
         if (state?.isDedicated !== undefined) this.isDedicated = state.isDedicated;
         if (state?.focusedProjectId !== undefined) this.focusedProjectId = state.focusedProjectId;
@@ -115,7 +151,7 @@ export class DiwaView extends ItemView {
     }
 
     renderView() {
-        this.activeTab = this.normalizeTabId(this.activeTab);
+        this.activeTab = this.resolveActiveTab(this.activeTab);
         const container = this.containerEl.children[1] as HTMLElement;
         container.addClass('diwa-view-root');
         if (!this.contentAreaEl || !container.contains(this.contentAreaEl)) {
@@ -198,9 +234,12 @@ export class DiwaView extends ItemView {
         else if (tab === 'monthly-review') instantiate(import('./tabs/MonthlyReviewTab'), 'MonthlyReviewTab');
         else if (tab === 'settings') instantiate(import('./tabs/SettingsTab'), 'SettingsTab');
         else if (tab === 'journal') instantiate(import('./tabs/JournalTab'), 'JournalTab');
-        else if (tab === 'manual') instantiate(import('./tabs/ManualTab'), 'ManualTab');
         else if (tab === 'export') instantiate(import('./tabs/ExportTab'), 'ExportTab');
         else if (tab === 'finance-analytics') instantiate(import('./tabs/FinanceAnalyticsTab'), 'FinanceAnalyticsTab');
+        else {
+            this.activeTab = DEFAULT_DIWA_TAB_ID;
+            this.renderTab(container);
+        }
     }
 
     private disposeCurrentTab(): void {

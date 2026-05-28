@@ -14,7 +14,7 @@ export const HELP_SECTIONS: HelpSection[] = [
             },
             {
                 label: 'Navigation Order',
-                desc: 'The primary module order is Workspace, Projects, Gawa, Bulsa, Review, Journal. Settings and Manual stay in the utility area.',
+                desc: 'The primary module order is Workspace, Projects, Gawa, Bulsa, Review, Journal. Settings stays in the utility area.',
                 tip: 'This is the current workspace order across the main desktop navigation.',
             },
             {

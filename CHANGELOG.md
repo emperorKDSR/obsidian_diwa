@@ -1,4 +1,10 @@
 
+## [10.2.3] — Manual Surface Cleanup
+
+### Changed
+- Removed stale Manual references from current navigation, help copy, and README documentation.
+- Redirected legacy Manual tab requests to Settings so older workspace state no longer points at a removed surface.
+
 ## [10.2.2] — Legacy Cleanup
 
 ### Changed
