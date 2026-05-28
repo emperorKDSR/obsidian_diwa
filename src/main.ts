@@ -1,5 +1,5 @@
 import { Plugin, TFile, Notice, WorkspaceLeaf, Platform, moment, addIcon, setIcon, MarkdownRenderer, Menu } from 'obsidian';
-import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, PROJECT_ICON_ID, PROJECT_ICON_SVG, GRAPH_ICON_ID, GRAPH_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_MOBILE_GAWA, VIEW_TYPE_TABLET_HUB, VIEW_TYPE_GRAPH_EXPLORER } from './constants';
+import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, PROJECT_ICON_ID, PROJECT_ICON_SVG, GRAPH_ICON_ID, GRAPH_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB, VIEW_TYPE_GRAPH_EXPLORER } from './constants';
 import { DiwaSettings, GawaLayoutPreferences, TaskEntry, ThoughtEntry } from './types';
 import type { GraphExplorerSeed } from './graph/types';
 import { sanitizeGawaLayoutPreferences } from './gawaLayout';
@@ -7,7 +7,6 @@ import { isTablet, parseContextString } from './utils';
 import { DiwaView } from './view';
 import { DesktopHubView } from './views/DesktopHubView';
 import { MobileHubView } from './views/MobileHubView';
-import { MobileGawaView } from './views/MobileGawaView';
 import { TabletHubView } from './views/TabletHubView';
 import { GraphExplorerView } from './views/GraphExplorerView';
 import { DiwaSettingTab } from './settings';
@@ -152,6 +151,7 @@ export default class DiwaPlugin extends Plugin {
             this.notifyRefresh(); // ensure view re-renders with freshly-built index
             this.refreshOpenTaskPanes();
             this.scanForContexts();
+            await this.migrateLegacyMobileGawaLeaves();
             
             // --- REACTIVE NERVE SYSTEM ---
             // vault events: fast path for local writes (create/delete/rename)
@@ -225,7 +225,6 @@ export default class DiwaPlugin extends Plugin {
         this.registerView(VIEW_TYPE_DIWA, (leaf) => new DiwaView(leaf, this));
         this.registerView(VIEW_TYPE_DESKTOP_HUB, (leaf) => new DesktopHubView(leaf, this));
         this.registerView(VIEW_TYPE_MOBILE_HUB,  (leaf) => new MobileHubView(leaf, this));
-        this.registerView(VIEW_TYPE_MOBILE_GAWA, (leaf) => new MobileGawaView(leaf, this));
         this.registerView(VIEW_TYPE_TABLET_HUB,  (leaf) => new TabletHubView(leaf, this));
         this.registerView(VIEW_TYPE_GRAPH_EXPLORER, (leaf) => new GraphExplorerView(leaf, this));
 
@@ -344,9 +343,14 @@ export default class DiwaPlugin extends Plugin {
         if (leaf) { await leaf.setViewState({ type: VIEW_TYPE_TABLET_HUB, active: true }); workspace.revealLeaf(leaf); }
     }
 
-    async activateMobileGawa() {
-        if (!Platform.isMobile) return;
-        await this.activateView('review-gawa');
+    private async migrateLegacyMobileGawaLeaves(): Promise<void> {
+        const leaves = this.app.workspace.getLeavesOfType('diwa-mobile-gawa');
+        if (leaves.length === 0) return;
+        await Promise.all(leaves.map((leaf) => leaf.setViewState({
+            type: VIEW_TYPE_DIWA,
+            active: false,
+            state: { activeTab: 'review-gawa', isDedicated: false },
+        })));
     }
 
     async activateGawa() {

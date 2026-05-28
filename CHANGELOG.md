@@ -1,4 +1,10 @@
 
+## [10.1.0] — Mobile Gawa View Removal
+
+### Changed
+- Removed the orphaned `MobileGawaView` implementation and unregistered its dedicated view type.
+- Added a legacy workspace migration so any saved `diwa-mobile-gawa` leaves reopen on the standard DIWA Gawa tab instead of restoring a dead view.
+
 ## [10.0.0] — Documentation Sync
 
 ### Changed
@@ -1400,6 +1406,5 @@ Deleted 5 tab files that had no entry point in the Command Center and were unrea
 - **VaultService** — unified file I/O with YAML injection-safe frontmatter builders
 - **AiService** — Gemini integration with chunked base64, injection boundary markers, model allowlist, and API key header security
 - **17 tabs, 17 modals** — full Personal OS feature set
-
 
 
