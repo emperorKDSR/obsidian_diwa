@@ -200,6 +200,62 @@ export class TimelineTab extends BaseTab {
         }
     }
 
+    private _getFilterSummaryLabel(): string {
+        switch (this._feedFilter) {
+            case 'tasks':
+                return 'Tasks only';
+            case 'thoughts':
+                return 'Thoughts only';
+            default:
+                return 'Tasks + thoughts';
+        }
+    }
+
+    private _getSelectedDateSummary(selectedMoment: moment.Moment): string {
+        if (!selectedMoment.isValid()) return 'Browse your captured days';
+        if (selectedMoment.isSame(moment(), 'day')) return 'Today in focus';
+        if (selectedMoment.isSame(moment().clone().subtract(1, 'day'), 'day')) return 'Yesterday';
+        if (selectedMoment.isSame(moment().clone().add(1, 'day'), 'day')) return 'Tomorrow';
+        return selectedMoment.fromNow();
+    }
+
+    private buildDayHeader(day: string, count: number, includeDataHook = false): HTMLElement {
+        const header = document.createElement('div');
+        const parsedDay = moment(day, 'YYYY-MM-DD', true);
+        const isToday = parsedDay.isValid() && parsedDay.isSame(moment(), 'day');
+
+        header.className = `diwa-tl-day-header${isToday ? ' is-today' : ''}`;
+        if (includeDataHook) header.dataset.dateHeader = day;
+
+        const copy = document.createElement('div');
+        copy.className = 'diwa-tl-day-copy';
+
+        const labelEl = document.createElement('span');
+        labelEl.className = 'diwa-tl-day-label';
+        labelEl.textContent = !parsedDay.isValid()
+            ? 'Undated'
+            : isToday
+                ? 'Today'
+                : parsedDay.format('dddd');
+
+        const subtitleEl = document.createElement('span');
+        subtitleEl.className = 'diwa-tl-day-subtitle';
+        subtitleEl.textContent = parsedDay.isValid()
+            ? parsedDay.format('MMM D · YYYY')
+            : 'No assigned day';
+
+        copy.appendChild(labelEl);
+        copy.appendChild(subtitleEl);
+        header.appendChild(copy);
+
+        const countEl = document.createElement('span');
+        countEl.className = 'diwa-tl-day-count';
+        countEl.textContent = String(count);
+        header.appendChild(countEl);
+
+        return header;
+    }
+
     private _collectActivityDates(): Set<string> {
         const dates = new Set<string>();
 
@@ -263,16 +319,28 @@ export class TimelineTab extends BaseTab {
     // ── Spotlight Header Carousel ──────────────────────────────────────────
     private renderSpotlightHeader(parent: HTMLElement) {
         const header = parent.createEl('div', { cls: 'diwa-tl-header' });
-        // The header is frozen inside view-content which already starts below
-        // Obsidian's mobile nav bar — override the 52px CSS rule with standard padding.
         if (Platform.isMobile) header.style.paddingTop = '0px';
 
         const topBar = header.createEl('div', { cls: 'diwa-tl-header-bar' });
-        topBar.createEl('span', { text: 'TIMELINE', cls: 'diwa-tl-title' });
+        const headerCopy = topBar.createEl('div', { cls: 'diwa-tl-header-copy' });
+        headerCopy.createEl('span', { text: 'DIWA WORKSPACE', cls: 'diwa-tl-header-eyebrow' });
+        headerCopy.createEl('h2', { text: 'Timeline', cls: 'diwa-tl-title' });
+        headerCopy.createEl('p', {
+            text: this.isSearchMode
+                ? 'Search tasks and thoughts across your workspace.'
+                : 'A calm running feed of tasks, thoughts, and captured context.',
+            cls: 'diwa-tl-title-subtitle'
+        });
 
-        const searchBtn = topBar.createEl('button', {
+        const headerActions = topBar.createEl('div', { cls: 'diwa-tl-header-actions' });
+
+        const searchBtn = headerActions.createEl('button', {
             cls: `diwa-tl-search-btn${this.isSearchMode ? ' is-active' : ''}`,
-            attr: { title: 'Search' }
+            attr: {
+                title: this.isSearchMode ? 'Close search' : 'Open search',
+                'aria-label': this.isSearchMode ? 'Close search' : 'Open search',
+                type: 'button'
+            }
         });
         setIcon(searchBtn, 'lucide-search');
         searchBtn.addEventListener('click', () => {
@@ -280,9 +348,12 @@ export class TimelineTab extends BaseTab {
             else this._enterSearch();
         });
 
-        const fab = topBar.createEl('button', { cls: 'diwa-tl-capture-fab', attr: { title: 'Capture new thought' } });
+        const fab = headerActions.createEl('button', {
+            cls: 'diwa-tl-capture-fab',
+            attr: { title: 'Capture new thought', 'aria-label': 'Capture new thought', type: 'button' }
+        });
         setIcon(fab.createDiv({ cls: 'diwa-tl-fab-icon' }), 'lucide-plus');
-        fab.createEl('span', { text: 'NEW', cls: 'diwa-tl-fab-label' });
+        fab.createEl('span', { text: 'Capture', cls: 'diwa-tl-fab-label' });
         fab.addEventListener('click', () => this.openCapture());
 
         this._renderFeedFilter(header);
@@ -291,11 +362,28 @@ export class TimelineTab extends BaseTab {
             this._renderSearchBar(header);
         } else {
             const activityDates = this._collectActivityDates();
-
             const selectedMoment = moment(this.view.timelineSelectedDate, 'YYYY-MM-DD');
-            const spotlightRow = header.createEl('div', { cls: 'diwa-tl-spotlight-row' });
+            const selectedDate = selectedMoment.format('YYYY-MM-DD');
 
-            const prevBtn = spotlightRow.createEl('button', { cls: 'diwa-tl-nav-btn', attr: { title: 'Previous day' } });
+            const spotlightShell = header.createEl('div', { cls: 'diwa-tl-spotlight-shell' });
+            const spotlightMeta = spotlightShell.createEl('div', { cls: 'diwa-tl-spotlight-meta' });
+            const spotlightCopy = spotlightMeta.createEl('div', { cls: 'diwa-tl-spotlight-copy' });
+            spotlightCopy.createEl('span', { text: 'Active day', cls: 'diwa-tl-spotlight-label' });
+            spotlightCopy.createEl('span', {
+                text: selectedMoment.format('dddd, MMMM D'),
+                cls: 'diwa-tl-spotlight-date'
+            });
+            spotlightMeta.createEl('span', {
+                text: this._getFilterSummaryLabel(),
+                cls: 'diwa-tl-spotlight-filter'
+            });
+
+            const spotlightRow = spotlightShell.createEl('div', { cls: 'diwa-tl-spotlight-row' });
+
+            const prevBtn = spotlightRow.createEl('button', {
+                cls: 'diwa-tl-nav-btn',
+                attr: { title: 'Previous day', 'aria-label': 'Previous day', type: 'button' }
+            });
             setIcon(prevBtn, 'lucide-chevron-left');
             prevBtn.addEventListener('click', () =>
                 this.navigateToDate(selectedMoment.clone().subtract(1, 'day').format('YYYY-MM-DD')));
@@ -311,25 +399,42 @@ export class TimelineTab extends BaseTab {
                 const distCls = this.getCarouselDistanceClass(offset);
 
                 const item = track.createEl('div', {
-                    cls: ['diwa-tl-date-item', distCls, isToday ? 'is-today' : ''].filter(Boolean).join(' ')
+                    cls: ['diwa-tl-date-item', distCls, isToday ? 'is-today' : '', hasActivity ? 'has-activity' : ''].filter(Boolean).join(' ')
                 });
+                item.setAttribute('aria-label', `${date.format('dddd, MMMM D, YYYY')}${hasActivity ? ', has activity' : ''}`);
+                if (isSpotlight) {
+                    item.setAttribute('aria-current', 'date');
+                } else {
+                    const goToDate = () => this.navigateToDate(dateStr);
+                    item.tabIndex = 0;
+                    item.setAttribute('role', 'button');
+                    item.addEventListener('click', goToDate);
+                    item.addEventListener('keydown', (evt: KeyboardEvent) => {
+                        if (evt.key === 'Enter' || evt.key === ' ') {
+                            evt.preventDefault();
+                            goToDate();
+                        }
+                    });
+                }
                 item.createSpan({ text: isToday ? 'TODAY' : date.format('ddd').toUpperCase(), cls: 'diwa-tl-date-dow' });
                 item.createSpan({ text: date.format('D'), cls: 'diwa-tl-date-num' });
                 item.createSpan({ text: date.format('MMM').toUpperCase(), cls: 'diwa-tl-date-mon' });
                 if (hasActivity) item.createDiv({ cls: 'diwa-tl-date-dot' });
-                if (!isSpotlight) item.addEventListener('click', () => this.navigateToDate(dateStr));
             }
 
             this.setupSwipeNavigation(track, selectedMoment);
             window.setTimeout(() => this.centerSpotlightTrack(track), 0);
 
-            const nextBtn = spotlightRow.createEl('button', { cls: 'diwa-tl-nav-btn', attr: { title: 'Next day' } });
+            const nextBtn = spotlightRow.createEl('button', {
+                cls: 'diwa-tl-nav-btn',
+                attr: { title: 'Next day', 'aria-label': 'Next day', type: 'button' }
+            });
             setIcon(nextBtn, 'lucide-chevron-right');
             nextBtn.addEventListener('click', () =>
                 this.navigateToDate(selectedMoment.clone().add(1, 'day').format('YYYY-MM-DD')));
 
-            header.createEl('div', {
-                text: selectedMoment.format('dddd, MMMM D · YYYY').toUpperCase(),
+            spotlightShell.createEl('div', {
+                text: `${this._getSelectedDateSummary(selectedMoment)} · ${activityDates.has(selectedDate) ? 'activity logged' : 'no entries yet'}`,
                 cls: 'diwa-tl-spotlight-subtitle'
             });
         }
@@ -338,13 +443,24 @@ export class TimelineTab extends BaseTab {
     // ── Search Bar ─────────────────────────────────────────────────────────
     private _renderSearchBar(parent: HTMLElement) {
         const bar = parent.createEl('div', { cls: 'diwa-tl-search-bar' });
-        const input = bar.createEl('input', {
+        const shell = bar.createEl('div', { cls: 'diwa-tl-search-shell' });
+        const icon = shell.createEl('span', { cls: 'diwa-tl-search-icon' });
+        setIcon(icon, 'lucide-search');
+
+        const input = shell.createEl('input', {
             cls: 'diwa-tl-search-input',
-            attr: { type: 'text', placeholder: 'Search… (use "and" / "or" for multi-criteria)' }
+            attr: {
+                type: 'text',
+                placeholder: 'Search thoughts, tasks, or #context… use "and" / "or"',
+                'aria-label': 'Search timeline'
+            }
         }) as HTMLInputElement;
         (input as HTMLInputElement).value = this._searchQuery;
 
-        const clearBtn = bar.createEl('button', { cls: 'diwa-tl-search-close', attr: { title: 'Clear search' } });
+        const clearBtn = shell.createEl('button', {
+            cls: 'diwa-tl-search-close',
+            attr: { title: 'Clear search', 'aria-label': 'Clear search', type: 'button' }
+        });
         setIcon(clearBtn, 'lucide-x');
         clearBtn.style.opacity = this._searchQuery ? '1' : '0';
         clearBtn.style.pointerEvents = this._searchQuery ? 'auto' : 'none';
@@ -476,16 +592,8 @@ export class TimelineTab extends BaseTab {
 
         for (const [day, items] of byDay) {
             if (gen !== this._renderGen) return;
-            const m = moment(day, 'YYYY-MM-DD', true);
-            const isToday = m.isValid() && m.isSame(moment(), 'day');
-            const label = m.isValid()
-                ? (isToday ? `TODAY  ·  ${m.format('ddd, MMM D').toUpperCase()}` : m.format('ddd, MMM D · YYYY').toUpperCase())
-                : 'UNDATED';
-
             const group = this.feedEl.createEl('div', { cls: 'diwa-tl-day-section', attr: { 'data-date': day } });
-            const hdr = group.createEl('div', { cls: `diwa-tl-day-header${isToday ? ' is-today' : ''}` });
-            hdr.createEl('span', { cls: 'diwa-tl-day-label', text: label });
-            hdr.createEl('span', { cls: 'diwa-tl-day-count', text: String(items.length) });
+            group.appendChild(this.buildDayHeader(day, items.length));
 
             const spine = group.createEl('div', { cls: 'diwa-tl-spine-wrap' });
             for (const item of items) {
@@ -577,38 +685,19 @@ export class TimelineTab extends BaseTab {
     // ── Build a single day section ─────────────────────────────────────────
     private async buildDaySection(date: moment.Moment): Promise<HTMLElement> {
         const dateStr = date.format('YYYY-MM-DD');
-        const isToday = date.isSame(moment(), 'day');
-
         const section = document.createElement('div');
         section.className = 'diwa-tl-day-section';
         section.dataset.date = dateStr;
 
-        const dayHeader = document.createElement('div');
-        dayHeader.className = `diwa-tl-day-header${isToday ? ' is-today' : ''}`;
-        dayHeader.dataset.dateHeader = dateStr;
-
-        const labelEl = document.createElement('span');
-        labelEl.className = 'diwa-tl-day-label';
-        labelEl.textContent = isToday
-            ? `TODAY  ·  ${date.format('ddd, MMM D').toUpperCase()}`
-            : date.format('ddd, MMM D · YYYY').toUpperCase();
-        dayHeader.appendChild(labelEl);
-
-        const countEl = document.createElement('span');
-        countEl.className = 'diwa-tl-day-count';
-        dayHeader.appendChild(countEl);
-        section.appendChild(dayHeader);
-
         const entries = this._collectDayEntries(dateStr);
+        section.appendChild(this.buildDayHeader(dateStr, entries.length, true));
 
         if (entries.length === 0) {
-            countEl.textContent = '—';
             const emptyEl = document.createElement('div');
             emptyEl.className = 'diwa-tl-day-empty';
             emptyEl.textContent = this._getDayEmptyText();
             section.appendChild(emptyEl);
         } else {
-            countEl.textContent = String(entries.length);
             const spineWrap = document.createElement('div');
             spineWrap.className = 'diwa-tl-spine-wrap';
             for (const item of entries) {
@@ -676,57 +765,69 @@ export class TimelineTab extends BaseTab {
 
     // ── Entry Card ─────────────────────────────────────────────────────────
     private async buildEntryCard(item: TimelineFeedItem): Promise<HTMLElement> {
+        const isTask = item.type === 'task';
+        const dueMoment = isTask && item.entry.due ? moment(item.entry.due, 'YYYY-MM-DD', true) : null;
+        const isDone = isTask && item.entry.status === 'done';
+        const isOverdue = !!dueMoment && !isDone && dueMoment.isBefore(moment(), 'day');
+        const isDueToday = !!dueMoment && !isDone && dueMoment.isSame(moment(), 'day');
+
         const entryEl = document.createElement('div');
-        entryEl.className = 'diwa-tl-entry';
+        entryEl.className = [
+            'diwa-tl-entry',
+            `diwa-tl-entry--${item.type}`,
+            isDone ? 'is-done' : '',
+            isOverdue ? 'is-overdue' : ''
+        ].filter(Boolean).join(' ');
 
         const nodeEl = document.createElement('div');
         nodeEl.className = 'diwa-tl-entry-node';
         entryEl.appendChild(nodeEl);
 
         const card = document.createElement('div');
-        card.className = `diwa-tl-entry-card diwa-tl-entry-card--${item.type}`;
+        card.className = [
+            'diwa-tl-entry-card',
+            `diwa-tl-entry-card--${item.type}`,
+            isDone ? 'is-done' : '',
+            isOverdue ? 'is-overdue' : '',
+            isDueToday ? 'is-due-today' : ''
+        ].filter(Boolean).join(' ');
+
+        const head = document.createElement('div');
+        head.className = 'diwa-tl-entry-head';
 
         const meta = document.createElement('div');
         meta.className = 'diwa-tl-entry-meta';
         const badge = document.createElement('span');
         badge.className = `diwa-tl-type-badge diwa-tl-type-badge--${item.type}`;
-        badge.textContent = item.type === 'thought' ? '✦ THOUGHT' : '✓ TASK';
+        badge.textContent = item.type === 'thought' ? 'Thought' : 'Task';
+        meta.appendChild(badge);
+
+        if (isTask) {
+            const stateEl = document.createElement('span');
+            let stateClass = 'open';
+            let stateText = 'Open';
+
+            if (isDone) {
+                stateClass = 'done';
+                stateText = 'Done';
+            } else if (isOverdue) {
+                stateClass = 'overdue';
+                stateText = 'Overdue';
+            } else if (isDueToday) {
+                stateClass = 'today';
+                stateText = 'Due today';
+            }
+
+            stateEl.className = `diwa-tl-entry-state diwa-tl-entry-state--${stateClass}`;
+            stateEl.textContent = stateText;
+            meta.appendChild(stateEl);
+        }
+
         const timeEl = document.createElement('span');
         timeEl.className = 'diwa-tl-entry-time';
         timeEl.textContent = item.time.substring(0, 5);
-        meta.appendChild(badge);
         meta.appendChild(timeEl);
-        card.appendChild(meta);
-
-        const body = document.createElement('div');
-        body.className = 'diwa-tl-entry-body';
-        await MarkdownRenderer.render(this.app, item.entry.body || item.entry.title || '', body, item.entry.filePath, this.view);
-        this.hookInternalLinks(body, item.entry.filePath);
-        this.enhanceEntryBody(body);
-        card.appendChild(body);
-
-        const footer = document.createElement('div');
-        footer.className = 'diwa-tl-entry-footer';
-        if (item.type === 'task' && item.entry.due) {
-            const dueM = moment(item.entry.due, 'YYYY-MM-DD');
-            const isOverdue = item.entry.status !== 'done' && dueM.isValid() && dueM.isBefore(moment(), 'day');
-            const dueEl = document.createElement('span');
-            dueEl.className = `diwa-tl-due${isOverdue ? ' is-overdue' : ''}`;
-            dueEl.textContent = `📅 ${item.entry.due}`;
-            footer.appendChild(dueEl);
-        }
-        if (item.entry.context?.length > 0) {
-            const pills = document.createElement('div');
-            pills.className = 'diwa-tl-ctx-pills';
-            for (const ctx of item.entry.context) {
-                const pill = document.createElement('span');
-                pill.className = 'diwa-tl-ctx-pill';
-                pill.textContent = `#${ctx}`;
-                pills.appendChild(pill);
-            }
-            footer.appendChild(pills);
-        }
-        card.appendChild(footer);
+        head.appendChild(meta);
 
         const actions = document.createElement('div');
         actions.className = 'diwa-tl-entry-actions';
@@ -734,6 +835,7 @@ export class TimelineTab extends BaseTab {
         const editBtn = document.createElement('button');
         editBtn.className = 'diwa-tl-action-btn';
         editBtn.title = 'Edit';
+        editBtn.type = 'button';
         setIcon(editBtn, 'lucide-pencil');
         editBtn.addEventListener('click', () => {
             new EditEntryModal(
@@ -757,6 +859,7 @@ export class TimelineTab extends BaseTab {
         const delBtn = document.createElement('button');
         delBtn.className = 'diwa-tl-action-btn diwa-tl-action-btn--danger';
         delBtn.title = 'Delete';
+        delBtn.type = 'button';
         setIcon(delBtn, 'lucide-trash-2');
         delBtn.addEventListener('click', () => {
             new ConfirmModal(this.app, `Move this ${item.type} to trash?`, async () => {
@@ -769,7 +872,49 @@ export class TimelineTab extends BaseTab {
 
         actions.appendChild(editBtn);
         actions.appendChild(delBtn);
-        card.appendChild(actions);
+        head.appendChild(actions);
+        card.appendChild(head);
+
+        const body = document.createElement('div');
+        body.className = 'diwa-tl-entry-body';
+        await MarkdownRenderer.render(this.app, item.entry.body || item.entry.title || '', body, item.entry.filePath, this.view);
+        this.hookInternalLinks(body, item.entry.filePath);
+        this.enhanceEntryBody(body);
+        card.appendChild(body);
+
+        const footer = document.createElement('div');
+        footer.className = 'diwa-tl-entry-footer';
+        let hasFooter = false;
+
+        if (isTask && item.entry.due && dueMoment?.isValid()) {
+            const dueEl = document.createElement('span');
+            dueEl.className = `diwa-tl-due${isOverdue ? ' is-overdue' : ''}${isDueToday ? ' is-due-today' : ''}${isDone ? ' is-done' : ''}`;
+            dueEl.textContent = isDone
+                ? `Completed · ${dueMoment.format('MMM D')}`
+                : isDueToday
+                    ? 'Due today'
+                    : isOverdue
+                        ? `Overdue · ${dueMoment.format('MMM D')}`
+                        : `Due · ${dueMoment.format('MMM D')}`;
+            dueEl.title = item.entry.due;
+            footer.appendChild(dueEl);
+            hasFooter = true;
+        }
+
+        if (item.entry.context?.length > 0) {
+            const pills = document.createElement('div');
+            pills.className = 'diwa-tl-ctx-pills';
+            for (const ctx of item.entry.context) {
+                const pill = document.createElement('span');
+                pill.className = 'diwa-tl-ctx-pill';
+                pill.textContent = `#${ctx}`;
+                pills.appendChild(pill);
+            }
+            footer.appendChild(pills);
+            hasFooter = true;
+        }
+
+        if (hasFooter) card.appendChild(footer);
         entryEl.appendChild(card);
         return entryEl;
     }
