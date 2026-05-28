@@ -127,13 +127,6 @@ export class IndexService {
                 seen.add(topic);
             }
         }
-        for (const file of this.app.vault.getMarkdownFiles()) {
-            if (!this.isThoughtFile(file.path)) continue;
-            const cache = this.app.metadataCache.getFileCache(file);
-            for (const topic of normalizeThoughtTopics(cache?.frontmatter?.topic)) {
-                seen.add(topic);
-            }
-        }
         return Array.from(seen).sort();
     }
     
@@ -281,28 +274,45 @@ export class IndexService {
         this.dueIndex.clear();
         const files = this.app.vault.getMarkdownFiles().filter(f => f.path.startsWith(pfFolder + '/'));
         for (const file of files) {
-            const cache = this.app.metadataCache.getFileCache(file);
-            const fm = cache?.frontmatter;
-            const active = fm?.['active_status'];
-            const isActive = active === true || active === 'true' || active === 'True';
-            const dueDate = (fm?.['next_duedate'] ?? '').toString().trim();
-            const lastPayment = (fm?.['last_payment_date'] ?? '').toString().trim();
-            const dueMoment = dueDate ? moment(dueDate, ['YYYY-MM-DD', 'MM/DD/YYYY', 'DD/MM/YYYY'], true) : null;
-            // Read amount from frontmatter first; fall back to filename parse for legacy files
-            const fmAmount = parseFloat((fm?.['amount'] ?? '').toString().replace(/[^\d.]/g, ''));
-            const legacyAmount = parseFloat(file.basename.match(/[\d.]+/)?.[0] || '0');
-            const amount = !isNaN(fmAmount) && fmAmount > 0 ? fmAmount : (isNaN(legacyAmount) ? 0 : legacyAmount);
-            this.dueIndex.set(file.path, {
-                title: file.basename,
-                path: file.path,
-                dueDate,
-                lastPayment,
-                dueMoment,
-                hasRecurring: !!dueDate,
-                isActive,
-                amount: isNaN(amount) ? 0 : amount
-            });
+            this.indexDueFile(file, true);
         }
+        this.rebuildCalculatedState();
+    }
+
+    indexDueFile(file: TFile, skipRebuild = false): void {
+        if (!this.isDueFile(file.path)) {
+            this.removeDueFile(file.path, skipRebuild);
+            return;
+        }
+
+        const cache = this.app.metadataCache.getFileCache(file);
+        const fm = cache?.frontmatter;
+        const active = fm?.['active_status'];
+        const isActive = active === true || active === 'true' || active === 'True';
+        const dueDate = (fm?.['next_duedate'] ?? '').toString().trim();
+        const lastPayment = (fm?.['last_payment_date'] ?? '').toString().trim();
+        const dueMoment = dueDate ? moment(dueDate, ['YYYY-MM-DD', 'MM/DD/YYYY', 'DD/MM/YYYY'], true) : null;
+        const fmAmount = parseFloat((fm?.['amount'] ?? '').toString().replace(/[^\d.]/g, ''));
+        const legacyAmount = parseFloat(file.basename.match(/[\d.]+/)?.[0] || '0');
+        const amount = !isNaN(fmAmount) && fmAmount > 0 ? fmAmount : (isNaN(legacyAmount) ? 0 : legacyAmount);
+
+        this.dueIndex.set(file.path, {
+            title: file.basename,
+            path: file.path,
+            dueDate,
+            lastPayment,
+            dueMoment,
+            hasRecurring: !!dueDate,
+            isActive,
+            amount: isNaN(amount) ? 0 : amount,
+        });
+
+        if (!skipRebuild) this.rebuildCalculatedState();
+    }
+
+    removeDueFile(path: string, skipRebuild = false): void {
+        const removed = this.dueIndex.delete(path);
+        if (removed && !skipRebuild) this.rebuildCalculatedState();
     }
 
     async buildThoughtIndex(): Promise<void> {

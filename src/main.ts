@@ -184,7 +184,7 @@ export default class DiwaPlugin extends Plugin {
                     }
                 }
                 else if (this.index.isTaskFile(f.path)) await this.index.indexTaskFile(f as TFile);
-                else if (this.index.isDueFile(f.path)) await this.index.buildDueIndex();
+                else if (this.index.isDueFile(f.path)) this.index.indexDueFile(f as TFile);
                 this.notifyRefresh(scope);
             }));
 
@@ -203,7 +203,7 @@ export default class DiwaPlugin extends Plugin {
                 if (!scope) return;
                 this.getThoughtController().removeThoughtFromIndex(f.path);
                 this.index.taskIndex.delete(f.path);
-                if (this.index.isDueFile(f.path)) await this.index.buildDueIndex();
+                if (this.index.isDueFile(f.path)) this.index.removeDueFile(f.path);
                 this.notifyRefresh(scope);
             }));
 
@@ -215,6 +215,7 @@ export default class DiwaPlugin extends Plugin {
                 if (!scope) return;
                 this.getThoughtController().removeThoughtFromIndex(oldPath);
                 this.index.taskIndex.delete(oldPath);
+                if (this.index.isDueFile(oldPath)) this.index.removeDueFile(oldPath, true);
                 if (this.index.isThoughtFile(f.path)) {
                     await this.index.indexThoughtFile(f as TFile);
                     if (!this.getThoughtController().isUpdatingThoughtPath(f.path)) {
@@ -222,6 +223,8 @@ export default class DiwaPlugin extends Plugin {
                     }
                 }
                 else if (this.index.isTaskFile(f.path)) await this.index.indexTaskFile(f as TFile);
+                else if (this.index.isDueFile(f.path)) this.index.indexDueFile(f as TFile, true);
+                if (this.index.isDueFile(oldPath) || this.index.isDueFile(f.path)) this.index.rebuildCalculatedState();
                 this.notifyRefresh(scope);
             }));
 
@@ -270,6 +273,26 @@ export default class DiwaPlugin extends Plugin {
 
     async onunload() {
         this.refreshCoordinator?.onunload();
+        this.detachRegisteredLeaves();
+    }
+
+    private detachRegisteredLeaves(): void {
+        const viewTypes = [
+            VIEW_TYPE_DIWA,
+            VIEW_TYPE_DESKTOP_HUB,
+            VIEW_TYPE_MOBILE_HUB,
+            VIEW_TYPE_TABLET_HUB,
+        ];
+
+        for (const viewType of viewTypes) {
+            for (const leaf of this.app.workspace.getLeavesOfType(viewType)) {
+                try {
+                    leaf.detach();
+                } catch (error) {
+                    console.warn('[DIWA] failed to detach leaf during unload', { viewType, error });
+                }
+            }
+        }
     }
 
     async migrateLegacyTableData() {
@@ -921,5 +944,4 @@ export default class DiwaPlugin extends Plugin {
             this.notifyRefresh('thoughts');
         }).open();
     }
-
 }

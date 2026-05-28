@@ -1,4 +1,11 @@
 
+## [10.2.4] — Index Lifecycle Hardening
+
+### Changed
+- Removed the redundant full-vault topic scan from topic suggestions and relied on maintained index state instead.
+- Switched due-file create, modify, delete, and rename handling to incremental index updates instead of rebuilding the whole due index.
+- Detach registered DIWA leaves during plugin unload so custom workspace leaves do not linger across shutdown.
+
 ## [10.2.3] — Manual Surface Cleanup
 
 ### Changed
