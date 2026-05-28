@@ -51,6 +51,7 @@ export class DesktopHubView extends ItemView {
     // Suppress re-renders while user is mid-capture (thought or task)
     _capturePending: number = 0;
     _taskPending: number = 0;
+    _taskTogglePending: number = 0;
 
     // Task panel filter: 'upcoming' = next 2 days + undated; 'all' = everything
     _taskFilter: 'upcoming' | 'all' = 'upcoming';
@@ -177,7 +178,7 @@ export class DesktopHubView extends ItemView {
     }
 
     renderView() {
-        if (this._capturePending > 0 || this._taskPending > 0) return;
+        if (this._capturePending > 0 || this._taskPending > 0 || this._taskTogglePending > 0) return;
 
         const root = this.containerEl.children[1] as HTMLElement;
         root.addClass('diwa-dh-root');
@@ -258,6 +259,7 @@ export class DesktopHubView extends ItemView {
     }
 
     updateTaskPaneFromIndex(): void {
+        if (this._taskTogglePending > 0) return;
         this._taskController.syncFromIndex();
     }
 

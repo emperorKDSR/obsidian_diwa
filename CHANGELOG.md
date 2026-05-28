@@ -1,4 +1,11 @@
 
+## [10.2.6] — Popout Overlay Hardening
+
+### Changed
+- Made the shared link modal and task thought overlay resolve DOM and window ownership from their active host so they behave correctly in popout windows.
+- Cleared shared overlay ownership when task rows are destroyed to avoid stale callbacks and orphaned overlay state.
+- Added a desktop task-toggle guard so in-flight task toggles do not trigger conflicting task-pane refreshes.
+
 ## [10.2.5] — Modal Write Path Cleanup
 
 ### Changed

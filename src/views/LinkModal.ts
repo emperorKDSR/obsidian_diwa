@@ -40,8 +40,11 @@ export class LinkModal {
     private addTaskInputEl: HTMLInputElement | null = null;
     private activeContext: LinkModalContext | null = null;
     private hostEl: HTMLElement | null = null;
+    private ownerDoc: Document | null = null;
+    private ownerWin: Window | null = null;
     private hostPositionTouched = false;
     private hostPositionOriginal = '';
+    private focusTimer: number | null = null;
     private onEscape = (event: KeyboardEvent) => {
         if (event.key !== 'Escape') return;
         event.preventDefault();
@@ -62,22 +65,44 @@ export class LinkModal {
             thoughtId: context.thoughtId?.trim() || undefined,
         };
         if (!normalized.taskId && !normalized.thoughtId) return;
+        const host = hostEl ?? this.ownerDoc?.body ?? document.body;
         this.activeContext = normalized;
-        this.ensureDom();
-        this.attachToHost(hostEl ?? document.body);
+        this.ensureDom(host);
+        this.attachToHost(host);
         this.render();
         if (!this.backdropEl || !this.addThoughtInputEl) return;
         this.modalEl?.toggleClass('is-mobile', this.isMobile());
         this.modalEl?.addClass('open');
         this.backdropEl?.addClass('open');
         this.backdropEl.style.display = 'block';
-        window.addEventListener('keydown', this.onEscape, true);
-        window.setTimeout(() => this.addThoughtInputEl?.focus(), 10);
+        this.ownerWin?.removeEventListener('keydown', this.onEscape, true);
+        this.ownerWin?.addEventListener('keydown', this.onEscape, true);
+        this.clearFocusTimer();
+        this.focusTimer = this.ownerWin?.setTimeout(() => this.addThoughtInputEl?.focus(), 10) ?? null;
     }
 
     close(): void {
         this.activeContext = null;
-        window.removeEventListener('keydown', this.onEscape, true);
+        this.teardownDom();
+    }
+
+    closeIfActiveTask(taskId: string): void {
+        if (!this.activeContext?.taskId) return;
+        const taskRef = this.taskController.getTask(taskId)?.filePath || taskId;
+        const activeTaskRef = this.taskController.getTask(this.activeContext.taskId)?.filePath || this.activeContext.taskId;
+        if (taskRef !== activeTaskRef) return;
+        this.close();
+    }
+
+    private clearFocusTimer(): void {
+        if (this.focusTimer === null) return;
+        (this.ownerWin ?? window).clearTimeout(this.focusTimer);
+        this.focusTimer = null;
+    }
+
+    private teardownDom(): void {
+        this.clearFocusTimer();
+        this.ownerWin?.removeEventListener('keydown', this.onEscape, true);
         this.modalEl?.removeClass('open');
         this.backdropEl?.removeClass('open');
         if (this.hostEl && this.hostPositionTouched) {
@@ -85,6 +110,7 @@ export class LinkModal {
             this.hostPositionTouched = false;
         }
         this.hostEl = null;
+        this.hostPositionOriginal = '';
         this.backdropEl?.remove();
         this.modalEl?.remove();
         this.backdropEl = null;
@@ -95,18 +121,24 @@ export class LinkModal {
         this.notesListEl = null;
         this.addThoughtInputEl = null;
         this.addTaskInputEl = null;
+        this.ownerDoc = null;
+        this.ownerWin = null;
     }
 
-    private ensureDom(): void {
-        if (this.backdropEl && this.modalEl) return;
-        this.backdropEl = document.createElement('div');
+    private ensureDom(hostEl: HTMLElement): void {
+        const hostDoc = hostEl.ownerDocument;
+        if (this.backdropEl && this.modalEl && this.ownerDoc === hostDoc) return;
+        this.teardownDom();
+        this.ownerDoc = hostDoc;
+        this.ownerWin = hostDoc.defaultView;
+        this.backdropEl = hostDoc.createElement('div');
         this.backdropEl.className = 'link-modal-backdrop diwa-workspace-popup-backdrop';
         this.backdropEl.addEventListener('mousedown', (event) => {
             if (event.target !== this.backdropEl) return;
             this.close();
         });
 
-        this.modalEl = document.createElement('div');
+        this.modalEl = hostDoc.createElement('div');
         this.modalEl.className = 'link-modal diwa-workspace-popup-shell diwa-workspace-popup-shell--link';
         this.modalEl.addEventListener('mousedown', (event) => event.stopPropagation());
         let touchStartY = 0;
@@ -176,12 +208,15 @@ export class LinkModal {
             event.preventDefault();
             const value = this.addThoughtInputEl?.value.trim() || '';
             if (!value) return;
-            this.addThoughtInputEl!.disabled = true;
+            const inputEl = this.addThoughtInputEl;
+            if (!inputEl) return;
+            inputEl.disabled = true;
             void (async () => {
                 const ok = await this.addThought(value);
-                this.addThoughtInputEl!.disabled = false;
+                if (this.addThoughtInputEl !== inputEl) return;
+                inputEl.disabled = false;
                 if (!ok) return;
-                this.addThoughtInputEl!.value = '';
+                inputEl.value = '';
                 this.render();
             })();
         });
@@ -196,12 +231,15 @@ export class LinkModal {
             event.preventDefault();
             const value = this.addTaskInputEl?.value.trim() || '';
             if (!value) return;
-            this.addTaskInputEl!.disabled = true;
+            const inputEl = this.addTaskInputEl;
+            if (!inputEl) return;
+            inputEl.disabled = true;
             void (async () => {
                 const ok = await this.addTask(value);
-                this.addTaskInputEl!.disabled = false;
+                if (this.addTaskInputEl !== inputEl) return;
+                inputEl.disabled = false;
                 if (!ok) return;
-                this.addTaskInputEl!.value = '';
+                inputEl.value = '';
                 this.render();
             })();
         });
@@ -219,20 +257,22 @@ export class LinkModal {
 
     private attachToHost(hostEl: HTMLElement): void {
         if (!this.backdropEl || !this.modalEl) return;
-        const host = hostEl ?? document.body;
+        const host = hostEl;
         if (this.hostEl === host && this.backdropEl.parentElement === host && this.modalEl.parentElement === host) return;
 
         if (this.hostEl && this.hostPositionTouched) {
             this.hostEl.style.position = this.hostPositionOriginal;
             this.hostPositionTouched = false;
         }
+        this.hostPositionOriginal = '';
 
         this.hostEl = host;
-        const isGlobal = host === document.body;
+        const hostDoc = host.ownerDocument;
+        const isGlobal = host === hostDoc.body;
         this.backdropEl.toggleClass('is-global', isGlobal);
         this.modalEl.toggleClass('is-global', isGlobal);
         if (!isGlobal) {
-            const computed = window.getComputedStyle(host).position;
+            const computed = hostDoc.defaultView?.getComputedStyle(host).position ?? host.style.position;
             if (computed === 'static') {
                 this.hostPositionOriginal = host.style.position;
                 host.style.position = 'relative';

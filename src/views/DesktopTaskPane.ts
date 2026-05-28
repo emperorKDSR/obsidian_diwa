@@ -60,6 +60,7 @@ export interface TaskPaneHost {
     app: App;
     plugin: any;
     _taskPending: number;
+    _taskTogglePending?: number;
     _taskFilter: 'upcoming' | 'all';
 }
 
@@ -1210,9 +1211,14 @@ class ThoughtOverlay {
     private listEl: HTMLElement | null = null;
     private inputEl: HTMLInputElement | null = null;
     private activeTaskId: string | null = null;
+    private ownerTaskId: string | null = null;
     private hostEl: HTMLElement | null = null;
+    private ownerDoc: Document | null = null;
+    private ownerWin: Window | null = null;
     private hostPositionTouched = false;
     private hostPositionOriginal = '';
+    private focusTimer: number | null = null;
+    private setTaskOverlayActive: ((active: boolean) => void) | null = null;
     private onEscape = (event: KeyboardEvent) => {
         if (event.key !== 'Escape') return;
         event.preventDefault();
@@ -1223,49 +1229,100 @@ class ThoughtOverlay {
         private app: App,
         private thoughtController: ThoughtController,
         private taskController: TaskController,
-        private setTaskOverlayActive: (taskId: string, active: boolean) => void,
     ) {}
 
-    open(taskId: string, hostEl: HTMLElement): void {
+    open(taskId: string, hostEl: HTMLElement, setTaskOverlayActive: (active: boolean) => void): void {
         const resolvedTask = this.taskController.getTask(taskId);
         if (!resolvedTask) return;
         const taskRef = resolvedTask.filePath || taskId;
-        this.ensureDom();
+        this.ensureDom(hostEl);
         if (!this.backdropEl || !this.headerEl || !this.listEl || !this.inputEl) return;
         this.attachToHost(hostEl);
 
-        if (this.activeTaskId && this.activeTaskId !== taskRef) this.setTaskOverlayActive(this.activeTaskId, false);
+        if (this.setTaskOverlayActive && (this.ownerTaskId !== taskRef || this.setTaskOverlayActive !== setTaskOverlayActive)) {
+            this.setTaskOverlayActive(false);
+        }
+        this.ownerTaskId = taskRef;
         this.activeTaskId = taskRef;
-        this.setTaskOverlayActive(taskRef, true);
+        this.setTaskOverlayActive = setTaskOverlayActive;
+        this.setTaskOverlayActive(true);
         this.render();
 
         this.backdropEl.style.display = 'flex';
         this.inputEl.value = '';
         this.inputEl.disabled = false;
-        window.addEventListener('keydown', this.onEscape, true);
-        window.setTimeout(() => this.inputEl?.focus(), 10);
+        this.ownerWin?.removeEventListener('keydown', this.onEscape, true);
+        this.ownerWin?.addEventListener('keydown', this.onEscape, true);
+        this.clearFocusTimer();
+        this.focusTimer = this.ownerWin?.setTimeout(() => this.inputEl?.focus(), 10) ?? null;
     }
 
     close(): void {
-        if (this.activeTaskId) this.setTaskOverlayActive(this.activeTaskId, false);
+        this.clearFocusTimer();
+        this.ownerWin?.removeEventListener('keydown', this.onEscape, true);
+        this.setTaskOverlayActive?.(false);
         this.activeTaskId = null;
+        this.ownerTaskId = null;
+        this.setTaskOverlayActive = null;
         if (this.backdropEl) this.backdropEl.style.display = 'none';
-        window.removeEventListener('keydown', this.onEscape, true);
     }
 
     refreshTask(taskId: string): void {
-        if (!this.activeTaskId || this.activeTaskId !== taskId) return;
+        if (!this.activeTaskId) return;
+        const taskRef = this.taskController.getTask(taskId)?.filePath || taskId;
+        if (this.activeTaskId !== taskRef) return;
         this.render();
     }
 
     closeIfActive(taskId: string): void {
-        if (this.activeTaskId !== taskId) return;
+        const taskRef = this.taskController.getTask(taskId)?.filePath || taskId;
+        if (this.activeTaskId !== taskRef) return;
         this.close();
     }
 
-    private ensureDom(): void {
-        if (this.backdropEl) return;
-        this.backdropEl = document.createElement('div');
+    releaseTask(taskId: string): void {
+        const taskRef = this.taskController.getTask(taskId)?.filePath || taskId;
+        if (this.activeTaskId === taskRef) {
+            this.close();
+            return;
+        }
+        if (this.ownerTaskId === taskRef) {
+            this.ownerTaskId = null;
+            this.setTaskOverlayActive = null;
+        }
+    }
+
+    private clearFocusTimer(): void {
+        if (this.focusTimer === null) return;
+        (this.ownerWin ?? window).clearTimeout(this.focusTimer);
+        this.focusTimer = null;
+    }
+
+    private teardownDom(): void {
+        this.clearFocusTimer();
+        this.ownerWin?.removeEventListener('keydown', this.onEscape, true);
+        if (this.hostEl && this.hostPositionTouched) {
+            this.hostEl.style.position = this.hostPositionOriginal;
+            this.hostPositionTouched = false;
+        }
+        this.hostEl = null;
+        this.hostPositionOriginal = '';
+        this.backdropEl?.remove();
+        this.backdropEl = null;
+        this.headerEl = null;
+        this.listEl = null;
+        this.inputEl = null;
+        this.ownerDoc = null;
+        this.ownerWin = null;
+    }
+
+    private ensureDom(hostEl: HTMLElement): void {
+        const hostDoc = hostEl.ownerDocument;
+        if (this.backdropEl && this.ownerDoc === hostDoc) return;
+        this.teardownDom();
+        this.ownerDoc = hostDoc;
+        this.ownerWin = hostDoc.defaultView;
+        this.backdropEl = hostDoc.createElement('div');
         this.backdropEl.className = 'thought-overlay-backdrop diwa-workspace-popup-backdrop';
         this.backdropEl.style.display = 'none';
         this.backdropEl.addEventListener('mousedown', (event) => {
@@ -1273,17 +1330,17 @@ class ThoughtOverlay {
             this.close();
         });
 
-        const panelEl = document.createElement('div');
+        const panelEl = hostDoc.createElement('div');
         panelEl.className = 'thought-overlay diwa-workspace-popup-shell diwa-workspace-popup-shell--thought';
         panelEl.addEventListener('mousedown', (event) => event.stopPropagation());
 
-        this.headerEl = document.createElement('div');
+        this.headerEl = hostDoc.createElement('div');
         this.headerEl.className = 'thought-header';
 
-        this.listEl = document.createElement('div');
+        this.listEl = hostDoc.createElement('div');
         this.listEl.className = 'thought-list';
 
-        this.inputEl = document.createElement('input');
+        this.inputEl = hostDoc.createElement('input');
         this.inputEl.className = 'thought-input';
         this.inputEl.placeholder = 'Capture a linked thought…';
         this.inputEl.addEventListener('keydown', (event: KeyboardEvent) => {
@@ -1296,13 +1353,16 @@ class ThoughtOverlay {
             if (event.key !== 'Enter' || event.shiftKey) return;
             event.preventDefault();
             const content = this.inputEl?.value.trim() || '';
-            if (!content || !this.activeTaskId || !this.inputEl) return;
-            this.inputEl.disabled = true;
+            const activeTaskId = this.activeTaskId;
+            const inputEl = this.inputEl;
+            if (!content || !activeTaskId || !inputEl) return;
+            inputEl.disabled = true;
             void (async () => {
-                const ok = await this.taskController.createThoughtFromTask(this.activeTaskId!, content);
-                this.inputEl!.disabled = false;
+                const ok = await this.taskController.createThoughtFromTask(activeTaskId, content);
+                if (this.inputEl !== inputEl || this.activeTaskId !== activeTaskId) return;
+                inputEl.disabled = false;
                 if (!ok) return;
-                this.inputEl!.value = '';
+                inputEl.value = '';
                 this.render();
             })();
         });
@@ -1321,13 +1381,15 @@ class ThoughtOverlay {
             this.hostEl.style.position = this.hostPositionOriginal;
             this.hostPositionTouched = false;
         }
+        this.hostPositionOriginal = '';
 
         this.hostEl = hostEl;
-        const isBodyHost = hostEl === document.body;
+        const hostDoc = hostEl.ownerDocument;
+        const isBodyHost = hostEl === hostDoc.body;
         this.backdropEl.toggleClass('is-global', isBodyHost);
 
         if (!isBodyHost) {
-            const computed = window.getComputedStyle(hostEl).position;
+            const computed = hostDoc.defaultView?.getComputedStyle(hostEl).position ?? hostEl.style.position;
             if (computed === 'static') {
                 this.hostPositionOriginal = hostEl.style.position;
                 hostEl.style.position = 'relative';
@@ -1661,6 +1723,10 @@ export class TaskItemView {
         if (this.destroyed) return;
         this.destroyed = true;
         this.closeInlinePopover();
+        const taskId = getTaskKey(this.currentTask);
+        TaskItemView.sharedThoughtOverlay?.closeIfActive(taskId);
+        TaskItemView.sharedThoughtOverlay?.releaseTask(this.getThoughtOverlayTaskRef());
+        TaskItemView.sharedLinkModal?.closeIfActiveTask(taskId);
         if (this.flashTimer !== null) {
             window.clearTimeout(this.flashTimer);
             this.flashTimer = null;
@@ -1719,8 +1785,9 @@ export class TaskItemView {
     private async handleToggle(): Promise<void> {
         if (this.destroyed) return;
         if (this.rootEl.hasClass('is-completing')) return;
-        this.hooks.onToggle?.(this.currentTask);
-        await this.runTaskAction(() => this.controller.toggleTask(getTaskKey(this.currentTask)));
+        const hookResult = await this.hooks.onToggle?.(this.currentTask);
+        if (hookResult === false) return;
+        await this.runWithTaskTogglePending(() => this.runTaskAction(() => this.controller.toggleTask(getTaskKey(this.currentTask))));
     }
 
     private handleClick(event: MouseEvent): void {
@@ -2087,7 +2154,11 @@ export class TaskItemView {
     }
 
     private toggleThoughtList(): void {
-        this.openLinkModal();
+        this.getThoughtOverlay().open(
+            getTaskKey(this.currentTask),
+            this.getThoughtOverlayHostElement(),
+            (active) => this.setThoughtOverlayActive(active),
+        );
     }
 
     private updateThoughtToggleLabel(): void {
@@ -2159,7 +2230,7 @@ export class TaskItemView {
         return this.rootEl.closest('.diwa-dh-root') as HTMLElement
             || this.rootEl.closest('.diwa-gawa-desktop') as HTMLElement
             || this.rootEl.closest('.diwa-view-content') as HTMLElement
-            || document.body;
+            || this.rootEl.ownerDocument.body;
     }
 
     setThoughtOverlayActive(active: boolean): void {
@@ -2202,14 +2273,32 @@ export class TaskItemView {
                 this.view.app,
                 this.view.plugin.getThoughtController(),
                 this.controller,
-                (taskId, active) => {
-                    const currentTaskKey = getTaskKey(this.currentTask);
-                    if (taskId !== this.currentTask.filePath && taskId !== currentTaskKey) return;
-                    this.setThoughtOverlayActive(active);
-                },
             );
         }
         return TaskItemView.sharedThoughtOverlay;
+    }
+
+    private getThoughtOverlayTaskRef(): string {
+        return this.currentTask.filePath || getTaskKey(this.currentTask);
+    }
+
+    private async runWithTaskTogglePending(action: () => Promise<void>): Promise<void> {
+        if (typeof this.view._taskTogglePending === 'number') {
+            this.view._taskTogglePending += 1;
+            try {
+                await action();
+            } finally {
+                this.view._taskTogglePending = Math.max(0, this.view._taskTogglePending - 1);
+            }
+            return;
+        }
+
+        this.view._taskPending += 1;
+        try {
+            await action();
+        } finally {
+            this.view._taskPending = Math.max(0, this.view._taskPending - 1);
+        }
     }
 
     private getLinkModal(): LinkModal {
