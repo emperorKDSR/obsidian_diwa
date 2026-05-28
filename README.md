@@ -163,7 +163,6 @@ These are the current user-facing settings surfaces documented in the plugin UI:
 | `dateFormat` | `string` | `YYYY-MM-DD` | Display/storage date format |
 | `timeFormat` | `string` | `HH:mm` | Display/storage time format |
 | `monthlyIncome` | `number` | `0` | Used by Bulsa Insights cashflow views |
-| `reminderTasksEnabled` | `boolean` | `true` | Enables hourly gawa reminders |
 | `mobileBottomBarHeight` | `number` | `56` | Reserved space for the Obsidian mobile toolbar |
 
 ---

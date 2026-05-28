@@ -229,12 +229,6 @@ export default class DiwaPlugin extends Plugin {
         this.registerView(VIEW_TYPE_TABLET_HUB,  (leaf) => new TabletHubView(leaf, this));
         this.registerView(VIEW_TYPE_GRAPH_EXPLORER, (leaf) => new GraphExplorerView(leaf, this));
 
-        // Reminders: hourly nudge for due tasks
-        this.registerInterval(window.setInterval(() => this._checkReminders(), 60 * 60 * 1000));
-        this.registerDomEvent(document, 'visibilitychange', () => {
-            if (document.visibilityState === 'visible') this._checkReminders();
-        });
-
 		addIcon(KATANA_ICON_ID, KATANA_ICON_SVG);
 		addIcon(JOURNAL_ICON_ID, JOURNAL_ICON_SVG);
 		addIcon(DAILY_ICON_ID, DAILY_ICON_SVG);
@@ -958,18 +952,4 @@ export default class DiwaPlugin extends Plugin {
         }).open();
     }
 
-    private _checkReminders(): void {
-        const hour = new Date().getHours();
-        if (hour < 8 || hour > 22) return;
-
-        if (this.settings.reminderTasksEnabled) {
-            const today = new Date().toISOString().split('T')[0];
-            let dueCount = 0;
-            for (const t of this.index.taskIndex.values()) {
-                if (t.status !== 'done' && t.due === today) dueCount++;
-            }
-            if (dueCount > 0) {
-            }
-        }
-    }
 }

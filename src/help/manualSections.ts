@@ -314,28 +314,4 @@ export const HELP_SECTIONS: HelpSection[] = [
             },
         ],
     },
-    {
-        id: 'reminders',
-        icon: 'bell',
-        title: 'Reminders',
-        subtitle: 'Gentle nudges for today’s gawa',
-        items: [
-            {
-                label: 'Hourly Gawa Reminders',
-                desc: 'When enabled, DIWA checks for gawa due today and nudges you during the day.',
-            },
-            {
-                label: 'Quiet Hours',
-                desc: 'Reminders only fire between 8 AM and 10 PM based on local device time.',
-            },
-            {
-                label: 'Mobile-Aware',
-                desc: 'On mobile, reminder checks also run when Obsidian becomes visible again.',
-            },
-            {
-                label: 'Configuration',
-                desc: 'Enable or disable reminders from Settings → Gawa Reminders.',
-            },
-        ],
-    },
 ];

@@ -56,8 +56,5 @@ export class DiwaSettingTab extends PluginSettingTab {
             } else {
             }
         }));
-
-        containerEl.createEl('h3', { text: 'Reminders' });
-        new Setting(containerEl).setName('Gawa Reminders').setDesc('Hourly nudge for gawa due today (quiet hours: 8 AM – 10 PM).').addToggle(toggle => toggle.setValue(this.plugin.settings.reminderTasksEnabled ?? true).onChange(async (value) => { this.plugin.settings.reminderTasksEnabled = value; await this.plugin.saveSettings(); }));
 	}
 }

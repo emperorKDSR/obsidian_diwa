@@ -87,16 +87,22 @@ export class VaultService {
         const safeTitle = this.sanitizeYamlString(title);
         const safeContexts = contexts.map(c => this.sanitizeContext(c));
         const contextYaml = safeContexts.length > 0 ? safeContexts.map(c => `  - ${c}`).join('\n') : '  []';
-        const dueYaml = due ? `"[[${due}]]"` : '""';
+        const safeStatus = this.normalizeTaskStatus(status);
+        const safeDue = this.normalizeTaskDue(due);
+        const safeRecurrence = this.normalizeTaskRecurrence(recurrence);
+        const safePriority = this.normalizeTaskLevel(priority);
+        const safeEnergy = this.normalizeTaskLevel(energy);
+        const safeParentId = this.normalizeTaskRecurrenceParentId(recurrenceParentId);
+        const dueYaml = safeDue ? `"[[${safeDue}]]"` : '""';
         const taskId = generateTaskId();
         const projectLine = project ? `project: "${this.sanitizeYamlString(project)}"\n` : '';
         const milestoneLine = milestone ? `milestone: "${this.sanitizeYamlString(milestone)}"\n` : '';
-        const recurrenceLine = recurrence ? `recurrence: ${recurrence}\n` : '';
-        const parentLine = recurrenceParentId ? `recurrenceParentId: "${recurrenceParentId}"\n` : '';
-        const priorityLine = priority ? `priority: ${priority}\n` : '';
-        const energyLine = energy ? `energy: ${energy}\n` : '';
-        const bucketLine = status === 'done' ? 'bucket: done\n' : (status === 'waiting' ? 'bucket: active\n' : 'bucket: backlog\n');
-        return `---\ntitle: "${safeTitle}"\ntaskId: ${taskId}\ncreated: ${created}\nmodified: ${modified}\nday: "[[${dayStr}]]"\narea: DIWA_TASKS\nstatus: ${status}\n${bucketLine}focus: false\ndue: ${dueYaml}\ncontext:\n${contextYaml}\ntags:\n${contextYaml}\n${projectLine}${milestoneLine}${recurrenceLine}${parentLine}${priorityLine}${energyLine}---\n`;
+        const recurrenceLine = safeRecurrence ? `recurrence: ${safeRecurrence}\n` : '';
+        const parentLine = safeParentId ? `recurrenceParentId: "${safeParentId}"\n` : '';
+        const priorityLine = safePriority ? `priority: ${safePriority}\n` : '';
+        const energyLine = safeEnergy ? `energy: ${safeEnergy}\n` : '';
+        const bucketLine = safeStatus === 'done' ? 'bucket: done\n' : (safeStatus === 'waiting' ? 'bucket: active\n' : 'bucket: backlog\n');
+        return `---\ntitle: "${safeTitle}"\ntaskId: ${taskId}\ncreated: ${created}\nmodified: ${modified}\nday: "[[${dayStr}]]"\narea: DIWA_TASKS\nstatus: ${safeStatus}\n${bucketLine}focus: false\ndue: ${dueYaml}\ncontext:\n${contextYaml}\ntags:\n${contextYaml}\n${projectLine}${milestoneLine}${recurrenceLine}${parentLine}${priorityLine}${energyLine}---\n`;
     }
 
     // sec-006: Strip characters that break YAML string values
@@ -107,6 +113,58 @@ export class VaultService {
     // sec-006: Strip characters that break YAML list items
     private sanitizeContext(ctx: string): string {
         return ctx.replace(/[\n\r:#"]/g, '').trim();
+    }
+
+    private normalizeTaskStatus(value?: string): TaskEntry['status'] {
+        switch (value?.trim()) {
+            case 'done':
+                return 'done';
+            case 'waiting':
+                return 'waiting';
+            case 'someday':
+                return 'someday';
+            case 'open':
+            default:
+                return 'open';
+        }
+    }
+
+    private normalizeTaskDue(value?: string): string | undefined {
+        const normalized = value?.trim().replace(/\[\[|\]\]/g, '');
+        return normalized ? this.sanitizeYamlString(normalized) : undefined;
+    }
+
+    private normalizeTaskRecurrence(value?: string): TaskEntry['recurrence'] {
+        switch (value?.trim()) {
+            case 'daily':
+                return 'daily';
+            case 'weekly':
+                return 'weekly';
+            case 'biweekly':
+                return 'biweekly';
+            case 'monthly':
+                return 'monthly';
+            default:
+                return undefined;
+        }
+    }
+
+    private normalizeTaskRecurrenceParentId(value?: string): string | undefined {
+        const normalized = value?.trim();
+        return normalized ? this.sanitizeYamlString(normalized) : undefined;
+    }
+
+    private normalizeTaskLevel(value?: string): TaskEntry['priority'] {
+        switch (value?.trim()) {
+            case 'high':
+                return 'high';
+            case 'medium':
+                return 'medium';
+            case 'low':
+                return 'low';
+            default:
+                return undefined;
+        }
     }
 
     private generateFilename(prefix: string = ''): string {

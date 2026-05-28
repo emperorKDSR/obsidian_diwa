@@ -71,7 +71,6 @@ export interface DiwaSettings {
     attachmentsFolder: string;
     projectsFolder: string;
     reviewsFolder: string;
-    reminderTasksEnabled: boolean;
     mobileBottomBarHeight: number;
     legacyMigrated?: boolean;
     peopleFolder: string;

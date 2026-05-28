@@ -146,7 +146,6 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
     attachmentsFolder: '000 Bin/DIWA Attachments',
     projectsFolder: 'Projects',
     reviewsFolder: '000 Bin/DIWA Reviews',
-    reminderTasksEnabled: true,
     mobileBottomBarHeight: 56,
     peopleFolder: '000 Bin/DIWA People',
     legacyMigrated: false,
