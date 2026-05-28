@@ -10,6 +10,22 @@ interface ThoughtWriteOptions {
     journalType?: string | null;
 }
 
+export async function createVaultFile(app: App, folder: string, filename: string, content: string): Promise<TFile> {
+    const normalizedFolder = folder.trim().replace(/\/$/, '');
+    await ensureVaultFolder(app, normalizedFolder);
+    const path = normalizedFolder && normalizedFolder !== '/' ? `${normalizedFolder}/${filename}` : filename;
+
+    let finalPath = path;
+    if (app.vault.getAbstractFileByPath(finalPath)) {
+        const extIdx = path.lastIndexOf('.');
+        const base = extIdx !== -1 ? path.substring(0, extIdx) : path;
+        const ext = extIdx !== -1 ? path.substring(extIdx) : '';
+        finalPath = `${base} (${Date.now()})${ext}`;
+    }
+
+    return app.vault.create(finalPath, content);
+}
+
 export class VaultService {
     app: App;
     settings: DiwaSettings;
@@ -181,21 +197,8 @@ export class VaultService {
     }
 
     async createFile(folder: string, filename: string, content: string): Promise<TFile> {
-        await this.ensureFolder(folder);
-        const path = folder && folder !== '/' ? `${folder}/${filename}` : filename;
-        
-        // Handle potential duplicates
-        let finalPath = path;
-        if (this.app.vault.getAbstractFileByPath(finalPath)) {
-            const extIdx = path.lastIndexOf('.');
-            const base = extIdx !== -1 ? path.substring(0, extIdx) : path;
-            const ext = extIdx !== -1 ? path.substring(extIdx) : '';
-            finalPath = `${base} (${Date.now()})${ext}`;
-        }
-
         try {
-            const file = await this.app.vault.create(finalPath, content);
-            return file;
+            return await createVaultFile(this.app, folder, filename, content);
         } catch (e) {
             console.error('[DIWA VaultService]', e);
             throw e;
@@ -515,19 +518,81 @@ export class VaultService {
             const timeStr = this.formatTime(now);
             const header = `## [[${dateStr}]] ${timeStr} ^${anchor}`;
 
-            // Step 1: update modified timestamp safely via processFrontMatter
-            await this.app.fileManager.processFrontMatter(file, (fm) => {
-                fm['modified'] = this.formatDateTime(now);
-            });
-            // Step 2: append comment body to the (now-updated) file
             const content = await this.app.vault.read(file);
             await this.app.vault.modify(file, content.trimEnd() + `\n\n${header}\n${text}\n`);
+            await this.touchModified(file, now);
 
             return true;
         } catch (e) {
             console.error('[DIWA VaultService]', e);
             return false;
         }
+    }
+
+    async updateComment(filePath: string, anchor: string, newText: string): Promise<boolean> {
+        const file = this.app.vault.getAbstractFileByPath(filePath);
+        if (!(file instanceof TFile)) return false;
+
+        try {
+            const content = await this.app.vault.read(file);
+            const updated = this.rewriteCommentSection(content, anchor, (lines, range) => {
+                const replacement = newText.replace(/<br>/g, '\n').split('\n');
+                if (range.end < lines.length) replacement.push('');
+                lines.splice(range.header + 1, range.end - (range.header + 1), ...replacement);
+            });
+            if (!updated) return false;
+            await this.app.vault.modify(file, updated);
+            await this.touchModified(file);
+            return true;
+        } catch (e) {
+            console.error('[DIWA VaultService]', e);
+            return false;
+        }
+    }
+
+    async deleteComment(filePath: string, anchor: string): Promise<boolean> {
+        const file = this.app.vault.getAbstractFileByPath(filePath);
+        if (!(file instanceof TFile)) return false;
+
+        try {
+            const content = await this.app.vault.read(file);
+            const updated = this.rewriteCommentSection(content, anchor, (_lines, range) => {
+                const replacement = range.start > 0 && range.end < _lines.length ? [''] : [];
+                _lines.splice(range.start, range.end - range.start, ...replacement);
+            });
+            if (!updated) return false;
+            await this.app.vault.modify(file, updated);
+            await this.touchModified(file);
+            return true;
+        } catch (e) {
+            console.error('[DIWA VaultService]', e);
+            return false;
+        }
+    }
+
+    private async touchModified(file: TFile, at: Date = new Date()): Promise<void> {
+        await this.app.fileManager.processFrontMatter(file, (fm) => {
+            fm['modified'] = this.formatDateTime(at);
+        });
+    }
+
+    private rewriteCommentSection(
+        content: string,
+        anchor: string,
+        mutate: (lines: string[], range: { start: number; header: number; end: number }) => void | string[]
+    ): string | null {
+        const lines = content.split('\n');
+        const header = lines.findIndex((line) => line.startsWith('## [[') && line.includes(`^${anchor}`));
+        if (header === -1) return null;
+
+        let start = header;
+        while (start > 0 && lines[start - 1].trim() === '') start -= 1;
+
+        let end = lines.findIndex((line, index) => index > header && line.startsWith('## [['));
+        if (end === -1) end = lines.length;
+
+        mutate(lines, { start, header, end });
+        return lines.join('\n').replace(/\n{3,}/g, '\n\n');
     }
 
     async markAsSynthesized(filePath: string): Promise<void> {

@@ -47,13 +47,8 @@ export class ViewCommentsModal extends Modal {
                 setIcon(editBtn, 'pencil');
                 editBtn.addEventListener('click', () => {
                     new EditEntryModal(this.app, this.plugin, reply.text, '', null, false, async (newText) => {
-                        // Assuming editThought also handles replies or we need a specific reply editor in VaultService
-                        // For now, use the plugin service
-                        const file = this.app.vault.getAbstractFileByPath(this.entry.filePath);
-                        if (file instanceof TFile) {
-                            const content = await this.app.vault.read(file);
-                            const updated = content.replace(reply.text, () => newText.replace(/<br>/g, '\n'));
-                            await this.app.vault.modify(file, updated);
+                        const updated = await this.plugin.vault.updateComment(this.entry.filePath, reply.anchor, newText);
+                        if (updated) {
                             await this.refresh();
                         }
                     }).open();
@@ -63,19 +58,9 @@ export class ViewCommentsModal extends Modal {
                 setIcon(deleteBtn, 'trash');
                 deleteBtn.addEventListener('click', () => {
                     new ConfirmModal(this.app, 'Delete this comment?', async () => {
-                        const file = this.app.vault.getAbstractFileByPath(this.entry.filePath);
-                        if (file instanceof TFile) {
-                            const content = await this.app.vault.read(file);
-                            const lines = content.split('\n');
-                            const idx = lines.findIndex(l => l.includes(`^${reply.anchor}`));
-                            if (idx !== -1) {
-                                // Simple deletion logic: delete the header and the text following it until next header
-                                let endIdx = lines.findIndex((l, i) => i > idx && l.startsWith('## '));
-                                if (endIdx === -1) endIdx = lines.length;
-                                lines.splice(idx, endIdx - idx);
-                                await this.app.vault.modify(file, lines.join('\n'));
-                                await this.refresh();
-                            }
+                        const deleted = await this.plugin.vault.deleteComment(this.entry.filePath, reply.anchor);
+                        if (deleted) {
+                            await this.refresh();
                         }
                     }).open();
                 });
@@ -105,5 +90,4 @@ export class ViewCommentsModal extends Modal {
         this.contentEl.empty();
     }
 }
-
 

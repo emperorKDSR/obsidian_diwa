@@ -1,5 +1,6 @@
 import { App, TFile, Notice, SuggestModal } from 'obsidian';
 import { FileOrCreate } from '../types';
+import { createVaultFile } from '../services/VaultService';
 
 export class FileSuggestModal extends SuggestModal<FileOrCreate> {
     onChoose: (file: TFile) => void;
@@ -52,12 +53,7 @@ export class FileSuggestModal extends SuggestModal<FileOrCreate> {
         if (typeof item === 'string') {
             try {
                 const folder = this.newNoteFolder.trim().replace(/\/$/, '');
-                const path = folder ? `${folder}/${item}.md` : `${item}.md`;
-                // Ensure folder exists
-                if (folder && !this.app.vault.getAbstractFileByPath(folder)) {
-                    await this.app.vault.createFolder(folder);
-                }
-                const newFile = await this.app.vault.create(path, '');
+                const newFile = await createVaultFile(this.app, folder, `${item}.md`, '');
                 this.onChoose(newFile);
             } catch (e: any) {
             }
@@ -66,4 +62,3 @@ export class FileSuggestModal extends SuggestModal<FileOrCreate> {
         }
     }
 }
-

@@ -1,4 +1,11 @@
 
+## [10.2.5] — Modal Write Path Cleanup
+
+### Changed
+- Routed file creation from note and people suggestion modals through shared vault helpers instead of raw ad hoc folder/file creation.
+- Moved comment edit and delete flows onto anchor-based `VaultService` helpers instead of whole-file string replacement.
+- Reused the shared attachment insertion flow for comment attachments so they honor the configured DIWA attachments folder.
+
 ## [10.2.4] — Index Lifecycle Hardening
 
 ### Changed

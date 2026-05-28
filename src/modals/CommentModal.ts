@@ -1,6 +1,6 @@
 import { App, Modal, Platform, Notice, moment, MarkdownRenderer } from 'obsidian';
 import DiwaPlugin from '../main';
-import { parseNaturalDate, isTablet } from '../utils';
+import { parseNaturalDate, isTablet, insertFilesAtCursor } from '../utils';
 import { FileSuggestModal } from './FileSuggestModal';
 import { ContextSuggestModal } from './ContextSuggestModal';
 
@@ -124,19 +124,14 @@ export class CommentModal extends Modal {
         
         const fileInput = body.createEl('input', { attr: { type: 'file', multiple: '', style: 'display:none;', accept: 'image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,*' } }) as HTMLInputElement;
         fileInput.addEventListener('change', async () => {
-            if (!fileInput.files) return;
-            for (let i = 0; i < fileInput.files.length; i++) {
-                const file = fileInput.files[i];
-                const arrayBuffer = await file.arrayBuffer();
-                const ext = file.name.split('.').pop();
-                const fileName = `Attachment ${moment().format('YYYYMMDDHHmmss')}.${ext}`;
-                const path = await this.app.fileManager.getAvailablePathForAttachment(fileName);
-                const newFile = await this.app.vault.createBinary(path, arrayBuffer);
-                const isImg = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'].includes(ext?.toLowerCase() || '');
-                const link = (isImg ? '!' : '') + `[[${newFile.name}]]`;
-                const pos = textArea.selectionStart;
-                textArea.value = textArea.value.substring(0, pos) + link + textArea.value.substring(pos);
-            }
+            if (!fileInput.files?.length) return;
+            await insertFilesAtCursor(
+                this.app,
+                textArea,
+                Array.from(fileInput.files),
+                () => this.plugin.settings.attachmentsFolder ?? '000 Bin/DIWA Attachments'
+            );
+            fileInput.value = '';
         });
         attachBtn.addEventListener('click', () => fileInput.click());
 
@@ -168,5 +163,4 @@ export class CommentModal extends Modal {
 
     onClose() { this.contentEl.empty(); }
 }
-
 

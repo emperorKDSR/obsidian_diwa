@@ -1,4 +1,5 @@
 import { App, TFile, SuggestModal, Notice } from 'obsidian';
+import { createVaultFile } from '../services/VaultService';
 
 type PersonItem = TFile | { create: true; name: string };
 
@@ -76,10 +77,6 @@ export class PersonSuggestModal extends SuggestModal<PersonItem> {
     private async _createPerson(name: string): Promise<void> {
         try {
             const folder = this.peopleFolder;
-            // Ensure folder exists
-            if (!this.app.vault.getAbstractFileByPath(folder)) {
-                await this.app.vault.createFolder(folder);
-            }
             const safeName = name.replace(/[/\\?%*:|"<>]/g, '-');
             const path = `${folder}/${safeName}.md`;
 
@@ -87,7 +84,7 @@ export class PersonSuggestModal extends SuggestModal<PersonItem> {
             let file = this.app.vault.getAbstractFileByPath(path);
             if (!(file instanceof TFile)) {
                 const content = `---\ncategory: people\nname: "${name}"\ncreated: "${new Date().toISOString().slice(0, 10)}"\n---\n\n# ${name}\n`;
-                file = await this.app.vault.create(path, content);
+                file = await createVaultFile(this.app, folder, `${safeName}.md`, content);
             }
 
             this.onChoose(file as TFile);
@@ -95,5 +92,4 @@ export class PersonSuggestModal extends SuggestModal<PersonItem> {
         }
     }
 }
-
 
