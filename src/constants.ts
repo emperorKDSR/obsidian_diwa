@@ -5,7 +5,6 @@ export const VIEW_TYPE_DIWA = "diwa-view";
 export const VIEW_TYPE_DESKTOP_HUB = "diwa-desktop-hub";
 export const VIEW_TYPE_MOBILE_HUB  = "diwa-mobile-hub";
 export const VIEW_TYPE_TABLET_HUB  = "diwa-tablet-hub";
-export const VIEW_TYPE_GRAPH_EXPLORER = "diwa-graph-explorer";
 
 // Desktop Hub ribbon icon — three-pane cockpit layout
 export const DESKTOP_HUB_ICON_ID = "diwa-desktop-hub-icon";
@@ -82,14 +81,6 @@ export const SETTINGS_ICON_SVG = `<g transform="translate(10,10) scale(3.5)">
 export const PROJECT_ICON_ID = "diwa-project-icon";
 export const PROJECT_ICON_SVG = `<g transform="translate(10,10) scale(3.5)"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>`;
 
-
-export const GRAPH_ICON_ID = "diwa-graph-icon";
-export const GRAPH_ICON_SVG = `<g transform="translate(10,10) scale(3.5)">
-    <circle cx="6" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/>
-    <circle cx="18" cy="6" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/>
-    <circle cx="12" cy="18" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/>
-    <path d="M8.2 7.4l7.6-0.8M7.4 8.9l3.8 6.4M16.8 8.2l-3.6 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-</g>`;
 
 export const REVIEW_ICON_ID = "diwa-review-icon";
 export const REVIEW_ICON_SVG = `<g transform="translate(10,10) scale(3.5)"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><line x1="16" y1="2" x2="16" y2="6" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="2" x2="8" y2="6" fill="none" stroke="currentColor" stroke-width="2"/><line x1="3" y1="10" x2="21" y2="10" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="9 16 11 18 15 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>`;

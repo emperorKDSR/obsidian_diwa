@@ -21,26 +21,12 @@ interface FeedRowRef {
     editBtn: HTMLButtonElement;
     pinBtn: HTMLButtonElement;
     convertBtn: HTMLButtonElement;
-    graphBtn: HTMLButtonElement;
     linkTaskBtn: HTMLButtonElement;
     linkThoughtBtn: HTMLButtonElement;
     archiveBtn: HTMLButtonElement;
     sig: string;
     renderToken: number;
 }
-
-type ThoughtGraphPayload = {
-    thought: ThoughtEntry;
-    seed: ThoughtEntry;
-    kind: 'thought';
-    type: 'thought';
-};
-
-type ThoughtGraphPlugin = Partial<{
-    openThoughtGraph: (thought: ThoughtEntry) => unknown;
-    openGraphExplorer: (payload: ThoughtGraphPayload) => unknown;
-    openGraph: (payload: ThoughtGraphPayload) => unknown;
-}>;
 
 function getTaskKey(task: TaskEntry): string {
     return task.taskId?.trim() || task.filePath;
@@ -722,7 +708,6 @@ export class DesktopHubView extends ItemView {
                 const editBtn = this.createThoughtActionButton(actionsEl, 'pencil', 'Edit thought', 'diwa-dh-thought-row-action--edit');
                 const pinBtn = this.createThoughtActionButton(actionsEl, 'pin', 'Pin thought', 'diwa-dh-thought-row-action--pin');
                 const convertBtn = this.createThoughtActionButton(actionsEl, 'list-todo', 'Convert to task', 'diwa-dh-thought-row-action--convert');
-                const graphBtn = this.createThoughtActionButton(actionsEl, 'share-2', 'Open Graph Explorer', 'diwa-dh-thought-row-action--graph');
                 const linkTaskBtn = this.createThoughtActionButton(actionsEl, 'link', 'Link to task', 'diwa-dh-thought-row-action--link-task');
                 const linkThoughtBtn = this.createThoughtActionButton(actionsEl, 'git-merge', 'Link to thought', 'diwa-dh-thought-row-action--link-thought');
                 const archiveBtn = rootEl.createEl('button', {
@@ -750,13 +735,6 @@ export class DesktopHubView extends ItemView {
                     if (convertBtn.disabled) return;
                     await this._taskController.convertThoughtToTask(id);
                 });
-                graphBtn.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    const currentThought = this._thoughtController.getThought(id);
-                    if (!currentThought) return;
-                    this.openThoughtGraph(currentThought);
-                });
                 linkTaskBtn.addEventListener('click', (event) => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -782,7 +760,6 @@ export class DesktopHubView extends ItemView {
                     editBtn,
                     pinBtn,
                     convertBtn,
-                    graphBtn,
                     linkTaskBtn,
                     linkThoughtBtn,
                     archiveBtn,
@@ -1064,39 +1041,6 @@ export class DesktopHubView extends ItemView {
         }) as HTMLButtonElement;
         setIcon(button, icon);
         return button;
-    }
-
-    private openThoughtGraph(thought: ThoughtEntry): void {
-        const graphPlugin = this.plugin as DiwaPlugin & ThoughtGraphPlugin;
-        const payload: ThoughtGraphPayload = {
-            thought,
-            seed: thought,
-            kind: 'thought',
-            type: 'thought',
-        };
-        const openGraph = typeof graphPlugin.openThoughtGraph === 'function'
-            ? () => graphPlugin.openThoughtGraph!(thought)
-            : typeof graphPlugin.openGraphExplorer === 'function'
-                ? () => graphPlugin.openGraphExplorer!(payload)
-                : typeof graphPlugin.openGraph === 'function'
-                    ? () => graphPlugin.openGraph!(payload)
-                    : null;
-
-        if (!openGraph) {
-            new Notice('Graph Explorer is not available yet.');
-            return;
-        }
-
-        try {
-            const result = openGraph();
-            void Promise.resolve(result).catch((error) => {
-                console.error('[DesktopHubView] Failed to open thought graph.', error);
-                new Notice('Unable to open Graph Explorer right now.');
-            });
-        } catch (error) {
-            console.error('[DesktopHubView] Failed to open thought graph.', error);
-            new Notice('Unable to open Graph Explorer right now.');
-        }
     }
 
     private syncThoughtRowActions(thought: ThoughtEntry, row: FeedRowRef): void {

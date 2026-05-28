@@ -1,10 +1,9 @@
 import { App, Notice, TFile } from 'obsidian';
-import { VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_DIWA, VIEW_TYPE_GRAPH_EXPLORER, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB } from '../constants';
+import { VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_DIWA, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB } from '../constants';
 import type { DiwaSettings } from '../types';
 import { DesktopHubView } from '../views/DesktopHubView';
 import { DiwaView } from '../view';
 import { MobileHubView } from '../views/MobileHubView';
-import { GraphExplorerView } from '../views/GraphExplorerView';
 import type { IndexService } from '../services/IndexService';
 
 export type RefreshScope = 'all' | 'tasks' | 'thoughts';
@@ -111,13 +110,6 @@ export class RefreshCoordinator {
                     continue;
                 }
                 if (view._capturePending > 0 || view._taskPending > 0) continue;
-                view.renderView();
-            }
-        }
-        const graphLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_GRAPH_EXPLORER);
-        for (const leaf of graphLeaves) {
-            const view = leaf.view as GraphExplorerView;
-            if (view && typeof view.renderView === 'function') {
                 view.renderView();
             }
         }

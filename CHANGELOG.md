@@ -1,4 +1,13 @@
 
+## [10.2.0] — Graph Explorer Removal
+
+### Removed
+- Removed the Graph Explorer view, compiler, types, dedicated desktop entry points, and supporting design artifacts.
+- Removed Graph Explorer actions from Desktop Hub thought rows and Desktop Task Pane menus.
+
+### Changed
+- Added a startup migration that detaches saved `diwa-graph-explorer` leaves so older workspace layouts do not restore a dead view.
+
 ## [10.1.0] — Mobile Gawa View Removal
 
 ### Changed
@@ -1406,5 +1415,4 @@ Deleted 5 tab files that had no entry point in the Command Center and were unrea
 - **VaultService** — unified file I/O with YAML injection-safe frontmatter builders
 - **AiService** — Gemini integration with chunked base64, injection boundary markers, model allowlist, and API key header security
 - **17 tabs, 17 modals** — full Personal OS feature set
-
 

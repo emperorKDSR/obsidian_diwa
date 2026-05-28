@@ -83,10 +83,6 @@ export const HELP_SECTIONS: HelpSection[] = [
                 label: 'Edit & Reply',
                 desc: 'Open a thought to revise the content, add replies, attach a project, or clean it up without leaving DIWA.',
             },
-            {
-                label: 'Graph Explorer',
-                desc: 'On supported desktop thought and task actions, “Open Graph Explorer” opens a dedicated graph window centered on the selected item.',
-            },
         ],
     },
     {

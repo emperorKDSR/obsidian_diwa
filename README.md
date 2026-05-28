@@ -23,9 +23,8 @@ Supporting tabs and tools still in the plugin:
 - **Bulsa Insights**
 - **Monthly Review**
 - **Export & Backup**
-- **Graph Explorer** (desktop thought/task actions)
 
-The current 10.1.0 line no longer includes the removed Search, AI, Voice, Timeline, Synthesis, or Calendar modules.
+The current 10.2.0 line no longer includes the removed Search, AI, Voice, Timeline, Synthesis, Calendar, or Graph Explorer modules.
 
 ---
 
@@ -78,10 +77,6 @@ The current 10.1.0 line no longer includes the removed Search, AI, Voice, Timeli
 - Thoughts CSV is written to the thoughts folder.
 - Gawa CSV is written to the gawa folder.
 - Full JSON backups are written to the thoughts folder.
-
-### Graph Explorer
-- Desktop thought and task actions can open **DIWA Graph Explorer** in a dedicated window.
-- The graph is seeded from the selected thought or task instead of scanning the entire vault from the UI layer.
 
 ---
 

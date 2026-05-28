@@ -1,14 +1,12 @@
 import { Plugin, TFile, Notice, WorkspaceLeaf, Platform, moment, addIcon, setIcon, MarkdownRenderer, Menu } from 'obsidian';
-import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, PROJECT_ICON_ID, PROJECT_ICON_SVG, GRAPH_ICON_ID, GRAPH_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB, VIEW_TYPE_GRAPH_EXPLORER } from './constants';
+import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, PROJECT_ICON_ID, PROJECT_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB } from './constants';
 import { DiwaSettings, GawaLayoutPreferences, TaskEntry, ThoughtEntry } from './types';
-import type { GraphExplorerSeed } from './graph/types';
 import { sanitizeGawaLayoutPreferences } from './gawaLayout';
 import { isTablet, parseContextString } from './utils';
 import { DiwaView } from './view';
 import { DesktopHubView } from './views/DesktopHubView';
 import { MobileHubView } from './views/MobileHubView';
 import { TabletHubView } from './views/TabletHubView';
-import { GraphExplorerView } from './views/GraphExplorerView';
 import { DiwaSettingTab } from './settings';
 import { EditEntryModal } from './modals/EditEntryModal';
 import { EditThoughtModal } from './modals/EditThoughtModal';
@@ -152,6 +150,7 @@ export default class DiwaPlugin extends Plugin {
             this.refreshOpenTaskPanes();
             this.scanForContexts();
             await this.migrateLegacyMobileGawaLeaves();
+            this.migrateGraphExplorerLeaves();
             
             // --- REACTIVE NERVE SYSTEM ---
             // vault events: fast path for local writes (create/delete/rename)
@@ -226,7 +225,6 @@ export default class DiwaPlugin extends Plugin {
         this.registerView(VIEW_TYPE_DESKTOP_HUB, (leaf) => new DesktopHubView(leaf, this));
         this.registerView(VIEW_TYPE_MOBILE_HUB,  (leaf) => new MobileHubView(leaf, this));
         this.registerView(VIEW_TYPE_TABLET_HUB,  (leaf) => new TabletHubView(leaf, this));
-        this.registerView(VIEW_TYPE_GRAPH_EXPLORER, (leaf) => new GraphExplorerView(leaf, this));
 
 		addIcon(KATANA_ICON_ID, KATANA_ICON_SVG);
 		addIcon(JOURNAL_ICON_ID, JOURNAL_ICON_SVG);
@@ -234,7 +232,6 @@ export default class DiwaPlugin extends Plugin {
 		addIcon(GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG);
 		addIcon(PF_ICON_ID, PF_ICON_SVG);
 		addIcon(PROJECT_ICON_ID, PROJECT_ICON_SVG);
-		addIcon(GRAPH_ICON_ID, GRAPH_ICON_SVG);
 		addIcon(REVIEW_ICON_ID, REVIEW_ICON_SVG);
 		addIcon(SETTINGS_ICON_ID, SETTINGS_ICON_SVG);
         addIcon(DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG);
@@ -353,66 +350,19 @@ export default class DiwaPlugin extends Plugin {
         })));
     }
 
+    private migrateGraphExplorerLeaves(): void {
+        const leaves = this.app.workspace.getLeavesOfType('diwa-graph-explorer');
+        for (const leaf of leaves) {
+            leaf.detach();
+        }
+    }
+
     async activateGawa() {
         await this.activateView('review-gawa');
     }
 
     async activateBulsa() {
         await this.activateView('dues');
-    }
-
-    async openGraphExplorer(seed: GraphExplorerSeed): Promise<WorkspaceLeaf | null> {
-        if (!Platform.isDesktop) {
-            new Notice('Graph Explorer is currently available on desktop only.');
-            return null;
-        }
-        const normalizedSeed = this.normalizeGraphSeed(seed);
-        if (!normalizedSeed) {
-            new Notice('Unable to open Graph Explorer without a valid thought or task seed.');
-            return null;
-        }
-
-        const { workspace } = this.app;
-        const existingLeaves = workspace.getLeavesOfType(VIEW_TYPE_GRAPH_EXPLORER);
-        const targetLeaf = existingLeaves[0] ?? workspace.getLeaf('window');
-        if (!targetLeaf) return null;
-
-        let nextState: Record<string, unknown> = { seed: normalizedSeed, selectedNodeId: null };
-        const existingView = existingLeaves[0]?.view as GraphExplorerView | undefined;
-        if (existingView && typeof existingView.getState === 'function') {
-            nextState = { ...existingView.getState(), seed: normalizedSeed, selectedNodeId: null };
-        }
-
-        await targetLeaf.setViewState({
-            type: VIEW_TYPE_GRAPH_EXPLORER,
-            active: true,
-            state: nextState,
-        });
-        workspace.revealLeaf(targetLeaf);
-        return targetLeaf;
-    }
-
-    async openThoughtGraph(thought: string | ThoughtEntry): Promise<WorkspaceLeaf | null> {
-        const ref = typeof thought === 'string' ? thought : (thought.filePath || thought.id || '').trim();
-        return this.openGraphExplorer({ type: 'thought', id: ref });
-    }
-
-    async openTaskGraph(task: string | TaskEntry): Promise<WorkspaceLeaf | null> {
-        const ref = typeof task === 'string' ? task : (task.taskId || task.filePath || task.id || '').trim();
-        return this.openGraphExplorer({ type: 'task', id: ref });
-    }
-
-    private normalizeGraphSeed(seed: GraphExplorerSeed | null | undefined): GraphExplorerSeed | null {
-        if (!seed?.id?.trim()) return null;
-        if (seed.type === 'thought') {
-            const thought = this.getThoughtController().getThought(seed.id);
-            return thought ? { type: 'thought', id: thought.filePath } : { type: 'thought', id: seed.id.trim() };
-        }
-        if (seed.type === 'task') {
-            const task = this.getTaskController().getTask(seed.id);
-            return task ? { type: 'task', id: task.taskId?.trim() || task.filePath } : { type: 'task', id: seed.id.trim() };
-        }
-        return null;
     }
 
     async activateJournalInput() {
