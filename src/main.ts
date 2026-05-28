@@ -150,7 +150,6 @@ export default class DiwaPlugin extends Plugin {
             this.refreshOpenTaskPanes();
             this.scanForContexts();
             await this.migrateLegacyMobileGawaLeaves();
-            this.migrateGraphExplorerLeaves();
             
             // --- REACTIVE NERVE SYSTEM ---
             // vault events: fast path for local writes (create/delete/rename)
@@ -348,13 +347,6 @@ export default class DiwaPlugin extends Plugin {
             active: false,
             state: { activeTab: 'review-gawa', isDedicated: false },
         })));
-    }
-
-    private migrateGraphExplorerLeaves(): void {
-        const leaves = this.app.workspace.getLeavesOfType('diwa-graph-explorer');
-        for (const leaf of leaves) {
-            leaf.detach();
-        }
     }
 
     async activateGawa() {

@@ -1,17 +1,14 @@
 
+## [10.2.2] — Legacy Cleanup
+
+### Changed
+- Removed the final obsolete startup cleanup for a previously deleted custom view.
+- Cleared the last repository text references tied to that retired feature.
+
 ## [10.2.1] — Mobile Workspace Overflow Fix
 
 ### Fixed
 - Prevented the mobile DIWA home capture card text from overflowing on narrow viewports by constraining the CTA box sizing and allowing capture and section copy to wrap safely.
-
-## [10.2.0] — Graph Explorer Removal
-
-### Removed
-- Removed the Graph Explorer view, compiler, types, dedicated desktop entry points, and supporting design artifacts.
-- Removed Graph Explorer actions from Desktop Hub thought rows and Desktop Task Pane menus.
-
-### Changed
-- Added a startup migration that detaches saved `diwa-graph-explorer` leaves so older workspace layouts do not restore a dead view.
 
 ## [10.1.0] — Mobile Gawa View Removal
 
