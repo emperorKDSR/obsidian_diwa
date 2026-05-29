@@ -1,4 +1,11 @@
 
+## [10.2.26] — Compact Project Focus Workspace
+
+### Changed
+- Compressed the Project Focus header and overview into a denser, easier-to-scan workspace with clearer status and action grouping.
+- Tightened milestone planning and task breakdown surfaces so the focus view stays compact across desktop, tablet, and mobile layouts.
+- Reworked focused task rows and quick-add context to make assignment, status, and actions easier to scan without leaving the workspace.
+
 ## [10.2.25] — Manual Surface and Pane State Cleanup
 
 ### Changed
