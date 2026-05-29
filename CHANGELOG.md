@@ -1,4 +1,11 @@
 
+## [10.2.13] — Review and Feed Render Caching
+
+### Changed
+- Cached weekly review task snapshots and glance computations so the Review tab stops rescanning the full task and due indexes during render.
+- Moved Bulsa Insights category derivation into a reusable analytics snapshot with per-file category caching.
+- Added feed projection caching in Desktop Hub so context and search updates reuse stable derived thought lists until the underlying data changes.
+
 ## [10.2.12] — Mobile Workspace Performance
 
 ### Changed

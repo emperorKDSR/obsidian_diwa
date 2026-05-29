@@ -10,6 +10,17 @@ interface GlanceData {
     finance: { paid: DueEntry[]; overdue: DueEntry[] };
 }
 
+interface WeekPlanTaskSnapshot {
+    openTasksByDue: Map<string, TaskEntry[]>;
+    unscheduledOpenTasks: TaskEntry[];
+}
+
+const WEEK_PLAN_PRIORITY_ORDER: Record<string, number> = {
+    high: 0,
+    medium: 1,
+    low: 2,
+};
+
 export class ReviewTab extends BaseTab {
     private glanceCollapsed = false;
 
@@ -255,6 +266,41 @@ export class ReviewTab extends BaseTab {
     // ── Next Week Plan ────────────────────────────────────────────────
     private _renderWeekPlanSection(parent: HTMLElement, dayPlans: Record<string, string>, markDirty: () => void, getFormData: () => { wins: string; lessons: string; focus: string[] }): void {
         const { body: planBody } = this.createSection(parent, 'week-plan', '📅', 'NEXT WEEK PLAN');
+        let taskSnapshotCache: WeekPlanTaskSnapshot | null = null;
+        const invalidateTaskSnapshot = () => {
+            taskSnapshotCache = null;
+        };
+        const getTaskSnapshot = (): WeekPlanTaskSnapshot => {
+            if (taskSnapshotCache) return taskSnapshotCache;
+
+            const openTasksByDue = new Map<string, TaskEntry[]>();
+            const unscheduledOpenTasks: TaskEntry[] = [];
+
+            for (const task of this.index.taskIndex.values()) {
+                if (task.status !== 'open') continue;
+                const due = (task.due || '').trim();
+                if (!due) {
+                    unscheduledOpenTasks.push(task);
+                    continue;
+                }
+                const dayTasks = openTasksByDue.get(due);
+                if (dayTasks) {
+                    dayTasks.push(task);
+                } else {
+                    openTasksByDue.set(due, [task]);
+                }
+            }
+
+            unscheduledOpenTasks.sort((a, b) => {
+                const aPri = WEEK_PLAN_PRIORITY_ORDER[a.priority || 'low'] ?? 2;
+                const bPri = WEEK_PLAN_PRIORITY_ORDER[b.priority || 'low'] ?? 2;
+                if (aPri !== bPri) return aPri - bPri;
+                return b.lastUpdate - a.lastUpdate;
+            });
+
+            taskSnapshotCache = { openTasksByDue, unscheduledOpenTasks };
+            return taskSnapshotCache;
+        };
 
         // Week target toggle
         const targetRow = planBody.createEl('div', { cls: 'diwa-weekplan-target-row' });
@@ -271,6 +317,9 @@ export class ReviewTab extends BaseTab {
             const baseWeek = this.view.weekPlanTargetMode === 'this'
                 ? moment().startOf('isoWeek')
                 : moment().add(1, 'week').startOf('isoWeek');
+            const weekStart = baseWeek.format('YYYY-MM-DD');
+            const weekEnd = baseWeek.clone().add(6, 'days').format('YYYY-MM-DD');
+            const taskSnapshot = getTaskSnapshot();
 
             const grid = planBody.createEl('div', { cls: 'diwa-weekplan-grid' });
 
@@ -280,9 +329,7 @@ export class ReviewTab extends BaseTab {
                 const dateStr = dayMoment.format('YYYY-MM-DD');
                 const dayLabel = `${dayKeys[d]} · ${dayMoment.format('MMM D')}`;
 
-                // Get tasks due this day
-                const dayTasks = Array.from(this.index.taskIndex.values())
-                    .filter(t => t.status === 'open' && t.due === dateStr);
+                const dayTasks = taskSnapshot.openTasksByDue.get(dateStr) ?? [];
 
                 const card = grid.createEl('div', { cls: 'diwa-weekplan-day' });
 
@@ -357,6 +404,7 @@ export class ReviewTab extends BaseTab {
                         }
                         checkbox.addEventListener('change', async () => {
                             await this.vault.editTask(t.filePath, t.body, t.context, t.due, { status: 'done' });
+                            invalidateTaskSnapshot();
                             renderPlan();
                         });
                     });
@@ -369,7 +417,16 @@ export class ReviewTab extends BaseTab {
                 const assignBtn = actionsRow.createEl('button', { cls: 'diwa-weekplan-assign-btn', text: '+ Assign Task' });
                 assignBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    this._openTaskPicker(cardBody, assignBtn, dateStr, renderPlan);
+                    this._openTaskPicker(
+                        cardBody,
+                        assignBtn,
+                        dateStr,
+                        () => {
+                            invalidateTaskSnapshot();
+                            renderPlan();
+                        },
+                        taskSnapshot.unscheduledOpenTasks,
+                    );
                 });
 
                 // New task button (Day-Scoped Quick Add)
@@ -396,7 +453,10 @@ export class ReviewTab extends BaseTab {
                             await this.vault.createTaskFile(title, [], dateStr);
                             quickAdd.remove();
                             // Brief delay for index to catch up via file watcher
-                            setTimeout(() => renderPlan(), 300);
+                            setTimeout(() => {
+                                invalidateTaskSnapshot();
+                                renderPlan();
+                            }, 300);
                         } catch (err: any) {
                             quickInput.disabled = false;
                             submitBtn.disabled = false;
@@ -415,12 +475,12 @@ export class ReviewTab extends BaseTab {
 
             // Empty state
             const totalIntentions = Object.values(dayPlans).filter(v => v.trim()).length;
-            const totalAssigned = Array.from(this.index.taskIndex.values())
-                .filter(t => {
-                    if (t.status !== 'open' || !t.due) return false;
-                    const d = moment(t.due, 'YYYY-MM-DD');
-                    return d.isSameOrAfter(baseWeek) && d.isBefore(baseWeek.clone().add(7, 'days'));
-                }).length;
+            let totalAssigned = 0;
+            for (const [dueDate, tasks] of taskSnapshot.openTasksByDue) {
+                if (dueDate >= weekStart && dueDate <= weekEnd) {
+                    totalAssigned += tasks.length;
+                }
+            }
             if (totalIntentions === 0 && totalAssigned === 0) {
                 grid.createEl('div', { cls: 'diwa-weekplan-empty', text: 'Start with a theme, then assign or create the 1–3 things that make each day a success.' });
             }
@@ -445,20 +505,10 @@ export class ReviewTab extends BaseTab {
         renderPlan();
     }
 
-    private _openTaskPicker(container: HTMLElement, anchorBtn: HTMLElement, targetDate: string, onAssigned: () => void): void {
+    private _openTaskPicker(container: HTMLElement, anchorBtn: HTMLElement, targetDate: string, onAssigned: () => void, unscheduled: TaskEntry[]): void {
         // If picker already exists, toggle off
         const existingPicker = container.querySelector('.diwa-weekplan-picker');
         if (existingPicker) { existingPicker.remove(); return; }
-
-        const unscheduled = Array.from(this.index.taskIndex.values())
-            .filter(t => t.status === 'open' && !t.due)
-            .sort((a, b) => {
-                const priOrder = { high: 0, medium: 1, low: 2 };
-                const aPri = priOrder[a.priority || 'low'] ?? 2;
-                const bPri = priOrder[b.priority || 'low'] ?? 2;
-                if (aPri !== bPri) return aPri - bPri;
-                return b.lastUpdate - a.lastUpdate;
-            });
 
         const picker = container.createEl('div', { cls: 'diwa-weekplan-picker' });
 
@@ -540,17 +590,20 @@ export class ReviewTab extends BaseTab {
         const weekStart = moment().startOf('isoWeek');
         const weekEnd = moment().endOf('isoWeek');
 
-        // Tasks
-        const allTasks = Array.from(this.index.taskIndex.values());
-        const completed = allTasks.filter(t => {
-            if (t.status !== 'done') return false;
-            const mod = moment(t.modified, 'YYYY-MM-DD HH:mm:ss');
-            return mod.isSameOrAfter(weekStart) && mod.isSameOrBefore(weekEnd);
-        });
-        const overdue = allTasks.filter(t => {
-            if (t.status !== 'open' || !t.due) return false;
-            return moment(t.due, 'YYYY-MM-DD').isBefore(today, 'day');
-        });
+        const completed: TaskEntry[] = [];
+        const overdue: TaskEntry[] = [];
+        for (const task of this.index.taskIndex.values()) {
+            if (task.status === 'done') {
+                const mod = moment(task.modified, 'YYYY-MM-DD HH:mm:ss');
+                if (mod.isSameOrAfter(weekStart) && mod.isSameOrBefore(weekEnd)) {
+                    completed.push(task);
+                }
+                continue;
+            }
+            if (task.status === 'open' && task.due && moment(task.due, 'YYYY-MM-DD').isBefore(today, 'day')) {
+                overdue.push(task);
+            }
+        }
 
         // Projects active this week
         const projects = Array.from(this.index.projectIndex.values()).filter(p => {
@@ -560,19 +613,22 @@ export class ReviewTab extends BaseTab {
             return moment(file.stat.mtime).isSameOrAfter(weekStart);
         });
 
-        // Finance
-        const allDues = Array.from(this.index.dueIndex.values());
-        const finPaid = allDues.filter(d => {
-            if (!d.lastPayment) return false;
-            const lp = moment(d.lastPayment, 'YYYY-MM-DD');
-            return lp.isSameOrAfter(weekStart) && lp.isSameOrBefore(weekEnd);
-        });
+        const finPaid: DueEntry[] = [];
+        for (const due of this.index.dueIndex.values()) {
+            if (!due.lastPayment) continue;
+            const lastPayment = moment(due.lastPayment, 'YYYY-MM-DD');
+            if (lastPayment.isSameOrAfter(weekStart) && lastPayment.isSameOrBefore(weekEnd)) {
+                finPaid.push(due);
+            }
+        }
         const paidPaths = new Set(finPaid.map(d => d.path));
-        const finOverdue = allDues.filter(d => {
-            if (paidPaths.has(d.path)) return false;
-            if (!d.dueMoment) return false;
-            return moment(d.dueMoment).isBefore(today, 'day');
-        });
+        const finOverdue: DueEntry[] = [];
+        for (const due of this.index.dueIndex.values()) {
+            if (paidPaths.has(due.path) || !due.dueMoment) continue;
+            if (moment(due.dueMoment).isBefore(today, 'day')) {
+                finOverdue.push(due);
+            }
+        }
 
         return { tasks: { completed, overdue }, projects, finance: { paid: finPaid, overdue: finOverdue } };
     }
@@ -632,4 +688,3 @@ export class ReviewTab extends BaseTab {
         });
     }
 }
-

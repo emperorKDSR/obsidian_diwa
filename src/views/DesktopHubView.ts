@@ -34,6 +34,14 @@ interface ThoughtLinkState {
     linkedThoughtCount: number;
 }
 
+interface FeedProjection {
+    key: string;
+    activeContext: string;
+    searchQuery: string;
+    totalNonArchived: number;
+    thoughts: ThoughtEntry[];
+}
+
 function getTaskKey(task: TaskEntry): string {
     return task.taskId?.trim() || task.filePath;
 }
@@ -110,6 +118,9 @@ export class DesktopHubView extends ItemView {
     private _feedPopoverOutsideHandler: ((event: MouseEvent) => void) | null = null;
     private _feedPopoverEscapeHandler: ((event: KeyboardEvent) => void) | null = null;
     private _feedPopoverWin: Window | null = null;
+    private _feedProjectionVersion: number = 0;
+    private _feedProjectionCache: FeedProjection | null = null;
+    private _contextFilterKey: string = '';
     private _rightPaneWidth: number = DESKTOP_RIGHT_PANE_DEFAULT_WIDTH;
     private _rightResizeMoveHandler: ((event: PointerEvent) => void) | null = null;
     private _rightResizeStopHandler: ((event: PointerEvent) => void) | null = null;
@@ -159,13 +170,17 @@ export class DesktopHubView extends ItemView {
         const header = this.containerEl.children[0] as HTMLElement;
         if (header) header.style.display = 'none';
         this._thoughtUnsubscribe = this._thoughtController.subscribe(() => {
+            this.invalidateFeedProjection();
             this.scheduleFeedRefresh();
         });
         this.renderView();
         // Wait for the index to be fully ready before the first real feed render.
         // This eliminates the race condition where the view renders before buildIndices() completes.
         this._thoughtController.readyPromise.then(() => {
-            if (!this._closed) this.scheduleFeedRefresh();
+            if (!this._closed) {
+                this.invalidateFeedProjection();
+                this.scheduleFeedRefresh();
+            }
         });
     }
 
@@ -330,10 +345,13 @@ export class DesktopHubView extends ItemView {
         this._scrollSentinelEl = null;
         this._feedRowMap.clear();
         this._sortedThoughts = [];
+        this._feedProjectionCache = null;
+        this._contextFilterKey = '';
         this._visibleCount = 50;
         this._renderVersion = 0;
         this._pendingFeedRender = false;
         this._isFeedRendering = false;
+        this._feedProjectionVersion = 0;
         this._topBarFocusMode = null;
         this._focusBtnEl = null;
     }
@@ -647,38 +665,13 @@ export class DesktopHubView extends ItemView {
         if (this._feedLoadingEl) this._feedLoadingEl.style.display = 'none';
         this._feedWrapEl?.toggleClass('is-loading', false);
 
-        const allThoughts = this._thoughtController.getAllThoughts().map((thought) => ({
-            ...thought,
-            context: [...(thought.context ?? [])],
-            allDates: [...(thought.allDates ?? [])],
-            tags: [...(thought.tags ?? [])],
-            wikilinks: [...(thought.wikilinks ?? [])],
-            links: {
-                tasks: [...(thought.links?.tasks ?? [])],
-                thoughts: [...(thought.links?.thoughts ?? [])],
-            },
-        }));
-        const nonArchivedThoughts = allThoughts.filter((thought) => !thought.archived);
-        let thoughts = nonArchivedThoughts;
-        const activeContext = this._activeContext.trim().toLowerCase();
-        if (activeContext && activeContext !== 'all') {
-            thoughts = thoughts.filter((thought) => (thought.context ?? []).some((ctx) => ctx.toLowerCase() === activeContext));
-        }
-
-        // Stable sort: newest first using numeric timestamp (avoids Date-object/string ambiguity)
-        thoughts = [...thoughts].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
-
-        const searchQuery = this._feedSearchQuery.trim().toLowerCase();
-        if (searchQuery) {
-            thoughts = thoughts.filter((thought) => this.matchesThoughtSearch(thought, searchQuery));
-        }
-
-        console.log('[FEED] total:', allThoughts.length, 'filtered:', thoughts.length);
-
+        const projection = this.getFeedProjection();
+        const { activeContext, searchQuery } = projection;
+        const thoughts = projection.thoughts;
         this._sortedThoughts = thoughts;
         const visibleThoughts = thoughts.slice(0, this._visibleCount);
         const visibleThoughtLinkState = this.buildThoughtLinkState(visibleThoughts);
-        this.updateFeedHeader(thoughts.length, nonArchivedThoughts.length, visibleThoughts.length, searchQuery, activeContext, false);
+        this.updateFeedHeader(thoughts.length, projection.totalNonArchived, visibleThoughts.length, searchQuery, activeContext, false);
         if (version !== this._renderVersion || this._closed) return;
 
         // Diff render: add/update visible rows, remove rows no longer visible
@@ -818,7 +811,7 @@ export class DesktopHubView extends ItemView {
             this._feedEmptyEl.style.display = hasVisible ? 'none' : '';
             this._feedWrapEl?.toggleClass('is-empty', !hasVisible);
             if (!hasVisible) {
-                const hasNonArchivedThoughts = nonArchivedThoughts.length > 0;
+                const hasNonArchivedThoughts = projection.totalNonArchived > 0;
                 if (!hasNonArchivedThoughts) {
                     this.setFeedEmptyState(
                         'Nothing captured yet',
@@ -847,6 +840,49 @@ export class DesktopHubView extends ItemView {
                 }
             }
         }
+    }
+
+    private invalidateFeedProjection(): void {
+        this._feedProjectionVersion++;
+        this._feedProjectionCache = null;
+    }
+
+    private getFeedProjection(): FeedProjection {
+        const activeContext = this._activeContext.trim().toLowerCase() || 'all';
+        const searchQuery = this._feedSearchQuery.trim().toLowerCase();
+        const key = `${this._feedProjectionVersion}¦${activeContext}¦${searchQuery}`;
+        if (this._feedProjectionCache?.key === key) {
+            return this._feedProjectionCache;
+        }
+
+        const thoughts: ThoughtEntry[] = [];
+        let totalNonArchived = 0;
+        for (const thought of this._thoughtController.getAllThoughts()) {
+            if (thought.archived) continue;
+            totalNonArchived++;
+
+            if (
+                activeContext !== 'all'
+                && !(thought.context ?? []).some((context) => context.toLowerCase() === activeContext)
+            ) {
+                continue;
+            }
+            if (searchQuery && !this.matchesThoughtSearch(thought, searchQuery)) {
+                continue;
+            }
+            thoughts.push(thought);
+        }
+
+        thoughts.sort((left, right) => (right.createdAt ?? 0) - (left.createdAt ?? 0));
+        const projection: FeedProjection = {
+            key,
+            activeContext,
+            searchQuery,
+            totalNonArchived,
+            thoughts,
+        };
+        this._feedProjectionCache = projection;
+        return projection;
     }
 
     private updateFeedHeader(
@@ -934,12 +970,21 @@ export class DesktopHubView extends ItemView {
     }
 
     private renderContextFilter(parent: HTMLElement): void {
-        parent.empty();
         const contexts = this.plugin.getContexts();
         if (this._activeContext !== 'all' && !contexts.some((ctx) => ctx.toLowerCase() === this._activeContext.toLowerCase())) {
             this._activeContext = 'all';
+            this.invalidateFeedProjection();
         }
         this.updateCaptureHint();
+
+        const activeContext = this._activeContext.toLowerCase();
+        const nextKey = `${activeContext}¦${contexts.join('¦')}`;
+        if (this._contextFilterKey === nextKey && parent.childElementCount > 0) {
+            return;
+        }
+
+        this._contextFilterKey = nextKey;
+        parent.empty();
 
         const chipRow = parent.createEl('div', {
             cls: 'diwa-dh-feed-contexts',
@@ -947,7 +992,7 @@ export class DesktopHubView extends ItemView {
         });
 
         for (const context of ['all', ...contexts]) {
-            const isActive = this._activeContext.toLowerCase() === context.toLowerCase();
+            const isActive = activeContext === context.toLowerCase();
             const chip = chipRow.createEl('button', {
                 cls: `diwa-dh-feed-context-btn${isActive ? ' is-active' : ''}`,
                 text: context === 'all' ? 'All' : `#${context}`,
@@ -961,6 +1006,7 @@ export class DesktopHubView extends ItemView {
                 if (this._activeContext.toLowerCase() === context.toLowerCase()) return;
                 this._activeContext = context;
                 this._visibleCount = 50;
+                this._contextFilterKey = '';
                 this.renderContextFilter(parent);
                 this.scheduleFeedRefresh();
             });

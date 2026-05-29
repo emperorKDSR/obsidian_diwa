@@ -1,9 +1,20 @@
-import { moment } from 'obsidian';
+import { moment, TFile } from 'obsidian';
 import type { DiwaView } from '../view';
 import { BaseTab } from './BaseTab';
 import type { DueEntry } from '../types';
 
+interface FinanceAnalyticsSnapshot {
+    activeDueCount: number;
+    totalObligations: number;
+    overdueCount: number;
+    dueThisWeekCount: number;
+    paidThisMonthCount: number;
+    categories: Array<[string, number]>;
+}
+
 export class FinanceAnalyticsTab extends BaseTab {
+    private _dueCategoryCache = new Map<string, { mtime: number; category: string }>();
+
     constructor(view: DiwaView) { super(view); }
 
     render(container: HTMLElement) {
@@ -16,23 +27,9 @@ export class FinanceAnalyticsTab extends BaseTab {
         const today = moment().startOf('day');
         const weekEnd = moment().endOf('isoWeek');
         const monthStart = moment().startOf('month');
-
-        const allDues = Array.from(this.index.dueIndex.values());
-        const activeDues = allDues.filter((due) => due.isActive);
-        const totalObligations = activeDues.reduce((sum, due) => sum + (due.amount || 0), 0);
+        const analytics = this._buildAnalyticsSnapshot(today, weekEnd, monthStart);
         const monthlyIncome = this.settings.monthlyIncome || 0;
-        const cashflow = monthlyIncome - totalObligations;
-        const overdueCount = activeDues.filter((due) => due.dueMoment?.isValid() && due.dueMoment.isBefore(today)).length;
-        const dueThisWeekCount = activeDues.filter((due) => (
-            due.dueMoment?.isValid()
-            && due.dueMoment.isSameOrAfter(today)
-            && due.dueMoment.isSameOrBefore(weekEnd)
-        )).length;
-        const paidThisMonthCount = allDues.filter((due) => {
-            if (due.isActive || !due.lastPayment) return false;
-            const paidAt = moment(due.lastPayment, 'YYYY-MM-DD', true);
-            return paidAt.isValid() && paidAt.isSameOrAfter(monthStart);
-        }).length;
+        const cashflow = monthlyIncome - analytics.totalObligations;
 
         const header = wrap.createEl('header', { cls: 'diwa-fanalytics-header' });
         const headerCopy = header.createEl('div', { cls: 'diwa-fanalytics-header-copy' });
@@ -64,7 +61,7 @@ export class FinanceAnalyticsTab extends BaseTab {
         cashCard.createEl('div', { text: 'Cashflow Snapshot', cls: 'diwa-fanalytics-card-title' });
         const cashRow = cashCard.createEl('div', { cls: 'diwa-fanalytics-cashflow-row' });
         this._cfStat(cashRow, monthlyIncome > 0 ? `€${monthlyIncome.toLocaleString()}` : '—', 'Monthly Income', '');
-        this._cfStat(cashRow, totalObligations > 0 ? `€${totalObligations.toFixed(0)}` : '€0', 'Obligations', '');
+        this._cfStat(cashRow, analytics.totalObligations > 0 ? `€${analytics.totalObligations.toFixed(0)}` : '€0', 'Obligations', '');
         this._cfStat(
             cashRow,
             cashflow >= 0 ? `+€${cashflow.toFixed(0)}` : `-€${Math.abs(cashflow).toFixed(0)}`,
@@ -73,7 +70,7 @@ export class FinanceAnalyticsTab extends BaseTab {
         );
 
         if (monthlyIncome > 0) {
-            const pct = Math.min(100, Math.round((totalObligations / monthlyIncome) * 100));
+            const pct = Math.min(100, Math.round((analytics.totalObligations / monthlyIncome) * 100));
             const barWrap = cashCard.createEl('div', { cls: 'diwa-fanalytics-obligations-bar' });
             const fill = barWrap.createEl('div', {
                 cls: `diwa-fanalytics-obligations-fill ${this._obligationTone(pct)}`,
@@ -93,16 +90,14 @@ export class FinanceAnalyticsTab extends BaseTab {
         const categoryCard = grid.createEl('section', { cls: 'diwa-fanalytics-card diwa-fanalytics-card--categories' });
         categoryCard.createEl('div', { text: 'Obligations by Category', cls: 'diwa-fanalytics-card-title' });
 
-        const categoryMap = this._buildCategoryMap(activeDues);
-        if (categoryMap.size === 0) {
+        if (analytics.categories.length === 0) {
             categoryCard.createEl('div', {
                 text: 'Bulsa is waiting for category data.',
                 cls: 'diwa-fanalytics-empty',
             });
         } else {
-            const sorted = Array.from(categoryMap.entries()).sort((a, b) => b[1] - a[1]);
-            const maxAmount = sorted[0]?.[1] || 1;
-            for (const [category, amount] of sorted) {
+            const maxAmount = analytics.categories[0]?.[1] || 1;
+            for (const [category, amount] of analytics.categories) {
                 const row = categoryCard.createEl('div', { cls: 'diwa-fanalytics-bar-row' });
                 row.createEl('div', {
                     text: category,
@@ -119,10 +114,10 @@ export class FinanceAnalyticsTab extends BaseTab {
         const statsCard = grid.createEl('section', { cls: 'diwa-fanalytics-card diwa-fanalytics-card--stats' });
         statsCard.createEl('div', { text: 'Bulsa Pulse', cls: 'diwa-fanalytics-card-title' });
         const statsGrid = statsCard.createEl('div', { cls: 'diwa-fanalytics-quick-grid' });
-        this._quickStat(statsGrid, overdueCount.toString(), 'Overdue', overdueCount > 0 ? 'is-negative' : '');
-        this._quickStat(statsGrid, dueThisWeekCount.toString(), 'Due This Week', '');
-        this._quickStat(statsGrid, activeDues.length.toString(), 'Total Active', '');
-        this._quickStat(statsGrid, paidThisMonthCount.toString(), 'Paid This Month', paidThisMonthCount > 0 ? 'is-positive' : '');
+        this._quickStat(statsGrid, analytics.overdueCount.toString(), 'Overdue', analytics.overdueCount > 0 ? 'is-negative' : '');
+        this._quickStat(statsGrid, analytics.dueThisWeekCount.toString(), 'Due This Week', '');
+        this._quickStat(statsGrid, analytics.activeDueCount.toString(), 'Total Active', '');
+        this._quickStat(statsGrid, analytics.paidThisMonthCount.toString(), 'Paid This Month', analytics.paidThisMonthCount > 0 ? 'is-positive' : '');
     }
 
     private _cfStat(parent: HTMLElement, value: string, label: string, valueCls: string) {
@@ -143,21 +138,67 @@ export class FinanceAnalyticsTab extends BaseTab {
         return 'is-positive';
     }
 
-    private _buildCategoryMap(dues: DueEntry[]): Map<string, number> {
+    private _buildAnalyticsSnapshot(today: any, weekEnd: any, monthStart: any): FinanceAnalyticsSnapshot {
         const map = new Map<string, number>();
-        for (const due of dues) {
-            const file = this.app.vault.getAbstractFileByPath(due.path);
-            let category = 'Uncategorized';
-            if (file) {
-                const cache = this.app.metadataCache.getFileCache(file as any);
-                const context = cache?.frontmatter?.context || cache?.frontmatter?.contexts;
-                if (context) {
-                    const first = Array.isArray(context) ? context[0] : String(context).split(/[,\s]/)[0];
-                    if (first && String(first).trim()) category = String(first).trim().replace(/^#/, '');
+        let activeDueCount = 0;
+        let totalObligations = 0;
+        let overdueCount = 0;
+        let dueThisWeekCount = 0;
+        let paidThisMonthCount = 0;
+
+        for (const due of this.index.dueIndex.values()) {
+            if (due.isActive) {
+                activeDueCount++;
+                totalObligations += due.amount || 0;
+                if (due.dueMoment?.isValid()) {
+                    if (due.dueMoment.isBefore(today)) {
+                        overdueCount++;
+                    } else if (due.dueMoment.isSameOrAfter(today) && due.dueMoment.isSameOrBefore(weekEnd)) {
+                        dueThisWeekCount++;
+                    }
                 }
+                const category = this._getDueCategory(due);
+                map.set(category, (map.get(category) || 0) + (due.amount || 0));
+                continue;
             }
-            map.set(category, (map.get(category) || 0) + (due.amount || 0));
+
+            if (!due.lastPayment) continue;
+            const paidAt = moment(due.lastPayment, 'YYYY-MM-DD', true);
+            if (paidAt.isValid() && paidAt.isSameOrAfter(monthStart)) {
+                paidThisMonthCount++;
+            }
         }
-        return map;
+
+        return {
+            activeDueCount,
+            totalObligations,
+            overdueCount,
+            dueThisWeekCount,
+            paidThisMonthCount,
+            categories: Array.from(map.entries()).sort((a, b) => b[1] - a[1]),
+        };
+    }
+
+    private _getDueCategory(due: DueEntry): string {
+        const file = this.app.vault.getAbstractFileByPath(due.path);
+        if (!(file instanceof TFile)) return 'Uncategorized';
+
+        const cached = this._dueCategoryCache.get(due.path);
+        if (cached && cached.mtime === file.stat.mtime) {
+            return cached.category;
+        }
+
+        let category = 'Uncategorized';
+        const cache = this.app.metadataCache.getFileCache(file);
+        const context = cache?.frontmatter?.context || cache?.frontmatter?.contexts;
+        if (context) {
+            const first = Array.isArray(context) ? context[0] : String(context).split(/[,\s]/)[0];
+            if (first && String(first).trim()) {
+                category = String(first).trim().replace(/^#/, '');
+            }
+        }
+
+        this._dueCategoryCache.set(due.path, { mtime: file.stat.mtime, category });
+        return category;
     }
 }
