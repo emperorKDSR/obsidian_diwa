@@ -111,12 +111,16 @@ export class RefreshCoordinator {
         for (const leaf of hubLeaves) {
             const view = leaf.view as DesktopHubView;
             if (view && typeof view.renderView === 'function') {
-                if (scope === 'tasks' && typeof view.updateTaskPaneFromIndex === 'function') {
-                    view.updateTaskPaneFromIndex();
+                if (scope === 'tasks' && typeof (view as DesktopHubView & { refreshTasks?: () => void }).refreshTasks === 'function') {
+                    (view as DesktopHubView & { refreshTasks: () => void }).refreshTasks();
                     continue;
                 }
                 if (view._capturePending > 0 || view._taskPending > 0) continue;
-                view.renderView();
+                if (scope === 'all' && typeof (view as DesktopHubView & { refreshAll?: () => void }).refreshAll === 'function') {
+                    (view as DesktopHubView & { refreshAll: () => void }).refreshAll();
+                } else {
+                    view.renderView();
+                }
             }
         }
         const mobileHubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB);
@@ -127,6 +131,8 @@ export class RefreshCoordinator {
                     view.refreshTasks();
                 } else if (scope === 'thoughts' && typeof view.refreshThoughts === 'function') {
                     view.refreshThoughts();
+                } else if (scope === 'all' && typeof (view as MobileHubView & { refreshAll?: () => void }).refreshAll === 'function') {
+                    (view as MobileHubView & { refreshAll: () => void }).refreshAll();
                 } else {
                     view.renderView();
                 }
@@ -140,6 +146,8 @@ export class RefreshCoordinator {
                     view.refreshTasks();
                 } else if (scope === 'thoughts' && typeof view.refreshThoughts === 'function') {
                     view.refreshThoughts();
+                } else if (scope === 'all' && typeof (view as MobileHubView & { refreshAll?: () => void }).refreshAll === 'function') {
+                    (view as MobileHubView & { refreshAll: () => void }).refreshAll();
                 } else {
                     view.renderView();
                 }

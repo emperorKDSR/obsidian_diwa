@@ -57,6 +57,7 @@ export class ProjectsTab extends BaseTab {
     private readonly selectedMilestoneIds: Map<string, string | null> = new Map();
     private readonly projectTaskCache: Map<string, TaskEntry[]> = new Map();
     private readonly projectMetricsCache: Map<string, ProjectMetrics> = new Map();
+    private readonly projectTaskBuckets: Map<string, TaskEntry[]> = new Map();
     private statusPickerEl: HTMLElement | null = null;
     private statusPickerCloseHandler: ((event: MouseEvent) => void) | null = null;
     private statusPickerDocument: Document | null = null;
@@ -1274,22 +1275,52 @@ export class ProjectsTab extends BaseTab {
     private resetProjectRenderCaches(): void {
         this.projectTaskCache.clear();
         this.projectMetricsCache.clear();
+        this.projectTaskBuckets.clear();
+    }
+
+    private getProjectTaskBuckets(): Map<string, TaskEntry[]> {
+        if (this.projectTaskBuckets.size > 0) return this.projectTaskBuckets;
+        this.index.taskIndex.forEach((task) => {
+            const projectKey = task.project?.trim();
+            if (!projectKey) return;
+            const bucket = this.projectTaskBuckets.get(projectKey);
+            if (bucket) {
+                bucket.push(task);
+                return;
+            }
+            this.projectTaskBuckets.set(projectKey, [task]);
+        });
+        return this.projectTaskBuckets;
+    }
+
+    private getProjectTaskKey(task: TaskEntry): string {
+        return task.filePath || task.taskId || task.title || task.body;
     }
 
     private getSortedProjectTasks(project: ProjectEntry): TaskEntry[] {
         const cached = this.projectTaskCache.get(project.id);
         if (cached) return cached;
-        const tasks = Array.from(this.index.taskIndex.values())
-            .filter((task) => task.project === project.id || task.project === project.name)
+        const taskBuckets = this.getProjectTaskBuckets();
+        const taskMap = new Map<string, TaskEntry>();
+        [project.id, project.name]
+            .map((value) => value?.trim())
+            .filter((value): value is string => !!value)
+            .forEach((key) => {
+                taskBuckets.get(key)?.forEach((task) => {
+                    taskMap.set(this.getProjectTaskKey(task), task);
+                });
+            });
+
+        const tasks = Array.from(taskMap.values())
             .sort((left, right) => {
-            const leftDone = isTaskDone(left);
-            const rightDone = isTaskDone(right);
-            if (leftDone !== rightDone) return leftDone ? 1 : -1;
-            if (left.due && right.due) return left.due.localeCompare(right.due);
-            if (left.due) return -1;
-            if (right.due) return 1;
-            return (right.lastUpdate || 0) - (left.lastUpdate || 0);
-        });
+                const leftDone = isTaskDone(left);
+                const rightDone = isTaskDone(right);
+                if (leftDone !== rightDone) return leftDone ? 1 : -1;
+                if (left.due && right.due) return left.due.localeCompare(right.due);
+                if (left.due) return -1;
+                if (right.due) return 1;
+                return (right.lastUpdate || 0) - (left.lastUpdate || 0);
+            });
         this.projectTaskCache.set(project.id, tasks);
         return tasks;
     }

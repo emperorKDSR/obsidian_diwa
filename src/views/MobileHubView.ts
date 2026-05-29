@@ -32,7 +32,7 @@ export class MobileHubView extends ItemView {
         return getPlatform(this.app);
     }
 
-    renderView(): void {
+    renderView(options: { invalidateShellCaches?: boolean } = {}): void {
         const root = this.containerEl.children[1] as HTMLElement;
         root.addClass('diwa-mobile-shell-root');
 
@@ -50,7 +50,14 @@ export class MobileHubView extends ItemView {
             return;
         }
         this.shell.setPlatform(platform);
+        if (options.invalidateShellCaches) {
+            this.shell.invalidateAllCaches();
+        }
         this.shell.render(root);
+    }
+
+    refreshAll(): void {
+        this.renderView({ invalidateShellCaches: true });
     }
 
     refreshTasks(): void {

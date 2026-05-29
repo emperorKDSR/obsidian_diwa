@@ -72,6 +72,7 @@ interface ProjectCache {
     byId: Map<string, ProjectEntry>;
     filtered: Map<ProjectFilter, ProjectEntry[]>;
     metrics: Map<string, ProjectMetrics>;
+    tasks: Map<string, TaskEntry[]>;
     summary?: ProjectSummary;
 }
 
@@ -127,6 +128,10 @@ export class DiwaMobileShell {
         this.invalidateCaches('thoughts');
         if (this.activeView !== 'home' && this.activeView !== 'thoughts') return;
         this.refreshView();
+    }
+
+    public invalidateAllCaches(): void {
+        this.invalidateCaches('all');
     }
 
     public render(container: HTMLElement): void {
@@ -832,16 +837,7 @@ export class DiwaMobileShell {
         const cached = cache.metrics.get(project.id);
         if (cached) return cached;
 
-        const buckets = this.getTaskBucketsByProject();
-        const projectKeys = [project.id, project.name].filter(Boolean);
-        const taskMap = new Map<string, TaskEntry>();
-        projectKeys.forEach((key) => {
-            buckets.get(key)?.forEach((task) => {
-                taskMap.set(this.getTaskCacheKey(task), task);
-            });
-        });
-
-        const tasks = Array.from(taskMap.values());
+        const tasks = cache.tasks.get(project.id) ?? [];
         const openTasks: TaskEntry[] = [];
         let nextTask: TaskEntry | undefined;
 
@@ -1179,8 +1175,29 @@ export class DiwaMobileShell {
             byId: new Map(collection.map((project) => [project.id, project])),
             filtered: new Map(),
             metrics: new Map(),
+            tasks: this.buildProjectTaskMap(collection),
         };
         return this.projectCache;
+    }
+
+    private buildProjectTaskMap(projects: ProjectEntry[]): Map<string, TaskEntry[]> {
+        const buckets = this.getTaskBucketsByProject();
+        const tasksByProject = new Map<string, TaskEntry[]>();
+
+        projects.forEach((project) => {
+            const taskMap = new Map<string, TaskEntry>();
+            [project.id, project.name]
+                .map((value) => value?.trim())
+                .filter((value): value is string => !!value)
+                .forEach((key) => {
+                    buckets.get(key)?.forEach((task) => {
+                        taskMap.set(this.getTaskCacheKey(task), task);
+                    });
+                });
+            tasksByProject.set(project.id, Array.from(taskMap.values()));
+        });
+
+        return tasksByProject;
     }
 
     private getProjectSummary(): ProjectSummary {

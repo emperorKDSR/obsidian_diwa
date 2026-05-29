@@ -1,4 +1,11 @@
 
+## [10.2.18] — Residual Performance Cache Cleanup
+
+### Changed
+- Invalidated mobile shell caches on full refresh so projects and task views cannot reuse stale derived state.
+- Reduced repeated project and task scans in project-centric tabs and desktop workspace derivations.
+- Removed duplicated mobile task derivation work to keep refresh paths cheaper on smaller devices.
+
 ## [10.2.17] — Parser Integrity Hardening
 
 ### Changed

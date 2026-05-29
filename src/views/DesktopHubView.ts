@@ -42,6 +42,16 @@ interface FeedProjection {
     thoughts: ThoughtEntry[];
 }
 
+interface TaskLinkIndexEntry {
+    taskIds: Set<string>;
+    linkedTaskRefs: Set<string>;
+}
+
+interface TaskLinkIndex {
+    tasksByThoughtRef: Map<string, TaskLinkIndexEntry>;
+    sortedTasks: TaskEntry[];
+}
+
 function getTaskKey(task: TaskEntry): string {
     return task.taskId?.trim() || task.filePath;
 }
@@ -120,6 +130,7 @@ export class DesktopHubView extends ItemView {
     private _feedPopoverWin: Window | null = null;
     private _feedProjectionVersion: number = 0;
     private _feedProjectionCache: FeedProjection | null = null;
+    private _taskLinkIndex: TaskLinkIndex | null = null;
     private _contextFilterKey: string = '';
     private _rightPaneWidth: number = DESKTOP_RIGHT_PANE_DEFAULT_WIDTH;
     private _rightResizeMoveHandler: ((event: PointerEvent) => void) | null = null;
@@ -215,6 +226,18 @@ export class DesktopHubView extends ItemView {
             return;
         }
         this.applyDesktopLayout(root);
+    }
+
+    refreshTasks(): void {
+        if (this._taskTogglePending > 0) return;
+        this.invalidateTaskLinkIndex();
+        this.updateTaskPaneFromIndex();
+        this.scheduleFeedRefresh();
+    }
+
+    refreshAll(): void {
+        this.invalidateTaskLinkIndex();
+        this.renderView();
     }
 
     protected getWorkspaceSkinClass(): string {
@@ -346,6 +369,7 @@ export class DesktopHubView extends ItemView {
         this._feedRowMap.clear();
         this._sortedThoughts = [];
         this._feedProjectionCache = null;
+        this._taskLinkIndex = null;
         this._contextFilterKey = '';
         this._visibleCount = 50;
         this._renderVersion = 0;
@@ -734,7 +758,10 @@ export class DesktopHubView extends ItemView {
                     event.preventDefault();
                     event.stopPropagation();
                     if (convertBtn.disabled) return;
-                    await this._taskController.convertThoughtToTask(id);
+                    const converted = await this._taskController.convertThoughtToTask(id);
+                    if (!converted) return;
+                    this.invalidateTaskLinkIndex();
+                    this.scheduleFeedRefresh();
                 });
                 linkTaskBtn.addEventListener('click', (event) => {
                     event.preventDefault();
@@ -845,6 +872,10 @@ export class DesktopHubView extends ItemView {
     private invalidateFeedProjection(): void {
         this._feedProjectionVersion++;
         this._feedProjectionCache = null;
+    }
+
+    private invalidateTaskLinkIndex(): void {
+        this._taskLinkIndex = null;
     }
 
     private getFeedProjection(): FeedProjection {
@@ -1146,47 +1177,71 @@ export class DesktopHubView extends ItemView {
     private buildThoughtLinkState(thoughts: ThoughtEntry[]): Map<string, ThoughtLinkState> {
         const linkState = new Map<string, ThoughtLinkState>();
         if (thoughts.length === 0) return linkState;
-
-        const visibleThoughtPaths = new Set<string>();
         for (const thought of thoughts) {
             const thoughtPath = thought.filePath?.trim();
             if (!thoughtPath) continue;
-            visibleThoughtPaths.add(thoughtPath);
             linkState.set(thoughtPath, {
                 linkedTaskRefs: new Set<string>((thought.links?.tasks ?? []).map((value) => value.trim()).filter(Boolean)),
-                linkedTaskCount: 0,
+                linkedTaskCount: new Set((thought.links?.tasks ?? []).map((value) => value.trim()).filter(Boolean)).size,
                 linkedThoughtCount: this.getLinkedThoughtRefs(thought).size,
             });
         }
 
-        if (visibleThoughtPaths.size === 0) return linkState;
+        if (linkState.size === 0) return linkState;
 
-        const resolvedLinkedTaskCounts = new Map<string, number>();
-        for (const task of this._taskController.getAllTasks()) {
-            const thoughtRefs = new Set<string>([
-                ...(task.sourceThoughtIds ?? []),
-                ...(task.links?.thoughts ?? []),
-            ].map((value) => value.trim()).filter(Boolean));
-            if (thoughtRefs.size === 0) continue;
+        const taskLinkIndex = this.getTaskLinkIndex();
+        for (const thought of thoughts) {
+            const thoughtPath = thought.filePath?.trim();
+            if (!thoughtPath) continue;
+            const state = linkState.get(thoughtPath);
+            if (!state) continue;
 
-            const taskFilePath = task.filePath?.trim();
-            const taskKey = getTaskKey(task);
-            for (const thoughtPath of thoughtRefs) {
-                if (!visibleThoughtPaths.has(thoughtPath)) continue;
-                const state = linkState.get(thoughtPath);
-                if (!state) continue;
-                if (taskFilePath) state.linkedTaskRefs.add(taskFilePath);
-                if (taskKey) state.linkedTaskRefs.add(taskKey);
-                resolvedLinkedTaskCounts.set(thoughtPath, (resolvedLinkedTaskCounts.get(thoughtPath) ?? 0) + 1);
-            }
-        }
-
-        for (const [thoughtPath, state] of linkState) {
-            const resolvedCount = resolvedLinkedTaskCounts.get(thoughtPath) ?? 0;
-            state.linkedTaskCount = resolvedCount || state.linkedTaskRefs.size;
+            const linkedTaskIds = new Set<string>(state.linkedTaskRefs);
+            new Set([thoughtPath, (thought.id || '').trim()].filter(Boolean)).forEach((ref) => {
+                const entry = taskLinkIndex.tasksByThoughtRef.get(ref);
+                if (!entry) return;
+                entry.taskIds.forEach((taskId) => linkedTaskIds.add(taskId));
+                entry.linkedTaskRefs.forEach((taskRef) => state.linkedTaskRefs.add(taskRef));
+            });
+            state.linkedTaskCount = linkedTaskIds.size;
         }
 
         return linkState;
+    }
+
+    private getTaskLinkIndex(): TaskLinkIndex {
+        if (this._taskLinkIndex) return this._taskLinkIndex;
+
+        const tasks = this._taskController.getAllTasks();
+        const tasksByThoughtRef = new Map<string, TaskLinkIndexEntry>();
+        for (const task of tasks) {
+            const taskId = getTaskKey(task);
+            if (!taskId) continue;
+
+            const linkedTaskRefs = new Set<string>();
+            const taskFilePath = task.filePath?.trim();
+            if (taskFilePath) linkedTaskRefs.add(taskFilePath);
+            linkedTaskRefs.add(taskId);
+
+            new Set<string>([
+                ...(task.sourceThoughtIds ?? []),
+                ...(task.links?.thoughts ?? []),
+            ].map((value) => value.trim()).filter(Boolean)).forEach((thoughtRef) => {
+                const entry = tasksByThoughtRef.get(thoughtRef) ?? {
+                    taskIds: new Set<string>(),
+                    linkedTaskRefs: new Set<string>(),
+                };
+                entry.taskIds.add(taskId);
+                linkedTaskRefs.forEach((taskRef) => entry.linkedTaskRefs.add(taskRef));
+                tasksByThoughtRef.set(thoughtRef, entry);
+            });
+        }
+
+        this._taskLinkIndex = {
+            tasksByThoughtRef,
+            sortedTasks: tasks.slice().sort((left, right) => (right.lastUpdate ?? 0) - (left.lastUpdate ?? 0)),
+        };
+        return this._taskLinkIndex;
     }
 
     private openTaskLinkPicker(anchor: HTMLElement, thoughtId: string): void {
@@ -1197,9 +1252,7 @@ export class DesktopHubView extends ItemView {
         const currentThought = this._thoughtController.getThought(thoughtId);
         if (!currentThought) return;
         const linkedTaskRefs = this.getLinkedTaskRefs(currentThought);
-        const tasks = this._taskController.getAllTasks()
-            .slice()
-            .sort((left, right) => (right.lastUpdate ?? 0) - (left.lastUpdate ?? 0));
+        const tasks = this.getTaskLinkIndex().sortedTasks;
 
         this.openFeedPopover(anchor, (popover) => {
             const search = popover.createEl('input', {
@@ -1373,6 +1426,8 @@ export class DesktopHubView extends ItemView {
     private async linkThoughtToTask(thoughtId: string, taskId: string): Promise<void> {
         const ok = await this._taskController.linkThoughtToTask(thoughtId, taskId);
         if (!ok) return;
+        this.invalidateTaskLinkIndex();
+        this.scheduleFeedRefresh();
         this.closeFeedPopover();
     }
 
