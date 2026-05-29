@@ -1,8 +1,9 @@
-import { App, TFile, Notice, moment } from 'obsidian';
+import { App, TFile, moment } from 'obsidian';
 import type { DiwaSettings, Task } from '../types';
 import type { IndexService } from './IndexService';
 import { generateReflectionPrompt } from '../utils/taskReflection';
 import { isoNow } from '../utils/taskModel';
+import { createVaultFile } from './VaultService';
 
 /**
  * TaskReflectionService — handles creation of structured reflection notes
@@ -106,9 +107,7 @@ export class TaskReflectionService {
         let file: TFile | null = null;
 
         try {
-            await this._ensureFolder(folder);
-            const path = `${folder}/${this._generateFilename('reflection_')}`;
-            file = await this.app.vault.create(path, frontmatter + body);
+            file = await createVaultFile(this.app, folder, this._generateFilename('reflection_'), frontmatter + body);
         } catch (e) {
             console.error('[DIWA TaskReflectionService] generateTaskReflection:', e);
             return null;
@@ -156,25 +155,6 @@ export class TaskReflectionService {
         return `${prefix}${date}_${time}_${rand}.md`;
     }
 
-    private async _ensureFolder(folder: string): Promise<void> {
-        if (folder.includes('..') || folder.startsWith('/') || folder.startsWith('\\')) {
-            throw new Error(`Invalid folder path: "${folder}"`);
-        }
-        if (!folder || folder === '/' || folder === '.') return;
-
-        const parts = folder.split('/');
-        let pathSoFar = '';
-        for (const part of parts) {
-            pathSoFar = pathSoFar ? `${pathSoFar}/${part}` : part;
-            if (!this.app.vault.getAbstractFileByPath(pathSoFar)) {
-                try {
-                    await this.app.vault.createFolder(pathSoFar);
-                } catch (e) {
-                    if (!(e as Error).message?.includes('already exists')) throw e;
-                }
-            }
-        }
-    }
 }
 
 // ── Module-level helpers ───────────────────────────────────────────────────

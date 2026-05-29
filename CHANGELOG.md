@@ -1,4 +1,12 @@
 
+## [10.2.7] — Due and Vault Safety Hardening
+
+### Changed
+- Routed recurring due creation through hardened vault helpers with sanitized filenames, folder handling, and frontmatter values.
+- Persisted payment attachments and appended saved wikilinks to payment logs.
+- Moved remaining task-link and reflection file creation onto shared vault file helpers.
+- Tightened comment/reply boundary parsing so body headings are less likely to be mistaken for reply sections.
+
 ## [10.2.6] — Popout Overlay Hardening
 
 ### Changed

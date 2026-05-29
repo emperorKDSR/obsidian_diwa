@@ -3,27 +3,70 @@ import type { DiwaSettings, ThoughtEntry, TaskEntry, ReplyEntry, ProjectEntry, M
 import { generateTaskId } from '../utils/taskModel';
 import { buildJournalContexts, normalizeJournalType } from '../journal/shared';
 import { normalizeThoughtTopics, toStoredThoughtTopic } from '../utils/topics';
-import { ensureVaultFolder } from '../utils';
+import { buildAttachmentWikiLink, ensureVaultFolder } from '../utils';
 
 interface ThoughtWriteOptions {
     title?: string;
     journalType?: string | null;
 }
 
-export async function createVaultFile(app: App, folder: string, filename: string, content: string): Promise<TFile> {
-    const normalizedFolder = folder.trim().replace(/\/$/, '');
-    await ensureVaultFolder(app, normalizedFolder);
-    const path = normalizedFolder && normalizedFolder !== '/' ? `${normalizedFolder}/${filename}` : filename;
+interface VaultCreateOptions {
+    onCollision?: 'suffix' | 'error';
+}
 
-    let finalPath = path;
-    if (app.vault.getAbstractFileByPath(finalPath)) {
-        const extIdx = path.lastIndexOf('.');
-        const base = extIdx !== -1 ? path.substring(0, extIdx) : path;
-        const ext = extIdx !== -1 ? path.substring(extIdx) : '';
-        finalPath = `${base} (${Date.now()})${ext}`;
+function normalizeVaultFolder(folder: string): string {
+    const normalized = (folder || '').trim().replace(/\\/g, '/').replace(/\/+$/, '');
+    if (normalized.includes('..') || normalized.startsWith('/')) {
+        throw new Error(`Invalid folder path: "${folder}"`);
+    }
+    return normalized;
+}
+
+function sanitizeVaultFilename(filename: string): string {
+    const trimmed = (filename || '').trim();
+    const extIdx = trimmed.lastIndexOf('.');
+    const base = extIdx > 0 ? trimmed.substring(0, extIdx) : trimmed;
+    const ext = extIdx > 0 ? trimmed.substring(extIdx) : '';
+    const safeBase = base
+        .replace(/[\/\\?%*:|"<>]/g, '-')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/^\.+|\.+$/g, '') || 'Untitled';
+    const safeExt = ext.replace(/[^.\w-]/g, '');
+    return `${safeBase}${safeExt}`;
+}
+
+async function resolveVaultCreatePath(app: App, folder: string, filename: string, options: VaultCreateOptions = {}): Promise<string> {
+    const normalizedFolder = normalizeVaultFolder(folder);
+    const normalizedFilename = sanitizeVaultFilename(filename);
+    if (normalizedFolder) {
+        await ensureVaultFolder(app, normalizedFolder);
     }
 
+    const path = normalizedFolder ? `${normalizedFolder}/${normalizedFilename}` : normalizedFilename;
+    if (!app.vault.getAbstractFileByPath(path)) {
+        return path;
+    }
+
+    if (options.onCollision === 'error') {
+        throw new Error('A file with that name already exists.');
+    }
+
+    const extIdx = normalizedFilename.lastIndexOf('.');
+    const base = extIdx !== -1 ? normalizedFilename.substring(0, extIdx) : normalizedFilename;
+    const ext = extIdx !== -1 ? normalizedFilename.substring(extIdx) : '';
+    const uniqueName = `${base} (${Date.now()})${ext}`;
+    return normalizedFolder ? `${normalizedFolder}/${uniqueName}` : uniqueName;
+}
+
+export async function createVaultFile(app: App, folder: string, filename: string, content: string, options: VaultCreateOptions = {}): Promise<TFile> {
+    const finalPath = await resolveVaultCreatePath(app, folder, filename, options);
     return app.vault.create(finalPath, content);
+}
+
+export async function createVaultBinaryFile(app: App, folder: string, filename: string, content: ArrayBuffer, options: VaultCreateOptions = {}): Promise<TFile> {
+    const finalPath = await resolveVaultCreatePath(app, folder, filename, options);
+    return app.vault.createBinary(finalPath, content);
 }
 
 export class VaultService {
@@ -131,6 +174,65 @@ export class VaultService {
         return ctx.replace(/[\n\r:#"]/g, '').trim();
     }
 
+    private normalizeLineBreaks(value: string): string {
+        return value.replace(/\r\n?/g, '\n');
+    }
+
+    private normalizeDueDateValue(value?: string): string {
+        const normalized = (value || '').trim();
+        return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : '';
+    }
+
+    private normalizeAmountValue(value?: string): string {
+        const normalized = (value || '').trim().replace(/[^\d.,-]/g, '');
+        return normalized || '0.00';
+    }
+
+    private isReplyHeaderLine(line: string): boolean {
+        return /^## \[\[[^\]]+\]\] \d{2}:\d{2}:\d{2} \^reply-[\w-]+$/.test(line.trim());
+    }
+
+    private splitBodyAndReplySuffix(body: string): { body: string; replySuffix: string } {
+        const lines = body.split('\n');
+        const replyHeader = lines.findIndex((line) => this.isReplyHeaderLine(line));
+        if (replyHeader === -1) {
+            return { body, replySuffix: '' };
+        }
+
+        let replyStart = replyHeader;
+        while (replyStart > 0 && lines[replyStart - 1].trim() === '') replyStart -= 1;
+        return {
+            body: lines.slice(0, replyStart).join('\n'),
+            replySuffix: lines.slice(replyStart).join('\n'),
+        };
+    }
+
+    private composeBodyWithReplySuffix(body: string, replySuffix: string): string {
+        const normalizedBody = this.normalizeLineBreaks(body).trimEnd();
+        if (!replySuffix) {
+            return `${normalizedBody}\n`;
+        }
+        return normalizedBody
+            ? `${normalizedBody}\n${replySuffix}`
+            : replySuffix;
+    }
+
+    private buildAttachmentFilename(prefix: string, file: Pick<File, 'name'>): string {
+        const originalName = String(file.name || '').trim();
+        const extIdx = originalName.lastIndexOf('.');
+        const stem = (extIdx > 0 ? originalName.substring(0, extIdx) : originalName)
+            .replace(/[^\w\s-]/g, ' ')
+            .replace(/\s+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .toLowerCase() || 'file';
+        const extension = extIdx > 0
+            ? originalName.substring(extIdx).replace(/[^.\w-]/g, '').toLowerCase()
+            : '.bin';
+        const ts = moment().format('YYYYMMDD_HHmmss');
+        const rand = Math.random().toString(36).substring(2, 6);
+        return `${prefix}_${ts}_${rand}_${stem}${extension || '.bin'}`;
+    }
+
     private normalizeTaskStatus(value?: string): TaskEntry['status'] {
         switch (value?.trim()) {
             case 'done':
@@ -203,6 +305,43 @@ export class VaultService {
             console.error('[DIWA VaultService]', e);
             throw e;
         }
+    }
+
+    async createRecurringPaymentFile(input: {
+        folder: string;
+        name: string;
+        nextDueDate: string;
+        lastPaymentDate?: string;
+        amount?: string;
+        notes?: string;
+    }): Promise<TFile> {
+        const nextDueDate = this.normalizeDueDateValue(input.nextDueDate);
+        if (!nextDueDate) {
+            throw new Error('Next due date is required.');
+        }
+
+        const lastPaymentDate = this.normalizeDueDateValue(input.lastPaymentDate);
+        const amount = this.normalizeAmountValue(input.amount);
+        const body = this.normalizeLineBreaks(input.notes || '').trim();
+        const content = [
+            '---',
+            'category: "recurring payment"',
+            'active_status: true',
+            `next_duedate: "${this.sanitizeYamlString(nextDueDate)}"`,
+            `last_payment_date: "${this.sanitizeYamlString(lastPaymentDate)}"`,
+            `amount: "${this.sanitizeYamlString(amount)}"`,
+            '---',
+            '',
+            body,
+        ].join('\n').trimEnd() + '\n';
+
+        return createVaultFile(
+            this.app,
+            input.folder,
+            `${input.name}.md`,
+            content,
+            { onCollision: 'error' },
+        );
     }
 
     async createThoughtFile(text: string, contexts: string[], project?: string, topic?: string | string[] | null, options?: ThoughtWriteOptions): Promise<TFile> {
@@ -290,9 +429,8 @@ export class VaultService {
             const fmEnd = content.indexOf('\n---\n', 3);
             if (fmEnd === -1) return;
             const afterFm = content.slice(fmEnd + 5);
-            const replyIdx = afterFm.indexOf('\n## [[');
-            const bodyToSave = replyIdx !== -1 ? newText + afterFm.slice(replyIdx) : newText;
-            const newContent = content.slice(0, fmEnd + 5) + bodyToSave;
+            const { replySuffix } = this.splitBodyAndReplySuffix(afterFm);
+            const newContent = content.slice(0, fmEnd + 5) + this.composeBodyWithReplySuffix(newText, replySuffix);
             await this.app.vault.modify(file, newContent);
         } catch (e) {
             console.error('[DIWA VaultService]', e);
@@ -347,11 +485,13 @@ export class VaultService {
                 if (opts?.status  !== undefined) fm['status']   = opts.status;
             });
 
-            // Step 2: update body text
+            // Step 2: update body text while preserving replies
             const content = await this.app.vault.read(file);
             const fmEnd = content.indexOf('\n---\n', 3);
             if (fmEnd === -1) return;
-            await this.app.vault.modify(file, content.slice(0, fmEnd + 5) + newText + '\n');
+            const afterFm = content.slice(fmEnd + 5);
+            const { replySuffix } = this.splitBodyAndReplySuffix(afterFm);
+            await this.app.vault.modify(file, content.slice(0, fmEnd + 5) + this.composeBodyWithReplySuffix(newText, replySuffix));
         } catch (e) {
             console.error('[DIWA VaultService]', e);
         }
@@ -454,10 +594,9 @@ export class VaultService {
             if (fmEnd === -1) return true;
             const bodyStart    = fmEnd + 5;
             const existing     = content.slice(bodyStart);
-            const replyIdx     = existing.indexOf('\n## [[');
-            const replySuffix  = replyIdx !== -1 ? existing.slice(replyIdx) : '';
+            const { replySuffix } = this.splitBodyAndReplySuffix(existing);
             const bodyText = (updates.bodyText ?? updates.title).trim();
-            await this.app.vault.modify(file, content.slice(0, bodyStart) + bodyText + '\n' + replySuffix);
+            await this.app.vault.modify(file, content.slice(0, bodyStart) + this.composeBodyWithReplySuffix(bodyText, replySuffix));
             return true;
         } catch (e) {
             console.error('[DIWA VaultService]', e);
@@ -582,13 +721,13 @@ export class VaultService {
         mutate: (lines: string[], range: { start: number; header: number; end: number }) => void | string[]
     ): string | null {
         const lines = content.split('\n');
-        const header = lines.findIndex((line) => line.startsWith('## [[') && line.includes(`^${anchor}`));
+        const header = lines.findIndex((line) => this.isReplyHeaderLine(line) && line.includes(`^${anchor}`));
         if (header === -1) return null;
 
         let start = header;
         while (start > 0 && lines[start - 1].trim() === '') start -= 1;
 
-        let end = lines.findIndex((line, index) => index > header && line.startsWith('## [['));
+        let end = lines.findIndex((line, index) => index > header && this.isReplyHeaderLine(line));
         if (end === -1) end = lines.length;
 
         mutate(lines, { start, header, end });
@@ -660,17 +799,51 @@ export class VaultService {
 
     // sec-010: savePayment — was previously a missing method called via unsafe (app as any) lookup
     async savePayment(file: TFile, paymentDate: string, nextDueDate: string, notes: string, attachedFiles: File[]): Promise<void> {
+        const safePaymentDate = this.normalizeDueDateValue(paymentDate);
+        const safeNextDueDate = this.normalizeDueDateValue(nextDueDate);
+        if (!safePaymentDate || !safeNextDueDate) {
+            throw new Error('Payment and next due dates are required.');
+        }
+
+        const savedAttachments: string[] = [];
+        for (const attachedFile of attachedFiles) {
+            const savedFile = await createVaultBinaryFile(
+                this.app,
+                this.settings.attachmentsFolder || '000 Bin/DIWA Attachments',
+                this.buildAttachmentFilename('payment', attachedFile),
+                await attachedFile.arrayBuffer(),
+            );
+            savedAttachments.push(buildAttachmentWikiLink(savedFile.path, attachedFile));
+        }
+
         // Update next due date in frontmatter
         await this.app.fileManager.processFrontMatter(file, (fm) => {
-            fm['next_duedate'] = nextDueDate;
-            fm['last_payment_date'] = paymentDate;
+            fm['next_duedate'] = safeNextDueDate;
+            fm['last_payment_date'] = safePaymentDate;
             fm['modified'] = this.formatDateTime(new Date());
         });
         // Append payment record as a log entry in the file body
         const current = await this.app.vault.read(file);
-        const notesLine = notes.trim() ? `\n- **Notes:** ${notes.trim()}` : '';
-        const record = `\n\n## Payment: ${paymentDate}\n- **Paid On:** ${paymentDate}\n- **Next Due:** ${nextDueDate}${notesLine}\n`;
-        await this.app.vault.modify(file, current + record);
+        const normalizedNotes = this.normalizeLineBreaks(notes).trim();
+        const recordLines = [
+            '',
+            '',
+            `## Payment: ${safePaymentDate}`,
+            `- **Paid On:** ${safePaymentDate}`,
+            `- **Next Due:** ${safeNextDueDate}`,
+        ];
+
+        if (normalizedNotes) {
+            recordLines.push('- **Notes:**');
+            recordLines.push(...normalizedNotes.split('\n').map((line) => `  ${line}`));
+        }
+
+        if (savedAttachments.length > 0) {
+            recordLines.push('- **Attachments:**');
+            recordLines.push(...savedAttachments.map((link) => `  - ${link}`));
+        }
+
+        await this.app.vault.modify(file, current.trimEnd() + recordLines.join('\n') + '\n');
     }
 
     /** Save a weekly review to {reviewsFolder}/Weekly/YYYY-Www.md */

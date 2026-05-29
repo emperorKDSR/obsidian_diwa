@@ -1,11 +1,14 @@
 import { App, Modal, Notice, moment } from 'obsidian';
+import type { VaultService } from '../services/VaultService';
 
 export class NewDueModal extends Modal {
+    vault: VaultService;
     pfFolder: string;
     onSubmit: () => void;
 
-    constructor(app: App, pfFolder: string, onSubmit: () => void) {
+    constructor(app: App, vault: VaultService, pfFolder: string, onSubmit: () => void) {
         super(app);
+        this.vault = vault;
         this.pfFolder = pfFolder;
         this.onSubmit = onSubmit;
     }
@@ -58,34 +61,25 @@ export class NewDueModal extends Modal {
         cancelBtn.onclick = () => this.close();
         saveBtn.onclick = async () => {
             const name = nameInput.value.trim();
-            if (!name) { return; }
-            
+            if (!name) {
+                new Notice('Payable name is required.');
+                return;
+            }
+             
             try {
-                const folder = folderInput.value.trim().replace(/\/$/, '');
-                const fileP = folder ? `${folder}/${name}.md` : `${name}.md`;
-
-                if (folder && !this.app.vault.getAbstractFileByPath(folder)) {
-                    await this.app.vault.createFolder(folder);
-                }
-
-                if (this.app.vault.getAbstractFileByPath(fileP)) {
-                    return;
-                }
-
-                const content = `---
-category: recurring payment
-active_status: true
-next_duedate: ${dInput.value}
-last_payment_date: ${lInput.value || ''}
-amount: ${aInput.value || '0.00'}
----
-
-${notesArea.value}
-`;
-                await this.app.vault.create(fileP, content);
+                await this.vault.createRecurringPaymentFile({
+                    folder: folderInput.value.trim(),
+                    name,
+                    nextDueDate: dInput.value,
+                    lastPaymentDate: lInput.value || '',
+                    amount: aInput.value || '0.00',
+                    notes: notesArea.value,
+                });
                 this.onSubmit();
                 this.close();
             } catch (e: any) {
+                console.error('[DIWA NewDueModal] Failed to create recurring payment', e);
+                new Notice(e instanceof Error ? e.message : 'Failed to create payable.');
             }
         };
 
@@ -96,4 +90,3 @@ ${notesArea.value}
         this.contentEl.empty();
     }
 }
-

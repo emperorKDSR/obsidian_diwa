@@ -30,7 +30,7 @@ export class DuesTab extends BaseTab {
             await this.renderDuesMode(container);
         };
         const openNewDueModal = () => {
-            new NewDueModal(this.app, this.settings.pfFolder, refreshDues).open();
+            new NewDueModal(this.app, this.vault, this.settings.pfFolder, refreshDues).open();
         };
         const openInsights = () => {
             this.view.activeTab = 'finance-analytics';
