@@ -76,6 +76,14 @@ export default class DiwaPlugin extends Plugin {
     settingsInitialized: boolean = false;
     zenCaptureDraft: string = '';
     private pendingJournalInputFocus = false;
+    private unloading = false;
+    private legacyMigrationTimer: number | null = null;
+    private readonly scheduledThoughtRenderTimers = new Map<HTMLElement, number>();
+    private readonly thoughtRenderTokens = new WeakMap<HTMLElement, number>();
+    private globalDomStateCaptured = false;
+    private initialHostBottomBarInlineValue: string | null = null;
+    private initialBodyHadTabletClass = false;
+    private initialBodyHadDesktopClass = false;
     
     // Services
     vault: VaultService;
@@ -129,6 +137,8 @@ export default class DiwaPlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
+        this.unloading = false;
+        this.captureGlobalDomState();
         this.applyMobileCssVars();
         this.applyDeviceBodyClasses();
 
@@ -294,14 +304,60 @@ export default class DiwaPlugin extends Plugin {
         this.addCommand({ id: 'diwa-open-bulsa', name: 'Open Bulsa', icon: PF_ICON_ID, callback: () => { void this.activateBulsa(); } });
 
 		this.addSettingTab(new DiwaSettingTab(this.app, this));
-        if (!this.settings.legacyMigrated) {
-            setTimeout(() => this.migrateLegacyTableData(), 2000);
-        }
+        this.scheduleLegacyMigration();
 	}
 
     async onunload() {
+        this.unloading = true;
+        this.clearLegacyMigrationTimer();
+        this.clearScheduledThoughtContentRenders();
+        this.restoreGlobalDomState();
         this.refreshCoordinator?.onunload();
         this.detachRegisteredLeaves();
+    }
+
+    private scheduleLegacyMigration(): void {
+        if (this.settings.legacyMigrated || this.legacyMigrationTimer !== null) return;
+        this.legacyMigrationTimer = window.setTimeout(() => {
+            this.legacyMigrationTimer = null;
+            if (this.unloading) return;
+            void this.migrateLegacyTableData().catch((error) => {
+                console.error('[DIWA] legacy table migration failed', error);
+            });
+        }, 2000);
+    }
+
+    private clearLegacyMigrationTimer(): void {
+        if (this.legacyMigrationTimer === null) return;
+        window.clearTimeout(this.legacyMigrationTimer);
+        this.legacyMigrationTimer = null;
+    }
+
+    private captureGlobalDomState(): void {
+        if (this.globalDomStateCaptured) return;
+        this.globalDomStateCaptured = true;
+        const inlineValue = document.documentElement.style.getPropertyValue('--diwa-host-bottombar');
+        this.initialHostBottomBarInlineValue = inlineValue.length > 0 ? inlineValue : null;
+        this.initialBodyHadTabletClass = document.body.hasClass('is-tablet');
+        this.initialBodyHadDesktopClass = document.body.hasClass('is-desktop');
+    }
+
+    private restoreGlobalDomState(): void {
+        if (!this.globalDomStateCaptured) return;
+        if (this.initialHostBottomBarInlineValue === null) {
+            document.documentElement.style.removeProperty('--diwa-host-bottombar');
+        } else {
+            document.documentElement.style.setProperty('--diwa-host-bottombar', this.initialHostBottomBarInlineValue);
+        }
+        document.body.toggleClass('is-tablet', this.initialBodyHadTabletClass);
+        document.body.toggleClass('is-desktop', this.initialBodyHadDesktopClass);
+    }
+
+    private clearScheduledThoughtContentRenders(): void {
+        for (const timer of this.scheduledThoughtRenderTimers.values()) {
+            window.clearTimeout(timer);
+        }
+        this.scheduledThoughtRenderTimers.clear();
     }
 
     private detachRegisteredLeaves(): void {
@@ -547,6 +603,16 @@ export default class DiwaPlugin extends Plugin {
             this.notifyRefresh('all');
         }
 	}
+
+    async updateSetting<K extends keyof DiwaSettings>(
+        key: K,
+        value: DiwaSettings[K],
+        refreshScope?: RefreshScope,
+    ): Promise<void> {
+        this.settings[key] = value;
+        await this.saveSettings();
+        if (refreshScope) this.notifyRefresh(refreshScope);
+    }
 
     async saveGawaLayoutPreferences(preferences: GawaLayoutPreferences): Promise<void> {
         this.settings.gawaLayoutPreferences = sanitizeGawaLayoutPreferences(preferences);
@@ -860,15 +926,37 @@ export default class DiwaPlugin extends Plugin {
         const card = parent.createDiv('diwa-thought-card');
         const contentEl = card.createDiv('diwa-thought-content');
         const content = (thought.body || thought.content || thought.title || '').trim();
-        void this.renderThoughtContent(contentEl, content, thought);
+        this.scheduleThoughtContentRender(contentEl, content, thought);
         this.attachThoughtLongPress(card, thought);
         if (options.mobile) card.addClass('is-mobile');
         return card;
     }
 
-    private async renderThoughtContent(el: HTMLElement, content: string, thought: ThoughtEntry): Promise<void> {
-        el.empty();
-        await MarkdownRenderer.render(this.app, content, el, thought.filePath || '', this);
+    private scheduleThoughtContentRender(el: HTMLElement, content: string, thought: ThoughtEntry): void {
+        const token = (this.thoughtRenderTokens.get(el) ?? 0) + 1;
+        this.thoughtRenderTokens.set(el, token);
+        const existingTimer = this.scheduledThoughtRenderTimers.get(el);
+        if (existingTimer !== undefined) {
+            window.clearTimeout(existingTimer);
+        }
+        const timer = window.setTimeout(() => {
+            this.scheduledThoughtRenderTimers.delete(el);
+            void this.renderThoughtContent(el, content, thought, token);
+        }, 0);
+        this.scheduledThoughtRenderTimers.set(el, timer);
+    }
+
+    private async renderThoughtContent(
+        el: HTMLElement,
+        content: string,
+        thought: ThoughtEntry,
+        token: number,
+    ): Promise<void> {
+        if (this.unloading || !el.isConnected || this.thoughtRenderTokens.get(el) !== token) return;
+        const stagedEl = document.createElement('div');
+        await MarkdownRenderer.render(this.app, content, stagedEl, thought.filePath || '', this);
+        if (this.unloading || !el.isConnected || this.thoughtRenderTokens.get(el) !== token) return;
+        el.replaceChildren(...Array.from(stagedEl.childNodes));
         enableImageZoom(this.app, el);
     }
 

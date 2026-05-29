@@ -79,6 +79,7 @@ export class DiwaView extends ItemView {
     private currentTabId: string | null = null;
     private contentAreaEl: HTMLElement | null = null;
     private tabRenderToken = 0;
+    private pendingTabRenderTimer: number | null = null;
 
     constructor(leaf: WorkspaceLeaf, plugin: DiwaPlugin) {
         super(leaf);
@@ -130,6 +131,7 @@ export class DiwaView extends ItemView {
     async onClose() {
         const header = this.containerEl.children[0] as HTMLElement;
         if (header) header.style.display = '';
+        this.clearPendingTabRender();
         this.disposeCurrentTab();
         this.contentAreaEl = null;
     }
@@ -166,7 +168,7 @@ export class DiwaView extends ItemView {
         if (tabChanged) {
             this.disposeCurrentTab();
             this.contentAreaEl.empty();
-            this.renderTab(this.contentAreaEl);
+            this.scheduleTabRender(this.contentAreaEl);
             return;
         }
 
@@ -175,7 +177,8 @@ export class DiwaView extends ItemView {
             return;
         }
 
-        this.renderTab(this.contentAreaEl);
+        this.contentAreaEl.empty();
+        this.scheduleTabRender(this.contentAreaEl);
     }
 
     /** Incremental task refresh — uses onTasksRefresh() if current tab supports it, falls back to renderView(). */
@@ -204,7 +207,22 @@ export class DiwaView extends ItemView {
         }
         this.disposeCurrentTab();
         this.contentAreaEl.empty();
-        this.renderTab(this.contentAreaEl);
+        this.scheduleTabRender(this.contentAreaEl);
+    }
+
+    private scheduleTabRender(container: HTMLElement): void {
+        this.clearPendingTabRender();
+        this.pendingTabRenderTimer = window.setTimeout(() => {
+            this.pendingTabRenderTimer = null;
+            if (!container.isConnected) return;
+            void this.renderTab(container);
+        }, 0);
+    }
+
+    private clearPendingTabRender(): void {
+        if (this.pendingTabRenderTimer === null) return;
+        window.clearTimeout(this.pendingTabRenderTimer);
+        this.pendingTabRenderTimer = null;
     }
 
     private renderTab(container: HTMLElement) {
@@ -243,6 +261,7 @@ export class DiwaView extends ItemView {
     }
 
     private disposeCurrentTab(): void {
+        this.clearPendingTabRender();
         this.tabRenderToken++;
         try {
             if (this.currentTab && typeof (this.currentTab as any).onunload === 'function') {

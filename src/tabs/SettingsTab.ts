@@ -1,4 +1,3 @@
-import { moment, Platform, Notice, TFile } from 'obsidian';
 import type { DiwaView } from '../view';
 import { BaseTab } from "./BaseTab";
 import { FolderSettingsModal } from '../modals/FolderSettingsModal';
@@ -49,11 +48,11 @@ export class SettingsTab extends BaseTab {
             el.addEventListener('change', () => onChange(el.value));
         };
 
-        field('Date Format', 'moment.js format, e.g. YYYY-MM-DD', row => input(row, this.view.plugin.settings.dateFormat, 'YYYY-MM-DD', 'text', async v => { this.view.plugin.settings.dateFormat = v; await this.view.plugin.saveSettings(); }));
-        field('Time Format', 'moment.js format, e.g. HH:mm', row => input(row, this.view.plugin.settings.timeFormat, 'HH:mm', 'text', async v => { this.view.plugin.settings.timeFormat = v; await this.view.plugin.saveSettings(); }));
+        field('Date Format', 'moment.js format, e.g. YYYY-MM-DD', row => input(row, this.view.plugin.settings.dateFormat, 'YYYY-MM-DD', 'text', async v => { await this.view.plugin.updateSetting('dateFormat', v, 'all'); }));
+        field('Time Format', 'moment.js format, e.g. HH:mm', row => input(row, this.view.plugin.settings.timeFormat, 'HH:mm', 'text', async v => { await this.view.plugin.updateSetting('timeFormat', v, 'all'); }));
         field('Monthly Income', 'For cashflow tracking in Bulsa Insights.', row => {
             const inp = row.createEl('input', { type: 'number', attr: { value: this.view.plugin.settings.monthlyIncome.toString(), style: 'font-size: 0.85em; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--background-modifier-border); background: var(--background-primary); color: var(--text-normal); width: 100%; box-sizing: border-box;' } });
-            inp.addEventListener('change', async () => { this.view.plugin.settings.monthlyIncome = parseFloat(inp.value) || 0; await this.view.plugin.saveSettings(); });
+            inp.addEventListener('change', async () => { await this.view.plugin.updateSetting('monthlyIncome', parseFloat(inp.value) || 0); });
         });
     }
 }

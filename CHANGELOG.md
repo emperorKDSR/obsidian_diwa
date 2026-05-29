@@ -1,4 +1,11 @@
 
+## [10.2.14] — Lifecycle and Settings Cleanup
+
+### Changed
+- Cleared delayed legacy migration work on unload and restored plugin-owned global body classes and CSS variables during teardown.
+- Deferred DIWA tab instantiation and thought markdown rendering onto scheduled lifecycle-safe passes so stale renders cannot race after tab switches or unload.
+- Centralized settings updates on the shared plugin helpers instead of duplicating direct save logic across the settings surfaces.
+
 ## [10.2.13] — Review and Feed Render Caching
 
 ### Changed

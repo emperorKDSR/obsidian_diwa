@@ -1,4 +1,4 @@
-import { App, Modal, Setting, Notice } from 'obsidian';
+import { App, Modal, Setting } from 'obsidian';
 import DiwaPlugin from '../main';
 
 export class FolderSettingsModal extends Modal {
@@ -41,8 +41,7 @@ export class FolderSettingsModal extends Modal {
                 .setPlaceholder('000 Bin/DIWA Gawa')
                 .setValue(this.plugin.settings.tasksFolder)
                 .onChange(async (value) => {
-                    this.plugin.settings.tasksFolder = value;
-                    await this.plugin.saveSettings();
+                    await this.plugin.updateSetting('tasksFolder', value);
                 }));
 
         new Setting(body)
@@ -52,8 +51,7 @@ export class FolderSettingsModal extends Modal {
                 .setPlaceholder('000 Bin/DIWA')
                 .setValue(this.plugin.settings.thoughtsFolder)
                 .onChange(async (value) => {
-                    this.plugin.settings.thoughtsFolder = value;
-                    await this.plugin.saveSettings();
+                    await this.plugin.updateSetting('thoughtsFolder', value);
                 }));
 
         new Setting(body)
@@ -63,8 +61,7 @@ export class FolderSettingsModal extends Modal {
                 .setPlaceholder('000 Bin/DIWA PF')
                 .setValue(this.plugin.settings.pfFolder)
                 .onChange(async (value) => {
-                    this.plugin.settings.pfFolder = value;
-                    await this.plugin.saveSettings();
+                    await this.plugin.updateSetting('pfFolder', value);
                 }));
 
         new Setting(body)
@@ -74,8 +71,7 @@ export class FolderSettingsModal extends Modal {
                 .setPlaceholder('000 Bin')
                 .setValue(this.plugin.settings.newNoteFolder)
                 .onChange(async (value) => {
-                    this.plugin.settings.newNoteFolder = value;
-                    await this.plugin.saveSettings();
+                    await this.plugin.updateSetting('newNoteFolder', value);
                 }));
 
         new Setting(body)
@@ -85,8 +81,7 @@ export class FolderSettingsModal extends Modal {
                 .setPlaceholder('000 Bin/DIWA Reviews')
                 .setValue(this.plugin.settings.reviewsFolder ?? '000 Bin/DIWA Reviews')
                 .onChange(async (value) => {
-                    this.plugin.settings.reviewsFolder = value;
-                    await this.plugin.saveSettings();
+                    await this.plugin.updateSetting('reviewsFolder', value);
                 }));
 
         // 3. Footer
