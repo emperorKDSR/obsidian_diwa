@@ -1,4 +1,10 @@
 
+## [10.2.10] — Desktop Performance Tuning
+
+### Changed
+- Cached visible thought-to-task link state in Desktop Hub to avoid repeated full task scans per rendered thought row.
+- Relaxed the task-only refresh debounce to reduce bursty desktop UI churn during rapid task updates.
+
 ## [10.2.9] — Project Popout Safety
 
 ### Changed

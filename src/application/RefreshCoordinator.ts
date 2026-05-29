@@ -8,6 +8,9 @@ import type { IndexService } from '../services/IndexService';
 
 export type RefreshScope = 'all' | 'tasks' | 'thoughts';
 
+const TASK_ONLY_REFRESH_DEBOUNCE_MS = 100;
+const DEFAULT_REFRESH_DEBOUNCE_MS = 400;
+
 export class RefreshCoordinator {
     private _indexDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private _reindexCooldown: Map<string, number> = new Map();
@@ -65,8 +68,10 @@ export class RefreshCoordinator {
             return;
         }
 
-        // Task-only updates flush on next-frame cadence; other scopes batch to absorb sync bursts
-        const debounceMs = this._pendingRefreshScope === 'tasks' ? 16 : 400;
+        // Task-only updates still stay responsive, but batch long enough to absorb save/index bursts.
+        const debounceMs = this._pendingRefreshScope === 'tasks'
+            ? TASK_ONLY_REFRESH_DEBOUNCE_MS
+            : DEFAULT_REFRESH_DEBOUNCE_MS;
         this._indexDebounceTimer = setTimeout(() => {
             this._indexDebounceTimer = null;
             this._dispatchRefresh();

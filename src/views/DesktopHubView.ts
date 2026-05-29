@@ -28,6 +28,12 @@ interface FeedRowRef {
     renderToken: number;
 }
 
+interface ThoughtLinkState {
+    linkedTaskRefs: Set<string>;
+    linkedTaskCount: number;
+    linkedThoughtCount: number;
+}
+
 function getTaskKey(task: TaskEntry): string {
     return task.taskId?.trim() || task.filePath;
 }
@@ -671,6 +677,7 @@ export class DesktopHubView extends ItemView {
 
         this._sortedThoughts = thoughts;
         const visibleThoughts = thoughts.slice(0, this._visibleCount);
+        const visibleThoughtLinkState = this.buildThoughtLinkState(visibleThoughts);
         this.updateFeedHeader(thoughts.length, nonArchivedThoughts.length, visibleThoughts.length, searchQuery, activeContext, false);
         if (version !== this._renderVersion || this._closed) return;
 
@@ -771,7 +778,7 @@ export class DesktopHubView extends ItemView {
                 this._feedRowMap.set(id, row);
             }
 
-            this.syncThoughtRowActions(thought, row);
+            this.syncThoughtRowActions(thought, row, visibleThoughtLinkState.get(thought.filePath));
             if (row.sig !== sig) {
                 row.timeEl.setText(this.formatThoughtTime(thought));
                 this.renderThoughtRowMarkdown(id, thought, row, sig, version);
@@ -1044,10 +1051,10 @@ export class DesktopHubView extends ItemView {
         return button;
     }
 
-    private syncThoughtRowActions(thought: ThoughtEntry, row: FeedRowRef): void {
-        const linkedTaskCount = this._taskController.getLinkedTasksForThought(thought.filePath).length
-            || (thought.links?.tasks ?? []).filter((value) => value.trim().length > 0).length;
-        const linkedThoughtCount = this.getLinkedThoughtRefs(thought).size;
+    private syncThoughtRowActions(thought: ThoughtEntry, row: FeedRowRef, linkState?: ThoughtLinkState): void {
+        const linkedTaskCount = linkState?.linkedTaskCount
+            ?? (thought.links?.tasks ?? []).filter((value) => value.trim().length > 0).length;
+        const linkedThoughtCount = linkState?.linkedThoughtCount ?? this.getLinkedThoughtRefs(thought).size;
         const hasLinkedTasks = linkedTaskCount > 0;
         const hasLinkedThoughts = linkedThoughtCount > 0;
 
@@ -1080,12 +1087,7 @@ export class DesktopHubView extends ItemView {
     }
 
     private getLinkedTaskRefs(thought: ThoughtEntry): Set<string> {
-        const refs = new Set<string>((thought.links?.tasks ?? []).map((value) => value.trim()).filter(Boolean));
-        for (const task of this._taskController.getLinkedTasksForThought(thought.filePath)) {
-            refs.add(task.filePath);
-            refs.add(getTaskKey(task));
-        }
-        return refs;
+        return this.buildThoughtLinkState([thought]).get(thought.filePath)?.linkedTaskRefs ?? new Set<string>();
     }
 
     private getLinkedThoughtRefs(thought: ThoughtEntry): Set<string> {
@@ -1093,6 +1095,52 @@ export class DesktopHubView extends ItemView {
         refs.delete(thought.filePath);
         refs.delete((thought.id || '').trim());
         return refs;
+    }
+
+    private buildThoughtLinkState(thoughts: ThoughtEntry[]): Map<string, ThoughtLinkState> {
+        const linkState = new Map<string, ThoughtLinkState>();
+        if (thoughts.length === 0) return linkState;
+
+        const visibleThoughtPaths = new Set<string>();
+        for (const thought of thoughts) {
+            const thoughtPath = thought.filePath?.trim();
+            if (!thoughtPath) continue;
+            visibleThoughtPaths.add(thoughtPath);
+            linkState.set(thoughtPath, {
+                linkedTaskRefs: new Set<string>((thought.links?.tasks ?? []).map((value) => value.trim()).filter(Boolean)),
+                linkedTaskCount: 0,
+                linkedThoughtCount: this.getLinkedThoughtRefs(thought).size,
+            });
+        }
+
+        if (visibleThoughtPaths.size === 0) return linkState;
+
+        const resolvedLinkedTaskCounts = new Map<string, number>();
+        for (const task of this._taskController.getAllTasks()) {
+            const thoughtRefs = new Set<string>([
+                ...(task.sourceThoughtIds ?? []),
+                ...(task.links?.thoughts ?? []),
+            ].map((value) => value.trim()).filter(Boolean));
+            if (thoughtRefs.size === 0) continue;
+
+            const taskFilePath = task.filePath?.trim();
+            const taskKey = getTaskKey(task);
+            for (const thoughtPath of thoughtRefs) {
+                if (!visibleThoughtPaths.has(thoughtPath)) continue;
+                const state = linkState.get(thoughtPath);
+                if (!state) continue;
+                if (taskFilePath) state.linkedTaskRefs.add(taskFilePath);
+                if (taskKey) state.linkedTaskRefs.add(taskKey);
+                resolvedLinkedTaskCounts.set(thoughtPath, (resolvedLinkedTaskCounts.get(thoughtPath) ?? 0) + 1);
+            }
+        }
+
+        for (const [thoughtPath, state] of linkState) {
+            const resolvedCount = resolvedLinkedTaskCounts.get(thoughtPath) ?? 0;
+            state.linkedTaskCount = resolvedCount || state.linkedTaskRefs.size;
+        }
+
+        return linkState;
     }
 
     private openTaskLinkPicker(anchor: HTMLElement, thoughtId: string): void {
