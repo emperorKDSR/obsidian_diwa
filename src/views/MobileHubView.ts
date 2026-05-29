@@ -52,4 +52,12 @@ export class MobileHubView extends ItemView {
         this.shell.setPlatform(platform);
         this.shell.render(root);
     }
+
+    refreshTasks(): void {
+        this.shell.refreshTasks();
+    }
+
+    refreshThoughts(): void {
+        this.shell.refreshThoughts();
+    }
 }

@@ -46,6 +46,40 @@ interface ProjectMetrics {
     nextTask?: TaskEntry;
 }
 
+interface TaskCache {
+    all: TaskEntry[];
+    open: TaskEntry[];
+    focus: TaskEntry[];
+    byProjectKey: Map<string, TaskEntry[]>;
+}
+
+interface ThoughtCache {
+    all: ThoughtEntry[];
+    recentTwo: ThoughtEntry[];
+    recentThree: ThoughtEntry[];
+    filtered: Map<string, ThoughtEntry[]>;
+}
+
+interface ProjectSummary {
+    activeCount: number;
+    completedCount: number;
+    openTaskCount: number;
+    dueSoonCount: number;
+}
+
+interface ProjectCache {
+    collection: ProjectEntry[];
+    byId: Map<string, ProjectEntry>;
+    filtered: Map<ProjectFilter, ProjectEntry[]>;
+    metrics: Map<string, ProjectMetrics>;
+    summary?: ProjectSummary;
+}
+
+type ShellRefreshScope = 'all' | 'tasks' | 'thoughts' | 'projects';
+
+const PROJECT_STATUS_ORDER: ProjectEntry['status'][] = ['active', 'on-hold', 'completed', 'archived'];
+const PROJECT_STATUS_FILTERS = PROJECT_FILTERS.filter((filter) => filter.id !== 'all');
+
 export function getPlatform(app: App): ShellPlatform {
     const isMobile = (app as { isMobile?: boolean }).isMobile ?? false;
     if (!isMobile) return 'desktop';
@@ -66,6 +100,10 @@ export class DiwaMobileShell {
     private navEl: HTMLElement | null = null;
     private tabsEl: HTMLElement | null = null;
     private platform: Exclude<ShellPlatform, 'desktop'>;
+    private taskCache: TaskCache | null = null;
+    private thoughtCache: ThoughtCache | null = null;
+    private projectCache: ProjectCache | null = null;
+    private lastChromeKey: string | null = null;
 
     constructor(
         private app: App,
@@ -77,6 +115,18 @@ export class DiwaMobileShell {
 
     public setPlatform(platform: Exclude<ShellPlatform, 'desktop'>): void {
         this.platform = platform;
+    }
+
+    public refreshTasks(): void {
+        this.invalidateCaches('tasks');
+        if (this.activeView === 'thoughts') return;
+        this.refreshView();
+    }
+
+    public refreshThoughts(): void {
+        this.invalidateCaches('thoughts');
+        if (this.activeView !== 'home' && this.activeView !== 'thoughts') return;
+        this.refreshView();
     }
 
     public render(container: HTMLElement): void {
@@ -95,6 +145,7 @@ export class DiwaMobileShell {
         this.contentEl = this.shellEl.createDiv('diwa-mobile-content');
         this.navEl = null;
         this.tabsEl = null;
+        this.lastChromeKey = null;
     }
 
     private syncShellStructure(): void {
@@ -114,6 +165,7 @@ export class DiwaMobileShell {
                 this.tabsEl = document.createElement('div');
                 this.tabsEl.className = 'diwa-tablet-tabs';
                 this.shellEl.insertBefore(this.tabsEl, this.contentEl);
+                this.lastChromeKey = null;
             }
             this.navEl?.remove();
             this.navEl = null;
@@ -125,18 +177,27 @@ export class DiwaMobileShell {
         if (!this.navEl || this.navEl.parentElement !== this.shellEl) {
             this.navEl?.remove();
             this.navEl = this.shellEl.createDiv('diwa-mobile-nav');
+            this.lastChromeKey = null;
         }
     }
 
-    private refreshView(): void {
+    private refreshView(options: { forceChrome?: boolean } = {}): void {
         if (!this.contentEl) {
             if (this.hostEl) this.render(this.hostEl);
             return;
         }
 
         this.renderActiveView(this.contentEl);
+        this.refreshChrome(options.forceChrome ?? false);
+    }
+
+    private refreshChrome(force = false): void {
+        const chromeKey = this.getChromeKey();
+        if (!force && chromeKey === this.lastChromeKey) return;
+
         if (this.tabsEl) this.renderTopTabs(this.tabsEl);
         if (this.navEl) this.renderBottomNav(this.navEl);
+        this.lastChromeKey = chromeKey;
     }
 
     private renderActiveView(container: HTMLElement): void {
@@ -174,9 +235,9 @@ export class DiwaMobileShell {
 
     private renderMobileHome(container: HTMLElement): void {
         const wrap = container.createDiv('diwa-mobile-home');
-        const focusTasks = this.plugin.getTodayFocusTasks();
-        const recentThoughts = this.plugin.getAllThoughts().slice(0, 2);
-        const openTasks = this.plugin.getAllTasks().filter((task) => !isTaskDone(task)).length;
+        const focusTasks = this.getFocusTasks();
+        const recentThoughts = this.getRecentThoughts(2);
+        const openTasks = this.getOpenTaskCount();
 
         const hero = wrap.createDiv('diwa-mobile-hero');
         hero.createDiv({ cls: 'diwa-mobile-hero-eyebrow', text: 'Capture first' });
@@ -204,7 +265,7 @@ export class DiwaMobileShell {
         const metrics = hero.createDiv('diwa-mobile-hero-stats');
         this.renderMetricChip(metrics, 'Focus', focusTasks.length);
         this.renderMetricChip(metrics, 'Open', openTasks);
-        this.renderMetricChip(metrics, 'Thoughts', this.plugin.getAllThoughts().length);
+        this.renderMetricChip(metrics, 'Thoughts', this.getThoughts().length);
 
         const focus = wrap.createDiv('diwa-mobile-focus diwa-mobile-surface');
         this.renderSectionHeader(
@@ -251,9 +312,9 @@ export class DiwaMobileShell {
 
     private renderTabletHome(container: HTMLElement): void {
         const wrap = container.createDiv('diwa-tablet-home');
-        const focusTasks = this.plugin.getTodayFocusTasks();
-        const recentThoughts = this.plugin.getAllThoughts().slice(0, 3);
-        const openTasks = this.plugin.getAllTasks().filter((task) => !isTaskDone(task)).length;
+        const focusTasks = this.getFocusTasks();
+        const recentThoughts = this.getRecentThoughts(3);
+        const openTasks = this.getOpenTaskCount();
 
         const hero = wrap.createDiv('diwa-tablet-home-hero diwa-mobile-surface');
         hero.createDiv({ cls: 'diwa-mobile-hero-eyebrow', text: 'Diwa workspace' });
@@ -279,7 +340,7 @@ export class DiwaMobileShell {
         const metrics = hero.createDiv('diwa-mobile-hero-stats');
         this.renderMetricChip(metrics, 'Focus', focusTasks.length);
         this.renderMetricChip(metrics, 'Open tasks', openTasks);
-        this.renderMetricChip(metrics, 'Thoughts', this.plugin.getAllThoughts().length);
+        this.renderMetricChip(metrics, 'Thoughts', this.getThoughts().length);
 
         const focus = wrap.createDiv('diwa-tablet-home-focus-card diwa-mobile-surface');
         this.renderSectionHeader(
@@ -325,7 +386,7 @@ export class DiwaMobileShell {
     }
 
     private renderTasks(container: HTMLElement): void {
-        const tasks = this.plugin.getAllTasks().filter((task) => !isTaskDone(task));
+        const tasks = this.getOpenTasks();
         const wrap = container.createDiv('diwa-mobile-list-wrap');
         this.renderSectionHeader(
             wrap,
@@ -362,14 +423,7 @@ export class DiwaMobileShell {
 
     private renderMobileProjects(container: HTMLElement, projects: ProjectEntry[]): void {
         const wrap = container.createDiv('diwa-mobile-projects');
-        const allProjects = this.getProjectCollection();
-        const activeCount = allProjects.filter((project) => project.status === 'active').length;
-        const openTaskCount = allProjects.reduce((count, project) => count + this.getProjectMetrics(project).openCount, 0);
-        const dueSoonCount = allProjects.filter((project) => {
-            if (!project.due || project.status === 'completed') return false;
-            const due = moment(project.due, ['YYYY-MM-DD', moment.ISO_8601], true);
-            return due.isValid() && due.isSameOrAfter(moment().startOf('day'), 'day') && due.diff(moment().startOf('day'), 'days') <= 7;
-        }).length;
+        const summary = this.getProjectSummary();
 
         const hero = wrap.createDiv('diwa-mobile-hero diwa-mobile-project-hero');
         hero.createDiv({ cls: 'diwa-mobile-hero-eyebrow', text: 'Project workspace' });
@@ -384,9 +438,9 @@ export class DiwaMobileShell {
         this.createProjectButton(heroActions, 'Open Gawa', 'check-square-2', () => this.switchView('tasks'));
 
         const metrics = hero.createDiv('diwa-mobile-hero-stats');
-        this.renderMetricChip(metrics, 'Active', activeCount);
-        this.renderMetricChip(metrics, 'Open tasks', openTaskCount);
-        this.renderMetricChip(metrics, 'Due soon', dueSoonCount);
+        this.renderMetricChip(metrics, 'Active', summary.activeCount);
+        this.renderMetricChip(metrics, 'Open tasks', summary.openTaskCount);
+        this.renderMetricChip(metrics, 'Due soon', summary.dueSoonCount);
 
         this.renderProjectFilterBar(wrap);
 
@@ -418,7 +472,7 @@ export class DiwaMobileShell {
 
     private renderTabletProjects(container: HTMLElement, projects: ProjectEntry[]): void {
         const wrap = container.createDiv('diwa-tablet-projects');
-        const allProjects = this.getProjectCollection();
+        const summary = this.getProjectSummary();
         const hero = wrap.createDiv('diwa-mobile-surface diwa-tablet-projects-hero');
         hero.createDiv({ cls: 'diwa-mobile-hero-eyebrow', text: 'Project workspace' });
         hero.createDiv({ cls: 'diwa-mobile-hero-title', text: 'A calmer planning surface for active initiatives.' });
@@ -432,9 +486,9 @@ export class DiwaMobileShell {
         this.createProjectButton(heroActions, 'Review Diwa', 'pen-square', () => this.switchView('thoughts'));
 
         const heroStats = hero.createDiv('diwa-mobile-hero-stats');
-        this.renderMetricChip(heroStats, 'Active', allProjects.filter((project) => project.status === 'active').length);
-        this.renderMetricChip(heroStats, 'Open tasks', allProjects.reduce((count, project) => count + this.getProjectMetrics(project).openCount, 0));
-        this.renderMetricChip(heroStats, 'Completed', allProjects.filter((project) => project.status === 'completed').length);
+        this.renderMetricChip(heroStats, 'Active', summary.activeCount);
+        this.renderMetricChip(heroStats, 'Open tasks', summary.openTaskCount);
+        this.renderMetricChip(heroStats, 'Completed', summary.completedCount);
 
         this.renderProjectFilterBar(wrap, true);
 
@@ -459,7 +513,9 @@ export class DiwaMobileShell {
         }
 
         const detailPane = split.createDiv('diwa-mobile-surface diwa-tablet-projects-detail-pane');
-        const selectedProject = projects.find((project) => project.id === this.selectedProjectId) ?? projects[0] ?? null;
+        const selectedProject = this.selectedProjectId
+            ? (this.getProjectById(this.selectedProjectId) ?? projects[0] ?? null)
+            : (projects[0] ?? null);
         this.renderTabletProjectDetail(detailPane, selectedProject);
     }
 
@@ -527,7 +583,7 @@ export class DiwaMobileShell {
 
         const detail = card.createDiv('diwa-mobile-project-card__detail');
         const statusRow = detail.createDiv('diwa-mobile-project-card__status-row');
-        PROJECT_FILTERS.filter((filter) => filter.id !== 'all').forEach((statusOption) => {
+        PROJECT_STATUS_FILTERS.forEach((statusOption) => {
             const statusId = statusOption.id as ProjectEntry['status'];
             const btn = statusRow.createEl('button', {
                 cls: `diwa-mobile-project-status-btn${project.status === statusId ? ' is-active' : ''}`,
@@ -620,7 +676,7 @@ export class DiwaMobileShell {
         this.renderDetailMetric(metricRow, 'Due', project.due ? this.formatDate(project.due) : 'Not set', project.due ? this.isDateOverdue(project.due) : false);
 
         const statusRow = detail.createDiv('diwa-mobile-project-card__status-row');
-        PROJECT_FILTERS.filter((filter) => filter.id !== 'all').forEach((statusOption) => {
+        PROJECT_STATUS_FILTERS.forEach((statusOption) => {
             const statusId = statusOption.id as ProjectEntry['status'];
             const btn = statusRow.createEl('button', {
                 cls: `diwa-mobile-project-status-btn${project.status === statusId ? ' is-active' : ''}`,
@@ -701,6 +757,7 @@ export class DiwaMobileShell {
             this.projectFilter = 'all';
             this.selectedProjectId = entry.id;
             this.expandedProjectIds.add(entry.id);
+            this.invalidateCaches('projects');
             this.refreshView();
         }).open();
     }
@@ -709,6 +766,7 @@ export class DiwaMobileShell {
         new EditProjectModal(this.app, this.plugin.vault, project, (updated) => {
             this.plugin.index.projectIndex.set(updated.id, updated);
             this.selectedProjectId = updated.id;
+            this.invalidateCaches('projects');
             this.refreshView();
         }).open();
     }
@@ -726,6 +784,7 @@ export class DiwaMobileShell {
         await this.plugin.vault.updateProject(file, { status });
         project.status = status;
         this.plugin.index.projectIndex.set(project.id, project);
+        this.invalidateCaches('projects');
         this.refreshView();
     }
 
@@ -736,6 +795,7 @@ export class DiwaMobileShell {
         this.plugin.index.projectIndex.delete(project.id);
         this.expandedProjectIds.delete(project.id);
         if (this.selectedProjectId === project.id) this.selectedProjectId = null;
+        this.invalidateCaches('projects');
         this.refreshView();
     }
 
@@ -756,39 +816,52 @@ export class DiwaMobileShell {
     }
 
     private getFilteredProjects(): ProjectEntry[] {
-        const projects = this.getProjectCollection();
-        if (this.projectFilter === 'all') return projects;
-        return projects.filter((project) => project.status === this.projectFilter);
-    }
+        const cache = this.getProjectCache();
+        const cached = cache.filtered.get(this.projectFilter);
+        if (cached) return cached;
 
-    private getProjectCollection(): ProjectEntry[] {
-        return Array.from(this.plugin.index.projectIndex.values())
-            .filter((project) => project.status !== 'archived')
-            .sort((left, right) => {
-                const statusOrder: ProjectEntry['status'][] = ['active', 'on-hold', 'completed', 'archived'];
-                const leftOrder = statusOrder.indexOf(left.status);
-                const rightOrder = statusOrder.indexOf(right.status);
-                if (leftOrder !== rightOrder) return leftOrder - rightOrder;
-                return left.name.localeCompare(right.name);
-            });
+        const projects = this.projectFilter === 'all'
+            ? cache.collection
+            : cache.collection.filter((project) => project.status === this.projectFilter);
+        cache.filtered.set(this.projectFilter, projects);
+        return projects;
     }
 
     private getProjectMetrics(project: ProjectEntry): ProjectMetrics {
-        const tasks = this.plugin.getAllTasks().filter((task) => task.project === project.id || task.project === project.name);
-        const openTasks = tasks.filter((task) => !isTaskDone(task));
-        const nextTask = openTasks.slice().sort((left, right) => {
-            if (left.due && right.due) return left.due.localeCompare(right.due);
-            if (left.due) return -1;
-            if (right.due) return 1;
-            return (right.lastUpdate || 0) - (left.lastUpdate || 0);
-        })[0];
-        return {
+        const cache = this.getProjectCache();
+        const cached = cache.metrics.get(project.id);
+        if (cached) return cached;
+
+        const buckets = this.getTaskBucketsByProject();
+        const projectKeys = [project.id, project.name].filter(Boolean);
+        const taskMap = new Map<string, TaskEntry>();
+        projectKeys.forEach((key) => {
+            buckets.get(key)?.forEach((task) => {
+                taskMap.set(this.getTaskCacheKey(task), task);
+            });
+        });
+
+        const tasks = Array.from(taskMap.values());
+        const openTasks: TaskEntry[] = [];
+        let nextTask: TaskEntry | undefined;
+
+        tasks.forEach((task) => {
+            if (isTaskDone(task)) return;
+            openTasks.push(task);
+            if (!nextTask || this.compareNextProjectTask(task, nextTask) < 0) {
+                nextTask = task;
+            }
+        });
+
+        const metrics = {
             tasks,
             openTasks,
             openCount: openTasks.length,
             doneCount: tasks.length - openTasks.length,
             nextTask,
         };
+        cache.metrics.set(project.id, metrics);
+        return metrics;
     }
 
     private formatDate(date: string): string {
@@ -803,7 +876,7 @@ export class DiwaMobileShell {
 
     private renderThoughts(container: HTMLElement): void {
         const wrap = container.createDiv('diwa-thoughts-wrap');
-        const thoughts = this.filterThoughts(this.plugin.getAllThoughts(), this.activeContexts);
+        const thoughts = this.filterThoughts(this.getThoughts(), this.activeContexts);
         this.renderSectionHeader(
             wrap,
             'Diwa',
@@ -824,7 +897,15 @@ export class DiwaMobileShell {
 
     private filterThoughts(thoughts: ThoughtEntry[], activeContexts: Set<string>): ThoughtEntry[] {
         if (activeContexts.size === 0) return thoughts;
-        return thoughts.filter((thought) => (thought.context ?? []).some((ctx) => activeContexts.has(ctx)));
+
+        const cache = this.getThoughtCache();
+        const cacheKey = Array.from(activeContexts).sort((left, right) => left.localeCompare(right)).join('\u0000');
+        const cached = cache.filtered.get(cacheKey);
+        if (cached) return cached;
+
+        const filtered = thoughts.filter((thought) => (thought.context ?? []).some((ctx) => activeContexts.has(ctx)));
+        cache.filtered.set(cacheKey, filtered);
+        return filtered;
     }
 
     private renderContextBar(container: HTMLElement, contexts: string[]): void {
@@ -998,6 +1079,153 @@ export class DiwaMobileShell {
             ...item,
             label: item.id === 'projects' && useShortProjectLabel ? (item.shortLabel ?? item.label) : item.label,
         }));
+    }
+
+    private getChromeKey(): string {
+        const useShortProjectLabel = this.platform === 'mobile' && window.innerWidth <= 390;
+        return `${this.platform}:${this.activeView}:${useShortProjectLabel ? 'short' : 'full'}`;
+    }
+
+    private invalidateCaches(scope: ShellRefreshScope): void {
+        if (scope === 'all' || scope === 'tasks') {
+            this.taskCache = null;
+            this.projectCache = null;
+        }
+        if (scope === 'all' || scope === 'thoughts') {
+            this.thoughtCache = null;
+        }
+        if (scope === 'projects') {
+            this.projectCache = null;
+        }
+    }
+
+    private getTaskCache(): TaskCache {
+        if (this.taskCache) return this.taskCache;
+
+        const all = this.plugin.getAllTasks();
+        const open: TaskEntry[] = [];
+        const byProjectKey = new Map<string, TaskEntry[]>();
+
+        all.forEach((task) => {
+            if (!isTaskDone(task)) open.push(task);
+            const projectKey = task.project?.trim();
+            if (!projectKey) return;
+            const bucket = byProjectKey.get(projectKey);
+            if (bucket) bucket.push(task);
+            else byProjectKey.set(projectKey, [task]);
+        });
+
+        this.taskCache = {
+            all,
+            open,
+            focus: this.plugin.getTodayFocusTasks(),
+            byProjectKey,
+        };
+        return this.taskCache;
+    }
+
+    private getTaskBucketsByProject(): Map<string, TaskEntry[]> {
+        return this.getTaskCache().byProjectKey;
+    }
+
+    private getOpenTasks(): TaskEntry[] {
+        return this.getTaskCache().open;
+    }
+
+    private getOpenTaskCount(): number {
+        return this.getOpenTasks().length;
+    }
+
+    private getFocusTasks(): TaskEntry[] {
+        return this.getTaskCache().focus;
+    }
+
+    private getThoughtCache(): ThoughtCache {
+        if (this.thoughtCache) return this.thoughtCache;
+
+        const all = this.plugin.getAllThoughts();
+        this.thoughtCache = {
+            all,
+            recentTwo: all.slice(0, 2),
+            recentThree: all.slice(0, 3),
+            filtered: new Map(),
+        };
+        return this.thoughtCache;
+    }
+
+    private getThoughts(): ThoughtEntry[] {
+        return this.getThoughtCache().all;
+    }
+
+    private getRecentThoughts(limit: 2 | 3): ThoughtEntry[] {
+        const cache = this.getThoughtCache();
+        return limit === 2 ? cache.recentTwo : cache.recentThree;
+    }
+
+    private getProjectCache(): ProjectCache {
+        if (this.projectCache) return this.projectCache;
+
+        const collection = Array.from(this.plugin.index.projectIndex.values())
+            .filter((project) => project.status !== 'archived')
+            .sort((left, right) => {
+                const leftOrder = PROJECT_STATUS_ORDER.indexOf(left.status);
+                const rightOrder = PROJECT_STATUS_ORDER.indexOf(right.status);
+                if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+                return left.name.localeCompare(right.name);
+            });
+
+        this.projectCache = {
+            collection,
+            byId: new Map(collection.map((project) => [project.id, project])),
+            filtered: new Map(),
+            metrics: new Map(),
+        };
+        return this.projectCache;
+    }
+
+    private getProjectSummary(): ProjectSummary {
+        const cache = this.getProjectCache();
+        if (cache.summary) return cache.summary;
+
+        const today = moment().startOf('day');
+        let activeCount = 0;
+        let completedCount = 0;
+        let openTaskCount = 0;
+        let dueSoonCount = 0;
+
+        cache.collection.forEach((project) => {
+            if (project.status === 'active') activeCount++;
+            if (project.status === 'completed') completedCount++;
+            openTaskCount += this.getProjectMetrics(project).openCount;
+
+            if (!project.due || project.status === 'completed') return;
+            const due = moment(project.due, ['YYYY-MM-DD', moment.ISO_8601], true);
+            if (!due.isValid()) return;
+            if (due.isSameOrAfter(today, 'day') && due.diff(today, 'days') <= 7) dueSoonCount++;
+        });
+
+        cache.summary = {
+            activeCount,
+            completedCount,
+            openTaskCount,
+            dueSoonCount,
+        };
+        return cache.summary;
+    }
+
+    private getProjectById(projectId: string): ProjectEntry | null {
+        return this.getProjectCache().byId.get(projectId) ?? null;
+    }
+
+    private compareNextProjectTask(left: TaskEntry, right: TaskEntry): number {
+        if (left.due && right.due) return left.due.localeCompare(right.due);
+        if (left.due) return -1;
+        if (right.due) return 1;
+        return (right.lastUpdate || 0) - (left.lastUpdate || 0);
+    }
+
+    private getTaskCacheKey(task: TaskEntry): string {
+        return task.id || task.taskId || task.filePath || `${task.title || task.body || 'task'}:${task.modified || task.created || ''}`;
     }
 
     private renderSectionHeader(

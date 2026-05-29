@@ -123,14 +123,26 @@ export class RefreshCoordinator {
         for (const leaf of mobileHubLeaves) {
             const view = leaf.view as MobileHubView;
             if (view && typeof view.renderView === 'function') {
-                view.renderView();
+                if (scope === 'tasks' && typeof view.refreshTasks === 'function') {
+                    view.refreshTasks();
+                } else if (scope === 'thoughts' && typeof view.refreshThoughts === 'function') {
+                    view.refreshThoughts();
+                } else {
+                    view.renderView();
+                }
             }
         }
         const tabletHubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB);
         for (const leaf of tabletHubLeaves) {
             const view = leaf.view as MobileHubView;
             if (view && typeof view.renderView === 'function') {
-                view.renderView();
+                if (scope === 'tasks' && typeof view.refreshTasks === 'function') {
+                    view.refreshTasks();
+                } else if (scope === 'thoughts' && typeof view.refreshThoughts === 'function') {
+                    view.refreshThoughts();
+                } else {
+                    view.renderView();
+                }
             }
         }
     }

@@ -1,4 +1,11 @@
 
+## [10.2.12] — Mobile Workspace Performance
+
+### Changed
+- Added scoped mobile and tablet refresh paths so shell updates avoid unnecessary full view rerenders when only tasks or thoughts change.
+- Reworked `DiwaMobileShell` around cached task, thought, and project projections instead of repeated render-time resorting and rescanning.
+- Reused the mounted mobile shell structure and only rebuilt navigation chrome when the platform or label state actually changed.
+
 ## [10.2.11] — Vault Serialization Hardening
 
 ### Changed
