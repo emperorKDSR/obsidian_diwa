@@ -1,4 +1,11 @@
 
+## [10.2.27] — Project Focus Follow-up Hardening
+
+### Changed
+- Guarded Project Focus async milestone rendering and task refresh interactions so focused project updates cannot repaint stale UI or race task reassignment flows.
+- Brought the compact Project Focus workspace into the mobile and tablet shell, replacing the older project detail treatment with the same focused planning flow.
+- Increased mobile focus touch targets and added safer pending-state handling for task toggles and milestone reassignment inside the mobile workspace.
+
 ## [10.2.26] — Compact Project Focus Workspace
 
 ### Changed
