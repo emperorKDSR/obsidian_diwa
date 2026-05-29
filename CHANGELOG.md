@@ -1,4 +1,9 @@
 
+## [10.2.21] — Task Refresh Debounce
+
+### Changed
+- Restored the safer task-only refresh debounce so burst save and sync activity is coalesced before DIWA rerenders task-driven surfaces.
+
 ## [10.2.20] — Runtime and Mobile Hardening
 
 ### Changed

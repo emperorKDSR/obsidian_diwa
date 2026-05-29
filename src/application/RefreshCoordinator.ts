@@ -8,7 +8,7 @@ import type { IndexService } from '../services/IndexService';
 
 export type RefreshScope = 'all' | 'tasks' | 'thoughts';
 
-const TASK_ONLY_REFRESH_DEBOUNCE_MS = 100;
+const TASK_ONLY_REFRESH_DEBOUNCE_MS = 400;
 const DEFAULT_REFRESH_DEBOUNCE_MS = 400;
 
 export class RefreshCoordinator {
