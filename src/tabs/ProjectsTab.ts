@@ -72,6 +72,7 @@ export class ProjectsTab extends BaseTab {
     }
 
     render(container: HTMLElement): void {
+        const renderToken = this.beginRenderCycle();
         this.resetProjectRenderCaches();
         container.empty();
         const shell = container.createDiv('diwa-projects-shell');
@@ -86,7 +87,7 @@ export class ProjectsTab extends BaseTab {
 
         if (focusedProject) {
             shell.addClass('diwa-projects-shell--focus');
-            this.renderFocusWorkspace(shell, focusedProject, container);
+            this.renderFocusWorkspace(shell, focusedProject, container, renderToken);
             return;
         }
 
@@ -100,7 +101,7 @@ export class ProjectsTab extends BaseTab {
         }
 
         const board = shell.createDiv('diwa-projects-board');
-        visibleProjects.forEach((project) => this.renderCard(board, project, container));
+        visibleProjects.forEach((project) => this.renderCard(board, project, container, renderToken));
     }
 
     private renderHeader(
@@ -219,7 +220,7 @@ export class ProjectsTab extends BaseTab {
         }, 'diwa-project-action-btn diwa-project-action-btn--primary');
     }
 
-    private renderCard(list: HTMLElement, project: ProjectEntry, rootContainer: HTMLElement): void {
+    private renderCard(list: HTMLElement, project: ProjectEntry, rootContainer: HTMLElement, renderToken: number): void {
         const metrics = this.getProjectMetrics(project);
         const card = list.createDiv({ cls: `diwa-project-card diwa-project-card--${project.status}` });
         card.style.setProperty('--project-color', project.color || 'var(--interactive-accent)');
@@ -302,7 +303,7 @@ export class ProjectsTab extends BaseTab {
         const isExpanded = this.expandedIds.has(project.id);
         const expandPanel = card.createDiv({ cls: `diwa-project-card__expand${isExpanded ? ' is-open' : ''}` });
         if (isExpanded) {
-            this.renderExpandPanel(expandPanel, project, metrics, rootContainer);
+            this.renderExpandPanel(expandPanel, project, metrics, rootContainer, renderToken);
         }
     }
 
@@ -317,6 +318,7 @@ export class ProjectsTab extends BaseTab {
         project: ProjectEntry,
         metrics: ProjectMetrics,
         rootContainer: HTMLElement,
+        renderToken: number,
     ): void {
         panel.empty();
 
@@ -373,10 +375,10 @@ export class ProjectsTab extends BaseTab {
             this.render(rootContainer);
         }, 'diwa-project-action-btn diwa-project-action-btn--danger');
 
-        this.renderMilestonesSection(panel, project);
+        this.renderMilestonesSection(panel, project, renderToken);
     }
 
-    private renderMilestonesSection(panel: HTMLElement, project: ProjectEntry): void {
+    private renderMilestonesSection(panel: HTMLElement, project: ProjectEntry, renderToken: number): void {
         const wrap = panel.createDiv('diwa-milestones-wrap');
         const toggle = wrap.createEl('button', {
             cls: 'diwa-milestones-toggle',
@@ -397,7 +399,7 @@ export class ProjectsTab extends BaseTab {
         updateToggle();
 
         if (isOpen) {
-            this.loadAndRenderMilestones(body, project, false);
+            this.loadAndRenderMilestones(body, project, renderToken, false);
         }
 
         toggle.addEventListener('click', () => {
@@ -406,19 +408,26 @@ export class ProjectsTab extends BaseTab {
             else this.openMilestoneIds.delete(project.id);
             updateToggle();
             if (isOpen) {
-                this.loadAndRenderMilestones(body, project, true);
+                this.loadAndRenderMilestones(body, project, renderToken, true);
             }
         });
     }
 
-    private loadAndRenderMilestones(container: HTMLElement, project: ProjectEntry, scrollIntoView = false): void {
+    private loadAndRenderMilestones(
+        container: HTMLElement,
+        project: ProjectEntry,
+        renderToken: number,
+        scrollIntoView = false,
+    ): void {
         container.empty();
         const loading = container.createEl('span', { text: 'Loading milestones…', cls: 'diwa-milestones-loading' });
         this.loadProjectMilestones(project).then((milestones) => {
+            if (!this.isRenderCycleActive(renderToken, container) || !loading.isConnected) return;
             loading.remove();
             this.renderMilestonesBody(container, milestones, project);
             if (scrollIntoView) {
                 requestAnimationFrame(() => {
+                    if (!this.isRenderCycleActive(renderToken, container)) return;
                     container.closest('.diwa-milestones-wrap')?.scrollIntoView({
                         behavior: 'smooth',
                         block: 'nearest',
@@ -426,6 +435,7 @@ export class ProjectsTab extends BaseTab {
                 });
             }
         }).catch(() => {
+            if (!this.isRenderCycleActive(renderToken, container) || !loading.isConnected) return;
             loading.textContent = 'Failed to load milestones.';
         });
     }
@@ -663,13 +673,21 @@ export class ProjectsTab extends BaseTab {
         });
     }
 
-    private renderFocusWorkspace(parent: HTMLElement, project: ProjectEntry, rootContainer: HTMLElement): void {
+    private renderFocusWorkspace(
+        parent: HTMLElement,
+        project: ProjectEntry,
+        rootContainer: HTMLElement,
+        renderToken: number,
+    ): void {
         const tasks = this.getSortedProjectTasks(project);
         const metrics = this.getProjectMetrics(project);
         const projectGoal = project.goal?.trim() ?? '';
         const cachedMilestones = this.focusMilestones.get(project.id);
         if (!cachedMilestones && !this.loadingMilestones.has(project.id)) {
-            void this.ensureProjectMilestones(project).then(() => this.render(rootContainer));
+            void this.ensureProjectMilestones(project).then(() => {
+                if (!this.isRenderCycleActive(renderToken, rootContainer)) return;
+                this.render(rootContainer);
+            });
         }
         const milestones = cachedMilestones ?? [];
         const selectedMilestoneId = this.getSelectedMilestoneId(project.id, milestones);
@@ -695,7 +713,7 @@ export class ProjectsTab extends BaseTab {
         if (projectGoal) {
             identityMeta.createEl('span', {
                 text: projectGoal,
-                cls: 'diwa-project-focus__identity-subtitle diwa-gawa-header-subtitle',
+                cls: 'diwa-gawa-header-subtitle',
             });
         }
 
@@ -731,7 +749,7 @@ export class ProjectsTab extends BaseTab {
         const overviewMain = overview.createDiv('diwa-project-focus__overview-main diwa-project-focus__hero');
         overviewMain.createEl('p', {
             text: projectGoal || 'Add a project goal to keep the focus workspace grounded in one outcome.',
-            cls: 'diwa-project-focus__overview-copy diwa-project-focus__hero-copy',
+            cls: 'diwa-project-focus__hero-copy',
         });
         const overviewMeta = overview.createDiv('diwa-project-focus__overview-meta diwa-project-focus__hero-meta');
         overviewMeta.createEl('span', {
@@ -821,11 +839,11 @@ export class ProjectsTab extends BaseTab {
                 cls: 'diwa-chip diwa-chip--sm diwa-project-focus__task-context-chip',
                 text: selectedMilestone.dueDate ? `Due ${this.formatDisplayDate(selectedMilestone.dueDate)}` : 'No milestone due date',
             });
+            taskContextMeta.createEl('span', {
+                cls: 'diwa-chip diwa-chip--sm diwa-project-focus__task-context-chip',
+                text: `${unassignedTasks.length} unassigned visible`,
+            });
         }
-        taskContextMeta.createEl('span', {
-            cls: 'diwa-chip diwa-chip--sm diwa-project-focus__task-context-chip',
-            text: `${unassignedTasks.length} unassigned visible`,
-        });
 
         this.renderFocusQuickAdd(tasksPanel, project, selectedMilestone, rootContainer);
 
@@ -989,17 +1007,19 @@ export class ProjectsTab extends BaseTab {
         checkbox.checked = done;
         checkbox.addEventListener('change', async () => {
             checkbox.disabled = true;
-            try {
-                await this.vault.toggleTask(task.filePath, checkbox.checked);
-                await this.syncTaskFromPath(task.filePath, 'update');
-                this.render(rootContainer);
-            } catch (error) {
-                console.error('[DIWA Projects] Failed to toggle task', error);
-                new Notice('Failed to update the task status.');
-                checkbox.checked = done;
-            } finally {
-                checkbox.disabled = false;
-            }
+            await this.runWithTaskTogglePending(async () => {
+                try {
+                    await this.vault.toggleTask(task.filePath, checkbox.checked);
+                    await this.syncTaskFromPath(task.filePath, 'update');
+                    this.render(rootContainer);
+                } catch (error) {
+                    console.error('[DIWA Projects] Failed to toggle task', error);
+                    new Notice('Failed to update the task status.');
+                    checkbox.checked = done;
+                } finally {
+                    checkbox.disabled = false;
+                }
+            });
         });
 
         const copy = main.createDiv('diwa-project-focus__task-copy');
@@ -1011,7 +1031,7 @@ export class ProjectsTab extends BaseTab {
             copy.createDiv({ cls: 'diwa-project-focus__task-body', text: task.body });
         }
 
-        const actions = topRow.createDiv('diwa-project-focus__task-actions diwa-project-focus__task-controls');
+        const actions = topRow.createDiv('diwa-project-focus__task-controls');
         this.buildActionButton(actions, 'Edit', 'pencil', () => {
             new EditTaskModal(this.app, task, this.vault, this.index, () => {
                 this.render(rootContainer);
@@ -1051,17 +1071,19 @@ export class ProjectsTab extends BaseTab {
             milestoneSelect.value = resolvedMilestoneId ?? '';
             milestoneSelect.addEventListener('change', async () => {
                 milestoneSelect.disabled = true;
-                try {
-                    await this.vault.setTaskProjectMilestone(task.filePath, project.id, milestoneSelect.value || null);
-                    await this.syncTaskFromPath(task.filePath, 'update');
-                    this.render(rootContainer);
-                } catch (error) {
-                    console.error('[DIWA Projects] Failed to reassign task milestone', error);
-                    new Notice('Failed to update the task milestone.');
-                    milestoneSelect.value = resolvedMilestoneId ?? '';
-                } finally {
-                    milestoneSelect.disabled = false;
-                }
+                await this.runWithTaskTogglePending(async () => {
+                    try {
+                        await this.vault.setTaskProjectMilestone(task.filePath, project.id, milestoneSelect.value || null);
+                        await this.syncTaskFromPath(task.filePath, 'update');
+                        this.render(rootContainer);
+                    } catch (error) {
+                        console.error('[DIWA Projects] Failed to reassign task milestone', error);
+                        new Notice('Failed to update the task milestone.');
+                        milestoneSelect.value = resolvedMilestoneId ?? '';
+                    } finally {
+                        milestoneSelect.disabled = false;
+                    }
+                });
             });
         }
     }
@@ -1122,6 +1144,15 @@ export class ProjectsTab extends BaseTab {
             return;
         }
         this.plugin.getTaskController().syncFromIndex();
+    }
+
+    private async runWithTaskTogglePending(action: () => Promise<void>): Promise<void> {
+        this.view._taskTogglePending += 1;
+        try {
+            await action();
+        } finally {
+            this.view._taskTogglePending = Math.max(0, this.view._taskTogglePending - 1);
+        }
     }
 
     private resolveMilestoneId(task: TaskEntry, milestones: Milestone[]): string | null {
