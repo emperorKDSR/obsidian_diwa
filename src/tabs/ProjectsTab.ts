@@ -666,6 +666,7 @@ export class ProjectsTab extends BaseTab {
     private renderFocusWorkspace(parent: HTMLElement, project: ProjectEntry, rootContainer: HTMLElement): void {
         const tasks = this.getSortedProjectTasks(project);
         const metrics = this.getProjectMetrics(project);
+        const projectGoal = project.goal?.trim() ?? '';
         const cachedMilestones = this.focusMilestones.get(project.id);
         if (!cachedMilestones && !this.loadingMilestones.has(project.id)) {
             void this.ensureProjectMilestones(project).then(() => this.render(rootContainer));
@@ -679,6 +680,7 @@ export class ProjectsTab extends BaseTab {
             : [];
         const unassignedTasks = tasks.filter((task) => this.resolveMilestoneId(task, milestones) === null);
         const completeMilestones = milestones.filter((milestone) => milestone.done).length;
+        const selectedOpenCount = selectedTasks.filter((task) => !isTaskDone(task)).length;
 
         const topBar = parent.createDiv('diwa-project-focus__topbar diwa-gawa-workspace-bar');
         const left = topBar.createDiv('diwa-gawa-workspace-bar-left diwa-project-focus__topbar-left');
@@ -687,15 +689,19 @@ export class ProjectsTab extends BaseTab {
             this.render(rootContainer);
         }, 'diwa-gawa-header-btn diwa-gawa-header-btn--ghost');
         const identity = left.createDiv('diwa-gawa-header-title-group diwa-project-focus__identity');
-        identity.createEl('span', { text: 'Projects focus mode', cls: 'diwa-gawa-workspace-eyebrow' });
         identity.createEl('h2', { text: project.name, cls: 'diwa-gawa-header-title' });
-        identity.createEl('span', {
-            text: project.goal?.trim() || 'Single-project planning workspace for milestones and task breakdown.',
-            cls: 'diwa-gawa-header-subtitle',
-        });
+        const identityMeta = identity.createDiv('diwa-project-focus__identity-meta');
+        identityMeta.createEl('span', { text: 'Projects focus mode', cls: 'diwa-gawa-workspace-eyebrow' });
+        if (projectGoal) {
+            identityMeta.createEl('span', {
+                text: projectGoal,
+                cls: 'diwa-project-focus__identity-subtitle diwa-gawa-header-subtitle',
+            });
+        }
 
         const actions = topBar.createDiv('diwa-gawa-workspace-bar-right diwa-project-focus__topbar-actions');
-        const statusBtn = actions.createEl('button', {
+        const statusRow = actions.createDiv('diwa-project-focus__topbar-status');
+        const statusBtn = statusRow.createEl('button', {
             cls: `diwa-project-status-btn diwa-project-status-btn--${project.status}`,
             text: STATUS_LABELS[project.status],
             attr: { type: 'button', 'aria-label': `Change status for ${project.name}` },
@@ -704,37 +710,41 @@ export class ProjectsTab extends BaseTab {
             event.stopPropagation();
             this.openStatusPicker(statusBtn, project, rootContainer);
         });
-        this.buildHeaderButton(actions, 'Refresh', 'refresh-cw', async () => {
+        const secondaryActions = actions.createDiv('diwa-project-focus__topbar-secondary');
+        this.buildHeaderButton(secondaryActions, 'Refresh', 'refresh-cw', async () => {
             await this.refreshProjects(rootContainer);
             this.view.focusedProjectId = project.id;
             await this.ensureProjectMilestones(project);
             this.render(rootContainer);
         }, 'diwa-gawa-header-btn diwa-gawa-header-btn--ghost');
-        this.buildHeaderButton(actions, 'Open note', 'file-text', () => {
+        this.buildHeaderButton(secondaryActions, 'Open note', 'file-text', () => {
             void this.openProjectNote(project);
         }, 'diwa-gawa-header-btn diwa-gawa-header-btn--ghost');
-        this.buildHeaderButton(actions, 'Edit project', 'pencil', () => {
+        this.buildHeaderButton(secondaryActions, 'Edit project', 'pencil', () => {
             new EditProjectModal(this.app, this.vault, project, (updated) => {
                 this.index.projectIndex.set(updated.id, updated);
                 this.render(rootContainer);
             }).open();
         }, 'diwa-gawa-header-btn diwa-gawa-header-btn--primary');
 
-        const overview = parent.createDiv('diwa-project-focus__overview');
-        const overviewHero = overview.createDiv('diwa-project-focus__hero');
-        overviewHero.createEl('p', {
-            text: project.goal?.trim() || 'Add a project goal to keep the focus workspace grounded in one outcome.',
-            cls: 'diwa-project-focus__hero-copy',
+        const overview = parent.createDiv('diwa-project-focus__overview diwa-project-focus__overview-card');
+        const overviewMain = overview.createDiv('diwa-project-focus__overview-main diwa-project-focus__hero');
+        overviewMain.createEl('p', {
+            text: projectGoal || 'Add a project goal to keep the focus workspace grounded in one outcome.',
+            cls: 'diwa-project-focus__overview-copy diwa-project-focus__hero-copy',
         });
-        const heroMeta = overviewHero.createDiv('diwa-project-focus__hero-meta');
-        heroMeta.createEl('span', { text: STATUS_LABELS[project.status], cls: `diwa-project-status-btn diwa-project-status-btn--${project.status}` });
-        heroMeta.createEl('span', {
+        const overviewMeta = overview.createDiv('diwa-project-focus__overview-meta diwa-project-focus__hero-meta');
+        overviewMeta.createEl('span', {
+            text: STATUS_LABELS[project.status],
+            cls: `diwa-chip diwa-chip--sm diwa-project-focus__overview-chip diwa-project-status-btn diwa-project-status-btn--${project.status}`,
+        });
+        overviewMeta.createEl('span', {
             text: project.due ? `Due ${this.formatDisplayDate(project.due)}` : 'No due date',
-            cls: 'diwa-chip diwa-chip--date',
+            cls: 'diwa-chip diwa-chip--date diwa-chip--sm',
         });
-        heroMeta.createEl('span', {
+        overviewMeta.createEl('span', {
             text: milestones.length > 0 ? `${completeMilestones}/${milestones.length} milestones complete` : 'No milestones yet',
-            cls: 'diwa-chip diwa-project-focus__overview-chip',
+            cls: 'diwa-chip diwa-chip--sm diwa-project-focus__overview-chip',
         });
 
         const statGrid = overview.createDiv('diwa-project-focus__overview-stats');
@@ -779,6 +789,42 @@ export class ProjectsTab extends BaseTab {
             text: selectedMilestone
                 ? `Quick-add targets “${selectedMilestone.title}” until you switch selection.`
                 : 'Quick-add creates unassigned project tasks until you select a milestone.',
+        });
+
+        const taskContext = tasksPanel.createDiv('diwa-project-focus__task-context');
+        const taskContextHeading = taskContext.createDiv('diwa-project-focus__task-context-heading');
+        taskContextHeading.createDiv({
+            cls: 'diwa-project-focus__task-context-title',
+            text: selectedMilestone ? `Adding to ${selectedMilestone.title}` : 'Adding to unassigned tasks',
+        });
+        taskContextHeading.createDiv({
+            cls: 'diwa-project-focus__task-context-copy',
+            text: selectedMilestone
+                ? 'New tasks stay attached to the selected milestone, and unassigned work remains visible below.'
+                : milestones.length > 0
+                    ? 'No milestone is selected, so new tasks stay unassigned until you switch focus on the left.'
+                    : 'You can capture tasks now and map them to milestones once the roadmap is in place.',
+        });
+        const taskContextMeta = taskContext.createDiv('diwa-project-focus__task-context-meta');
+        taskContextMeta.createEl('span', {
+            cls: 'diwa-chip diwa-chip--sm diwa-project-focus__task-context-chip',
+            text: selectedMilestone
+                ? `${selectedTasks.length} task${selectedTasks.length === 1 ? '' : 's'} in focus`
+                : `${unassignedTasks.length} unassigned`,
+        });
+        if (selectedMilestone) {
+            taskContextMeta.createEl('span', {
+                cls: 'diwa-chip diwa-chip--sm diwa-project-focus__task-context-chip',
+                text: `${selectedOpenCount} open`,
+            });
+            taskContextMeta.createEl('span', {
+                cls: 'diwa-chip diwa-chip--sm diwa-project-focus__task-context-chip',
+                text: selectedMilestone.dueDate ? `Due ${this.formatDisplayDate(selectedMilestone.dueDate)}` : 'No milestone due date',
+            });
+        }
+        taskContextMeta.createEl('span', {
+            cls: 'diwa-chip diwa-chip--sm diwa-project-focus__task-context-chip',
+            text: `${unassignedTasks.length} unassigned visible`,
         });
 
         this.renderFocusQuickAdd(tasksPanel, project, selectedMilestone, rootContainer);
@@ -932,7 +978,8 @@ export class ProjectsTab extends BaseTab {
         const done = isTaskDone(task);
         const card = parent.createDiv(`diwa-project-focus__task-card${done ? ' is-done' : ''}`);
 
-        const main = card.createDiv('diwa-project-focus__task-main');
+        const topRow = card.createDiv('diwa-project-focus__task-row diwa-project-focus__task-row--top');
+        const main = topRow.createDiv('diwa-project-focus__task-main');
         const checkbox = main.createEl('input', {
             attr: {
                 type: 'checkbox',
@@ -964,7 +1011,18 @@ export class ProjectsTab extends BaseTab {
             copy.createDiv({ cls: 'diwa-project-focus__task-body', text: task.body });
         }
 
-        const meta = card.createDiv('diwa-project-focus__task-meta');
+        const actions = topRow.createDiv('diwa-project-focus__task-actions diwa-project-focus__task-controls');
+        this.buildActionButton(actions, 'Edit', 'pencil', () => {
+            new EditTaskModal(this.app, task, this.vault, this.index, () => {
+                this.render(rootContainer);
+            }).open();
+        }, 'diwa-project-focus__task-btn');
+        this.buildActionButton(actions, 'Open', 'file-text', () => {
+            void this.openTaskNote(task);
+        }, 'diwa-project-focus__task-btn');
+
+        const metaRow = card.createDiv('diwa-project-focus__task-row diwa-project-focus__task-row--meta');
+        const meta = metaRow.createDiv('diwa-project-focus__task-meta');
         if (task.due) {
             meta.createEl('span', { cls: 'diwa-chip diwa-chip--date diwa-chip--sm', text: this.formatDisplayDate(task.due) });
         }
@@ -979,9 +1037,8 @@ export class ProjectsTab extends BaseTab {
             });
         }
 
-        const controls = card.createDiv('diwa-project-focus__task-controls');
         if (milestones.length > 0) {
-            const selectWrap = controls.createDiv('diwa-project-focus__task-select-wrap');
+            const selectWrap = metaRow.createDiv('diwa-project-focus__task-assignment diwa-project-focus__task-select-wrap');
             selectWrap.createEl('span', { cls: 'diwa-project-focus__task-select-label', text: 'Milestone' });
             const milestoneSelect = selectWrap.createEl('select', {
                 cls: 'diwa-project-focus__task-select',
@@ -1007,15 +1064,6 @@ export class ProjectsTab extends BaseTab {
                 }
             });
         }
-
-        this.buildActionButton(controls, 'Edit', 'pencil', () => {
-            new EditTaskModal(this.app, task, this.vault, this.index, () => {
-                this.render(rootContainer);
-            }).open();
-        }, 'diwa-project-focus__task-btn');
-        this.buildActionButton(controls, 'Open', 'file-text', () => {
-            void this.openTaskNote(task);
-        }, 'diwa-project-focus__task-btn');
     }
 
     private renderFocusStat(parent: HTMLElement, label: string, value: number, detail: string): void {
