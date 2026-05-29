@@ -1,4 +1,11 @@
 
+## [10.2.24] — Responsive, Settings, and Migration Hardening
+
+### Changed
+- Switched responsive DIWA mode decisions to actual workspace viewport size and reconciled duplicate restored hub leaves during mode changes.
+- Batched folder-setting modal commits so multi-field edits save once instead of triggering repeated rebuilds throughout the session.
+- Made legacy table migration safe to rerun after interrupted startup without duplicating already-migrated task or thought rows.
+
 ## [10.2.23] — Index and Runtime Consistency
 
 ### Changed

@@ -1,7 +1,7 @@
 import { App, Modal, TFile, moment, setIcon } from 'obsidian';
 import type { TaskEntry, ThoughtEntry, ProjectEntry } from '../types';
 import type DiwaPlugin from '../main';
-import { isTaskDone } from '../utils';
+import { getWorkspaceViewportSize, isTaskDone, isTablet } from '../utils';
 import { NewProjectModal } from '../modals/NewProjectModal';
 import { EditProjectModal } from '../modals/EditProjectModal';
 
@@ -92,8 +92,7 @@ const PROJECT_STATUS_FILTERS = PROJECT_FILTERS.filter((filter) => filter.id !== 
 export function getPlatform(app: App): ShellPlatform {
     const isMobile = (app as { isMobile?: boolean }).isMobile ?? false;
     if (!isMobile) return 'desktop';
-    const shortEdge = Math.min(screen.width, screen.height);
-    return shortEdge >= 768 ? 'tablet' : 'mobile';
+    return isTablet(app) ? 'tablet' : 'mobile';
 }
 
 export class DiwaMobileShell {
@@ -1116,7 +1115,7 @@ export class DiwaMobileShell {
     }
 
     private getShellItems(): ShellNavItem[] {
-        const useShortProjectLabel = this.platform === 'mobile' && window.innerWidth <= 390;
+        const useShortProjectLabel = this.platform === 'mobile' && this.getViewportWidth() <= 390;
         return SHELL_ITEMS.map((item) => ({
             ...item,
             label: item.id === 'projects' && useShortProjectLabel ? (item.shortLabel ?? item.label) : item.label,
@@ -1124,8 +1123,14 @@ export class DiwaMobileShell {
     }
 
     private getChromeKey(): string {
-        const useShortProjectLabel = this.platform === 'mobile' && window.innerWidth <= 390;
+        const useShortProjectLabel = this.platform === 'mobile' && this.getViewportWidth() <= 390;
         return `${this.platform}:${this.activeView}:${useShortProjectLabel ? 'short' : 'full'}`;
+    }
+
+    private getViewportWidth(): number {
+        const hostWidth = this.hostEl?.getBoundingClientRect().width ?? 0;
+        if (hostWidth > 0) return Math.round(hostWidth);
+        return getWorkspaceViewportSize(this.app).width;
     }
 
     private invalidateCaches(scope: ShellRefreshScope): void {

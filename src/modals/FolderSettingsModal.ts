@@ -1,11 +1,16 @@
-import { App, Modal, Setting } from 'obsidian';
+import { App, Modal, Setting, TextComponent } from 'obsidian';
 import DiwaPlugin from '../main';
 import { bindDeferredTextSetting } from '../settings';
+import type { DiwaSettings } from '../types';
+
+type FolderSettingKey = 'tasksFolder' | 'thoughtsFolder' | 'pfFolder' | 'newNoteFolder' | 'reviewsFolder';
 
 export class FolderSettingsModal extends Modal {
     plugin: DiwaPlugin;
     private pendingSettingFlushers: Array<() => Promise<void>> = [];
     private pendingFlushPromise: Promise<void> | null = null;
+    private stagedSettings: Partial<Pick<DiwaSettings, FolderSettingKey>> = {};
+    private persistPromise: Promise<void> | null = null;
 
     constructor(app: App, plugin: DiwaPlugin) {
         super(app);
@@ -15,6 +20,8 @@ export class FolderSettingsModal extends Modal {
     onOpen() {
         const { contentEl, modalEl } = this;
         this.pendingSettingFlushers = [];
+        this.stagedSettings = {};
+        this.persistPromise = null;
         contentEl.empty();
         modalEl.addClass('diwa-modern-modal');
 
@@ -45,9 +52,7 @@ export class FolderSettingsModal extends Modal {
             .setDesc('Where gawa files are stored.')
             .addText(text => {
                 text.setPlaceholder('000 Bin/DIWA Gawa');
-                this.pendingSettingFlushers.push(bindDeferredTextSetting(text, this.plugin.settings.tasksFolder, async (value) => {
-                    await this.plugin.updateSetting('tasksFolder', value);
-                }));
+                this.pendingSettingFlushers.push(this.bindFolderSetting(text, 'tasksFolder', this.plugin.settings.tasksFolder));
             });
 
         new Setting(body)
@@ -55,9 +60,7 @@ export class FolderSettingsModal extends Modal {
             .setDesc('Where thought files are stored.')
             .addText(text => {
                 text.setPlaceholder('000 Bin/DIWA');
-                this.pendingSettingFlushers.push(bindDeferredTextSetting(text, this.plugin.settings.thoughtsFolder, async (value) => {
-                    await this.plugin.updateSetting('thoughtsFolder', value);
-                }));
+                this.pendingSettingFlushers.push(this.bindFolderSetting(text, 'thoughtsFolder', this.plugin.settings.thoughtsFolder));
             });
 
         new Setting(body)
@@ -65,9 +68,7 @@ export class FolderSettingsModal extends Modal {
             .setDesc('Scanned for Bulsa recurring payment notes.')
             .addText(text => {
                 text.setPlaceholder('000 Bin/DIWA PF');
-                this.pendingSettingFlushers.push(bindDeferredTextSetting(text, this.plugin.settings.pfFolder, async (value) => {
-                    await this.plugin.updateSetting('pfFolder', value);
-                }));
+                this.pendingSettingFlushers.push(this.bindFolderSetting(text, 'pfFolder', this.plugin.settings.pfFolder));
             });
 
         new Setting(body)
@@ -75,9 +76,7 @@ export class FolderSettingsModal extends Modal {
             .setDesc('Where notes created via [[ links are saved.')
             .addText(text => {
                 text.setPlaceholder('000 Bin');
-                this.pendingSettingFlushers.push(bindDeferredTextSetting(text, this.plugin.settings.newNoteFolder, async (value) => {
-                    await this.plugin.updateSetting('newNoteFolder', value);
-                }));
+                this.pendingSettingFlushers.push(this.bindFolderSetting(text, 'newNoteFolder', this.plugin.settings.newNoteFolder));
             });
 
         new Setting(body)
@@ -85,9 +84,7 @@ export class FolderSettingsModal extends Modal {
             .setDesc('Root folder for Weekly and Monthly review files (sub-folders created automatically).')
             .addText(text => {
                 text.setPlaceholder('000 Bin/DIWA Reviews');
-                this.pendingSettingFlushers.push(bindDeferredTextSetting(text, this.plugin.settings.reviewsFolder ?? '000 Bin/DIWA Reviews', async (value) => {
-                    await this.plugin.updateSetting('reviewsFolder', value);
-                }));
+                this.pendingSettingFlushers.push(this.bindFolderSetting(text, 'reviewsFolder', this.plugin.settings.reviewsFolder ?? '000 Bin/DIWA Reviews'));
             });
 
         // 3. Footer
@@ -105,7 +102,7 @@ export class FolderSettingsModal extends Modal {
     }
 
     onClose() {
-        void this.flushPendingSettings();
+        void this.persistPendingSettings();
         this.contentEl.empty();
     }
 
@@ -120,7 +117,32 @@ export class FolderSettingsModal extends Modal {
     }
 
     private async closeAfterSaving(): Promise<void> {
-        await this.flushPendingSettings();
+        await this.persistPendingSettings();
         this.close();
+    }
+
+    private bindFolderSetting(
+        text: TextComponent,
+        key: FolderSettingKey,
+        initialValue: string,
+    ): () => Promise<void> {
+        return bindDeferredTextSetting(text, initialValue, async (value) => {
+            this.stagedSettings[key] = value;
+        });
+    }
+
+    private persistPendingSettings(): Promise<void> {
+        if (this.persistPromise) return this.persistPromise;
+        this.persistPromise = this.flushPendingSettings()
+            .then(async () => {
+                if (Object.keys(this.stagedSettings).length === 0) return;
+                const patch = { ...this.stagedSettings };
+                this.stagedSettings = {};
+                await this.plugin.updateSettingsBatch(patch);
+            })
+            .finally(() => {
+                this.persistPromise = null;
+            });
+        return this.persistPromise;
     }
 }

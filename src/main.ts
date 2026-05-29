@@ -24,7 +24,7 @@ import { TaskController } from './views/TaskController';
 import { ThoughtController } from './views/ThoughtController';
 import { ThoughtProcessor } from './views/ThoughtProcessor';
 import { enableImageZoom } from './utils/imageZoom';
-import { getCanonicalCapturePath } from './utils/settingsPaths';
+import { getCanonicalCapturePath, getCanonicalLegacyTasksCapturePath } from './utils/settingsPaths';
 import { normalizeVaultRelativePath } from './utils/vaultFiles';
 
 const OPENABLE_DIWA_TAB_IDS = new Set([
@@ -291,8 +291,8 @@ export default class DiwaPlugin extends Plugin {
 
     async migrateLegacyTableData() {
         const { vault } = this.app;
-        const thoughtsPath = this.joinVaultPath(this.settings.captureFolder, this.settings.captureFilePath);
-        const tasksPath = this.joinVaultPath(this.settings.captureFolder, this.settings.tasksFilePath);
+        const thoughtsPath = getCanonicalCapturePath(this.settings);
+        const tasksPath = getCanonicalLegacyTasksCapturePath(this.settings);
         const migrateFile = async (path: string, isTask: boolean): Promise<number> => {
             const file = vault.getAbstractFileByPath(path);
             if (!(file instanceof TFile)) return 0;
@@ -300,15 +300,31 @@ export default class DiwaPlugin extends Plugin {
             const rows = this.extractLegacyTableRows(content, isTask);
             if (rows.length === 0) return 0;
 
+            const remainingExistingMatches = this.buildExistingLegacyMigrationCounts(isTask);
+            let migratedRows = 0;
+
             for (const row of rows) {
+                const fingerprint = this.buildLegacyMigrationFingerprint(row, isTask);
+                const existingMatches = remainingExistingMatches.get(fingerprint) ?? 0;
+                if (existingMatches > 0) {
+                    remainingExistingMatches.set(fingerprint, existingMatches - 1);
+                    continue;
+                }
+
                 if (isTask) {
                     await this.vault.createTaskFile(row.text, row.contexts, row.due);
                 } else {
-                    await this.getThoughtController().addThought({ content: row.text, context: row.contexts });
+                    const migratedThought = await this.getThoughtController().addThought({ content: row.text, context: row.contexts });
+                    if (!migratedThought) {
+                        throw new Error('Failed to migrate legacy thought row');
+                    }
                 }
+
+                migratedRows++;
             }
+
             await vault.rename(file, path + '.bak');
-            return rows.length;
+            return migratedRows;
         };
 
         await migrateFile(thoughtsPath, false);
@@ -318,11 +334,11 @@ export default class DiwaPlugin extends Plugin {
     }
 
     async activateWorkspace() {
-        if (Platform.isMobile && !isTablet()) {
+        if (Platform.isMobile && !isTablet(this.app)) {
             await this.activateMobileHub();
             return;
         }
-        if (isTablet()) {
+        if (isTablet(this.app)) {
             await this.activateTabletHub();
             return;
         }
@@ -331,7 +347,7 @@ export default class DiwaPlugin extends Plugin {
 
     async activateDesktopHub() {
         if (Platform.isMobile) {
-            if (isTablet()) {
+            if (isTablet(this.app)) {
                 await this.activateTabletHub();
                 return;
             }
@@ -365,7 +381,7 @@ export default class DiwaPlugin extends Plugin {
         const { workspace } = this.app;
         const existing = workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB);
         if (existing.length > 0) { workspace.revealLeaf(existing[0]); return; }
-        if (!Platform.isMobile || isTablet()) {
+        if (!Platform.isMobile || isTablet(this.app)) {
             return;
         }
         const tabletLeaf = workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB)[0];
@@ -382,7 +398,7 @@ export default class DiwaPlugin extends Plugin {
         const { workspace } = this.app;
         const existing = workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB);
         if (existing.length > 0) { workspace.revealLeaf(existing[0]); return; }
-        if (!isTablet()) {
+        if (!isTablet(this.app)) {
             return;
         }
         const mobileLeaf = workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB)[0];
@@ -569,29 +585,67 @@ export default class DiwaPlugin extends Plugin {
 
     private async reconcileResponsiveHubLeaves(): Promise<void> {
         if (this.unloading || this.reconcilingResponsiveHubLeaves) return;
-        const targetViewType = !Platform.isMobile
-            ? VIEW_TYPE_DESKTOP_HUB
-            : isTablet()
-                ? VIEW_TYPE_TABLET_HUB
-                : VIEW_TYPE_MOBILE_HUB;
-        const leavesToConvert = targetViewType === VIEW_TYPE_DESKTOP_HUB
-            ? [
-                ...this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB),
-                ...this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB),
-            ]
-            : targetViewType === VIEW_TYPE_TABLET_HUB
-                ? this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB)
-                : this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB);
-        if (leavesToConvert.length === 0) return;
+        const targetViewType = this.getResponsiveHubTargetViewType();
+        const responsiveLeaves = [
+            ...this.app.workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB),
+            ...this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB),
+            ...this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB),
+        ];
+        if (responsiveLeaves.length === 0) return;
+
+        const leavesByRoot = new Map<object, WorkspaceLeaf[]>();
+        for (const leaf of responsiveLeaves) {
+            const root = leaf.getRoot();
+            const group = leavesByRoot.get(root);
+            if (group) {
+                group.push(leaf);
+            } else {
+                leavesByRoot.set(root, [leaf]);
+            }
+        }
+
+        const groupsToReconcile = Array.from(leavesByRoot.values()).filter((group) => (
+            group.length > 1 || group.some((leaf) => leaf.getViewState().type !== targetViewType)
+        ));
+        if (groupsToReconcile.length === 0) return;
 
         this.reconcilingResponsiveHubLeaves = true;
         try {
-            for (const leaf of leavesToConvert) {
-                await this.setLeafViewType(leaf, targetViewType, false);
+            const activeLeaf = this.app.workspace.activeLeaf;
+            const leavesToDetach: WorkspaceLeaf[] = [];
+
+            for (const group of groupsToReconcile) {
+                const targetLeaf = group.find((leaf) => leaf.getViewState().type === targetViewType);
+                const keeper = group.find((leaf) => leaf === activeLeaf) ?? targetLeaf ?? group[0];
+                const shouldActivateKeeper = keeper === activeLeaf;
+
+                if (keeper.getViewState().type !== targetViewType) {
+                    await this.setLeafViewType(keeper, targetViewType, shouldActivateKeeper);
+                }
+
+                for (const leaf of group) {
+                    if (leaf !== keeper) {
+                        leavesToDetach.push(leaf);
+                    }
+                }
             }
+
+            for (const leaf of leavesToDetach) {
+                try {
+                    leaf.detach();
+                } catch (error) {
+                    console.warn('[DIWA] failed to detach duplicate responsive hub leaf', error);
+                }
+            }
+            if (leavesToDetach.length > 0) void this.app.workspace.requestSaveLayout();
         } finally {
             this.reconcilingResponsiveHubLeaves = false;
         }
+    }
+
+    private getResponsiveHubTargetViewType(): string {
+        if (!this.isMobile()) return VIEW_TYPE_DESKTOP_HUB;
+        return isTablet(this.app) ? VIEW_TYPE_TABLET_HUB : VIEW_TYPE_MOBILE_HUB;
     }
 
     private async setLeafViewType(leaf: WorkspaceLeaf, type: string, active: boolean): Promise<void> {
@@ -625,7 +679,7 @@ export default class DiwaPlugin extends Plugin {
     }
 
     async activateJournalInput() {
-        this.pendingJournalInputFocus = Platform.isMobile && !isTablet();
+        this.pendingJournalInputFocus = Platform.isMobile && !isTablet(this.app);
         await this.activateView('journal');
     }
 
@@ -796,7 +850,33 @@ export default class DiwaPlugin extends Plugin {
         value: DiwaSettings[K],
         refreshScope?: RefreshScope,
     ): Promise<void> {
+        if (this.settings[key] === value) {
+            if (refreshScope) this.notifyRefresh(refreshScope);
+            return;
+        }
         this.settings[key] = value;
+        await this.saveSettings();
+        if (refreshScope) this.notifyRefresh(refreshScope);
+    }
+
+    async updateSettingsBatch(
+        patch: Partial<DiwaSettings>,
+        refreshScope?: RefreshScope,
+    ): Promise<void> {
+        let changed = false;
+        const applySetting = <K extends keyof DiwaSettings>(key: K, value: DiwaSettings[K]): void => {
+            this.settings[key] = value;
+            changed = true;
+        };
+        for (const key of Object.keys(patch) as Array<keyof DiwaSettings>) {
+            const value = patch[key];
+            if (value === undefined || this.settings[key] === value) continue;
+            applySetting(key, value);
+        }
+        if (!changed) {
+            if (refreshScope) this.notifyRefresh(refreshScope);
+            return;
+        }
         await this.saveSettings();
         if (refreshScope) this.notifyRefresh(refreshScope);
     }
@@ -832,7 +912,7 @@ export default class DiwaPlugin extends Plugin {
      *                desktop → .is-desktop
      *  body.is-tablet lets .is-tablet CSS rules override .is-mobile rules for tablets. */
     private applyDeviceBodyClasses(): void {
-        const tablet = isTablet();
+        const tablet = isTablet(this.app);
         document.body.toggleClass('is-tablet', tablet);
         document.body.toggleClass('is-desktop', !Platform.isMobile);
     }
@@ -891,16 +971,47 @@ export default class DiwaPlugin extends Plugin {
         console.log('Controller panes:', this.controller?.panes ?? []);
     }
 
-    private joinVaultPath(folder: string, fileName: string): string {
-        const normalizedFolder = folder.replace(/\\/g, '/').trim().replace(/^\/+|\/+$/g, '');
-        const normalizedFileName = fileName.replace(/\\/g, '/').trim().replace(/^\/+/, '');
-        if (!normalizedFolder) return normalizedFileName;
-        return normalizedFileName ? `${normalizedFolder}/${normalizedFileName}` : normalizedFolder;
-    }
-
     private isLegacyCaptureDateCell(value: string): boolean {
         const normalized = value.trim().replace(/^\[\[|\]\]$/g, '');
         return /^\d{4}-\d{2}-\d{2}$/.test(normalized) || /^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(normalized);
+    }
+
+    private buildLegacyMigrationFingerprint(
+        row: { text: string; contexts: string[]; due?: string },
+        isTask: boolean,
+    ): string {
+        const normalizedContexts = Array.from(new Set(
+            (row.contexts ?? [])
+                .map((context) => String(context || '').trim())
+                .filter(Boolean),
+        )).sort((left, right) => left.localeCompare(right));
+        return JSON.stringify({
+            kind: isTask ? 'task' : 'thought',
+            text: row.text.replace(/\r\n?/g, '\n').trim(),
+            contexts: normalizedContexts,
+            due: isTask ? (row.due?.trim() ?? '') : '',
+        });
+    }
+
+    private buildExistingLegacyMigrationCounts(isTask: boolean): Map<string, number> {
+        const counts = new Map<string, number>();
+        const entries = isTask
+            ? this.getAllTasks().map((task) => ({
+                text: (task.body || task.title || '').trim(),
+                contexts: task.context ?? [],
+                due: task.due?.trim() || undefined,
+            }))
+            : this.getAllThoughts().map((thought) => ({
+                text: (thought.body || thought.content || thought.title || '').trim(),
+                contexts: thought.context ?? [],
+            }));
+
+        for (const entry of entries) {
+            const fingerprint = this.buildLegacyMigrationFingerprint(entry, isTask);
+            counts.set(fingerprint, (counts.get(fingerprint) ?? 0) + 1);
+        }
+
+        return counts;
     }
 
     private extractLegacyTableRows(content: string, isTask: boolean): Array<{ text: string; contexts: string[]; due?: string }> {
@@ -964,7 +1075,7 @@ export default class DiwaPlugin extends Plugin {
     }
 
     openCaptureModal(): void {
-        if (Platform.isMobile && !isTablet()) {
+        if (Platform.isMobile && !isTablet(this.app)) {
             new MobilePostComposerModal(this.app, this).open();
             return;
         }
@@ -1302,7 +1413,7 @@ export default class DiwaPlugin extends Plugin {
 
     editThought(thought: ThoughtEntry): void {
         const content = (thought.body || thought.content || '').trim();
-        if (Platform.isMobile && !isTablet()) {
+        if (Platform.isMobile && !isTablet(this.app)) {
             new MobilePostComposerModal(this.app, this, {
                 editFilePath: thought.filePath,
                 text: content,

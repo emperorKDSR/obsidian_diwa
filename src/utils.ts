@@ -30,11 +30,49 @@ export function toAsciiDigits(s: string): string {
         .replace(/[\u0E50-\u0E59]/g, c => String(c.charCodeAt(0) - 0x0E50));
 }
 
+const TABLET_VIEWPORT_SHORT_EDGE_PX = 768;
+
+function getViewportDimension(value: number | undefined, fallback: number): number {
+    return Number.isFinite(value) && (value ?? 0) > 0 ? Number(value) : fallback;
+}
+
+export function getWorkspaceViewportSize(app?: App): { width: number; height: number } {
+    const workspaceEl = app?.workspace?.containerEl;
+    const workspaceRect = workspaceEl?.getBoundingClientRect();
+    const workspaceWidth = workspaceRect ? Math.round(workspaceRect.width) : 0;
+    const workspaceHeight = workspaceRect ? Math.round(workspaceRect.height) : 0;
+    if (workspaceWidth > 0 && workspaceHeight > 0) {
+        return { width: workspaceWidth, height: workspaceHeight };
+    }
+
+    const doc = workspaceEl?.ownerDocument ?? document;
+    const win = doc.defaultView ?? window;
+    const rootEl = doc.documentElement;
+    const bodyEl = doc.body;
+
+    const width = Math.max(
+        getViewportDimension(rootEl?.clientWidth, 0),
+        getViewportDimension(bodyEl?.clientWidth, 0),
+        getViewportDimension(win.innerWidth, 0),
+    );
+    const height = Math.max(
+        getViewportDimension(rootEl?.clientHeight, 0),
+        getViewportDimension(bodyEl?.clientHeight, 0),
+        getViewportDimension(win.innerHeight, 0),
+    );
+
+    return { width, height };
+}
+
 /** True when running on an iPad (or large Android tablet).
- *  Obsidian's Platform.isMobile is true for both phones AND tablets.
- *  We distinguish tablets by their short-edge being ≥ 768 px. */
-export function isTablet(): boolean {
-    return Platform.isMobile && Math.min(screen.width, screen.height) >= 768;
+ *  Obsidian's mobile runtime is used for both phones and tablets, so we
+ *  distinguish them by the current Obsidian viewport short edge instead of
+ *  the physical device screen size. */
+export function isTablet(app?: App): boolean {
+    const isMobile = (app as { isMobile?: boolean } | undefined)?.isMobile ?? Platform.isMobile;
+    if (!isMobile) return false;
+    const { width, height } = getWorkspaceViewportSize(app);
+    return Math.min(width, height) >= TABLET_VIEWPORT_SHORT_EDGE_PX;
 }
 
 /** Parse a context string like "#work #personal" into ["work", "personal"] */
