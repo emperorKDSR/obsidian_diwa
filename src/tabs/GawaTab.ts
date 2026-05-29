@@ -77,6 +77,8 @@ export class GawaTab extends BaseTab {
             plugin: this.plugin,
             get _taskPending(): number { return self._taskPending; },
             set _taskPending(value: number) { self._taskPending = value; },
+            get _taskTogglePending(): number { return self.view._taskTogglePending; },
+            set _taskTogglePending(value: number) { self.view._taskTogglePending = value; },
             get _taskFilter(): 'upcoming' | 'all' { return self._taskFilter; },
             set _taskFilter(value: 'upcoming' | 'all') { self._taskFilter = value; },
         };
