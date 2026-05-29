@@ -1,4 +1,11 @@
 
+## [10.2.17] — Parser Integrity Hardening
+
+### Changed
+- Persist sanitized settings upgrades so removed Gemini API keys do not linger after migration.
+- Encoded task comment payloads to prevent structural marker injection from note content.
+- Switched weekly review persistence to a structured, round-trippable format with compatibility parsing for older files.
+
 ## [10.2.16] — Lifecycle Async Guards
 
 ### Changed

@@ -1,4 +1,5 @@
 import type { ReplyEntry } from '../types';
+import { decodeUtf8Base64, encodeUtf8Base64 } from './base64';
 
 const COMMENT_MARKER_PREFIX = '<!-- DIWA-COMMENT ';
 const COMMENT_MARKER_SUFFIX = ' -->';
@@ -11,20 +12,34 @@ export interface ParsedTaskComment extends ReplyEntry {
     endLineExclusive: number;
 }
 
-function parseMarkerMetadata(line: string): ReplyEntry | null {
+interface ParsedMarkerMetadata extends Omit<ReplyEntry, 'text'> {
+    storedText?: string;
+}
+
+function buildCommentEndMarker(anchor: string): string {
+    return `<!-- /DIWA-COMMENT ${anchor} -->`;
+}
+
+function parseMarkerMetadata(line: string): ParsedMarkerMetadata | null {
     if (!line.startsWith(COMMENT_MARKER_PREFIX) || !line.endsWith(COMMENT_MARKER_SUFFIX)) {
         return null;
     }
 
     try {
         const payload = line.slice(COMMENT_MARKER_PREFIX.length, -COMMENT_MARKER_SUFFIX.length);
-        const parsed = JSON.parse(payload) as Partial<ReplyEntry>;
+        const decoded = payload.startsWith('{')
+            ? payload
+            : decodeUtf8Base64(payload);
+        if (!decoded) return null;
+        const parsed = JSON.parse(decoded) as Partial<ReplyEntry>;
         if (!parsed.anchor || !parsed.date || !parsed.time) return null;
         return {
             anchor: String(parsed.anchor),
             date: String(parsed.date),
             time: String(parsed.time),
-            text: '',
+            storedText: typeof parsed.text === 'string'
+                ? parsed.text.replace(/\r\n?/g, '\n').trimEnd()
+                : undefined,
         };
     } catch {
         return null;
@@ -47,9 +62,9 @@ export function isTaskCommentHeaderLine(line: string): boolean {
 
 export function buildTaskCommentBlock(meta: Omit<ReplyEntry, 'text'>, text: string): string {
     const normalizedText = text.replace(/\r\n?/g, '\n').trimEnd();
-    const marker = `${COMMENT_MARKER_PREFIX}${JSON.stringify(meta)}${COMMENT_MARKER_SUFFIX}`;
+    const marker = `${COMMENT_MARKER_PREFIX}${encodeUtf8Base64(JSON.stringify({ ...meta, text: normalizedText, version: 2 }))}${COMMENT_MARKER_SUFFIX}`;
     const header = `## [[${meta.date}]] ${meta.time} ^${meta.anchor}`;
-    return `${marker}\n${header}\n${normalizedText}\n${COMMENT_END_MARKER}`;
+    return `${marker}\n${header}\n${normalizedText}\n${buildCommentEndMarker(meta.anchor)}`;
 }
 
 export function parseTaskCommentBlocks(content: string): ParsedTaskComment[] {
@@ -63,18 +78,32 @@ export function parseTaskCommentBlocks(content: string): ParsedTaskComment[] {
             const entry = headerMeta && headerMeta.anchor === markerMeta.anchor
                 ? headerMeta
                 : { anchor: markerMeta.anchor, date: markerMeta.date, time: markerMeta.time };
-            let end = index + 1;
-            while (end < lines.length && lines[end] !== COMMENT_END_MARKER) end += 1;
+            let endLineExclusive: number;
+            if (markerMeta.storedText !== undefined) {
+                const headerLineCount = headerMeta ? 2 : 1;
+                const textLineCount = markerMeta.storedText === '' ? 1 : markerMeta.storedText.split('\n').length;
+                endLineExclusive = Math.min(lines.length, index + headerLineCount + textLineCount + 1);
+            } else {
+                const expectedEndMarker = buildCommentEndMarker(entry.anchor);
+                let end = index + 1;
+                while (end < lines.length) {
+                    if (lines[end] === expectedEndMarker || lines[end] === COMMENT_END_MARKER) break;
+                    end += 1;
+                }
+                endLineExclusive = end < lines.length ? end + 1 : lines.length;
+            }
             const textStart = headerMeta ? index + 2 : index + 1;
-            const textEnd = end < lines.length ? end : lines.length;
+            const textEnd = markerMeta.storedText !== undefined
+                ? Math.max(textStart, endLineExclusive - 1)
+                : Math.max(textStart, endLineExclusive - 1);
             comments.push({
                 ...entry,
-                text: lines.slice(textStart, textEnd).join('\n').trimEnd(),
+                text: markerMeta.storedText ?? lines.slice(textStart, textEnd).join('\n').trimEnd(),
                 startLine: index,
                 headerLine: headerMeta ? index + 1 : index,
-                endLineExclusive: end < lines.length ? end + 1 : lines.length,
+                endLineExclusive,
             });
-            index = end < lines.length ? end : lines.length;
+            index = endLineExclusive - 1;
             continue;
         }
 

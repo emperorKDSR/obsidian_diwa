@@ -552,9 +552,11 @@ export default class DiwaPlugin extends Plugin {
 		const loadedData = await this.loadData();
         this.settings = Object.assign({}, DEFAULT_SETTINGS);
         if (loadedData) Object.assign(this.settings, loadedData);
+        let shouldPersistSanitizedSettings = false;
         const hadLegacyLifeMission = Object.prototype.hasOwnProperty.call(this.settings, 'lifeMission');
         if (hadLegacyLifeMission) {
             delete (this.settings as unknown as { lifeMission?: unknown }).lifeMission;
+            shouldPersistSanitizedSettings = true;
         }
         const legacySettings = this.settings as DiwaSettings & {
             voiceMemoFolder?: string;
@@ -566,28 +568,40 @@ export default class DiwaPlugin extends Plugin {
             enableAutoClassification?: boolean;
             ai?: unknown;
         };
-        delete legacySettings.voiceMemoFolder;
-        delete legacySettings.transcriptionLanguage;
-        delete legacySettings.geminiApiKey;
-        delete legacySettings.geminiModel;
-        delete legacySettings.maxOutputTokens;
-        delete legacySettings.aiChatFolder;
-        delete legacySettings.enableAutoClassification;
-        delete legacySettings.ai;
+        const removedLegacyKeys = ['voiceMemoFolder', 'transcriptionLanguage', 'geminiApiKey', 'geminiModel', 'maxOutputTokens', 'aiChatFolder', 'enableAutoClassification', 'ai'] as const;
+        for (const key of removedLegacyKeys) {
+            if (Object.prototype.hasOwnProperty.call(legacySettings, key)) {
+                delete legacySettings[key];
+                shouldPersistSanitizedSettings = true;
+            }
+        }
         // Sanitize: remove null/non-string entries that can creep in from malformed YAML frontmatter
         if (this.settings.contexts) {
-            this.settings.contexts = this.settings.contexts.filter((c: any) => c && typeof c === 'string');
+            const sanitizedContexts = this.settings.contexts.filter((c: any) => c && typeof c === 'string');
+            if (sanitizedContexts.length !== this.settings.contexts.length) {
+                shouldPersistSanitizedSettings = true;
+            }
+            this.settings.contexts = sanitizedContexts;
         }
         if (!Array.isArray(this.settings.hiddenContexts)) {
             this.settings.hiddenContexts = [];
+            shouldPersistSanitizedSettings = true;
         }
         const mobileBottomBarHeight = Number(this.settings.mobileBottomBarHeight);
-        this.settings.mobileBottomBarHeight = Number.isFinite(mobileBottomBarHeight)
+        const sanitizedMobileBottomBarHeight = Number.isFinite(mobileBottomBarHeight)
             ? Math.max(0, Math.min(100, mobileBottomBarHeight))
             : 56;
-        this.settings.gawaLayoutPreferences = sanitizeGawaLayoutPreferences(this.settings.gawaLayoutPreferences);
+        if (sanitizedMobileBottomBarHeight !== this.settings.mobileBottomBarHeight) {
+            shouldPersistSanitizedSettings = true;
+        }
+        this.settings.mobileBottomBarHeight = sanitizedMobileBottomBarHeight;
+        const sanitizedGawaLayoutPreferences = sanitizeGawaLayoutPreferences(this.settings.gawaLayoutPreferences);
+        if (JSON.stringify(sanitizedGawaLayoutPreferences) !== JSON.stringify(this.settings.gawaLayoutPreferences)) {
+            shouldPersistSanitizedSettings = true;
+        }
+        this.settings.gawaLayoutPreferences = sanitizedGawaLayoutPreferences;
         this.settingsInitialized = true;
-        if (hadLegacyLifeMission) {
+        if (shouldPersistSanitizedSettings) {
             await this.saveData(this.settings);
         }
 	}

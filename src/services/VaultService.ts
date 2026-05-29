@@ -5,6 +5,7 @@ import { buildJournalContexts, normalizeJournalType } from '../journal/shared';
 import { normalizeThoughtTopics, toStoredThoughtTopic } from '../utils/topics';
 import { buildAttachmentWikiLink, ensureVaultFolder } from '../utils';
 import { buildTaskCommentBlock, parseTaskCommentBlocks, splitTaskBodyAndCommentSuffix } from '../utils/taskComments';
+import { buildWeeklyReviewContent, parseLegacyWeeklyReviewBody, parseStructuredWeeklyReview } from '../utils/weeklyReview';
 import { buildYamlFrontmatter, createVaultBinaryFile, createVaultFile } from '../utils/vaultFiles';
 
 interface ThoughtWriteOptions {
@@ -833,16 +834,7 @@ export class VaultService {
         const folder = `${root}/Weekly`;
         const path = `${folder}/${weekId}.md`;
         const now = this.formatDateTime(new Date());
-        const focusLines = focus.map((f, i) => `${i + 1}. ${f.trim()}`).join('\n');
-        let dayPlanSection = '';
-        if (dayPlans && Object.values(dayPlans).some(v => v.trim())) {
-            const lines = Object.entries(dayPlans)
-                .sort(([a], [b]) => a.localeCompare(b))
-                .map(([date, intention]) => `- ${date}: ${intention.trim()}`)
-                .join('\n');
-            dayPlanSection = `\n\n# 📅 Next Week Plan\n${lines}`;
-        }
-        const content = `---\nweek: "${weekId}"\ndate_range: "${dateRange}"\nsaved: "${now}"\n---\n\n# 🏆 Wins\n${wins.trim()}\n\n# 📚 Lessons\n${lessons.trim()}\n\n# 🎯 Focus\n${focusLines}${dayPlanSection}\n`;
+        const content = buildWeeklyReviewContent({ weekId, dateRange, wins, lessons, focus, saved: now, dayPlans });
         try {
             await this.ensureFolder(folder);
             const existing = this.app.vault.getAbstractFileByPath(path);
@@ -1027,36 +1019,27 @@ export class VaultService {
         try {
             const raw = await this.app.vault.read(file);
             const body = raw.replace(/^---\n[\s\S]*?\n---\n/, '').trim();
-            const sections: Record<string, string> = {};
-            const parts = body.split(/^# /m);
-            for (const part of parts) {
-                const firstNewline = part.indexOf('\n');
-                if (firstNewline === -1) continue;
-                const heading = part.substring(0, firstNewline).replace(/[🏆📚🎯💡🤖📅\s]+/g, ' ').trim().toLowerCase();
-                sections[heading] = part.substring(firstNewline + 1).trim();
-            }
-            const focusRaw = sections['focus'] || '';
-            const focus = focusRaw.split('\n').map(l => l.replace(/^\d+\.\s*/, '').trim()).filter(Boolean);
+            const structured = parseStructuredWeeklyReview(raw);
             const cache = this.app.metadataCache.getFileCache(file);
             const saved = cache?.frontmatter?.['saved'] || '';
-
-            // Parse day plans: lines like "- 2026-04-28: Deep work sprint"
-            let dayPlans: Record<string, string> | undefined;
-            const dayPlanRaw = sections['next week plan'];
-            if (dayPlanRaw) {
-                dayPlans = {};
-                for (const line of dayPlanRaw.split('\n')) {
-                    const match = line.match(/^-\s*(\d{4}-\d{2}-\d{2}):\s*(.+)/);
-                    if (match) dayPlans[match[1]] = match[2].trim();
-                }
+            if (structured) {
+                return {
+                    wins: structured.wins,
+                    lessons: structured.lessons,
+                    focus: structured.focus,
+                    saved: String(saved || structured.saved || ''),
+                    dayPlans: structured.dayPlans,
+                };
             }
 
+            const legacy = parseLegacyWeeklyReviewBody(body);
+
             return {
-                wins: sections['wins'] || '',
-                lessons: sections['lessons'] || '',
-                focus,
-                saved,
-                dayPlans
+                wins: legacy.wins,
+                lessons: legacy.lessons,
+                focus: legacy.focus,
+                saved: String(saved || ''),
+                dayPlans: legacy.dayPlans
             };
         } catch (e) {
             console.error('[DIWA VaultService] loadWeeklyReview', e);
