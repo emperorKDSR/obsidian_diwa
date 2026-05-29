@@ -6,11 +6,20 @@ import { DiwaMobileShell, getPlatform, type DiwaMobileShellState, type ShellPlat
 export class MobileHubView extends ItemView {
     private shell: DiwaMobileShell;
     plugin: DiwaPlugin;
+    _taskTogglePending = 0;
 
     constructor(leaf: WorkspaceLeaf, plugin: DiwaPlugin) {
         super(leaf);
         this.plugin = plugin;
-        this.shell = new DiwaMobileShell(this.app, plugin, { platform: 'mobile' });
+        this.shell = new DiwaMobileShell(this.app, plugin, {
+            platform: 'mobile',
+            incrementTaskTogglePending: () => {
+                this._taskTogglePending += 1;
+            },
+            decrementTaskTogglePending: () => {
+                this._taskTogglePending = Math.max(0, this._taskTogglePending - 1);
+            },
+        });
     }
 
     getViewType(): string { return VIEW_TYPE_MOBILE_HUB; }

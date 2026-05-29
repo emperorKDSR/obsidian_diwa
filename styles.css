@@ -18072,6 +18072,15 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
     gap: 10px;
 }
 
+.diwa-project-focus__task-toggle {
+    width: 22px;
+    height: 22px;
+    margin-top: 2px;
+    flex-shrink: 0;
+    accent-color: var(--interactive-accent);
+    cursor: pointer;
+}
+
 .diwa-project-focus__task-row--meta {
     align-items: center;
 }
@@ -18119,6 +18128,14 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
 
 .diwa-project-focus__task-actions {
     justify-content: flex-end;
+}
+
+.diwa-project-focus__task-toggle:disabled,
+.diwa-project-focus__select:disabled,
+.diwa-project-focus__milestone-input:disabled,
+.diwa-project-focus__quick-add-input:disabled {
+    opacity: 0.6;
+    cursor: progress;
 }
 
 .diwa-project-focus__task-controls {

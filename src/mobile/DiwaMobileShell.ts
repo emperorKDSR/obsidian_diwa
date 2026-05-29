@@ -96,6 +96,12 @@ export interface DiwaMobileShellState extends Record<string, unknown> {
 const PROJECT_STATUS_ORDER: ProjectEntry['status'][] = ['active', 'on-hold', 'completed', 'archived'];
 const PROJECT_STATUS_FILTERS = PROJECT_FILTERS.filter((filter) => filter.id !== 'all');
 
+interface DiwaMobileShellOptions {
+    platform?: Exclude<ShellPlatform, 'desktop'>;
+    incrementTaskTogglePending?: () => void;
+    decrementTaskTogglePending?: () => void;
+}
+
 export function getPlatform(app: App): ShellPlatform {
     const isMobile = (app as { isMobile?: boolean }).isMobile ?? false;
     if (!isMobile) return 'desktop';
@@ -127,7 +133,7 @@ export class DiwaMobileShell {
     constructor(
         private app: App,
         private plugin: DiwaPlugin,
-        options: { platform?: Exclude<ShellPlatform, 'desktop'> } = {},
+        private options: DiwaMobileShellOptions = {},
     ) {
         this.platform = options.platform ?? 'mobile';
     }
@@ -1205,24 +1211,28 @@ export class DiwaMobileShell {
             return;
         }
         const nextState = input.checked;
-        try {
-            await this.plugin.vault.toggleTask(task.filePath, nextState);
-            await this.syncTaskFromPath(task.filePath, 'update');
-            this.invalidateCaches('tasks');
-            this.refreshView();
-        } catch (error) {
-            console.error('Failed to toggle task from mobile project focus.', error);
-            new Notice('Could not update the task. Please try again.');
-            input.checked = !nextState;
-        }
+        await this.runWithTaskTogglePending(async () => {
+            try {
+                await this.plugin.vault.toggleTask(task.filePath, nextState);
+                await this.syncTaskFromPath(task.filePath, 'update');
+                this.invalidateCaches('tasks');
+                this.refreshView();
+            } catch (error) {
+                console.error('Failed to toggle task from mobile project focus.', error);
+                new Notice('Could not update the task. Please try again.');
+                input.checked = !nextState;
+            }
+        });
     }
 
     private async assignTaskMilestone(task: TaskEntry, project: ProjectEntry, milestoneId: string | null): Promise<void> {
         if (!task.filePath) return;
-        await this.plugin.vault.setTaskProjectMilestone(task.filePath, project.id, milestoneId);
-        await this.syncTaskFromPath(task.filePath, 'update');
-        this.invalidateCaches('tasks');
-        this.refreshView();
+        await this.runWithTaskTogglePending(async () => {
+            await this.plugin.vault.setTaskProjectMilestone(task.filePath, project.id, milestoneId);
+            await this.syncTaskFromPath(task.filePath, 'update');
+            this.invalidateCaches('tasks');
+            this.refreshView();
+        });
     }
 
     private async openTaskNote(task: TaskEntry): Promise<void> {
@@ -1245,6 +1255,15 @@ export class DiwaMobileShell {
             return;
         }
         this.plugin.getTaskController().syncFromIndex();
+    }
+
+    private async runWithTaskTogglePending(action: () => Promise<void>): Promise<void> {
+        this.options.incrementTaskTogglePending?.();
+        try {
+            await action();
+        } finally {
+            this.options.decrementTaskTogglePending?.();
+        }
     }
 
     private beginRenderCycle(): number {

@@ -128,6 +128,9 @@ export class RefreshCoordinator {
         for (const leaf of mobileHubLeaves) {
             const view = leaf.view as unknown as MobileHubView;
             if (view && typeof view.renderView === 'function') {
+                if ((scope === 'tasks' || scope === 'all') && (view as MobileHubView & { _taskTogglePending?: number })._taskTogglePending && (view as MobileHubView & { _taskTogglePending?: number })._taskTogglePending! > 0) {
+                    continue;
+                }
                 if (scope === 'tasks' && typeof view.refreshTasks === 'function') {
                     view.refreshTasks();
                 } else if (scope === 'thoughts' && typeof view.refreshThoughts === 'function') {
@@ -143,6 +146,9 @@ export class RefreshCoordinator {
         for (const leaf of tabletHubLeaves) {
             const view = leaf.view as unknown as MobileHubView;
             if (view && typeof view.renderView === 'function') {
+                if ((scope === 'tasks' || scope === 'all') && (view as MobileHubView & { _taskTogglePending?: number })._taskTogglePending && (view as MobileHubView & { _taskTogglePending?: number })._taskTogglePending! > 0) {
+                    continue;
+                }
                 if (scope === 'tasks' && typeof view.refreshTasks === 'function') {
                     view.refreshTasks();
                 } else if (scope === 'thoughts' && typeof view.refreshThoughts === 'function') {
