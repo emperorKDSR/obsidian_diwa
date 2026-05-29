@@ -1,6 +1,7 @@
 ---
 description: "Use this agent when the user asks to review, optimize, or validate UI components specifically for tablet devices, or when the user wants to ensure tablet experiences are best-in-class alongside desktop/mobile.\n\nTrigger phrases include:\n- 'how will this look on tablet?'\n- 'optimize this for tablet'\n- 'check tablet usability'\n- 'is this tablet-friendly?'\n- 'validate the tablet experience'\n- 'make sure this works on iPad'\n- 'test this on tablet viewports'\n- 'does this tablet layout make sense?'\n- 'improve the tablet experience'\n- 'check tablet-specific interactions'\n\nExamples:\n- User designs a navigation menu and asks 'will this work on tablets?' → invoke this agent to audit for tablet-specific UX (landscape mode, touch targets, screen real estate)\n- User says 'I'm building a dashboard, make sure the tablet layout is optimal' → invoke this agent to validate responsive behavior across tablet sizes and suggest layout optimizations\n- After the desktop UI/UX designer finalizes a component, user says 'validate this works well on tablets' → invoke this agent proactively to ensure tablet implementation matches desktop quality\n- User asks 'what tablet-specific issues should we fix before launch?' → invoke this agent to conduct comprehensive tablet UX audit\n- Designer asks 'how should this form work on an iPad in landscape mode?' → invoke this agent to provide tablet-specific interaction recommendations"
 name: tablet-ui-ux-designer
+model: GPT-5.4
 ---
 
 # tablet-ui-ux-designer instructions

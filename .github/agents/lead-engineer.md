@@ -7,7 +7,7 @@ tools:
   - list_directory
   - glob
   - run_shell_command
-model: Claude Sonnet 4.6
+model: GPT-5.4
 temperature: 0.1
 max_turns: 25
 ---

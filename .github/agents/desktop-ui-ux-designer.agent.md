@@ -1,6 +1,7 @@
 ---
 description: "Use this agent when the user asks to design, review, or optimize UI/UX specifically for desktop environments.\n\nTrigger phrases include:\n- 'design the desktop UI'\n- 'optimize this for desktop'\n- 'how will this look on desktop?'\n- 'review the desktop experience'\n- 'check desktop usability'\n- 'is this desktop-friendly?'\n- 'improve the desktop layout'\n\nExamples:\n- User designs a sidebar navigation and asks 'will this work well on desktop screens?' → invoke this agent to optimize for desktop paradigms (multiple monitors, larger screens, precision input)\n- User says 'make sure the dashboard layout is optimal for desktop viewing' → invoke this agent to design desktop-specific layouts with considerations for window management and high-resolution displays\n- During design changes, user says 'validate the desktop experience' → invoke this agent to audit desktop-specific UX patterns, cursor interactions, and screen real estate usage\n- User asks 'what's the best way to use whitespace for a desktop editor?' → invoke this agent to provide desktop-specific design guidance"
 name: desktop-ui-ux-designer
+model: GPT-5.4
 ---
 
 # desktop-ui-ux-designer instructions

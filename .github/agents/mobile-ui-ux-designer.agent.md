@@ -1,6 +1,7 @@
 ---
 description: "Use this agent when the user asks to review, optimize, or design UI components for mobile devices, or when working on responsive design for the Obsidian plugin.\n\nTrigger phrases include:\n- 'how will this look on mobile?'\n- 'check if this works on mobile devices'\n- 'optimize this for mobile'\n- 'does this work on small screens?'\n- 'review the mobile experience'\n- 'make this mobile-friendly'\n- 'test this on mobile viewports'\n- 'how's the touch experience on this?'\n\nExamples:\n- User designs a complex menu and asks 'will this work on a phone?' → invoke this agent to audit for mobile usability, thumb-reach zones, and touch target sizes\n- User says 'I'm worried about how the sidebar looks on tablet' → invoke this agent to review responsive behavior across breakpoints and suggest layout adjustments\n- After the ui-ux-designer makes desktop changes, user says 'make sure this doesn't break mobile' → invoke this agent to validate mobile compatibility and flag regressions\n- User asks 'what mobile-specific issues should we fix before release?' → invoke this agent to conduct comprehensive mobile UX audit"
 name: mobile-ui-ux-designer
+model: GPT-5.4
 ---
 
 # mobile-ui-ux-designer instructions
