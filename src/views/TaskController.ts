@@ -157,7 +157,7 @@ export class TaskController {
             for (const pane of this.panes) pane.removeTask(taskId, taskId);
             return;
         }
-        this.plugin.index.taskIndex.delete(resolved.filePath);
+        this.plugin.index.removeTaskFile(resolved.filePath);
         for (const pane of this.panes) pane.removeTask(resolved.taskKey, resolved.filePath);
     }
 

@@ -1,4 +1,11 @@
 
+## [10.2.23] — Index and Runtime Consistency
+
+### Changed
+- Made selected index rebuilds replace live state only after the rebuilt snapshot succeeds, avoiding partial shared-state mutation on failed rebuilds.
+- Routed task removals through calculated-state-aware helpers so deletes and move-outs refresh derived task state consistently.
+- Narrowed project folder mutation rebuilds to true folder-boundary cases instead of broad directory-triggered full project rebuilds.
+
 ## [10.2.22] — Review and Path Integrity
 
 ### Changed

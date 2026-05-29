@@ -20,6 +20,14 @@ export interface ThoughtChecklistItem {
     lineIndex: number;
 }
 
+type IndexRebuildSelection = {
+    thoughts?: boolean;
+    tasks?: boolean;
+    dues?: boolean;
+    checklist?: boolean;
+    projects?: boolean;
+};
+
 export class IndexService {
     app: App;
     settings: DiwaSettings;
@@ -229,14 +237,73 @@ export class IndexService {
     }
 
     async buildIndices() {
+        await this.rebuildSelectedIndices({
+            thoughts: true,
+            tasks: true,
+            dues: true,
+            checklist: true,
+            projects: true,
+        });
+    }
+
+    async rebuildSelectedIndices(selection: IndexRebuildSelection): Promise<void> {
+        const worker = new IndexService(this.app, this.settings);
+        const normalizedSelection = this.normalizeRebuildSelection(selection);
+        await worker.buildSelectedIndicesInPlace(normalizedSelection);
+        this.applyRebuiltState(worker, normalizedSelection);
+        if (normalizedSelection.tasks || normalizedSelection.dues) {
+            this.rebuildCalculatedState();
+        }
+    }
+
+    private normalizeRebuildSelection(selection: IndexRebuildSelection): Required<IndexRebuildSelection> {
+        return {
+            thoughts: selection.thoughts === true,
+            tasks: selection.tasks === true,
+            dues: selection.dues === true,
+            checklist: selection.checklist === true,
+            projects: selection.projects === true,
+        };
+    }
+
+    private async buildSelectedIndicesInPlace(selection: Required<IndexRebuildSelection>): Promise<void> {
         await Promise.all([
-            this.buildThoughtIndex(),
-            this.buildTaskIndex(),
-            this.buildDueIndex(),
-            this.buildChecklistIndex(),
-            this.buildProjectIndex()
+            selection.thoughts ? this.buildThoughtIndexInPlace() : Promise.resolve(),
+            selection.tasks ? this.buildTaskIndexInPlace() : Promise.resolve(),
+            selection.dues ? this.buildDueIndexInPlace() : Promise.resolve(),
+            selection.checklist ? this.buildChecklistIndexInPlace() : Promise.resolve(),
+            selection.projects ? this.buildProjectIndexInPlace() : Promise.resolve(),
         ]);
-        this.rebuildCalculatedState();
+    }
+
+    private applyRebuiltState(source: IndexService, selection: Required<IndexRebuildSelection>): void {
+        if (selection.thoughts) {
+            this.thoughtIndex = new Map(source.thoughtIndex);
+            this._thoughtChecklistMap = new Map(
+                Array.from(source._thoughtChecklistMap.entries()).map(([path, items]) => [path, [...items]]),
+            );
+            this._thoughtDoneChecklistMap = new Map(
+                Array.from(source._thoughtDoneChecklistMap.entries()).map(([path, items]) => [path, [...items]]),
+            );
+            this._lastIndexedThoughtsFolderSetting = source._lastIndexedThoughtsFolderSetting;
+        }
+        if (selection.tasks) {
+            this.taskIndex = new Map(source.taskIndex);
+            this._activeTasksFolder = source._activeTasksFolder;
+            this._lastIndexedTasksFolderSetting = source._lastIndexedTasksFolderSetting;
+        }
+        if (selection.dues) {
+            this.dueIndex = new Map(source.dueIndex);
+            this._lastIndexedPfFolderSetting = source._lastIndexedPfFolderSetting;
+        }
+        if (selection.checklist) {
+            this.checklistIndex = [...source.checklistIndex];
+            this._lastIndexedCapturePath = source._lastIndexedCapturePath;
+        }
+        if (selection.projects) {
+            this.projectIndex = new Map(source.projectIndex);
+            this._lastIndexedProjectsFolderSetting = source._lastIndexedProjectsFolderSetting;
+        }
     }
 
     resetAllIndices(): void {
@@ -270,6 +337,10 @@ export class IndexService {
     }
 
     async buildChecklistIndex(): Promise<void> {
+        await this.rebuildSelectedIndices({ checklist: true });
+    }
+
+    private async buildChecklistIndexInPlace(): Promise<void> {
         const path = this.getConfiguredCapturePath();
         this._lastIndexedCapturePath = path;
         const file = this.app.vault.getAbstractFileByPath(path);
@@ -290,6 +361,10 @@ export class IndexService {
     }
 
     async buildProjectIndex(): Promise<void> {
+        await this.rebuildSelectedIndices({ projects: true });
+    }
+
+    private async buildProjectIndexInPlace(): Promise<void> {
         const folder = this.getConfiguredProjectsFolder();
         this.projectIndex.clear();
         this._lastIndexedProjectsFolderSetting = folder;
@@ -300,6 +375,10 @@ export class IndexService {
     }
 
     async buildDueIndex(): Promise<void> {
+        await this.rebuildSelectedIndices({ dues: true });
+    }
+
+    private async buildDueIndexInPlace(): Promise<void> {
         const pfFolder = this.getConfiguredPfFolder();
         this.dueIndex.clear();
         this._lastIndexedPfFolderSetting = pfFolder;
@@ -307,7 +386,6 @@ export class IndexService {
         for (const file of files) {
             this.indexDueFile(file, true);
         }
-        this.rebuildCalculatedState();
     }
 
     indexDueFile(file: TFile, skipRebuild = false): void {
@@ -391,6 +469,10 @@ export class IndexService {
     }
 
     async buildThoughtIndex(): Promise<void> {
+        await this.rebuildSelectedIndices({ thoughts: true });
+    }
+
+    private async buildThoughtIndexInPlace(): Promise<void> {
         this._lastIndexedThoughtsFolderSetting = this.getConfiguredThoughtsFolder();
         this.thoughtIndex.clear();
         this._thoughtChecklistMap.clear();
@@ -406,6 +488,10 @@ export class IndexService {
     }
 
     async buildTaskIndex(): Promise<void> {
+        await this.rebuildSelectedIndices({ tasks: true });
+    }
+
+    private async buildTaskIndexInPlace(): Promise<void> {
         const configuredFolder = this.getConfiguredTasksFolder();
         const fallbackFolders = ['000 Bin/GAWA', '000 Bin/DIWA Gawa']
             .map((folder) => this.normalizeVaultPath(folder))
@@ -665,6 +751,12 @@ export class IndexService {
         if (!skipRebuild) this.rebuildCalculatedState();
     }
 
+    removeTaskFile(path: string, skipRebuild = false): boolean {
+        const removed = this.taskIndex.delete(path);
+        if (removed && !skipRebuild) this.rebuildCalculatedState();
+        return removed;
+    }
+
     isThoughtFile(path: string): boolean {
         const folder = this.getConfiguredThoughtsFolder();
         const normalizedPath = this.normalizeVaultPath(path);
@@ -724,6 +816,12 @@ export class IndexService {
         const normalizedPath = this.normalizeVaultPath(path);
         const folder = this.getConfiguredProjectsFolder();
         return this.pathIsInFolder(normalizedPath, folder) || this.pathIsInFolder(folder, normalizedPath);
+    }
+
+    pathTouchesProjectsFolderBoundary(path: string): boolean {
+        const normalizedPath = this.normalizeVaultPath(path);
+        const folder = this.getConfiguredProjectsFolder();
+        return normalizedPath === folder || this.pathIsInFolder(folder, normalizedPath);
     }
 
     getProjects(): string[] {

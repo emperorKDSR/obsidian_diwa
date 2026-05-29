@@ -497,7 +497,7 @@ export default class DiwaPlugin extends Plugin {
                 return;
             }
             this.getThoughtController().removeThoughtFromIndex(f.path);
-            this.index.taskIndex.delete(f.path);
+            this.index.removeTaskFile(f.path);
             if (this.index.isDueFile(f.path)) this.index.removeDueFile(f.path);
             if (this.index.isProjectFile(f.path)) this.index.removeProjectFile(f.path);
             this.notifyRefresh(scope);
@@ -517,7 +517,7 @@ export default class DiwaPlugin extends Plugin {
                 return;
             }
             this.getThoughtController().removeThoughtFromIndex(oldPath);
-            this.index.taskIndex.delete(oldPath);
+            const removedTask = this.index.removeTaskFile(oldPath, true);
             if (this.index.isDueFile(oldPath)) this.index.removeDueFile(oldPath, true);
             if (this.index.isProjectFile(oldPath)) this.index.removeProjectFile(oldPath);
             if (this.index.isThoughtFile(f.path)) {
@@ -529,7 +529,13 @@ export default class DiwaPlugin extends Plugin {
             else if (this.index.isTaskFile(f.path)) await this.index.indexTaskFile(f);
             else if (this.index.isDueFile(f.path)) this.index.indexDueFile(f, true);
             else if (this.index.isProjectFile(f.path)) await this.index.indexProjectFile(f);
-            if (this.index.isDueFile(oldPath) || this.index.isDueFile(f.path)) this.index.rebuildCalculatedState();
+            if (
+                (removedTask && !this.index.isTaskFile(f.path))
+                || this.index.isDueFile(oldPath)
+                || this.index.isDueFile(f.path)
+            ) {
+                this.index.rebuildCalculatedState();
+            }
             this.notifyRefresh(scope);
         }));
 
@@ -753,15 +759,13 @@ export default class DiwaPlugin extends Plugin {
 
         if (!this.index || !shouldRefreshIndexedState) return;
 
-        await Promise.all([
-            shouldRefreshTasks ? this.index.buildTaskIndex() : Promise.resolve(),
-            shouldRefreshThoughts ? this.index.buildThoughtIndex() : Promise.resolve(),
-            shouldRefreshDues ? this.index.buildDueIndex() : Promise.resolve(),
-            shouldRefreshChecklist ? this.index.buildChecklistIndex() : Promise.resolve(),
-            shouldRefreshProjects ? this.index.buildProjectIndex() : Promise.resolve(),
-        ]);
-
-        this.index.rebuildCalculatedState();
+        await this.index.rebuildSelectedIndices({
+            tasks: shouldRefreshTasks,
+            thoughts: shouldRefreshThoughts,
+            dues: shouldRefreshDues,
+            checklist: shouldRefreshChecklist,
+            projects: shouldRefreshProjects,
+        });
 
         if (shouldRefreshTasks) {
             const normalizedTasks = this.normalizeIndexedTasks(Array.from(this.index.taskIndex.values()));
@@ -933,7 +937,7 @@ export default class DiwaPlugin extends Plugin {
     }
 
     private async handleProjectFolderMutation(...paths: string[]): Promise<boolean> {
-        if (!paths.some((path) => path && this.index.pathAffectsProjectsFolder(path))) return false;
+        if (!paths.some((path) => path && this.index.pathTouchesProjectsFolderBoundary(path))) return false;
         await this.rebuildProjectIndexAndRefresh();
         return true;
     }
