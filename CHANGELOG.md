@@ -1,4 +1,11 @@
 
+## [10.2.9] — Project Popout Safety
+
+### Changed
+- Made project status pickers use owner-document and owner-window positioning instead of global browser globals.
+- Centralized inline task-edit popover cleanup so repeated open/close flows no longer leak outside-click listeners.
+- Reduced some repeated project-surface rescans and skipped no-op project status updates.
+
 ## [10.2.8] — Project Reactivity Hardening
 
 ### Changed

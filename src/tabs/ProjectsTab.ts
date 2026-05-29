@@ -55,8 +55,11 @@ export class ProjectsTab extends BaseTab {
     private readonly focusMilestones: Map<string, Milestone[]> = new Map();
     private readonly loadingMilestones: Map<string, Promise<Milestone[]>> = new Map();
     private readonly selectedMilestoneIds: Map<string, string | null> = new Map();
+    private readonly projectTaskCache: Map<string, TaskEntry[]> = new Map();
+    private readonly projectMetricsCache: Map<string, ProjectMetrics> = new Map();
     private statusPickerEl: HTMLElement | null = null;
     private statusPickerCloseHandler: ((event: MouseEvent) => void) | null = null;
+    private statusPickerDocument: Document | null = null;
 
     constructor(view: DiwaView) {
         super(view);
@@ -68,6 +71,7 @@ export class ProjectsTab extends BaseTab {
     }
 
     render(container: HTMLElement): void {
+        this.resetProjectRenderCaches();
         container.empty();
         const shell = container.createDiv('diwa-projects-shell');
         const allProjects = this.getProjects();
@@ -87,7 +91,7 @@ export class ProjectsTab extends BaseTab {
 
         const visibleProjects = this.getVisibleProjects(allProjects);
         this.renderHeader(shell, allProjects, visibleProjects, container);
-        this.renderToolbar(shell, visibleProjects.length, allProjects.length, container);
+        this.renderToolbar(shell, allProjects, visibleProjects.length, container);
 
         if (visibleProjects.length === 0) {
             this.renderProjectsEmptyState(shell, container);
@@ -150,13 +154,28 @@ export class ProjectsTab extends BaseTab {
         chip.createEl('span', { cls: 'diwa-gawa-stat-chip-value', text: String(value) });
     }
 
-    private renderToolbar(parent: HTMLElement, visibleCount: number, totalCount: number, rootContainer: HTMLElement): void {
+    private renderToolbar(
+        parent: HTMLElement,
+        allProjects: ProjectEntry[],
+        visibleCount: number,
+        rootContainer: HTMLElement,
+    ): void {
+        const totalCount = allProjects.length;
+        const counts = allProjects.reduce<Record<ProjectFilter, number>>((acc, project) => {
+            if (project.status === 'active' || project.status === 'on-hold' || project.status === 'completed') {
+                acc[project.status] += 1;
+            }
+            return acc;
+        }, {
+            all: totalCount,
+            active: 0,
+            'on-hold': 0,
+            completed: 0,
+        });
         const toolbar = parent.createDiv('diwa-projects-toolbar');
         const filters = toolbar.createDiv('diwa-projects-filter-row');
         FILTER_LABELS.forEach((filter) => {
-            const count = filter.val === 'all'
-                ? totalCount
-                : this.getProjects().filter((project) => project.status === filter.val).length;
+            const count = counts[filter.val];
             const pill = filters.createEl('button', {
                 cls: `diwa-projects-filter-pill${filter.val === this.filter ? ' is-active' : ''}`,
                 attr: { type: 'button' },
@@ -1089,8 +1108,11 @@ export class ProjectsTab extends BaseTab {
 
     private openStatusPicker(anchor: HTMLElement, project: ProjectEntry, rootContainer: HTMLElement): void {
         this.closeStatusPicker();
+        const doc = anchor.ownerDocument;
+        const win = doc.defaultView;
+        if (!anchor.isConnected || !doc.body || !win) return;
 
-        const picker = document.createElement('div');
+        const picker = doc.createElement('div');
         picker.className = 'diwa-status-picker';
 
         const statuses: ProjectEntry['status'][] = ['active', 'on-hold', 'completed'];
@@ -1103,6 +1125,10 @@ export class ProjectsTab extends BaseTab {
             option.createSpan({ text: STATUS_LABELS[status] });
             option.addEventListener('click', async (event) => {
                 event.stopPropagation();
+                if (status === project.status) {
+                    this.closeStatusPicker();
+                    return;
+                }
                 const file = this.app.vault.getAbstractFileByPath(project.filePath);
                 if (file instanceof TFile) {
                     await this.vault.updateProject(file, { status });
@@ -1114,39 +1140,43 @@ export class ProjectsTab extends BaseTab {
             });
         });
 
-        document.body.appendChild(picker);
+        doc.body.appendChild(picker);
         this.statusPickerEl = picker;
+        this.statusPickerDocument = doc;
 
         const rect = anchor.getBoundingClientRect();
         const pickerWidth = 200;
-        let left = Math.min(rect.left, window.innerWidth - pickerWidth - 12);
+        let left = Math.min(rect.left, win.innerWidth - pickerWidth - 12);
         left = Math.max(12, left);
         let top = rect.bottom + 8;
         const pickerHeight = picker.offsetHeight || 160;
-        if (top + pickerHeight > window.innerHeight - 12) {
+        if (top + pickerHeight > win.innerHeight - 12) {
             top = Math.max(12, rect.top - pickerHeight - 8);
         }
         picker.style.left = `${left}px`;
         picker.style.top = `${top}px`;
 
         const close = (event: MouseEvent) => {
-            if (!picker.contains(event.target as Node)) {
+            const target = event.target;
+            if (!(target instanceof Node)) return;
+            if (!picker.contains(target) && !anchor.contains(target)) {
                 this.closeStatusPicker();
             }
         };
         this.statusPickerCloseHandler = close;
-        setTimeout(() => document.addEventListener('click', close, true), 10);
+        doc.addEventListener('click', close, true);
     }
 
     private closeStatusPicker(): void {
-        if (this.statusPickerCloseHandler) {
-            document.removeEventListener('click', this.statusPickerCloseHandler, true);
+        if (this.statusPickerCloseHandler && this.statusPickerDocument) {
+            this.statusPickerDocument.removeEventListener('click', this.statusPickerCloseHandler, true);
             this.statusPickerCloseHandler = null;
         }
         if (this.statusPickerEl) {
             this.statusPickerEl.remove();
             this.statusPickerEl = null;
         }
+        this.statusPickerDocument = null;
     }
 
     private buildHeaderButton(
@@ -1238,12 +1268,20 @@ export class ProjectsTab extends BaseTab {
     }
 
     private getProjectTasks(project: ProjectEntry): TaskEntry[] {
-        return Array.from(this.index.taskIndex.values())
-            .filter((task) => task.project === project.id || task.project === project.name);
+        return this.getSortedProjectTasks(project);
+    }
+
+    private resetProjectRenderCaches(): void {
+        this.projectTaskCache.clear();
+        this.projectMetricsCache.clear();
     }
 
     private getSortedProjectTasks(project: ProjectEntry): TaskEntry[] {
-        return this.getProjectTasks(project).sort((left, right) => {
+        const cached = this.projectTaskCache.get(project.id);
+        if (cached) return cached;
+        const tasks = Array.from(this.index.taskIndex.values())
+            .filter((task) => task.project === project.id || task.project === project.name)
+            .sort((left, right) => {
             const leftDone = isTaskDone(left);
             const rightDone = isTaskDone(right);
             if (leftDone !== rightDone) return leftDone ? 1 : -1;
@@ -1252,20 +1290,33 @@ export class ProjectsTab extends BaseTab {
             if (right.due) return 1;
             return (right.lastUpdate || 0) - (left.lastUpdate || 0);
         });
+        this.projectTaskCache.set(project.id, tasks);
+        return tasks;
     }
 
     private getProjectMetrics(project: ProjectEntry): ProjectMetrics {
+        const cached = this.projectMetricsCache.get(project.id);
+        if (cached) return cached;
         const tasks = this.getSortedProjectTasks(project);
-        const openTasks = tasks.filter((task) => !isTaskDone(task));
-        const nextTask = openTasks[0];
-        return {
+        const openTasks: TaskEntry[] = [];
+        let doneCount = 0;
+        tasks.forEach((task) => {
+            if (isTaskDone(task)) {
+                doneCount += 1;
+                return;
+            }
+            openTasks.push(task);
+        });
+        const metrics = {
             tasks,
             openTasks,
             openCount: openTasks.length,
-            doneCount: tasks.filter((task) => isTaskDone(task)).length,
+            doneCount,
             totalCount: tasks.length,
-            nextTask,
+            nextTask: openTasks[0],
         };
+        this.projectMetricsCache.set(project.id, metrics);
+        return metrics;
     }
 
     private formatDisplayDate(date: string): string {

@@ -1,4 +1,4 @@
-import { App, Modal, Platform, setIcon } from 'obsidian';
+import { App, Modal, Platform, moment, setIcon } from 'obsidian';
 import { isTablet, parseNaturalDate } from '../utils';
 import { attachMobileSheetViewportBehavior } from '../utils/mobileSheetViewport';
 import { ContextSuggestModal } from './ContextSuggestModal';
@@ -25,6 +25,7 @@ export class EditTaskModal extends Modal {
 
     private _isMobileSheet = false;
     private _viewportCleanup: (() => void) | null = null;
+    private _inlinePopoverCleanup: (() => void) | null = null;
 
     constructor(
         app: App,
@@ -72,10 +73,11 @@ export class EditTaskModal extends Modal {
     }
 
     onClose(): void {
+        this._closeInlinePopover();
         this._viewportCleanup?.();
         this._viewportCleanup = null;
         if (this._isMobileSheet) {
-            document.body.removeClass('diwa-task-edit-active');
+            this.modalEl.ownerDocument.body.removeClass('diwa-task-edit-active');
         }
         this.contentEl.empty();
     }
@@ -112,7 +114,7 @@ export class EditTaskModal extends Modal {
         modalEl.style.setProperty('overflow', 'visible', 'important');
         contentEl.style.setProperty('border-radius', '16px', 'important');
         contentEl.style.setProperty('overflow', 'hidden', 'important');
-        document.body.addClass('diwa-task-edit-active');
+        modalEl.ownerDocument.body.addClass('diwa-task-edit-active');
 
         const root = contentEl.createDiv({ cls: 'diwa-ets-root' });
 
@@ -194,7 +196,7 @@ export class EditTaskModal extends Modal {
         const { contentEl, modalEl } = this;
 
         modalEl.addClass('diwa-task-edit-modal');
-        const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+        const isLandscape = this._getOwnerWindow(modalEl)?.matchMedia('(orientation: landscape)').matches ?? false;
         if (isLandscape) modalEl.addClass('is-landscape');
 
         // Header
@@ -409,7 +411,7 @@ export class EditTaskModal extends Modal {
             display.style.display = 'flex';
             display.createSpan({ text: '📅', cls: 'diwa-date-display-icon' });
             const lbl = display.createSpan({
-                text: window.moment(dateStr).format('ddd, MMM D'),
+                text: moment(dateStr).format('ddd, MMM D'),
                 cls: 'diwa-date-display-label'
             });
             lbl.addEventListener('click', () => showNLPInput());
@@ -426,7 +428,7 @@ export class EditTaskModal extends Modal {
             updateDisplay(d);
         };
 
-        const today     = window.moment();
+        const today     = moment();
         const dow       = today.day(); // 0=Sun
         const daysToFri = dow <= 4 ? (5 - dow) : (12 - dow);
         const rawShortcuts = [
@@ -446,11 +448,11 @@ export class EditTaskModal extends Modal {
             }) as HTMLButtonElement;
             btnEls.push(btn);
             if (this._dueDate) {
-                const btnDate = window.moment().add(s.days, 'days').format('YYYY-MM-DD');
+                const btnDate = moment().add(s.days, 'days').format('YYYY-MM-DD');
                 if (btnDate === this._dueDate) btn.addClass('is-selected');
             }
             btn.addEventListener('click', () => {
-                const d = window.moment().add(s.days, 'days').format('YYYY-MM-DD');
+                const d = moment().add(s.days, 'days').format('YYYY-MM-DD');
                 setDueDate(d);
                 btnEls.forEach(b => b.removeClass('is-selected'));
                 btn.addClass('is-selected');
@@ -534,7 +536,7 @@ export class EditTaskModal extends Modal {
             btn.addEventListener('click', () => {
                 this._recurrence = (this._recurrence === value && value !== null) ? null : value;
                 syncActive();
-                if ('vibrate' in navigator) navigator.vibrate(8);
+                this._vibrate(strip);
             });
             btn.addEventListener('keydown', (e: KeyboardEvent) => {
                 const idx = btnEls.indexOf(btn);
@@ -586,7 +588,7 @@ export class EditTaskModal extends Modal {
                 btn.addEventListener('click', () => {
                     this._priority = this._priority === val ? null : val;
                     syncPri();
-                    if ('vibrate' in navigator) navigator.vibrate(8);
+                    this._vibrate(strip);
                 });
                 btn.addEventListener('keydown', (e: KeyboardEvent) => {
                     const idx = priBtns.indexOf(btn);
@@ -605,7 +607,7 @@ export class EditTaskModal extends Modal {
                 btn.addEventListener('click', () => {
                     this._energy = this._energy === val ? null : val;
                     syncEnergy();
-                    if ('vibrate' in navigator) navigator.vibrate(8);
+                    this._vibrate(strip);
                 });
                 btn.addEventListener('keydown', (e: KeyboardEvent) => {
                     const idx = energyBtns.indexOf(btn);
@@ -627,7 +629,7 @@ export class EditTaskModal extends Modal {
                 btn.addEventListener('click', () => {
                     this._status = (this._status === value && value !== 'open') ? 'open' : value;
                     syncStatus();
-                    if ('vibrate' in navigator) navigator.vibrate(8);
+                    this._vibrate(strip);
                 });
                 btn.addEventListener('keydown', (e: KeyboardEvent) => {
                     const idx = statusBtns.indexOf(btn);
@@ -647,7 +649,7 @@ export class EditTaskModal extends Modal {
                 btn.addEventListener('click', () => {
                     this._priority = this._priority === val ? null : val;
                     syncPri();
-                    if ('vibrate' in navigator) navigator.vibrate(8);
+                    this._vibrate(strip);
                 });
             });
             strip.createEl('span', { cls: 'diwa-meta-divider' });
@@ -661,7 +663,7 @@ export class EditTaskModal extends Modal {
                 btn.addEventListener('click', () => {
                     this._energy = this._energy === val ? null : val;
                     syncEnergy();
-                    if ('vibrate' in navigator) navigator.vibrate(8);
+                    this._vibrate(strip);
                 });
             });
             strip.createEl('span', { cls: 'diwa-meta-divider' });
@@ -675,7 +677,7 @@ export class EditTaskModal extends Modal {
                 btn.addEventListener('click', () => {
                     this._status = this._status === value ? 'open' : value;
                     syncStatus();
-                    if ('vibrate' in navigator) navigator.vibrate(8);
+                    this._vibrate(strip);
                 });
             });
         }
@@ -702,7 +704,7 @@ export class EditTaskModal extends Modal {
             chip.createSpan({ text: '📅 ' });
             chip.createSpan({
                 text: this._dueDate
-                    ? window.moment(this._dueDate).format('MMM D')
+                    ? moment(this._dueDate).format('MMM D')
                     : 'Due'
             });
             chip.toggleClass('is-active', !!this._dueDate);
@@ -715,7 +717,7 @@ export class EditTaskModal extends Modal {
                     e.stopPropagation();
                     this._dueDate = null;
                     updateLabel();
-                    popoverAnchor.querySelector('[data-etm-popover="date"]')?.remove();
+                    this._closeInlinePopover();
                 });
             }
         };
@@ -724,8 +726,11 @@ export class EditTaskModal extends Modal {
         chip.addEventListener('click', (e: MouseEvent) => {
             if ((e.target as HTMLElement).classList.contains('diwa-etm-chip-clear')) return;
             const existing = popoverAnchor.querySelector('[data-etm-popover="date"]');
-            if (existing) { existing.remove(); return; }
-            popoverAnchor.querySelector('.diwa-etm-popover')?.remove();
+            if (existing) {
+                this._closeInlinePopover();
+                return;
+            }
+            this._closeInlinePopover();
 
             const popover = popoverAnchor.createDiv({
                 cls:  'diwa-etm-popover diwa-workspace-popup-shell diwa-workspace-popup-shell--inline',
@@ -733,7 +738,7 @@ export class EditTaskModal extends Modal {
             });
 
             const shortcutsRow = popover.createDiv({ cls: 'diwa-etm-popover-shortcuts' });
-            const today     = window.moment();
+            const today     = moment();
             const dow       = today.day();
             const daysToFri = dow <= 4 ? (5 - dow) : (12 - dow);
             const rawShortcuts = [
@@ -749,7 +754,7 @@ export class EditTaskModal extends Modal {
 
             const scBtns: HTMLButtonElement[] = [];
             shortcuts.forEach(s => {
-                const d   = window.moment().add(s.days, 'days').format('YYYY-MM-DD');
+                const d   = moment().add(s.days, 'days').format('YYYY-MM-DD');
                 const btn = shortcutsRow.createEl('button', {
                     text: s.label, cls: 'diwa-date-shortcut-btn', attr: { type: 'button' }
                 }) as HTMLButtonElement;
@@ -760,7 +765,7 @@ export class EditTaskModal extends Modal {
                     updateLabel();
                     scBtns.forEach(b => b.removeClass('is-selected'));
                     btn.addClass('is-selected');
-                    setTimeout(() => popover.remove(), 200);
+                    this._closeInlinePopover();
                 });
             });
 
@@ -779,7 +784,7 @@ export class EditTaskModal extends Modal {
                 if (parsed) {
                     this._dueDate = parsed;
                     updateLabel();
-                    popover.remove();
+                    this._closeInlinePopover();
                 } else {
                     nlpInput.addClass('is-error');
                     setTimeout(() => nlpInput.removeClass('is-error'), 600);
@@ -788,15 +793,9 @@ export class EditTaskModal extends Modal {
             confirmBtn.addEventListener('click', tryConfirm);
             nlpInput.addEventListener('keydown', (e: KeyboardEvent) => {
                 if (e.key === 'Enter')  tryConfirm();
-                if (e.key === 'Escape') popover.remove();
+                if (e.key === 'Escape') this._closeInlinePopover();
             });
-            const onOutside = (ev: MouseEvent) => {
-                if (!popover.contains(ev.target as Node) && !chip.contains(ev.target as Node)) {
-                    popover.remove();
-                    document.removeEventListener('mousedown', onOutside);
-                }
-            };
-            setTimeout(() => document.addEventListener('mousedown', onOutside), 0);
+            this._bindInlinePopover(popover, chip);
             setTimeout(() => nlpInput.focus(), 50);
         });
 
@@ -835,8 +834,11 @@ export class EditTaskModal extends Modal {
 
         chip.addEventListener('click', () => {
             const existing = popoverAnchor.querySelector('[data-etm-popover="recur"]');
-            if (existing) { existing.remove(); return; }
-            popoverAnchor.querySelector('.diwa-etm-popover')?.remove();
+            if (existing) {
+                this._closeInlinePopover();
+                return;
+            }
+            this._closeInlinePopover();
 
             const popover = popoverAnchor.createDiv({
                 cls:  'diwa-etm-popover diwa-workspace-popup-shell diwa-workspace-popup-shell--inline',
@@ -865,18 +867,12 @@ export class EditTaskModal extends Modal {
                         b.toggleClass('is-active', this._recurrence === resolved);
                         b.setAttribute('aria-pressed', String(this._recurrence === resolved));
                     });
-                    if ('vibrate' in navigator) navigator.vibrate(8);
-                    setTimeout(() => popover.remove(), 120);
+                    this._vibrate(popover);
+                    this._closeInlinePopover();
                 });
             });
 
-            const onOutside = (ev: MouseEvent) => {
-                if (!popover.contains(ev.target as Node) && !chip.contains(ev.target as Node)) {
-                    popover.remove();
-                    document.removeEventListener('mousedown', onOutside);
-                }
-            };
-            setTimeout(() => document.addEventListener('mousedown', onOutside), 0);
+            this._bindInlinePopover(popover, chip);
         });
 
         return chip;
@@ -918,7 +914,7 @@ export class EditTaskModal extends Modal {
             c.addEventListener('click', () => {
                 this._priority = this._priority === val ? null : val;
                 syncPri();
-                if ('vibrate' in navigator) navigator.vibrate(8);
+                this._vibrate(toolbar);
             });
         });
         const syncPri = () => PRI.forEach(({ val }, i) => {
@@ -944,7 +940,7 @@ export class EditTaskModal extends Modal {
             c.addEventListener('click', () => {
                 this._energy = this._energy === val ? null : val;
                 syncNrg();
-                if ('vibrate' in navigator) navigator.vibrate(8);
+                this._vibrate(toolbar);
             });
         });
         const syncNrg = () => NRG.forEach(({ val }, i) => {
@@ -972,7 +968,7 @@ export class EditTaskModal extends Modal {
             c.addEventListener('click', () => {
                 this._status = this._status === val ? 'open' : val;
                 syncStatus();
-                if ('vibrate' in navigator) navigator.vibrate(8);
+                this._vibrate(toolbar);
             });
         });
         const syncStatus = () => STATUS.forEach(({ val }, i) => {
@@ -1070,6 +1066,42 @@ export class EditTaskModal extends Modal {
         return renderChips;
     }
 
+    private _getOwnerWindow(node: Node | null = null): Window | null {
+        return (node?.ownerDocument ?? this.modalEl.ownerDocument).defaultView;
+    }
+
+    private _vibrate(node: Node | null = null): void {
+        const ownerNavigator = this._getOwnerWindow(node)?.navigator;
+        if (ownerNavigator?.vibrate) {
+            ownerNavigator.vibrate(8);
+        }
+    }
+
+    private _closeInlinePopover(): void {
+        this._inlinePopoverCleanup?.();
+        this._inlinePopoverCleanup = null;
+    }
+
+    private _bindInlinePopover(popover: HTMLElement, trigger: HTMLElement): void {
+        this._closeInlinePopover();
+        const doc = popover.ownerDocument;
+        const onOutsidePointerDown = (event: PointerEvent) => {
+            const target = event.target;
+            if (!(target instanceof Node)) return;
+            if (!popover.contains(target) && !trigger.contains(target)) {
+                this._closeInlinePopover();
+            }
+        };
+        const cleanup = () => {
+            doc.removeEventListener('pointerdown', onOutsidePointerDown, true);
+            if (popover.isConnected) {
+                popover.remove();
+            }
+        };
+        doc.addEventListener('pointerdown', onOutsidePointerDown, true);
+        this._inlinePopoverCleanup = cleanup;
+    }
+
     // ── Swipe dismiss — mobile ────────────────────────────────────────────
 
     private _initKeyboardAvoidance(modalEl: HTMLElement, scrollEl: HTMLElement): void {
@@ -1109,7 +1141,7 @@ export class EditTaskModal extends Modal {
             const resisted = delta <= 80 ? delta : 80 + (delta - 80) * RESISTANCE / ((delta - 80) + RESISTANCE);
             currentY = resisted;
             modalEl.style.transform = `translateY(${resisted}px)`;
-            const bg = document.querySelector('.modal-bg') as HTMLElement | null;
+            const bg = modalEl.ownerDocument.querySelector('.modal-bg') as HTMLElement | null;
             if (bg) bg.style.opacity = String(1 - Math.min(delta / 300, 1) * 0.7);
         }, { passive: true });
 
