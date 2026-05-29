@@ -1,4 +1,15 @@
 
+## [11.1.0] — Bulsa Responsive Workspace
+
+### Added
+- Added a shared Bulsa selector core so desktop tabs and the responsive shell derive ledger and insights state from the same indexed data.
+- Added responsive Bulsa ledger and insights workspaces for mobile and tablet, including tablet detail inspection and touch-first actions for opening notes and recording payments.
+
+### Changed
+- Routed `diwa-open-bulsa` to the responsive hub on mobile and tablet while preserving the legacy desktop dues tab flow.
+- Persisted Bulsa leaf-local state for responsive leaves, including selected due context used by the tablet detail pane.
+- Kept responsive leaf reconciliation in place so restored hub leaves still consolidate safely without reusing desktop Bulsa tabs inside the responsive shell.
+
 ## [10.2.28] — Mobile Focus Refresh Protection
 
 ### Changed

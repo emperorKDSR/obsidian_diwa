@@ -1,7 +1,7 @@
 import { moment, Platform, TFile, setIcon } from 'obsidian';
 import type { DiwaView } from '../view';
 import { BaseTab } from './BaseTab';
-import type { DueEntry } from '../types';
+import { deriveBulsaLedgerSnapshot } from '../bulsa/selectors';
 import { PaymentModal } from '../modals/PaymentModal';
 import { NewDueModal } from '../modals/NewDueModal';
 
@@ -17,13 +17,19 @@ export class DuesTab extends BaseTab {
     async renderDuesMode(container: HTMLElement) {
         container.empty();
 
-        const allEntries = this.buildEntries();
         const today = moment().startOf('day');
-        const activeEntries = allEntries.filter((entry) => entry.isActive);
-        const overdueEntries = activeEntries.filter((entry) => entry.dueMoment?.isValid() && entry.dueMoment.isBefore(today));
-        const todayEntries = activeEntries.filter((entry) => entry.dueMoment?.isValid() && entry.dueMoment.isSame(today, 'day'));
-        const upcomingEntries = activeEntries.filter((entry) => entry.dueMoment?.isValid() && entry.dueMoment.isAfter(today));
-        const totalMonthly = activeEntries.reduce((sum, entry) => sum + (entry.amount ?? 0), 0);
+        const ledger = deriveBulsaLedgerSnapshot(this.index.dueIndex.values(), {
+            showAll: this.showAll,
+            today,
+        });
+        const {
+            activeEntries,
+            overdueEntries,
+            todayEntries,
+            upcomingEntries,
+            totalMonthly,
+            visibleEntries,
+        } = ledger;
 
         const refreshDues = async () => {
             await this.index.buildDueIndex();
@@ -123,36 +129,27 @@ export class DuesTab extends BaseTab {
             void this.renderDuesMode(container);
         });
 
-        const entries = allEntries.filter((entry) => this.showAll || entry.isActive);
         const listContainer = wrap.createEl('section', {
             cls: 'diwa-bills-list',
             attr: { 'aria-label': this.showAll ? 'All Bulsa dues' : 'Active Bulsa dues' },
         });
 
-        if (entries.length === 0) {
+        if (visibleEntries.length === 0) {
             this.renderBillsEmptyState(listContainer, openNewDueModal);
         } else {
-            entries.forEach((entry) => {
-                const isOverdue = entry.dueMoment?.isValid() && entry.dueMoment.isBefore(today);
-                const isToday = entry.dueMoment?.isValid() && entry.dueMoment.isSame(today, 'day');
-                const isPaid = !entry.isActive;
-                const daysUntil = entry.dueMoment?.isValid() && !isOverdue && !isToday
-                    ? entry.dueMoment.diff(today, 'days')
-                    : null;
-                const isSoon = daysUntil !== null && daysUntil <= 7;
-
-                const statusClass = isOverdue
+            visibleEntries.forEach((entry) => {
+                const statusClass = entry.status === 'overdue'
                     ? 'is-overdue'
-                    : isToday
+                    : entry.status === 'today'
                         ? 'is-today'
-                        : isPaid
+                        : entry.status === 'paid'
                             ? 'is-paid'
-                            : isSoon
+                            : entry.status === 'soon'
                                 ? 'is-soon'
                                 : 'is-upcoming';
 
                 const card = listContainer.createEl('article', {
-                    cls: `diwa-bills-card ${statusClass}${isPaid ? ' is-inactive' : ''}`,
+                    cls: `diwa-bills-card ${statusClass}${entry.isPaid ? ' is-inactive' : ''}`,
                 });
                 card.createEl('div', { cls: 'diwa-bills-card-stripe' });
 
@@ -190,14 +187,14 @@ export class DuesTab extends BaseTab {
                 }
 
                 const meta = body.createEl('div', { cls: 'diwa-bills-card-meta' });
-                if (isOverdue) {
+                if (entry.isOverdue) {
                     meta.createEl('span', { text: 'Overdue', cls: 'diwa-bills-badge diwa-bills-badge--overdue' });
-                } else if (isToday) {
+                } else if (entry.isToday) {
                     meta.createEl('span', { text: 'Due Today', cls: 'diwa-bills-badge diwa-bills-badge--today' });
-                } else if (isPaid) {
+                } else if (entry.isPaid) {
                     meta.createEl('span', { text: 'Paid', cls: 'diwa-bills-badge diwa-bills-badge--paid' });
                 } else if (entry.dueMoment?.isValid()) {
-                    const label = daysUntil === 1 ? 'Tomorrow' : `In ${daysUntil}d`;
+                    const label = entry.daysUntil === 1 ? 'Tomorrow' : `In ${entry.daysUntil}d`;
                     meta.createEl('span', { text: label, cls: 'diwa-bills-badge diwa-bills-badge--upcoming' });
                 }
 
@@ -271,8 +268,4 @@ export class DuesTab extends BaseTab {
         cta.addEventListener('click', onCta);
     }
 
-    private buildEntries(): DueEntry[] {
-        return Array.from(this.index.dueIndex.values())
-            .sort((a, b) => (a.dueMoment?.valueOf() || 0) - (b.dueMoment?.valueOf() || 0));
-    }
 }

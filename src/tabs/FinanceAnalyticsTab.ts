@@ -1,20 +1,9 @@
-import { moment, TFile } from 'obsidian';
+import { moment } from 'obsidian';
 import type { DiwaView } from '../view';
 import { BaseTab } from './BaseTab';
-import type { DueEntry } from '../types';
-
-interface FinanceAnalyticsSnapshot {
-    activeDueCount: number;
-    totalObligations: number;
-    overdueCount: number;
-    dueThisWeekCount: number;
-    paidThisMonthCount: number;
-    categories: Array<[string, number]>;
-}
+import { deriveBulsaInsightsSnapshot } from '../bulsa/selectors';
 
 export class FinanceAnalyticsTab extends BaseTab {
-    private _dueCategoryCache = new Map<string, { mtime: number; category: string }>();
-
     constructor(view: DiwaView) { super(view); }
 
     render(container: HTMLElement) {
@@ -27,7 +16,7 @@ export class FinanceAnalyticsTab extends BaseTab {
         const today = moment().startOf('day');
         const weekEnd = moment().endOf('isoWeek');
         const monthStart = moment().startOf('month');
-        const analytics = this._buildAnalyticsSnapshot(today, weekEnd, monthStart);
+        const analytics = deriveBulsaInsightsSnapshot(this.index.dueIndex.values(), { today, weekEnd, monthStart });
         const monthlyIncome = this.settings.monthlyIncome || 0;
         const cashflow = monthlyIncome - analytics.totalObligations;
 
@@ -136,69 +125,5 @@ export class FinanceAnalyticsTab extends BaseTab {
         if (percent > 80) return 'is-negative';
         if (percent > 60) return 'is-warning';
         return 'is-positive';
-    }
-
-    private _buildAnalyticsSnapshot(today: any, weekEnd: any, monthStart: any): FinanceAnalyticsSnapshot {
-        const map = new Map<string, number>();
-        let activeDueCount = 0;
-        let totalObligations = 0;
-        let overdueCount = 0;
-        let dueThisWeekCount = 0;
-        let paidThisMonthCount = 0;
-
-        for (const due of this.index.dueIndex.values()) {
-            if (due.isActive) {
-                activeDueCount++;
-                totalObligations += due.amount || 0;
-                if (due.dueMoment?.isValid()) {
-                    if (due.dueMoment.isBefore(today)) {
-                        overdueCount++;
-                    } else if (due.dueMoment.isSameOrAfter(today) && due.dueMoment.isSameOrBefore(weekEnd)) {
-                        dueThisWeekCount++;
-                    }
-                }
-                const category = this._getDueCategory(due);
-                map.set(category, (map.get(category) || 0) + (due.amount || 0));
-                continue;
-            }
-
-            if (!due.lastPayment) continue;
-            const paidAt = moment(due.lastPayment, 'YYYY-MM-DD', true);
-            if (paidAt.isValid() && paidAt.isSameOrAfter(monthStart)) {
-                paidThisMonthCount++;
-            }
-        }
-
-        return {
-            activeDueCount,
-            totalObligations,
-            overdueCount,
-            dueThisWeekCount,
-            paidThisMonthCount,
-            categories: Array.from(map.entries()).sort((a, b) => b[1] - a[1]),
-        };
-    }
-
-    private _getDueCategory(due: DueEntry): string {
-        const file = this.app.vault.getAbstractFileByPath(due.path);
-        if (!(file instanceof TFile)) return 'Uncategorized';
-
-        const cached = this._dueCategoryCache.get(due.path);
-        if (cached && cached.mtime === file.stat.mtime) {
-            return cached.category;
-        }
-
-        let category = 'Uncategorized';
-        const cache = this.app.metadataCache.getFileCache(file);
-        const context = cache?.frontmatter?.context || cache?.frontmatter?.contexts;
-        if (context) {
-            const first = Array.isArray(context) ? context[0] : String(context).split(/[,\s]/)[0];
-            if (first && String(first).trim()) {
-                category = String(first).trim().replace(/^#/, '');
-            }
-        }
-
-        this._dueCategoryCache.set(due.path, { mtime: file.stat.mtime, category });
-        return category;
     }
 }

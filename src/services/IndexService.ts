@@ -56,6 +56,17 @@ export class IndexService {
         return IndexService.normalizeStringArray(record[key]);
     }
 
+    static normalizeDueCategory(raw: unknown): string | undefined {
+        if (Array.isArray(raw)) {
+            return raw
+                .map((value) => String(value).trim().replace(/^#+/, ''))
+                .find(Boolean);
+        }
+        if (raw === null || raw === undefined) return undefined;
+        const candidate = String(raw).split(/[,\s]/)[0]?.trim().replace(/^#+/, '');
+        return candidate || undefined;
+    }
+
     /** Read a frontmatter field by trying multiple key aliases. */
     static getFrontmatterValue(frontmatter: Record<string, unknown>, keys: string[]): unknown {
         for (const key of keys) {
@@ -404,6 +415,7 @@ export class IndexService {
         const fmAmount = parseFloat((fm?.['amount'] ?? '').toString().replace(/[^\d.]/g, ''));
         const legacyAmount = parseFloat(file.basename.match(/[\d.]+/)?.[0] || '0');
         const amount = !isNaN(fmAmount) && fmAmount > 0 ? fmAmount : (isNaN(legacyAmount) ? 0 : legacyAmount);
+        const category = IndexService.normalizeDueCategory(fm?.['category'] ?? fm?.['context'] ?? fm?.['contexts']) ?? 'Uncategorized';
 
         this.dueIndex.set(file.path, {
             title: file.basename,
@@ -414,6 +426,7 @@ export class IndexService {
             hasRecurring: !!dueDate,
             isActive,
             amount: isNaN(amount) ? 0 : amount,
+            category,
         });
 
         if (!skipRebuild) this.rebuildCalculatedState();

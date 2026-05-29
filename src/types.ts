@@ -34,6 +34,27 @@ export interface GawaLayoutPreferences {
     tablet: Record<GawaTabletBucketId, GawaLayoutBucketPreference>;
 }
 
+export type ResponsiveWorkspaceView = 'home' | 'tasks' | 'projects' | 'thoughts' | 'bulsa';
+export type ResponsiveProjectFilter = 'all' | 'active' | 'on-hold' | 'completed';
+export type BulsaMode = 'ledger' | 'insights';
+
+export interface BulsaLeafState {
+    mode?: BulsaMode;
+    showAllDues?: boolean;
+}
+
+export interface ResponsiveShellState extends Record<string, unknown> {
+    activeView?: ResponsiveWorkspaceView;
+    activeContexts?: string[];
+    projectFilter?: ResponsiveProjectFilter;
+    expandedProjectIds?: string[];
+    selectedProjectId?: string | null;
+    selectedMilestoneIds?: Record<string, string | null>;
+    selectedThoughtId?: string | null;
+    selectedBulsaDuePath?: string | null;
+    bulsa?: BulsaLeafState;
+}
+
 export interface DiwaSettings {
     captureFolder: string;
 	captureFilePath: string;
@@ -201,6 +222,7 @@ export interface DueEntry {
     hasRecurring: boolean; 
     isActive: boolean;
     amount?: number;
+    category?: string;
 }
 
 export type FileOrCreate = TFile | string;

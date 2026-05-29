@@ -1,17 +1,27 @@
 import { App, Modal, Notice, TFile, moment, setIcon } from 'obsidian';
-import type { TaskEntry, ThoughtEntry, ProjectEntry, Milestone } from '../types';
+import type {
+    BulsaLeafState,
+    Milestone,
+    ProjectEntry,
+    ResponsiveProjectFilter,
+    ResponsiveShellState,
+    ResponsiveWorkspaceView,
+    TaskEntry,
+    ThoughtEntry,
+} from '../types';
 import type DiwaPlugin from '../main';
 import { getWorkspaceViewportSize, isTaskDone, isTablet } from '../utils';
 import { NewProjectModal } from '../modals/NewProjectModal';
 import { EditProjectModal } from '../modals/EditProjectModal';
 import { EditTaskModal } from '../modals/EditTaskModal';
+import { NewDueModal } from '../modals/NewDueModal';
+import { PaymentModal } from '../modals/PaymentModal';
+import { renderResponsiveBulsa } from './BulsaResponsiveRenderer';
 
-type MobileView = 'home' | 'tasks' | 'projects' | 'thoughts';
 export type ShellPlatform = 'mobile' | 'tablet' | 'desktop';
-type ProjectFilter = 'all' | 'active' | 'on-hold' | 'completed';
 
 interface ShellNavItem {
-    id: MobileView;
+    id: ResponsiveWorkspaceView;
     label: string;
     icon: string;
     shortLabel?: string;
@@ -21,16 +31,21 @@ interface ShellNavItem {
 const SHELL_ITEMS: ShellNavItem[] = [
     { id: 'home', label: 'Home', icon: 'house' },
     { id: 'projects', label: 'Projects', shortLabel: 'Proj', ariaLabel: 'Projects', icon: 'folder-kanban' },
+    { id: 'bulsa', label: 'Bulsa', icon: 'wallet' },
     { id: 'tasks', label: 'Gawa', icon: 'check-square-2' },
     { id: 'thoughts', label: 'Diwa', icon: 'pen-square' },
 ];
 
-const PROJECT_FILTERS: { id: ProjectFilter; label: string }[] = [
+const PROJECT_FILTERS: { id: ResponsiveProjectFilter; label: string }[] = [
     { id: 'all', label: 'All' },
     { id: 'active', label: 'Active' },
     { id: 'on-hold', label: 'On Hold' },
     { id: 'completed', label: 'Completed' },
 ];
+const DEFAULT_BULSA_STATE: Required<BulsaLeafState> = {
+    mode: 'ledger',
+    showAllDues: false,
+};
 
 const PROJECT_STATUS_LABELS: Record<ProjectEntry['status'], string> = {
     active: 'Active',
@@ -76,25 +91,21 @@ interface MilestoneTaskStats {
 interface ProjectCache {
     collection: ProjectEntry[];
     byId: Map<string, ProjectEntry>;
-    filtered: Map<ProjectFilter, ProjectEntry[]>;
+    filtered: Map<ResponsiveProjectFilter, ProjectEntry[]>;
     metrics: Map<string, ProjectMetrics>;
     tasks: Map<string, TaskEntry[]>;
     summary?: ProjectSummary;
 }
 
 type ShellRefreshScope = 'all' | 'tasks' | 'thoughts' | 'projects';
-export interface DiwaMobileShellState extends Record<string, unknown> {
-    activeView?: MobileView;
-    activeContexts?: string[];
-    projectFilter?: ProjectFilter;
-    expandedProjectIds?: string[];
-    selectedProjectId?: string | null;
-    selectedMilestoneIds?: Record<string, string | null>;
-    selectedThoughtId?: string | null;
-}
+export interface DiwaMobileShellState extends ResponsiveShellState {}
 
 const PROJECT_STATUS_ORDER: ProjectEntry['status'][] = ['active', 'on-hold', 'completed', 'archived'];
 const PROJECT_STATUS_FILTERS = PROJECT_FILTERS.filter((filter) => filter.id !== 'all');
+
+function isResponsiveWorkspaceView(value: string | null | undefined): value is ResponsiveWorkspaceView {
+    return SHELL_ITEMS.some((item) => item.id === value);
+}
 
 interface DiwaMobileShellOptions {
     platform?: Exclude<ShellPlatform, 'desktop'>;
@@ -109,12 +120,14 @@ export function getPlatform(app: App): ShellPlatform {
 }
 
 export class DiwaMobileShell {
-    private activeView: MobileView = 'home';
+    private activeView: ResponsiveWorkspaceView = 'home';
     private activeContexts: Set<string> = new Set();
-    private projectFilter: ProjectFilter = 'all';
+    private projectFilter: ResponsiveProjectFilter = 'all';
     private expandedProjectIds: Set<string> = new Set();
     private selectedProjectId: string | null = null;
     private selectedThought: ThoughtEntry | null = null;
+    private bulsa: Required<BulsaLeafState> = { ...DEFAULT_BULSA_STATE };
+    private selectedBulsaDuePath: string | null = null;
     private hostEl: HTMLElement | null = null;
     private shellEl: HTMLElement | null = null;
     private contentEl: HTMLElement | null = null;
@@ -151,12 +164,14 @@ export class DiwaMobileShell {
             selectedProjectId: this.selectedProjectId,
             selectedMilestoneIds: Object.fromEntries(this.selectedMilestoneIds.entries()),
             selectedThoughtId: this.selectedThought?.id || this.selectedThought?.filePath || null,
+            selectedBulsaDuePath: this.selectedBulsaDuePath,
+            bulsa: { ...this.bulsa },
         };
     }
 
     public setState(state: DiwaMobileShellState | null | undefined): void {
         if (!state) return;
-        if (state.activeView && SHELL_ITEMS.some((item) => item.id === state.activeView)) {
+        if (state.activeView && isResponsiveWorkspaceView(state.activeView)) {
             this.activeView = state.activeView;
         }
         if (Array.isArray(state.activeContexts)) {
@@ -185,11 +200,22 @@ export class DiwaMobileShell {
             });
         }
         this.selectedThought = this.findThoughtById(state.selectedThoughtId ?? null);
+        if (Object.prototype.hasOwnProperty.call(state, 'selectedBulsaDuePath')) {
+            this.selectedBulsaDuePath = typeof state.selectedBulsaDuePath === 'string' && state.selectedBulsaDuePath.length > 0
+                ? state.selectedBulsaDuePath
+                : null;
+        }
+        if (state.bulsa !== undefined) {
+            this.bulsa = {
+                mode: state.bulsa?.mode === 'insights' ? 'insights' : DEFAULT_BULSA_STATE.mode,
+                showAllDues: state.bulsa?.showAllDues === true,
+            };
+        }
     }
 
     public refreshTasks(): void {
         this.invalidateCaches('tasks');
-        if (this.activeView === 'thoughts') return;
+        if (this.activeView === 'thoughts' || this.activeView === 'bulsa') return;
         this.refreshView();
     }
 
@@ -282,6 +308,9 @@ export class DiwaMobileShell {
             case 'home':
                 this.renderHome(container);
                 break;
+            case 'bulsa':
+                this.renderBulsa(container);
+                break;
             case 'tasks':
                 this.renderTasks(container);
                 break;
@@ -294,10 +323,87 @@ export class DiwaMobileShell {
         }
     }
 
-    private switchView(view: MobileView): void {
+    private switchView(view: ResponsiveWorkspaceView): void {
         if (this.activeView === view) return;
         this.activeView = view;
         this.refreshView();
+    }
+
+    private renderBulsa(container: HTMLElement): void {
+        this.syncBulsaSelection();
+        renderResponsiveBulsa({
+            container,
+            platform: this.platform,
+            dues: this.plugin.index.dueIndex.values(),
+            monthlyIncome: this.plugin.settings.monthlyIncome,
+            state: this.bulsa,
+            selectedDuePath: this.selectedBulsaDuePath,
+            onModeChange: (mode) => {
+                if (this.bulsa.mode === mode) return;
+                this.bulsa = { ...this.bulsa, mode };
+                this.refreshView();
+            },
+            onShowAllChange: (showAllDues) => {
+                if (this.bulsa.showAllDues === showAllDues) return;
+                this.bulsa = { ...this.bulsa, showAllDues };
+                this.refreshView();
+            },
+            onSelectDue: (path) => {
+                if (this.selectedBulsaDuePath === path) return;
+                this.selectedBulsaDuePath = path;
+                this.refreshView();
+            },
+            onAddDue: () => this.openBulsaDueModal(),
+            onOpenDue: (entry) => void this.openBulsaDueNote(entry.path),
+            onRecordPayment: (entry) => this.openBulsaPaymentModal(entry.path, entry.dueDate),
+        });
+    }
+
+    private openBulsaDueModal(): void {
+        new NewDueModal(
+            this.app,
+            this.plugin.vault,
+            this.plugin.settings.pfFolder,
+            () => void this.refreshBulsaWorkspace()
+        ).open();
+    }
+
+    private openBulsaPaymentModal(path: string, currentDueDate: string): void {
+        const file = this.app.vault.getAbstractFileByPath(path);
+        if (!(file instanceof TFile)) {
+            new Notice('Could not find the due note for payment logging.');
+            return;
+        }
+
+        new PaymentModal(
+            this.app,
+            this.plugin,
+            file,
+            currentDueDate,
+            () => void this.refreshBulsaWorkspace()
+        ).open();
+    }
+
+    private async openBulsaDueNote(path: string): Promise<void> {
+        const file = this.app.vault.getAbstractFileByPath(path);
+        if (!(file instanceof TFile)) {
+            new Notice('Could not find the Bulsa note to open.');
+            return;
+        }
+
+        await this.app.workspace.getLeaf(false).openFile(file);
+    }
+
+    private async refreshBulsaWorkspace(): Promise<void> {
+        await this.plugin.index.buildDueIndex();
+        this.syncBulsaSelection();
+        this.refreshView();
+    }
+
+    private syncBulsaSelection(): void {
+        if (this.selectedBulsaDuePath && !this.plugin.index.dueIndex.has(this.selectedBulsaDuePath)) {
+            this.selectedBulsaDuePath = null;
+        }
     }
 
     private renderHome(container: HTMLElement): void {

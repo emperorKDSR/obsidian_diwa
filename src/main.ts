@@ -1,5 +1,6 @@
 import { Plugin, TFile, Notice, WorkspaceLeaf, Platform, moment, addIcon, setIcon, MarkdownRenderer, Menu } from 'obsidian';
 import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, PROJECT_ICON_ID, PROJECT_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB } from './constants';
+import type { BulsaLeafState, ResponsiveShellState } from './types';
 import { DiwaSettings, GawaLayoutPreferences, TaskEntry, ThoughtEntry } from './types';
 import { sanitizeGawaLayoutPreferences } from './gawaLayout';
 import { isTablet, parseContextString } from './utils';
@@ -378,37 +379,17 @@ export default class DiwaPlugin extends Plugin {
     }
 
     async activateMobileHub() {
-        const { workspace } = this.app;
-        const existing = workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB);
-        if (existing.length > 0) { workspace.revealLeaf(existing[0]); return; }
         if (!Platform.isMobile || isTablet(this.app)) {
             return;
         }
-        const tabletLeaf = workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB)[0];
-        if (tabletLeaf) {
-            await this.setLeafViewType(tabletLeaf, VIEW_TYPE_MOBILE_HUB, true);
-            workspace.revealLeaf(tabletLeaf);
-            return;
-        }
-        const leaf = workspace.getLeaf(false);
-        if (leaf) { await leaf.setViewState({ type: VIEW_TYPE_MOBILE_HUB, active: true }); workspace.revealLeaf(leaf); }
+        await this.activateResponsiveHubLeaf();
     }
 
     async activateTabletHub() {
-        const { workspace } = this.app;
-        const existing = workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB);
-        if (existing.length > 0) { workspace.revealLeaf(existing[0]); return; }
         if (!isTablet(this.app)) {
             return;
         }
-        const mobileLeaf = workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB)[0];
-        if (mobileLeaf) {
-            await this.setLeafViewType(mobileLeaf, VIEW_TYPE_TABLET_HUB, true);
-            workspace.revealLeaf(mobileLeaf);
-            return;
-        }
-        const leaf = workspace.getLeaf(false);
-        if (leaf) { await leaf.setViewState({ type: VIEW_TYPE_TABLET_HUB, active: true }); workspace.revealLeaf(leaf); }
+        await this.activateResponsiveHubLeaf();
     }
 
     private async runStartupIndexBuild(startupToken: number): Promise<void> {
@@ -658,6 +639,75 @@ export default class DiwaPlugin extends Plugin {
         });
     }
 
+    private async activateResponsiveHubLeaf(statePatch: Partial<ResponsiveShellState> = {}): Promise<WorkspaceLeaf | null> {
+        if (!this.isMobile()) return null;
+
+        const { workspace } = this.app;
+        const targetViewType = this.getResponsiveHubTargetViewType();
+        if (targetViewType !== VIEW_TYPE_MOBILE_HUB && targetViewType !== VIEW_TYPE_TABLET_HUB) {
+            return null;
+        }
+
+        const targetLeaf = workspace.getLeavesOfType(targetViewType)[0]
+            ?? this.getReusableResponsiveHubLeaf()
+            ?? workspace.getLeaf(false);
+        if (!targetLeaf) return null;
+
+        await this.setResponsiveHubLeafState(targetLeaf, targetViewType, statePatch, true);
+        workspace.revealLeaf(targetLeaf);
+        return targetLeaf;
+    }
+
+    private getReusableResponsiveHubLeaf(): WorkspaceLeaf | null {
+        const { workspace } = this.app;
+        const responsiveLeaves = [
+            ...workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB),
+            ...workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB),
+            ...workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB),
+        ];
+        return (workspace.activeLeaf && responsiveLeaves.includes(workspace.activeLeaf) ? workspace.activeLeaf : null)
+            ?? responsiveLeaves[0]
+            ?? null;
+    }
+
+    private async setResponsiveHubLeafState(
+        leaf: WorkspaceLeaf,
+        type: typeof VIEW_TYPE_MOBILE_HUB | typeof VIEW_TYPE_TABLET_HUB,
+        statePatch: Partial<ResponsiveShellState>,
+        active: boolean,
+    ): Promise<void> {
+        const currentState = leaf.getViewState();
+        const currentLeafState = currentState.state && typeof currentState.state === 'object'
+            ? { ...(currentState.state as ResponsiveShellState) }
+            : {};
+        const currentBulsaState = this.getBulsaLeafState(currentLeafState.bulsa);
+        const nextBulsaState = this.getBulsaLeafState(statePatch.bulsa);
+        const nextState: ResponsiveShellState = {
+            ...currentLeafState,
+            ...statePatch,
+        };
+
+        if (currentBulsaState || nextBulsaState) {
+            nextState.bulsa = {
+                ...(currentBulsaState ?? {}),
+                ...(nextBulsaState ?? {}),
+            };
+        }
+
+        await leaf.setViewState({
+            ...currentState,
+            type,
+            active,
+            state: nextState,
+        });
+    }
+
+    private getBulsaLeafState(state: unknown): BulsaLeafState | undefined {
+        return state && typeof state === 'object'
+            ? { ...(state as BulsaLeafState) }
+            : undefined;
+    }
+
     private async migrateLegacyMobileGawaLeaves(startupToken?: number): Promise<void> {
         if (startupToken !== undefined && !this.isStartupRunActive(startupToken)) return;
         const leaves = this.app.workspace.getLeavesOfType('diwa-mobile-gawa');
@@ -675,6 +725,10 @@ export default class DiwaPlugin extends Plugin {
     }
 
     async activateBulsa() {
+        if (this.isMobile()) {
+            await this.activateResponsiveHubLeaf({ activeView: 'bulsa' });
+            return;
+        }
         await this.activateView('dues');
     }
 

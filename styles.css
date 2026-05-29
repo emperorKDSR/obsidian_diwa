@@ -17539,6 +17539,251 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
   flex-direction: column;
 }
 
+.diwa-mh-bulsa,
+.diwa-th-bulsa {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 16px 24px;
+}
+
+.diwa-bulsa-panel,
+.diwa-bulsa-topbar {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 24px;
+  border: 1px solid var(--background-modifier-border-faint);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0)),
+    color-mix(in srgb, var(--background-secondary-alt) 86%, var(--background-primary) 14%);
+  box-shadow: 0 16px 30px color-mix(in srgb, var(--background-primary) 88%, transparent);
+}
+
+.diwa-bulsa-hero {
+  gap: 12px;
+}
+
+.diwa-bulsa-hero-title,
+.diwa-bulsa-topbar-title {
+  letter-spacing: -0.04em;
+}
+
+.diwa-bulsa-hero-chips {
+  gap: 8px;
+}
+
+.diwa-bulsa-primary-actions,
+.diwa-bulsa-topbar-actions,
+.diwa-bulsa-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.diwa-bulsa-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--interactive-accent) 18%, var(--background-modifier-border-faint) 82%);
+  background: color-mix(in srgb, var(--background-primary) 68%, var(--background-secondary) 32%);
+  color: var(--text-normal);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.diwa-bulsa-action-btn:hover:not(:disabled),
+.diwa-bulsa-action-btn:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.10);
+  border-color: color-mix(in srgb, var(--interactive-accent) 26%, transparent);
+  outline: none;
+}
+
+.diwa-bulsa-action-btn.is-primary {
+  border-color: transparent;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.diwa-bulsa-action-btn.is-disabled,
+.diwa-bulsa-action-btn:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.diwa-bulsa-action-btn-icon,
+.diwa-bulsa-action-btn-icon .svg-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.diwa-bulsa-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.diwa-bulsa-toggle {
+  width: fit-content;
+}
+
+.diwa-mh-bulsa .diwa-bulsa-toggle {
+  width: 100%;
+}
+
+.diwa-th-bulsa .diwa-bills-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.diwa-bulsa-card-list {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.diwa-bulsa-card {
+  min-width: 0;
+}
+
+.diwa-bulsa-card.is-selected {
+  border-color: color-mix(in srgb, var(--interactive-accent) 28%, transparent);
+  box-shadow: 0 18px 32px color-mix(in srgb, var(--interactive-accent) 10%, transparent);
+}
+
+.diwa-bulsa-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+}
+
+.diwa-bulsa-card-caption {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.diwa-bulsa-card-caption.is-secondary {
+  color: var(--text-faint);
+}
+
+.diwa-bulsa-card-actions {
+  gap: 8px;
+  align-items: center;
+}
+
+.diwa-bulsa-open-btn {
+  color: var(--text-muted);
+}
+
+.diwa-bulsa-split {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.05fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.diwa-bulsa-ledger-pane,
+.diwa-bulsa-detail-pane {
+  min-width: 0;
+}
+
+.diwa-bulsa-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.diwa-bulsa-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--background-modifier-border-faint);
+  background: color-mix(in srgb, var(--background-primary) 74%, var(--background-secondary) 26%);
+}
+
+.diwa-bulsa-detail-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.diwa-bulsa-detail-value {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-normal);
+  line-height: 1.45;
+}
+
+.diwa-bulsa-insights-grid {
+  width: 100%;
+}
+
+.diwa-bulsa-topbar-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.diwa-bulsa-topbar-subtitle {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.diwa-bulsa-empty {
+  min-height: 220px;
+}
+
+@media (max-width: 960px) {
+  .diwa-bulsa-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .diwa-mh-bulsa,
+  .diwa-th-bulsa {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .diwa-bulsa-panel,
+  .diwa-bulsa-topbar,
+  .diwa-bulsa-detail-item {
+    border-radius: 22px;
+  }
+
+  .diwa-bulsa-primary-actions,
+  .diwa-bulsa-topbar-actions,
+  .diwa-bulsa-detail-actions {
+    flex-direction: column;
+  }
+
+  .diwa-bulsa-action-btn {
+    width: 100%;
+  }
+
+  .diwa-bulsa-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .diwa-tablet-project-list-card__name {
   font-size: 16px;
   font-weight: 760;
