@@ -1,4 +1,12 @@
 
+## [10.2.20] — Runtime and Mobile Hardening
+
+### Changed
+- Recovered cleanly from startup indexing failures so DIWA no longer gets stuck half-initialized while runtime listeners remain inactive.
+- Deferred folder-setting saves until commit actions like blur, Enter, or modal close instead of rebuilding on every keystroke.
+- Reduced repeated mobile thought markdown rerenders with cached rendered content and preserved responsive shell state across view refreshes.
+- Reconciled desktop, mobile, and tablet hub leaves across restored layouts and device-class changes.
+
 ## [10.2.19] — Vault Integrity Hardening
 
 ### Changed

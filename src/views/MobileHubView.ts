@@ -1,7 +1,7 @@
-import { ItemView, WorkspaceLeaf } from 'obsidian';
+import { ItemView, type ViewStateResult, WorkspaceLeaf } from 'obsidian';
 import { VIEW_TYPE_MOBILE_HUB } from '../constants';
 import type DiwaPlugin from '../main';
-import { DiwaMobileShell, getPlatform, type ShellPlatform } from '../mobile/DiwaMobileShell';
+import { DiwaMobileShell, getPlatform, type DiwaMobileShellState, type ShellPlatform } from '../mobile/DiwaMobileShell';
 
 export class MobileHubView extends ItemView {
     private shell: DiwaMobileShell;
@@ -26,6 +26,17 @@ export class MobileHubView extends ItemView {
     async onClose() {
         const header = this.containerEl.children[0] as HTMLElement;
         if (header) header.style.display = '';
+    }
+
+    getState(): DiwaMobileShellState {
+        return this.shell.getState();
+    }
+
+    async setState(state: DiwaMobileShellState, result: ViewStateResult): Promise<void> {
+        this.shell.setState(state);
+        await super.setState(state, result);
+        const root = this.containerEl.children[1] as HTMLElement | undefined;
+        if (root?.isConnected) this.renderView();
     }
 
     protected resolveShellPlatform(): ShellPlatform {

@@ -125,7 +125,7 @@ export class RefreshCoordinator {
         }
         const mobileHubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB);
         for (const leaf of mobileHubLeaves) {
-            const view = leaf.view as MobileHubView;
+            const view = leaf.view as unknown as MobileHubView;
             if (view && typeof view.renderView === 'function') {
                 if (scope === 'tasks' && typeof view.refreshTasks === 'function') {
                     view.refreshTasks();
@@ -140,7 +140,7 @@ export class RefreshCoordinator {
         }
         const tabletHubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB);
         for (const leaf of tabletHubLeaves) {
-            const view = leaf.view as MobileHubView;
+            const view = leaf.view as unknown as MobileHubView;
             if (view && typeof view.renderView === 'function') {
                 if (scope === 'tasks' && typeof view.refreshTasks === 'function') {
                     view.refreshTasks();

@@ -1,5 +1,5 @@
 import { VIEW_TYPE_TABLET_HUB } from '../constants';
-import { type ShellPlatform } from '../mobile/DiwaMobileShell';
+import { getPlatform, type ShellPlatform } from '../mobile/DiwaMobileShell';
 import { MobileHubView } from './MobileHubView';
 
 export class TabletHubView extends MobileHubView {
@@ -8,6 +8,6 @@ export class TabletHubView extends MobileHubView {
     getIcon(): string { return 'layout-dashboard'; }
 
     protected resolveShellPlatform(): ShellPlatform {
-        return 'tablet';
+        return getPlatform(this.app);
     }
 }

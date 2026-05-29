@@ -77,6 +77,14 @@ interface ProjectCache {
 }
 
 type ShellRefreshScope = 'all' | 'tasks' | 'thoughts' | 'projects';
+export interface DiwaMobileShellState extends Record<string, unknown> {
+    activeView?: MobileView;
+    activeContexts?: string[];
+    projectFilter?: ProjectFilter;
+    expandedProjectIds?: string[];
+    selectedProjectId?: string | null;
+    selectedThoughtId?: string | null;
+}
 
 const PROJECT_STATUS_ORDER: ProjectEntry['status'][] = ['active', 'on-hold', 'completed', 'archived'];
 const PROJECT_STATUS_FILTERS = PROJECT_FILTERS.filter((filter) => filter.id !== 'all');
@@ -118,6 +126,37 @@ export class DiwaMobileShell {
         this.platform = platform;
     }
 
+    public getState(): DiwaMobileShellState {
+        return {
+            activeView: this.activeView,
+            activeContexts: Array.from(this.activeContexts),
+            projectFilter: this.projectFilter,
+            expandedProjectIds: Array.from(this.expandedProjectIds),
+            selectedProjectId: this.selectedProjectId,
+            selectedThoughtId: this.selectedThought?.id || this.selectedThought?.filePath || null,
+        };
+    }
+
+    public setState(state: DiwaMobileShellState | null | undefined): void {
+        if (!state) return;
+        if (state.activeView && SHELL_ITEMS.some((item) => item.id === state.activeView)) {
+            this.activeView = state.activeView;
+        }
+        if (Array.isArray(state.activeContexts)) {
+            this.activeContexts = new Set(state.activeContexts.filter((value): value is string => typeof value === 'string' && value.length > 0));
+        }
+        if (state.projectFilter && PROJECT_FILTERS.some((filter) => filter.id === state.projectFilter)) {
+            this.projectFilter = state.projectFilter;
+        }
+        if (Array.isArray(state.expandedProjectIds)) {
+            this.expandedProjectIds = new Set(state.expandedProjectIds.filter((value): value is string => typeof value === 'string' && value.length > 0));
+        }
+        this.selectedProjectId = typeof state.selectedProjectId === 'string' && state.selectedProjectId.length > 0
+            ? state.selectedProjectId
+            : null;
+        this.selectedThought = this.findThoughtById(state.selectedThoughtId ?? null);
+    }
+
     public refreshTasks(): void {
         this.invalidateCaches('tasks');
         if (this.activeView === 'thoughts') return;
@@ -126,6 +165,7 @@ export class DiwaMobileShell {
 
     public refreshThoughts(): void {
         this.invalidateCaches('thoughts');
+        this.selectedThought = this.findThoughtById(this.selectedThought?.id || this.selectedThought?.filePath || null);
         if (this.activeView !== 'home' && this.activeView !== 'thoughts') return;
         this.refreshView();
     }
@@ -946,6 +986,12 @@ export class DiwaMobileShell {
 
     private openContextPicker(contexts: string[]): void {
         new MobileContextPickerModal(this.app, contexts, this.activeContexts, () => this.refreshView()).open();
+    }
+
+    private findThoughtById(thoughtId: string | null): ThoughtEntry | null {
+        if (!thoughtId) return null;
+        const thoughts = this.getThoughtCache().all;
+        return thoughts.find((thought) => (thought.id || thought.filePath) === thoughtId) ?? null;
     }
 
     private renderThoughtList(container: HTMLElement, thoughts: ThoughtEntry[], selectable: boolean): void {

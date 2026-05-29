@@ -246,6 +246,17 @@ export class IndexService {
         this.rebuildCalculatedState();
     }
 
+    resetAllIndices(): void {
+        this.thoughtIndex.clear();
+        this.taskIndex.clear();
+        this.dueIndex.clear();
+        this.projectIndex.clear();
+        this.checklistIndex = [];
+        this._thoughtChecklistMap.clear();
+        this._thoughtDoneChecklistMap.clear();
+        this.radarQueue = [];
+        this.totalDues = 0;
+    }
 
     rebuildCalculatedState() {
         // 1. Radar Queue: Urgent Open + Completed Today

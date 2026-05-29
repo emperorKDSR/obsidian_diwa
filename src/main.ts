@@ -79,8 +79,12 @@ export default class DiwaPlugin extends Plugin {
     private unloading = false;
     private startupRunToken = 0;
     private legacyMigrationTimer: number | null = null;
+    private responsiveHubReconcileTimer: number | null = null;
     private readonly scheduledThoughtRenderTimers = new Map<HTMLElement, number>();
     private readonly thoughtRenderTokens = new WeakMap<HTMLElement, number>();
+    private readonly thoughtContentRenderCache = new Map<string, HTMLElement>();
+    private reactiveRuntimeEventsRegistered = false;
+    private reconcilingResponsiveHubLeaves = false;
     private globalDomStateCaptured = false;
     private initialHostBottomBarInlineValue: string | null = null;
     private initialBodyHadTabletClass = false;
@@ -165,123 +169,9 @@ export default class DiwaPlugin extends Plugin {
 
         this.app.workspace.onLayoutReady(async () => {
             const startupToken = ++this.startupRunToken;
-            this.thoughtController.beginIndexing(); // suppress notifications during bulk load
-            await this.index.buildIndices();
-            if (!this.isStartupRunActive(startupToken)) return;
-            const normalizedTasks = this.normalizeIndexedTasks(Array.from(this.index.taskIndex.values()));
-            this.taskIndex.set(normalizedTasks);
-            normalizedTasks.forEach((task) => {
-                this.getTaskController().addTask(task);
-            });
-            this.getThoughtController().hydrateFromIndex(Array.from(this.index.thoughtIndex.values()));
-            this.getThoughtController().endIndexing(); // releases ready gate, resolves readyPromise
-            console.log('Tasks loaded:', normalizedTasks.length);
-            console.log('TaskIndex:', this.taskIndex);
-            this.logTaskControllerPanes();
-            this.notifyRefresh(); // ensure view re-renders with freshly-built index
-            this.refreshOpenTaskPanes();
-            void this.scanForContexts(startupToken);
-            await this.migrateLegacyMobileGawaLeaves(startupToken);
-            if (!this.isStartupRunActive(startupToken)) return;
-            
-            // --- REACTIVE NERVE SYSTEM ---
-            // vault events: fast path for local writes (create/delete/rename)
-            this.registerEvent(this.app.vault.on('create', async (f) => {
-                // Only refresh when the created file actually affects indexed state.
-                // Attachment/voice/binary files must NOT trigger a re-render — doing so
-                // wipes any open capture textarea (vault create fires when paste saves an image).
-                const scope = this.getRefreshScopeForPath(f.path);
-                if (!scope) {
-                    if (!(f instanceof TFile)) await this.handleProjectFolderMutation(f.path);
-                    return;
-                }
-                if (!(f instanceof TFile)) {
-                    await this.handleProjectFolderMutation(f.path);
-                    return;
-                }
-                if (this.index.isThoughtFile(f.path)) {
-                    await this.index.indexThoughtFile(f);
-                    if (!this.getThoughtController().isUpdatingThoughtPath(f.path)) {
-                        this.getThoughtController().syncIndexedThought(f.path);
-                    }
-                }
-                else if (this.index.isTaskFile(f.path)) await this.index.indexTaskFile(f);
-                else if (this.index.isDueFile(f.path)) this.index.indexDueFile(f);
-                else if (this.index.isProjectFile(f.path)) await this.index.indexProjectFile(f);
-                this.notifyRefresh(scope);
-            }));
-
-            this.registerEvent(this.app.vault.on('modify', async (f) => {
-                const scope = this.getRefreshScopeForPath(f.path);
-                if (!scope) {
-                    if (!(f instanceof TFile)) await this.handleProjectFolderMutation(f.path);
-                    return;
-                }
-                if (!(f instanceof TFile)) {
-                    await this.handleProjectFolderMutation(f.path);
-                    return;
-                }
-                await this.refreshCoordinator.reindexFile(f);
-                if (this.index.isThoughtFile(f.path) && !this.getThoughtController().isUpdatingThoughtPath(f.path)) {
-                    this.getThoughtController().syncIndexedThought(f.path);
-                }
-                this.notifyRefresh(scope);
-            }));
-
-            this.registerEvent(this.app.vault.on('delete', async (f) => {
-                const scope = this.getRefreshScopeForPath(f.path);
-                if (!scope) {
-                    if (!(f instanceof TFile)) await this.handleProjectFolderMutation(f.path);
-                    return;
-                }
-                this.getThoughtController().removeThoughtFromIndex(f.path);
-                this.index.taskIndex.delete(f.path);
-                if (this.index.isDueFile(f.path)) this.index.removeDueFile(f.path);
-                if (this.index.isProjectFile(f.path)) this.index.removeProjectFile(f.path);
-                this.notifyRefresh(scope);
-            }));
-
-            this.registerEvent(this.app.vault.on('rename', async (f, oldPath) => {
-                const scope = this.mergeRefreshScopes(
-                    this.getRefreshScopeForPath(oldPath),
-                    this.getRefreshScopeForPath(f.path),
-                );
-                if (!scope) {
-                    if (!(f instanceof TFile)) await this.handleProjectFolderMutation(oldPath, f.path);
-                    return;
-                }
-                if (!(f instanceof TFile)) {
-                    await this.handleProjectFolderMutation(oldPath, f.path);
-                    return;
-                }
-                this.getThoughtController().removeThoughtFromIndex(oldPath);
-                this.index.taskIndex.delete(oldPath);
-                if (this.index.isDueFile(oldPath)) this.index.removeDueFile(oldPath, true);
-                if (this.index.isProjectFile(oldPath)) this.index.removeProjectFile(oldPath);
-                if (this.index.isThoughtFile(f.path)) {
-                    await this.index.indexThoughtFile(f);
-                    if (!this.getThoughtController().isUpdatingThoughtPath(f.path)) {
-                        this.getThoughtController().syncIndexedThought(f.path);
-                    }
-                }
-                else if (this.index.isTaskFile(f.path)) await this.index.indexTaskFile(f);
-                else if (this.index.isDueFile(f.path)) this.index.indexDueFile(f, true);
-                else if (this.index.isProjectFile(f.path)) await this.index.indexProjectFile(f);
-                if (this.index.isDueFile(oldPath) || this.index.isDueFile(f.path)) this.index.rebuildCalculatedState();
-                this.notifyRefresh(scope);
-            }));
-
-            // metadataCache.changed: authoritative trigger for cloud-synced files
-            // (OneDrive/iCloud sync may not fire vault 'modify'/'create' reliably)
-            this.registerEvent(this.app.metadataCache.on('changed', async (file) => {
-                const scope = this.getRefreshScopeForPath(file.path);
-                if (!scope) return;
-                await this.refreshCoordinator.reindexFile(file);
-                if (this.index.isThoughtFile(file.path) && !this.getThoughtController().isUpdatingThoughtPath(file.path)) {
-                    this.getThoughtController().syncIndexedThought(file.path);
-                }
-                this.notifyRefresh(scope);
-            }));
+            this.registerReactiveRuntimeEvents();
+            this.scheduleResponsiveHubReconciliation(0);
+            await this.runStartupIndexBuild(startupToken);
         });
 
         this.registerView(VIEW_TYPE_DIWA, (leaf) => new DiwaView(leaf, this));
@@ -316,6 +206,7 @@ export default class DiwaPlugin extends Plugin {
         this.unloading = true;
         this.startupRunToken++;
         this.clearLegacyMigrationTimer();
+        this.clearResponsiveHubReconcileTimer();
         this.clearScheduledThoughtContentRenders();
         this.restoreGlobalDomState();
         this.refreshCoordinator?.onunload();
@@ -343,6 +234,12 @@ export default class DiwaPlugin extends Plugin {
         this.legacyMigrationTimer = null;
     }
 
+    private clearResponsiveHubReconcileTimer(): void {
+        if (this.responsiveHubReconcileTimer === null) return;
+        window.clearTimeout(this.responsiveHubReconcileTimer);
+        this.responsiveHubReconcileTimer = null;
+    }
+
     private captureGlobalDomState(): void {
         if (this.globalDomStateCaptured) return;
         this.globalDomStateCaptured = true;
@@ -368,6 +265,7 @@ export default class DiwaPlugin extends Plugin {
             window.clearTimeout(timer);
         }
         this.scheduledThoughtRenderTimers.clear();
+        this.thoughtContentRenderCache.clear();
     }
 
     private detachRegisteredLeaves(): void {
@@ -445,6 +343,15 @@ export default class DiwaPlugin extends Plugin {
             workspace.revealLeaf(existing[0]);
             return;
         }
+        const responsiveLeaf = [
+            ...workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB),
+            ...workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB),
+        ][0];
+        if (responsiveLeaf) {
+            await this.setLeafViewType(responsiveLeaf, VIEW_TYPE_DESKTOP_HUB, true);
+            workspace.revealLeaf(responsiveLeaf);
+            return;
+        }
         const leaf = Platform.isDesktop ? workspace.getLeaf('window') : workspace.getLeaf(false);
         if (leaf) {
             await leaf.setViewState({ type: VIEW_TYPE_DESKTOP_HUB, active: true });
@@ -459,6 +366,12 @@ export default class DiwaPlugin extends Plugin {
         if (!Platform.isMobile || isTablet()) {
             return;
         }
+        const tabletLeaf = workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB)[0];
+        if (tabletLeaf) {
+            await this.setLeafViewType(tabletLeaf, VIEW_TYPE_MOBILE_HUB, true);
+            workspace.revealLeaf(tabletLeaf);
+            return;
+        }
         const leaf = workspace.getLeaf(false);
         if (leaf) { await leaf.setViewState({ type: VIEW_TYPE_MOBILE_HUB, active: true }); workspace.revealLeaf(leaf); }
     }
@@ -470,8 +383,217 @@ export default class DiwaPlugin extends Plugin {
         if (!isTablet()) {
             return;
         }
+        const mobileLeaf = workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB)[0];
+        if (mobileLeaf) {
+            await this.setLeafViewType(mobileLeaf, VIEW_TYPE_TABLET_HUB, true);
+            workspace.revealLeaf(mobileLeaf);
+            return;
+        }
         const leaf = workspace.getLeaf(false);
         if (leaf) { await leaf.setViewState({ type: VIEW_TYPE_TABLET_HUB, active: true }); workspace.revealLeaf(leaf); }
+    }
+
+    private async runStartupIndexBuild(startupToken: number): Promise<void> {
+        const thoughtController = this.getThoughtController();
+        thoughtController.beginIndexing();
+        let hydrated = false;
+        let buildSucceeded = false;
+        try {
+            await this.index.buildIndices();
+            if (!this.isStartupRunActive(startupToken)) return;
+            const normalizedTasks = this.normalizeIndexedTasks(Array.from(this.index.taskIndex.values()));
+            this.taskIndex.set(normalizedTasks);
+            this.getTaskController().syncFromIndex();
+            thoughtController.hydrateFromIndex(Array.from(this.index.thoughtIndex.values()));
+            hydrated = true;
+            buildSucceeded = true;
+            console.log('Tasks loaded:', normalizedTasks.length);
+            console.log('TaskIndex:', this.taskIndex);
+            this.logTaskControllerPanes();
+            this.notifyRefresh();
+            this.refreshOpenTaskPanes();
+            void this.scanForContexts(startupToken);
+        } catch (error) {
+            console.error('[DIWA] startup index build failed', error);
+            if (!this.isStartupRunActive(startupToken)) return;
+            this.resetRuntimeStateAfterStartupFailure();
+            thoughtController.hydrateFromIndex([]);
+            hydrated = true;
+            new Notice('DIWA could not finish indexing on startup. Runtime listeners stayed active so the workspace can recover on the next file change.');
+        } finally {
+            if (this.isStartupRunActive(startupToken)) {
+                if (!hydrated) {
+                    this.resetRuntimeStateAfterStartupFailure();
+                    thoughtController.hydrateFromIndex([]);
+                }
+                thoughtController.endIndexing();
+            }
+        }
+
+        if (!this.isStartupRunActive(startupToken)) return;
+        await this.migrateLegacyMobileGawaLeaves(startupToken);
+        if (!this.isStartupRunActive(startupToken)) return;
+        await this.reconcileResponsiveHubLeaves();
+        if (!this.isStartupRunActive(startupToken)) return;
+        if (buildSucceeded) return;
+        this.notifyRefresh();
+    }
+
+    private resetRuntimeStateAfterStartupFailure(): void {
+        this.index.resetAllIndices();
+        this.taskIndex.set([]);
+        this.getTaskController().syncFromIndex();
+    }
+
+    private registerReactiveRuntimeEvents(): void {
+        if (this.reactiveRuntimeEventsRegistered) return;
+        this.reactiveRuntimeEventsRegistered = true;
+
+        this.registerEvent(this.app.vault.on('create', async (f) => {
+            const scope = this.getRefreshScopeForPath(f.path);
+            if (!scope) {
+                if (!(f instanceof TFile)) await this.handleProjectFolderMutation(f.path);
+                return;
+            }
+            if (!(f instanceof TFile)) {
+                await this.handleProjectFolderMutation(f.path);
+                return;
+            }
+            if (this.index.isThoughtFile(f.path)) {
+                await this.index.indexThoughtFile(f);
+                if (!this.getThoughtController().isUpdatingThoughtPath(f.path)) {
+                    this.getThoughtController().syncIndexedThought(f.path);
+                }
+            }
+            else if (this.index.isTaskFile(f.path)) await this.index.indexTaskFile(f);
+            else if (this.index.isDueFile(f.path)) this.index.indexDueFile(f);
+            else if (this.index.isProjectFile(f.path)) await this.index.indexProjectFile(f);
+            this.notifyRefresh(scope);
+        }));
+
+        this.registerEvent(this.app.vault.on('modify', async (f) => {
+            const scope = this.getRefreshScopeForPath(f.path);
+            if (!scope) {
+                if (!(f instanceof TFile)) await this.handleProjectFolderMutation(f.path);
+                return;
+            }
+            if (!(f instanceof TFile)) {
+                await this.handleProjectFolderMutation(f.path);
+                return;
+            }
+            await this.refreshCoordinator.reindexFile(f);
+            if (this.index.isThoughtFile(f.path) && !this.getThoughtController().isUpdatingThoughtPath(f.path)) {
+                this.getThoughtController().syncIndexedThought(f.path);
+            }
+            this.notifyRefresh(scope);
+        }));
+
+        this.registerEvent(this.app.vault.on('delete', async (f) => {
+            const scope = this.getRefreshScopeForPath(f.path);
+            if (!scope) {
+                if (!(f instanceof TFile)) await this.handleProjectFolderMutation(f.path);
+                return;
+            }
+            this.getThoughtController().removeThoughtFromIndex(f.path);
+            this.index.taskIndex.delete(f.path);
+            if (this.index.isDueFile(f.path)) this.index.removeDueFile(f.path);
+            if (this.index.isProjectFile(f.path)) this.index.removeProjectFile(f.path);
+            this.notifyRefresh(scope);
+        }));
+
+        this.registerEvent(this.app.vault.on('rename', async (f, oldPath) => {
+            const scope = this.mergeRefreshScopes(
+                this.getRefreshScopeForPath(oldPath),
+                this.getRefreshScopeForPath(f.path),
+            );
+            if (!scope) {
+                if (!(f instanceof TFile)) await this.handleProjectFolderMutation(oldPath, f.path);
+                return;
+            }
+            if (!(f instanceof TFile)) {
+                await this.handleProjectFolderMutation(oldPath, f.path);
+                return;
+            }
+            this.getThoughtController().removeThoughtFromIndex(oldPath);
+            this.index.taskIndex.delete(oldPath);
+            if (this.index.isDueFile(oldPath)) this.index.removeDueFile(oldPath, true);
+            if (this.index.isProjectFile(oldPath)) this.index.removeProjectFile(oldPath);
+            if (this.index.isThoughtFile(f.path)) {
+                await this.index.indexThoughtFile(f);
+                if (!this.getThoughtController().isUpdatingThoughtPath(f.path)) {
+                    this.getThoughtController().syncIndexedThought(f.path);
+                }
+            }
+            else if (this.index.isTaskFile(f.path)) await this.index.indexTaskFile(f);
+            else if (this.index.isDueFile(f.path)) this.index.indexDueFile(f, true);
+            else if (this.index.isProjectFile(f.path)) await this.index.indexProjectFile(f);
+            if (this.index.isDueFile(oldPath) || this.index.isDueFile(f.path)) this.index.rebuildCalculatedState();
+            this.notifyRefresh(scope);
+        }));
+
+        this.registerEvent(this.app.metadataCache.on('changed', async (file) => {
+            const scope = this.getRefreshScopeForPath(file.path);
+            if (!scope) return;
+            await this.refreshCoordinator.reindexFile(file);
+            if (this.index.isThoughtFile(file.path) && !this.getThoughtController().isUpdatingThoughtPath(file.path)) {
+                this.getThoughtController().syncIndexedThought(file.path);
+            }
+            this.notifyRefresh(scope);
+        }));
+
+        this.registerEvent(this.app.workspace.on('layout-change', () => {
+            this.scheduleResponsiveHubReconciliation();
+        }));
+        this.registerDomEvent(window, 'resize', () => {
+            this.applyDeviceBodyClasses();
+            this.scheduleResponsiveHubReconciliation();
+        });
+    }
+
+    private scheduleResponsiveHubReconciliation(delay = 100): void {
+        if (this.unloading) return;
+        this.clearResponsiveHubReconcileTimer();
+        this.responsiveHubReconcileTimer = window.setTimeout(() => {
+            this.responsiveHubReconcileTimer = null;
+            void this.reconcileResponsiveHubLeaves();
+        }, delay);
+    }
+
+    private async reconcileResponsiveHubLeaves(): Promise<void> {
+        if (this.unloading || this.reconcilingResponsiveHubLeaves) return;
+        const targetViewType = !Platform.isMobile
+            ? VIEW_TYPE_DESKTOP_HUB
+            : isTablet()
+                ? VIEW_TYPE_TABLET_HUB
+                : VIEW_TYPE_MOBILE_HUB;
+        const leavesToConvert = targetViewType === VIEW_TYPE_DESKTOP_HUB
+            ? [
+                ...this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB),
+                ...this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB),
+            ]
+            : targetViewType === VIEW_TYPE_TABLET_HUB
+                ? this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB)
+                : this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB);
+        if (leavesToConvert.length === 0) return;
+
+        this.reconcilingResponsiveHubLeaves = true;
+        try {
+            for (const leaf of leavesToConvert) {
+                await this.setLeafViewType(leaf, targetViewType, false);
+            }
+        } finally {
+            this.reconcilingResponsiveHubLeaves = false;
+        }
+    }
+
+    private async setLeafViewType(leaf: WorkspaceLeaf, type: string, active: boolean): Promise<void> {
+        const currentState = leaf.getViewState();
+        await leaf.setViewState({
+            ...currentState,
+            type,
+            active,
+            state: currentState.state && typeof currentState.state === 'object' ? { ...currentState.state } : currentState.state,
+        });
     }
 
     private async migrateLegacyMobileGawaLeaves(startupToken?: number): Promise<void> {
@@ -985,13 +1107,13 @@ export default class DiwaPlugin extends Plugin {
         const card = parent.createDiv('diwa-thought-card');
         const contentEl = card.createDiv('diwa-thought-content');
         const content = (thought.body || thought.content || thought.title || '').trim();
-        this.scheduleThoughtContentRender(contentEl, content, thought);
+        this.scheduleThoughtContentRender(contentEl, content, thought, this.getThoughtRenderCacheKey(thought, content));
         this.attachThoughtLongPress(card, thought);
         if (options.mobile) card.addClass('is-mobile');
         return card;
     }
 
-    private scheduleThoughtContentRender(el: HTMLElement, content: string, thought: ThoughtEntry): void {
+    private scheduleThoughtContentRender(el: HTMLElement, content: string, thought: ThoughtEntry, cacheKey: string): void {
         const token = (this.thoughtRenderTokens.get(el) ?? 0) + 1;
         this.thoughtRenderTokens.set(el, token);
         const existingTimer = this.scheduledThoughtRenderTimers.get(el);
@@ -1000,7 +1122,7 @@ export default class DiwaPlugin extends Plugin {
         }
         const timer = window.setTimeout(() => {
             this.scheduledThoughtRenderTimers.delete(el);
-            void this.renderThoughtContent(el, content, thought, token);
+            void this.renderThoughtContent(el, content, thought, token, cacheKey);
         }, 0);
         this.scheduledThoughtRenderTimers.set(el, timer);
     }
@@ -1010,13 +1132,40 @@ export default class DiwaPlugin extends Plugin {
         content: string,
         thought: ThoughtEntry,
         token: number,
+        cacheKey: string,
     ): Promise<void> {
         if (this.unloading || !el.isConnected || this.thoughtRenderTokens.get(el) !== token) return;
+        const cached = this.thoughtContentRenderCache.get(cacheKey);
+        if (cached) {
+            el.replaceChildren(...Array.from(cached.cloneNode(true).childNodes));
+            enableImageZoom(this.app, el);
+            return;
+        }
         const stagedEl = document.createElement('div');
         await MarkdownRenderer.render(this.app, content, stagedEl, thought.filePath || '', this);
         if (this.unloading || !el.isConnected || this.thoughtRenderTokens.get(el) !== token) return;
+        this.cacheThoughtContentRender(cacheKey, stagedEl);
         el.replaceChildren(...Array.from(stagedEl.childNodes));
         enableImageZoom(this.app, el);
+    }
+
+    private getThoughtRenderCacheKey(thought: ThoughtEntry, content: string): string {
+        return [
+            thought.id || thought.filePath || thought.title || 'thought',
+            thought.filePath || '',
+            thought.modified || '',
+            thought.updatedAt || '',
+            content,
+        ].join('::');
+    }
+
+    private cacheThoughtContentRender(cacheKey: string, stagedEl: HTMLElement): void {
+        this.thoughtContentRenderCache.set(cacheKey, stagedEl.cloneNode(true) as HTMLElement);
+        while (this.thoughtContentRenderCache.size > 200) {
+            const oldestKey = this.thoughtContentRenderCache.keys().next().value;
+            if (!oldestKey) break;
+            this.thoughtContentRenderCache.delete(oldestKey);
+        }
     }
 
     private attachThoughtLongPress(cardEl: HTMLElement, thought: ThoughtEntry): void {
