@@ -1,4 +1,11 @@
 
+## [10.2.22] — Review and Path Integrity
+
+### Changed
+- Centralized canonical settings-derived capture and review paths so refresh and review-file lookups stop relying on raw folder string concatenation.
+- Keyed weekly review draft state by week and file revision so stale in-memory plans cannot overwrite newer saved edits.
+- Tightened legacy comment parsing so normal task body markdown is no longer misclassified as DIWA comment metadata.
+
 ## [10.2.21] — Task Refresh Debounce
 
 ### Changed

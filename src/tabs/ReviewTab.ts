@@ -132,11 +132,19 @@ export class ReviewTab extends BaseTab {
         while (focus.length < 3) focus.push('');
         let isDirty = false;
 
-        // Initialize week plan draft from saved data or empty
-        if (!this.view.weekPlanDraft) {
-            this.view.weekPlanDraft = existing?.dayPlans ?? {};
+        const persistedDayPlans = { ...(existing?.dayPlans ?? {}) };
+        const persistedRevision = existing?.mtime ?? null;
+        const shouldReloadWeekPlanDraft = !this.view.weekPlanDraft
+            || this.view.weekPlanDraftWeekId !== weekId
+            || (!this.view.weekPlanDraftDirty && this.view.weekPlanDraftRevision !== persistedRevision);
+        if (shouldReloadWeekPlanDraft) {
+            this.view.weekPlanDraft = persistedDayPlans;
+            this.view.weekPlanDraftWeekId = weekId;
+            this.view.weekPlanDraftRevision = persistedRevision;
+            this.view.weekPlanDraftDirty = false;
         }
-        const dayPlans = this.view.weekPlanDraft;
+        const dayPlans = this.view.weekPlanDraft ?? {};
+        this.view.weekPlanDraft = dayPlans;
 
         const wrap = container.createEl('div', { cls: 'diwa-review-wrap' });
         wrap.setAttribute('container-type', 'inline-size');
@@ -156,6 +164,7 @@ export class ReviewTab extends BaseTab {
         }
 
         const markDirty = () => {
+            this.view.weekPlanDraftDirty = true;
             if (!isDirty) { isDirty = true; dirtyDot.style.display = 'inline-block'; }
         };
 
@@ -202,9 +211,20 @@ export class ReviewTab extends BaseTab {
             saveBtn.textContent = 'Saving…';
             saveBtn.disabled = true;
             try {
-                await this.vault.saveWeeklyReview(weekId, dateRange, wins, lessons, focus, dayPlans);
+                const nextRevision = await this.vault.saveWeeklyReview(
+                    weekId,
+                    dateRange,
+                    wins,
+                    lessons,
+                    focus,
+                    dayPlans,
+                    { expectedMtime: this.view.weekPlanDraftRevision ?? null },
+                );
                 if (!this.isRenderCycleActive(renderToken, container)) return;
                 isDirty = false;
+                this.view.weekPlanDraftWeekId = weekId;
+                this.view.weekPlanDraftRevision = nextRevision;
+                this.view.weekPlanDraftDirty = false;
                 dirtyDot.style.display = 'none';
                 saveBtn.textContent = '✓  Saved';
                 saveBtn.classList.add('is-saved');
@@ -214,8 +234,18 @@ export class ReviewTab extends BaseTab {
                     saveBtn.classList.remove('is-saved');
                     saveBtn.disabled = false;
                 }, 1800);
-            } catch {
+            } catch (error) {
                 if (!this.isRenderCycleActive(renderToken, container)) return;
+                if (error instanceof Error && error.name === 'DIWA_WEEKLY_REVIEW_CONFLICT') {
+                    const latest = await this.vault.loadWeeklyReview(weekId);
+                    this.view.weekPlanDraft = { ...(latest?.dayPlans ?? {}) };
+                    this.view.weekPlanDraftWeekId = weekId;
+                    this.view.weekPlanDraftRevision = latest?.mtime ?? null;
+                    this.view.weekPlanDraftDirty = false;
+                    new Notice('Weekly review changed on disk. Reloaded the latest saved plan.');
+                    this.view.renderView();
+                    return;
+                }
                 saveBtn.textContent = '⚠ Save Failed — Retry';
                 saveBtn.classList.add('is-error');
                 saveBtn.disabled = false;

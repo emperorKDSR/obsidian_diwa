@@ -5,6 +5,7 @@ import { DesktopHubView } from '../views/DesktopHubView';
 import { DiwaView } from '../view';
 import { MobileHubView } from '../views/MobileHubView';
 import type { IndexService } from '../services/IndexService';
+import { getCanonicalCapturePath } from '../utils/settingsPaths';
 
 export type RefreshScope = 'all' | 'tasks' | 'thoughts';
 
@@ -45,7 +46,7 @@ export class RefreshCoordinator {
         if (now - last < 300) return;
         this._reindexCooldown.set(file.path, now);
 
-        const capPath = `${this.settings.captureFolder.trim() || '000 Bin/DIWA'}/${this.settings.captureFilePath.trim() || 'Daily Capture.md'}`;
+        const capPath = getCanonicalCapturePath(this.settings);
 
         if (this.index.isThoughtFile(file.path)) await this.index.indexThoughtFile(file);
         else if (this.index.isTaskFile(file.path)) await this.index.indexTaskFile(file);

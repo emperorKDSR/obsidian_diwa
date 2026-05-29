@@ -5,6 +5,7 @@ import { buildJournalContexts, normalizeJournalType } from '../journal/shared';
 import { normalizeThoughtTopics, toStoredThoughtTopic } from '../utils/topics';
 import { buildAttachmentWikiLink } from '../utils';
 import { buildTaskCommentBlock, parseTaskCommentBlocks, splitTaskBodyAndCommentSuffix } from '../utils/taskComments';
+import { getCanonicalMonthlyGoalsPath, getCanonicalWeeklyReviewPath, getCanonicalWeeklyReviewsFolder } from '../utils/settingsPaths';
 import { buildWeeklyReviewContent, parseLegacyWeeklyReviewBody, parseStructuredWeeklyReview } from '../utils/weeklyReview';
 import { buildYamlFrontmatter, createVaultBinaryFile, createVaultFile, ensureVaultFolder, normalizeVaultRelativePath } from '../utils/vaultFiles';
 
@@ -837,20 +838,35 @@ export class VaultService {
     }
 
     /** Save a weekly review to {reviewsFolder}/Weekly/YYYY-Www.md */
-    async saveWeeklyReview(weekId: string, dateRange: string, wins: string, lessons: string, focus: string[], dayPlans?: Record<string, string>): Promise<void> {
-        const root = this.resolveConfiguredFolder(this.settings.reviewsFolder, '000 Bin/DIWA Reviews');
-        const folder = `${root}/Weekly`;
-        const path = `${folder}/${weekId}.md`;
+    async saveWeeklyReview(
+        weekId: string,
+        dateRange: string,
+        wins: string,
+        lessons: string,
+        focus: string[],
+        dayPlans?: Record<string, string>,
+        options?: { expectedMtime?: number | null },
+    ): Promise<number> {
+        const folder = getCanonicalWeeklyReviewsFolder(this.settings);
+        const path = getCanonicalWeeklyReviewPath(this.settings, weekId);
         const now = this.formatDateTime(new Date());
         const content = buildWeeklyReviewContent({ weekId, dateRange, wins, lessons, focus, saved: now, dayPlans });
         try {
             await this.ensureFolder(folder);
             const existing = this.app.vault.getAbstractFileByPath(path);
+            const currentMtime = existing instanceof TFile ? existing.stat.mtime : null;
+            if (Object.prototype.hasOwnProperty.call(options ?? {}, 'expectedMtime') && currentMtime !== (options?.expectedMtime ?? null)) {
+                const error = new Error('Weekly review changed on disk');
+                error.name = 'DIWA_WEEKLY_REVIEW_CONFLICT';
+                throw error;
+            }
             if (existing instanceof TFile) {
                 await this.app.vault.modify(existing, content);
             } else {
                 await this.app.vault.create(path, content);
             }
+            const savedFile = this.app.vault.getAbstractFileByPath(path);
+            return savedFile instanceof TFile ? savedFile.stat.mtime : Date.now();
         } catch (e) {
             console.error('[DIWA VaultService] saveWeeklyReview', e);
             throw e;
@@ -980,9 +996,8 @@ export class VaultService {
 
     /** Save monthly goals to {reviewsFolder}/Monthly/YYYY-MM.md */
     async saveMonthlyGoals(monthId: string, goals: string[]): Promise<void> {
-        const root = this.resolveConfiguredFolder(this.settings.reviewsFolder, '000 Bin/DIWA Reviews');
-        const folder = `${root}/Monthly`;
-        const path = `${folder}/${monthId}.md`;
+        const path = getCanonicalMonthlyGoalsPath(this.settings, monthId);
+        const folder = path.slice(0, path.lastIndexOf('/'));
         const now = this.formatDateTime(new Date());
         const goalLines = goals.map((g, i) => `${i + 1}. ${(g || '').trim()}`).join('\n');
         const content = `${buildYamlFrontmatter({ month: monthId, saved: now })}\n# 📅 ${monthId} — Monthly Focus\n\n## Next Month's Goals\n${goalLines}\n`;
@@ -1002,8 +1017,7 @@ export class VaultService {
 
     /** Load monthly goals from {reviewsFolder}/Monthly/YYYY-MM.md */
     async loadMonthlyGoals(monthId: string): Promise<string[] | null> {
-        const root = this.resolveConfiguredFolder(this.settings.reviewsFolder, '000 Bin/DIWA Reviews');
-        const path = `${root}/Monthly/${monthId}.md`;
+        const path = getCanonicalMonthlyGoalsPath(this.settings, monthId);
         const file = this.app.vault.getAbstractFileByPath(path);
         if (!(file instanceof TFile)) return null;
         try {
@@ -1019,9 +1033,8 @@ export class VaultService {
     }
 
     /** Load a weekly review file and parse wins/lessons/focus sections */
-    async loadWeeklyReview(weekId: string): Promise<{ wins: string; lessons: string; focus: string[]; saved: string; dayPlans?: Record<string, string> } | null> {
-        const root = this.resolveConfiguredFolder(this.settings.reviewsFolder, '000 Bin/DIWA Reviews');
-        const path = `${root}/Weekly/${weekId}.md`;
+    async loadWeeklyReview(weekId: string): Promise<{ wins: string; lessons: string; focus: string[]; saved: string; dayPlans?: Record<string, string>; mtime: number } | null> {
+        const path = getCanonicalWeeklyReviewPath(this.settings, weekId);
         const file = this.app.vault.getAbstractFileByPath(path);
         if (!(file instanceof TFile)) return null;
         try {
@@ -1037,6 +1050,7 @@ export class VaultService {
                     focus: structured.focus,
                     saved: String(saved || structured.saved || ''),
                     dayPlans: structured.dayPlans,
+                    mtime: file.stat.mtime,
                 };
             }
 
@@ -1047,7 +1061,8 @@ export class VaultService {
                 lessons: legacy.lessons,
                 focus: legacy.focus,
                 saved: String(saved || ''),
-                dayPlans: legacy.dayPlans
+                dayPlans: legacy.dayPlans,
+                mtime: file.stat.mtime,
             };
         } catch (e) {
             console.error('[DIWA VaultService] loadWeeklyReview', e);

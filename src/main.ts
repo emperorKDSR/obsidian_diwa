@@ -24,6 +24,8 @@ import { TaskController } from './views/TaskController';
 import { ThoughtController } from './views/ThoughtController';
 import { ThoughtProcessor } from './views/ThoughtProcessor';
 import { enableImageZoom } from './utils/imageZoom';
+import { getCanonicalCapturePath } from './utils/settingsPaths';
+import { normalizeVaultRelativePath } from './utils/vaultFiles';
 
 const OPENABLE_DIWA_TAB_IDS = new Set([
     'review-gawa',
@@ -942,9 +944,7 @@ export default class DiwaPlugin extends Plugin {
         if (this.index.isProjectFile(path)) return 'all';
         if (this.index.isDueFile(path)) return 'all';
 
-        const captureFolder = this.settings.captureFolder.trim() || '000 Bin/DIWA';
-        const captureFile = this.settings.captureFilePath.trim() || 'Daily Capture.md';
-        if (path === `${captureFolder}/${captureFile}`) return 'all';
+        if (normalizeVaultRelativePath(path, 'path') === getCanonicalCapturePath(this.settings)) return 'all';
 
         return null;
     }

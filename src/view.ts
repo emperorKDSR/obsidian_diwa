@@ -69,6 +69,9 @@ export class DiwaView extends ItemView {
     
     // Week Plan State
     weekPlanDraft: Record<string, string> | null = null;
+    weekPlanDraftWeekId: string | null = null;
+    weekPlanDraftRevision: number | null = null;
+    weekPlanDraftDirty: boolean = false;
     weekPlanTargetMode: 'next' | 'this' = 'next';
 
     // Journal State

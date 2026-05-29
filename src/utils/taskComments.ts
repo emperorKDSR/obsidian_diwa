@@ -27,6 +27,10 @@ function buildCommentEndMarker(anchor: string): string {
     return `<!-- /DIWA-COMMENT ${anchor} -->`;
 }
 
+function isValidCommentAnchor(value: unknown): value is string {
+    return typeof value === 'string' && /^reply-[\w-]+$/.test(value);
+}
+
 function parseMarkerMetadata(line: string): ParsedMarkerMetadata | null {
     if (!line.startsWith(COMMENT_MARKER_PREFIX) || !line.endsWith(COMMENT_MARKER_SUFFIX)) {
         return null;
@@ -38,8 +42,9 @@ function parseMarkerMetadata(line: string): ParsedMarkerMetadata | null {
             ? payload
             : decodeUtf8Base64(payload);
         if (!decoded) return null;
-        const parsed = JSON.parse(decoded) as Partial<ReplyEntry>;
-        if (!parsed.anchor || !parsed.date || !parsed.time) return null;
+        const parsed = JSON.parse(decoded) as Partial<ReplyEntry> & { version?: unknown };
+        if (!isValidCommentAnchor(parsed.anchor) || !parsed.date || !parsed.time) return null;
+        if (!(parsed.version === 2 || parsed.version === '2')) return null;
         return {
             anchor: String(parsed.anchor),
             date: String(parsed.date),
@@ -110,6 +115,31 @@ function findCommentBodyRange(
     };
 }
 
+function hasOnlyBlankLines(lines: string[], start: number, end: number): boolean {
+    for (let index = start; index < end; index++) {
+        if ((lines[index] ?? '').trim()) return false;
+    }
+    return true;
+}
+
+function collectTrailingCommentSuffix(lines: string[], comments: ParsedTaskComment[]): ParsedTaskComment[] {
+    if (comments.length === 0) return [];
+
+    let suffixStart = lines.length;
+    while (suffixStart > 0 && lines[suffixStart - 1].trim() === '') suffixStart -= 1;
+
+    const trailing: ParsedTaskComment[] = [];
+    for (let index = comments.length - 1; index >= 0; index -= 1) {
+        const comment = comments[index];
+        if (!hasOnlyBlankLines(lines, comment.endLineExclusive, suffixStart)) break;
+        trailing.unshift(comment);
+        suffixStart = comment.startLine;
+        while (suffixStart > 0 && lines[suffixStart - 1].trim() === '') suffixStart -= 1;
+    }
+
+    return trailing;
+}
+
 export function parseTaskCommentBlocks(content: string): ParsedTaskComment[] {
     const lines = content.replace(/\r\n?/g, '\n').split('\n');
     const comments: ParsedTaskComment[] = [];
@@ -161,7 +191,7 @@ export function parseTaskCommentBlocks(content: string): ParsedTaskComment[] {
         index = end - 1;
     }
 
-    return comments;
+    return collectTrailingCommentSuffix(lines, comments);
 }
 
 export function splitTaskBodyAndCommentSuffix(content: string): { body: string; commentSuffix: string; comments: ReplyEntry[] } {
