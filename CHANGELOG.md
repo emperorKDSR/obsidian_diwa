@@ -1,4 +1,10 @@
 
+## [10.2.28] — Mobile Focus Refresh Protection
+
+### Changed
+- Added the same task-toggle refresh-suppression contract used on desktop to the mobile and tablet hub flow so focused task updates cannot be interrupted by concurrent refresh passes.
+- Added clearer busy-state feedback for mobile Project Focus controls while task toggles and milestone reassignment are in flight.
+
 ## [10.2.27] — Project Focus Follow-up Hardening
 
 ### Changed
