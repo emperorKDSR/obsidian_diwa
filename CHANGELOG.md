@@ -1,4 +1,12 @@
 
+## [10.2.25] — Manual Surface and Pane State Cleanup
+
+### Changed
+- Removed the obsolete Manual tab surface and rerouted legacy manual tab IDs to the settings view.
+- Forwarded `_taskTogglePending` through `GawaTab` pane hosting so task-toggle suppression state survives hosted tab refreshes.
+- Removed unused help/manual artifacts, including `HelpModal`, `manualSections`, and dead help CSS.
+- Switched custom agent docs and configuration references to GPT-5.4.
+
 ## [10.2.24] — Responsive, Settings, and Migration Hardening
 
 ### Changed
