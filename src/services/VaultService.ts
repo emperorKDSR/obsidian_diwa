@@ -3,10 +3,10 @@ import type { DiwaSettings, ThoughtEntry, TaskEntry, ReplyEntry, ProjectEntry, M
 import { generateTaskId } from '../utils/taskModel';
 import { buildJournalContexts, normalizeJournalType } from '../journal/shared';
 import { normalizeThoughtTopics, toStoredThoughtTopic } from '../utils/topics';
-import { buildAttachmentWikiLink, ensureVaultFolder } from '../utils';
+import { buildAttachmentWikiLink } from '../utils';
 import { buildTaskCommentBlock, parseTaskCommentBlocks, splitTaskBodyAndCommentSuffix } from '../utils/taskComments';
 import { buildWeeklyReviewContent, parseLegacyWeeklyReviewBody, parseStructuredWeeklyReview } from '../utils/weeklyReview';
-import { buildYamlFrontmatter, createVaultBinaryFile, createVaultFile } from '../utils/vaultFiles';
+import { buildYamlFrontmatter, createVaultBinaryFile, createVaultFile, ensureVaultFolder, normalizeVaultRelativePath } from '../utils/vaultFiles';
 
 interface ThoughtWriteOptions {
     title?: string;
@@ -51,6 +51,10 @@ export class VaultService {
     private formatDateTime(d: Date): string { return moment(d).format('YYYY-MM-DD HH:mm:ss'); }
     private formatDate(d: Date): string     { return moment(d).format('YYYY-MM-DD'); }
     private formatTime(d: Date): string     { return moment(d).format('HH:mm:ss'); }
+
+    private resolveConfiguredFolder(path: string | undefined, fallback: string): string {
+        return normalizeVaultRelativePath((path || '').trim() || fallback, 'folder');
+    }
 
     private normalizeTopics(topic?: string | string[] | null): string[] {
         return normalizeThoughtTopics(topic)
@@ -327,7 +331,7 @@ export class VaultService {
     async createThoughtFile(text: string, contexts: string[], project?: string, topic?: string | string[] | null, options?: ThoughtWriteOptions): Promise<TFile> {
         // arch-08: Normalize <br> → newline at service boundary
         text = text.replace(/<br>/g, '\n');
-        const folder = this.settings.thoughtsFolder.trim() || '000 Bin/DIWA';
+        const folder = this.resolveConfiguredFolder(this.settings.thoughtsFolder, '000 Bin/DIWA');
         const now = new Date();
         const created = this.formatDateTime(now);
         const dayStr = this.formatDate(now);
@@ -348,9 +352,11 @@ export class VaultService {
     ): Promise<TFile> {
         // arch-08: Normalize <br> → newline at service boundary
         text = text.replace(/<br>/g, '\n');
-        const folder = this.taskFolderResolver?.().replace(/\\/g, '/').trim()
-            || this.settings.tasksFolder.replace(/\\/g, '/').trim()
-            || '000 Bin/DIWA Gawa';
+        const folder = this.resolveConfiguredFolder(
+            this.taskFolderResolver?.()
+                || this.settings.tasksFolder,
+            '000 Bin/DIWA Gawa',
+        );
         const now = new Date();
         const created = this.formatDateTime(now);
         const dayStr = this.formatDate(now);
@@ -590,8 +596,10 @@ export class VaultService {
         const file = this.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) return;
         
-        const folder = type === 'thoughts' ? this.settings.thoughtsFolder : this.settings.tasksFolder;
-        const trashFolder = (folder.trim() || '000 Bin/DIWA') + '/trash';
+        const folder = type === 'thoughts'
+            ? this.resolveConfiguredFolder(this.settings.thoughtsFolder, '000 Bin/DIWA')
+            : this.resolveConfiguredFolder(this.settings.tasksFolder, '000 Bin/DIWA Gawa');
+        const trashFolder = `${folder}/trash`;
         await this.ensureFolder(trashFolder);
         
         try {
@@ -605,8 +613,8 @@ export class VaultService {
     private async _trashFile(filePath: string): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) return;
-        const folder = this.settings.thoughtsFolder;
-        const trashFolder = (folder.trim() || '000 Bin/DIWA') + '/trash';
+        const folder = this.resolveConfiguredFolder(this.settings.thoughtsFolder, '000 Bin/DIWA');
+        const trashFolder = `${folder}/trash`;
         await this.ensureFolder(trashFolder);
         const trashPath = `${trashFolder}/${file.basename}_${Date.now()}.md`;
         await this.app.vault.rename(file, trashPath);
@@ -830,7 +838,7 @@ export class VaultService {
 
     /** Save a weekly review to {reviewsFolder}/Weekly/YYYY-Www.md */
     async saveWeeklyReview(weekId: string, dateRange: string, wins: string, lessons: string, focus: string[], dayPlans?: Record<string, string>): Promise<void> {
-        const root = (this.settings.reviewsFolder || '000 Bin/DIWA Reviews').trim();
+        const root = this.resolveConfiguredFolder(this.settings.reviewsFolder, '000 Bin/DIWA Reviews');
         const folder = `${root}/Weekly`;
         const path = `${folder}/${weekId}.md`;
         const now = this.formatDateTime(new Date());
@@ -850,7 +858,7 @@ export class VaultService {
     }
 
     async createProject(entry: ProjectEntry): Promise<TFile> {
-        const folder = (this.settings.projectsFolder || 'Projects').replace(/\\/g, '/');
+        const folder = this.resolveConfiguredFolder(this.settings.projectsFolder, 'Projects');
         await this.ensureFolder(folder);
         const safeName = entry.id.replace(/[/\\?%*:|"<>]/g, '-');
         const content = [
@@ -972,7 +980,7 @@ export class VaultService {
 
     /** Save monthly goals to {reviewsFolder}/Monthly/YYYY-MM.md */
     async saveMonthlyGoals(monthId: string, goals: string[]): Promise<void> {
-        const root = (this.settings.reviewsFolder || '000 Bin/DIWA Reviews').trim();
+        const root = this.resolveConfiguredFolder(this.settings.reviewsFolder, '000 Bin/DIWA Reviews');
         const folder = `${root}/Monthly`;
         const path = `${folder}/${monthId}.md`;
         const now = this.formatDateTime(new Date());
@@ -994,7 +1002,7 @@ export class VaultService {
 
     /** Load monthly goals from {reviewsFolder}/Monthly/YYYY-MM.md */
     async loadMonthlyGoals(monthId: string): Promise<string[] | null> {
-        const root = (this.settings.reviewsFolder || '000 Bin/DIWA Reviews').trim();
+        const root = this.resolveConfiguredFolder(this.settings.reviewsFolder, '000 Bin/DIWA Reviews');
         const path = `${root}/Monthly/${monthId}.md`;
         const file = this.app.vault.getAbstractFileByPath(path);
         if (!(file instanceof TFile)) return null;
@@ -1012,7 +1020,7 @@ export class VaultService {
 
     /** Load a weekly review file and parse wins/lessons/focus sections */
     async loadWeeklyReview(weekId: string): Promise<{ wins: string; lessons: string; focus: string[]; saved: string; dayPlans?: Record<string, string> } | null> {
-        const root = (this.settings.reviewsFolder || '000 Bin/DIWA Reviews').trim();
+        const root = this.resolveConfiguredFolder(this.settings.reviewsFolder, '000 Bin/DIWA Reviews');
         const path = `${root}/Weekly/${weekId}.md`;
         const file = this.app.vault.getAbstractFileByPath(path);
         if (!(file instanceof TFile)) return null;

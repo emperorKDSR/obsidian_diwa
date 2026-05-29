@@ -4,7 +4,7 @@ import { FileSuggestModal } from './modals/FileSuggestModal';
 import { ContextSuggestModal } from './modals/ContextSuggestModal';
 import { PersonSuggestModal } from './modals/PersonSuggestModal';
 import type { RecurrenceRule, TaskEntry } from './types';
-import { createVaultBinaryFile } from './utils/vaultFiles';
+import { createVaultBinaryFile, normalizeVaultRelativePath } from './utils/vaultFiles';
 
 export function computeNextDue(currentDue: string, rule: RecurrenceRule): string {
     const m = moment(currentDue, 'YYYY-MM-DD', true);
@@ -219,12 +219,10 @@ export function attachMediaPasteHandler(
 }
 
 export async function ensureVaultFolder(app: App, folder: string): Promise<void> {
-    if (!folder || folder === '/' || folder === '.') return;
-    if (folder.includes('..') || folder.startsWith('/') || folder.startsWith('\\')) {
-        throw new Error(`Invalid folder path: "${folder}"`);
-    }
+    const normalizedFolder = normalizeVaultRelativePath(folder, 'folder');
+    if (!normalizedFolder) return;
 
-    const parts = folder.split('/').filter(Boolean);
+    const parts = normalizedFolder.split('/').filter(Boolean);
     let pathSoFar = '';
     for (const part of parts) {
         pathSoFar = pathSoFar ? `${pathSoFar}/${part}` : part;

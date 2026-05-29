@@ -16,6 +16,13 @@ interface ParsedMarkerMetadata extends Omit<ReplyEntry, 'text'> {
     storedText?: string;
 }
 
+interface CommentBodyRange {
+    textStart: number;
+    textEnd: number;
+    endLineExclusive: number;
+    hasExplicitEndMarker: boolean;
+}
+
 function buildCommentEndMarker(anchor: string): string {
     return `<!-- /DIWA-COMMENT ${anchor} -->`;
 }
@@ -67,6 +74,42 @@ export function buildTaskCommentBlock(meta: Omit<ReplyEntry, 'text'>, text: stri
     return `${marker}\n${header}\n${normalizedText}\n${buildCommentEndMarker(meta.anchor)}`;
 }
 
+function findCommentBodyRange(
+    lines: string[],
+    markerIndex: number,
+    headerMeta: Omit<ReplyEntry, 'text'> | null,
+    anchor: string,
+): CommentBodyRange {
+    const textStart = headerMeta ? markerIndex + 2 : markerIndex + 1;
+    const expectedEndMarker = buildCommentEndMarker(anchor);
+    let cursor = textStart;
+
+    while (cursor < lines.length) {
+        const line = lines[cursor];
+        if (line === expectedEndMarker || line === COMMENT_END_MARKER) {
+            return {
+                textStart,
+                textEnd: cursor,
+                endLineExclusive: cursor + 1,
+                hasExplicitEndMarker: true,
+            };
+        }
+
+        if (parseMarkerMetadata(line) || parseLegacyHeader(line)) {
+            break;
+        }
+
+        cursor += 1;
+    }
+
+    return {
+        textStart,
+        textEnd: cursor,
+        endLineExclusive: cursor,
+        hasExplicitEndMarker: false,
+    };
+}
+
 export function parseTaskCommentBlocks(content: string): ParsedTaskComment[] {
     const lines = content.replace(/\r\n?/g, '\n').split('\n');
     const comments: ParsedTaskComment[] = [];
@@ -74,36 +117,28 @@ export function parseTaskCommentBlocks(content: string): ParsedTaskComment[] {
     for (let index = 0; index < lines.length; index++) {
         const markerMeta = parseMarkerMetadata(lines[index]);
         if (markerMeta) {
-            const headerMeta = parseLegacyHeader(lines[index + 1] ?? '');
-            const entry = headerMeta && headerMeta.anchor === markerMeta.anchor
+            const parsedHeaderMeta = parseLegacyHeader(lines[index + 1] ?? '');
+            const headerMeta = parsedHeaderMeta && parsedHeaderMeta.anchor === markerMeta.anchor
+                ? parsedHeaderMeta
+                : null;
+            const entry = headerMeta
                 ? headerMeta
                 : { anchor: markerMeta.anchor, date: markerMeta.date, time: markerMeta.time };
-            let endLineExclusive: number;
-            if (markerMeta.storedText !== undefined) {
-                const headerLineCount = headerMeta ? 2 : 1;
-                const textLineCount = markerMeta.storedText === '' ? 1 : markerMeta.storedText.split('\n').length;
-                endLineExclusive = Math.min(lines.length, index + headerLineCount + textLineCount + 1);
-            } else {
-                const expectedEndMarker = buildCommentEndMarker(entry.anchor);
-                let end = index + 1;
-                while (end < lines.length) {
-                    if (lines[end] === expectedEndMarker || lines[end] === COMMENT_END_MARKER) break;
-                    end += 1;
-                }
-                endLineExclusive = end < lines.length ? end + 1 : lines.length;
-            }
-            const textStart = headerMeta ? index + 2 : index + 1;
-            const textEnd = markerMeta.storedText !== undefined
-                ? Math.max(textStart, endLineExclusive - 1)
-                : Math.max(textStart, endLineExclusive - 1);
+            const bodyRange = findCommentBodyRange(lines, index, headerMeta, entry.anchor);
+            const visibleText = lines.slice(bodyRange.textStart, bodyRange.textEnd).join('\n').trimEnd();
+            const shouldUseStoredText = markerMeta.storedText !== undefined
+                && !headerMeta
+                && !bodyRange.hasExplicitEndMarker
+                && bodyRange.textStart >= bodyRange.textEnd;
+            const text = shouldUseStoredText ? markerMeta.storedText ?? '' : visibleText;
             comments.push({
                 ...entry,
-                text: markerMeta.storedText ?? lines.slice(textStart, textEnd).join('\n').trimEnd(),
+                text,
                 startLine: index,
                 headerLine: headerMeta ? index + 1 : index,
-                endLineExclusive,
+                endLineExclusive: bodyRange.endLineExclusive,
             });
-            index = endLineExclusive - 1;
+            index = Math.max(index, bodyRange.endLineExclusive - 1);
             continue;
         }
 

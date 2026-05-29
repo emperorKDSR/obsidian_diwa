@@ -4,6 +4,7 @@ import { extractWikiLinks } from '../utils/wikilinks';
 import { getThoughtDisplayTitle, inferJournalType } from '../journal/shared';
 import { normalizeThoughtTopics, toStoredThoughtTopic } from '../utils/topics';
 import { splitTaskBodyAndCommentSuffix } from '../utils/taskComments';
+import { normalizeVaultRelativePath } from '../utils/vaultFiles';
 
 export interface ChecklistItem {
     text: string;
@@ -180,11 +181,17 @@ export class IndexService {
     }
 
     private normalizeVaultPath(path: string): string {
-        return path
-            .replace(/\\/g, '/')
-            .trim()
-            .replace(/^\/+/, '')
-            .replace(/\/+$/, '');
+        return normalizeVaultRelativePath(path, 'path');
+    }
+
+    private normalizeConfiguredPath(path: string | undefined, fallback: string, label: string): string {
+        const candidate = (path || '').trim() || fallback;
+        try {
+            return this.normalizeVaultPath(candidate);
+        } catch (error) {
+            console.warn(`[DIWA IndexService] Invalid ${label} setting "${candidate}". Falling back to "${fallback}".`, error);
+            return this.normalizeVaultPath(fallback);
+        }
     }
 
     private pathIsInFolder(path: string, folder: string): boolean {
@@ -195,25 +202,25 @@ export class IndexService {
     }
 
     private getConfiguredTasksFolder(): string {
-        return this.normalizeVaultPath(this.settings.tasksFolder || '000 Bin/DIWA Gawa');
+        return this.normalizeConfiguredPath(this.settings.tasksFolder, '000 Bin/DIWA Gawa', 'tasksFolder');
     }
 
     private getConfiguredThoughtsFolder(): string {
-        return this.normalizeVaultPath(this.settings.thoughtsFolder || '000 Bin/DIWA');
+        return this.normalizeConfiguredPath(this.settings.thoughtsFolder, '000 Bin/DIWA', 'thoughtsFolder');
     }
 
     private getConfiguredPfFolder(): string {
-        return this.normalizeVaultPath(this.settings.pfFolder || '000 Bin/DIWA PF');
+        return this.normalizeConfiguredPath(this.settings.pfFolder, '000 Bin/DIWA PF', 'pfFolder');
     }
 
     private getConfiguredCapturePath(): string {
-        const folder = this.normalizeVaultPath(this.settings.captureFolder || '000 Bin/DIWA');
-        const file = this.normalizeVaultPath(this.settings.captureFilePath.trim() || 'Daily Capture.md');
+        const folder = this.normalizeConfiguredPath(this.settings.captureFolder, '000 Bin/DIWA', 'captureFolder');
+        const file = this.normalizeConfiguredPath(this.settings.captureFilePath, 'Daily Capture.md', 'captureFilePath');
         return this.normalizeVaultPath(folder ? `${folder}/${file}` : file);
     }
 
     private getConfiguredProjectsFolder(): string {
-        return this.normalizeVaultPath(this.settings.projectsFolder || 'Projects');
+        return this.normalizeConfiguredPath(this.settings.projectsFolder, 'Projects', 'projectsFolder');
     }
 
     private getTaskMarkdownFilesForFolder(folder: string): TFile[] {
@@ -238,6 +245,7 @@ export class IndexService {
         ]);
         this.rebuildCalculatedState();
     }
+
 
     rebuildCalculatedState() {
         // 1. Radar Queue: Urgent Open + Completed Today

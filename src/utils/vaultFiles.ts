@@ -7,10 +7,39 @@ export interface VaultCreateOptions {
 type FrontmatterScalar = string | number | boolean | null;
 type FrontmatterValue = FrontmatterScalar | FrontmatterScalar[] | undefined;
 
+export function normalizeVaultRelativePath(path: string, kind: 'folder' | 'path' = 'folder'): string {
+    const normalized = String(path || '')
+        .trim()
+        .replace(/\\/g, '/');
+    if (!normalized || normalized === '.') {
+        return '';
+    }
+    if (
+        normalized.startsWith('/')
+        || normalized.startsWith('~')
+        || normalized.startsWith('//')
+        || /^[A-Za-z]:/.test(normalized)
+    ) {
+        throw new Error(`Invalid ${kind} path: "${path}"`);
+    }
+
+    const segments = normalized.split('/');
+    const sanitizedSegments: string[] = [];
+    for (const segment of segments) {
+        if (!segment || segment === '.') continue;
+        if (segment === '..') {
+            throw new Error(`Invalid ${kind} path: "${path}"`);
+        }
+        sanitizedSegments.push(segment);
+    }
+
+    return sanitizedSegments.join('/');
+}
+
 function normalizeVaultFolder(folder: string): string {
-    const normalized = (folder || '').trim().replace(/\\/g, '/').replace(/\/+$/, '');
-    if (normalized.includes('..') || normalized.startsWith('/')) {
-        throw new Error(`Invalid folder path: "${folder}"`);
+    const normalized = normalizeVaultRelativePath(folder, 'folder');
+    if (!normalized) {
+        return '';
     }
     return normalized;
 }
@@ -29,9 +58,10 @@ function sanitizeVaultFilename(filename: string): string {
     return `${safeBase}${safeExt}`;
 }
 
-async function ensureVaultFolder(app: App, folder: string): Promise<void> {
-    if (!folder || folder === '/' || folder === '.') return;
-    const parts = folder.split('/').filter(Boolean);
+export async function ensureVaultFolder(app: App, folder: string): Promise<void> {
+    const normalizedFolder = normalizeVaultFolder(folder);
+    if (!normalizedFolder) return;
+    const parts = normalizedFolder.split('/').filter(Boolean);
     let pathSoFar = '';
     for (const part of parts) {
         pathSoFar = pathSoFar ? `${pathSoFar}/${part}` : part;

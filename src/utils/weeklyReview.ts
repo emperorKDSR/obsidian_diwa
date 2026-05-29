@@ -23,6 +23,14 @@ export interface ParsedWeeklyReview {
     weekId?: string;
 }
 
+interface ParsedWeeklyReviewSections {
+    wins: string;
+    lessons: string;
+    focus: string[];
+    dayPlans?: Record<string, string>;
+    headings: Set<string>;
+}
+
 function normalizeLineBreaks(value: string): string {
     return value.replace(/\r\n?/g, '\n');
 }
@@ -76,21 +84,30 @@ export function parseStructuredWeeklyReview(raw: string): ParsedWeeklyReview | n
     if (!decoded) return null;
     try {
         const parsed = JSON.parse(decoded) as Partial<WeeklyReviewRecord>;
+        const visible = parseWeeklyReviewSections(normalizeLineBreaks(raw).replace(/^---\n[\s\S]*?\n---\n?/, '').trim());
         return {
             weekId: typeof parsed.weekId === 'string' ? parsed.weekId : undefined,
             dateRange: typeof parsed.dateRange === 'string' ? parsed.dateRange : undefined,
-            wins: normalizeText(String(parsed.wins ?? '')),
-            lessons: normalizeText(String(parsed.lessons ?? '')),
-            focus: normalizeFocus(Array.isArray(parsed.focus) ? parsed.focus.map((value) => String(value ?? '')) : []),
+            wins: visible.headings.has('🏆 Wins')
+                ? visible.wins
+                : normalizeText(String(parsed.wins ?? '')),
+            lessons: visible.headings.has('📚 Lessons')
+                ? visible.lessons
+                : normalizeText(String(parsed.lessons ?? '')),
+            focus: visible.headings.has('🎯 Focus')
+                ? normalizeFocus(visible.focus)
+                : normalizeFocus(Array.isArray(parsed.focus) ? parsed.focus.map((value) => String(value ?? '')) : []),
             saved: typeof parsed.saved === 'string' ? parsed.saved : '',
-            dayPlans: normalizeDayPlans(parsed.dayPlans),
+            dayPlans: visible.headings.has('📅 Next Week Plan')
+                ? normalizeDayPlans(visible.dayPlans)
+                : normalizeDayPlans(parsed.dayPlans),
         };
     } catch {
         return null;
     }
 }
 
-export function parseLegacyWeeklyReviewBody(body: string): Pick<ParsedWeeklyReview, 'wins' | 'lessons' | 'focus' | 'dayPlans'> {
+function parseWeeklyReviewSections(body: string): ParsedWeeklyReviewSections {
     const normalizedBody = normalizeLineBreaks(body).trim();
     const sectionMatches = Array.from(normalizedBody.matchAll(/^# (🏆 Wins|📚 Lessons|🎯 Focus|📅 Next Week Plan)$/gm));
     const sections = new Map<string, string>();
@@ -127,5 +144,16 @@ export function parseLegacyWeeklyReviewBody(body: string): Pick<ParsedWeeklyRevi
         lessons: sections.get('📚 Lessons') || '',
         focus,
         dayPlans,
+        headings: new Set(sectionMatches.map((match) => match[1])),
+    };
+}
+
+export function parseLegacyWeeklyReviewBody(body: string): Pick<ParsedWeeklyReview, 'wins' | 'lessons' | 'focus' | 'dayPlans'> {
+    const parsed = parseWeeklyReviewSections(body);
+    return {
+        wins: parsed.wins,
+        lessons: parsed.lessons,
+        focus: parsed.focus,
+        dayPlans: parsed.dayPlans,
     };
 }

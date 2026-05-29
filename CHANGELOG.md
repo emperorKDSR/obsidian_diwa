@@ -1,4 +1,11 @@
 
+## [10.2.19] — Vault Integrity Hardening
+
+### Changed
+- Made task comment parsing prefer visible edited markdown over stale hidden payload text, while preserving compatibility with older marker blocks.
+- Made structured weekly review loading honor direct edits in visible review sections instead of reopening outdated marker data.
+- Normalized and validated configured vault-relative folders and paths so traversal and absolute-like inputs cannot steer writes into unintended locations.
+
 ## [10.2.18] — Residual Performance Cache Cleanup
 
 ### Changed
