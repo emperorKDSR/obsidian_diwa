@@ -1,4 +1,11 @@
 
+## [10.2.8] — Project Reactivity Hardening
+
+### Changed
+- Wired project files and project-folder mutations into the reactive indexing and refresh flow.
+- Reused per-file project indexing helpers instead of project-wide ad hoc rebuild logic.
+- Narrowed legacy capture-table migration so it only migrates real legacy table rows before backing up the source files.
+
 ## [10.2.7] — Due and Vault Safety Hardening
 
 ### Changed

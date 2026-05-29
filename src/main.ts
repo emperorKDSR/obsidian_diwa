@@ -176,22 +176,37 @@ export default class DiwaPlugin extends Plugin {
                 // Attachment/voice/binary files must NOT trigger a re-render — doing so
                 // wipes any open capture textarea (vault create fires when paste saves an image).
                 const scope = this.getRefreshScopeForPath(f.path);
-                if (!scope) return;
+                if (!scope) {
+                    if (!(f instanceof TFile)) await this.handleProjectFolderMutation(f.path);
+                    return;
+                }
+                if (!(f instanceof TFile)) {
+                    await this.handleProjectFolderMutation(f.path);
+                    return;
+                }
                 if (this.index.isThoughtFile(f.path)) {
-                    await this.index.indexThoughtFile(f as TFile);
+                    await this.index.indexThoughtFile(f);
                     if (!this.getThoughtController().isUpdatingThoughtPath(f.path)) {
                         this.getThoughtController().syncIndexedThought(f.path);
                     }
                 }
-                else if (this.index.isTaskFile(f.path)) await this.index.indexTaskFile(f as TFile);
-                else if (this.index.isDueFile(f.path)) this.index.indexDueFile(f as TFile);
+                else if (this.index.isTaskFile(f.path)) await this.index.indexTaskFile(f);
+                else if (this.index.isDueFile(f.path)) this.index.indexDueFile(f);
+                else if (this.index.isProjectFile(f.path)) await this.index.indexProjectFile(f);
                 this.notifyRefresh(scope);
             }));
 
             this.registerEvent(this.app.vault.on('modify', async (f) => {
                 const scope = this.getRefreshScopeForPath(f.path);
-                if (!scope) return;
-                await this.refreshCoordinator.reindexFile(f as TFile);
+                if (!scope) {
+                    if (!(f instanceof TFile)) await this.handleProjectFolderMutation(f.path);
+                    return;
+                }
+                if (!(f instanceof TFile)) {
+                    await this.handleProjectFolderMutation(f.path);
+                    return;
+                }
+                await this.refreshCoordinator.reindexFile(f);
                 if (this.index.isThoughtFile(f.path) && !this.getThoughtController().isUpdatingThoughtPath(f.path)) {
                     this.getThoughtController().syncIndexedThought(f.path);
                 }
@@ -200,10 +215,14 @@ export default class DiwaPlugin extends Plugin {
 
             this.registerEvent(this.app.vault.on('delete', async (f) => {
                 const scope = this.getRefreshScopeForPath(f.path);
-                if (!scope) return;
+                if (!scope) {
+                    if (!(f instanceof TFile)) await this.handleProjectFolderMutation(f.path);
+                    return;
+                }
                 this.getThoughtController().removeThoughtFromIndex(f.path);
                 this.index.taskIndex.delete(f.path);
                 if (this.index.isDueFile(f.path)) this.index.removeDueFile(f.path);
+                if (this.index.isProjectFile(f.path)) this.index.removeProjectFile(f.path);
                 this.notifyRefresh(scope);
             }));
 
@@ -212,18 +231,27 @@ export default class DiwaPlugin extends Plugin {
                     this.getRefreshScopeForPath(oldPath),
                     this.getRefreshScopeForPath(f.path),
                 );
-                if (!scope) return;
+                if (!scope) {
+                    if (!(f instanceof TFile)) await this.handleProjectFolderMutation(oldPath, f.path);
+                    return;
+                }
+                if (!(f instanceof TFile)) {
+                    await this.handleProjectFolderMutation(oldPath, f.path);
+                    return;
+                }
                 this.getThoughtController().removeThoughtFromIndex(oldPath);
                 this.index.taskIndex.delete(oldPath);
                 if (this.index.isDueFile(oldPath)) this.index.removeDueFile(oldPath, true);
+                if (this.index.isProjectFile(oldPath)) this.index.removeProjectFile(oldPath);
                 if (this.index.isThoughtFile(f.path)) {
-                    await this.index.indexThoughtFile(f as TFile);
+                    await this.index.indexThoughtFile(f);
                     if (!this.getThoughtController().isUpdatingThoughtPath(f.path)) {
                         this.getThoughtController().syncIndexedThought(f.path);
                     }
                 }
-                else if (this.index.isTaskFile(f.path)) await this.index.indexTaskFile(f as TFile);
-                else if (this.index.isDueFile(f.path)) this.index.indexDueFile(f as TFile, true);
+                else if (this.index.isTaskFile(f.path)) await this.index.indexTaskFile(f);
+                else if (this.index.isDueFile(f.path)) this.index.indexDueFile(f, true);
+                else if (this.index.isProjectFile(f.path)) await this.index.indexProjectFile(f);
                 if (this.index.isDueFile(oldPath) || this.index.isDueFile(f.path)) this.index.rebuildCalculatedState();
                 this.notifyRefresh(scope);
             }));
@@ -297,26 +325,26 @@ export default class DiwaPlugin extends Plugin {
 
     async migrateLegacyTableData() {
         const { vault } = this.app;
-        const thoughtsPath = this.settings.captureFolder + '/' + this.settings.captureFilePath;
-        const tasksPath = this.settings.captureFolder + '/' + this.settings.tasksFilePath;
-        const migrateFile = async (path: string, isTask: boolean) => {
+        const thoughtsPath = this.joinVaultPath(this.settings.captureFolder, this.settings.captureFilePath);
+        const tasksPath = this.joinVaultPath(this.settings.captureFolder, this.settings.tasksFilePath);
+        const migrateFile = async (path: string, isTask: boolean): Promise<number> => {
             const file = vault.getAbstractFileByPath(path);
-            if (!(file instanceof TFile)) return;
+            if (!(file instanceof TFile)) return 0;
             const content = await vault.read(file);
-            const lines = content.split('\n').filter(l => l.trim().startsWith('|') && !l.includes('---') && !l.includes('Date'));
-            for (const line of lines) {
-                const parts = line.split('|').map(p => p.trim());
-                if (parts.length >= 8) {
-                    const text = parts[7].replace(/<br>/g, '\n');
-                    const ctxs = (parts[8].match(/#[^#\s|]+/g) || []).map(c => c.substring(1));
-                    if (isTask) {
-                        const due = parts[6].replace(/\[\[|\]\]/g, '');
-                        await this.vault.createTaskFile(text, ctxs, due);
-                    } else await this.getThoughtController().addThought({ content: text, context: ctxs });
+            const rows = this.extractLegacyTableRows(content, isTask);
+            if (rows.length === 0) return 0;
+
+            for (const row of rows) {
+                if (isTask) {
+                    await this.vault.createTaskFile(row.text, row.contexts, row.due);
+                } else {
+                    await this.getThoughtController().addThought({ content: row.text, context: row.contexts });
                 }
             }
             await vault.rename(file, path + '.bak');
+            return rows.length;
         };
+
         await migrateFile(thoughtsPath, false);
         await migrateFile(tasksPath, true);
         this.settings.legacyMigrated = true;
@@ -514,6 +542,10 @@ export default class DiwaPlugin extends Plugin {
             this.refreshOpenTaskPanes();
             this.notifyRefresh('tasks');
         }
+        if (this.index?.projectsFolderChanged()) {
+            await this.index.buildProjectIndex();
+            this.notifyRefresh('all');
+        }
 	}
 
     async saveGawaLayoutPreferences(preferences: GawaLayoutPreferences): Promise<void> {
@@ -606,9 +638,61 @@ export default class DiwaPlugin extends Plugin {
         console.log('Controller panes:', this.controller?.panes ?? []);
     }
 
+    private joinVaultPath(folder: string, fileName: string): string {
+        const normalizedFolder = folder.replace(/\\/g, '/').trim().replace(/^\/+|\/+$/g, '');
+        const normalizedFileName = fileName.replace(/\\/g, '/').trim().replace(/^\/+/, '');
+        if (!normalizedFolder) return normalizedFileName;
+        return normalizedFileName ? `${normalizedFolder}/${normalizedFileName}` : normalizedFolder;
+    }
+
+    private isLegacyCaptureDateCell(value: string): boolean {
+        const normalized = value.trim().replace(/^\[\[|\]\]$/g, '');
+        return /^\d{4}-\d{2}-\d{2}$/.test(normalized) || /^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(normalized);
+    }
+
+    private extractLegacyTableRows(content: string, isTask: boolean): Array<{ text: string; contexts: string[]; due?: string }> {
+        const rows: Array<{ text: string; contexts: string[]; due?: string }> = [];
+        const lines = content.split('\n').filter((line) => line.trim().startsWith('|'));
+
+        for (const line of lines) {
+            const cells = line
+                .split('|')
+                .slice(1, -1)
+                .map((part) => part.trim());
+            if (cells.length < 8) continue;
+            if (cells.every((cell) => !cell || /^:?-{3,}:?$/.test(cell))) continue;
+            if (!this.isLegacyCaptureDateCell(cells[0] ?? '')) continue;
+
+            const text = (cells[6] ?? '').replace(/<br>/g, '\n').trim();
+            if (!text) continue;
+
+            const contexts = Array.from((cells[7] ?? '').matchAll(/#[^#\s|]+/g)).map((match) => match[0].substring(1));
+            const due = (cells[5] ?? '').replace(/^\[\[|\]\]$/g, '').trim();
+            rows.push({
+                text,
+                contexts,
+                due: isTask && due ? due : undefined,
+            });
+        }
+
+        return rows;
+    }
+
+    private async rebuildProjectIndexAndRefresh(): Promise<void> {
+        await this.index.buildProjectIndex();
+        this.notifyRefresh('all');
+    }
+
+    private async handleProjectFolderMutation(...paths: string[]): Promise<boolean> {
+        if (!paths.some((path) => path && this.index.pathAffectsProjectsFolder(path))) return false;
+        await this.rebuildProjectIndexAndRefresh();
+        return true;
+    }
+
     private getRefreshScopeForPath(path: string): RefreshScope | null {
         if (this.index.isTaskFile(path)) return 'tasks';
         if (this.index.isThoughtFile(path)) return 'thoughts';
+        if (this.index.isProjectFile(path)) return 'all';
         if (this.index.isDueFile(path)) return 'all';
 
         const captureFolder = this.settings.captureFolder.trim() || '000 Bin/DIWA';

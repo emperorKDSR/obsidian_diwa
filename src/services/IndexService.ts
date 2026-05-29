@@ -157,13 +157,16 @@ export class IndexService {
     totalDues: number = 0;
     private _activeTasksFolder: string;
     private _lastIndexedTasksFolderSetting: string;
+    private _lastIndexedProjectsFolderSetting: string;
 
     constructor(app: App, settings: DiwaSettings) {
         this.app = app;
         this.settings = settings;
         const initialTasksFolder = this.getConfiguredTasksFolder();
+        const initialProjectsFolder = this.getConfiguredProjectsFolder();
         this._activeTasksFolder = initialTasksFolder;
         this._lastIndexedTasksFolderSetting = initialTasksFolder;
+        this._lastIndexedProjectsFolderSetting = initialProjectsFolder;
     }
 
     private normalizeVaultPath(path: string): string {
@@ -183,6 +186,10 @@ export class IndexService {
 
     private getConfiguredTasksFolder(): string {
         return this.normalizeVaultPath(this.settings.tasksFolder || '000 Bin/DIWA Gawa');
+    }
+
+    private getConfiguredProjectsFolder(): string {
+        return this.normalizeVaultPath(this.settings.projectsFolder || 'Projects');
     }
 
     private getTaskMarkdownFilesForFolder(folder: string): TFile[] {
@@ -248,24 +255,12 @@ export class IndexService {
     }
 
     async buildProjectIndex(): Promise<void> {
-        const folder = (this.settings.projectsFolder || 'Projects').replace(/\\/g, '/');
+        const folder = this.getConfiguredProjectsFolder();
         this.projectIndex.clear();
-        const files = this.app.vault.getMarkdownFiles().filter(f => f.path.startsWith(folder + '/'));
+        this._lastIndexedProjectsFolderSetting = folder;
+        const files = this.app.vault.getMarkdownFiles().filter((file) => this.isProjectFile(file.path));
         for (const file of files) {
-            const cache = this.app.metadataCache.getFileCache(file);
-            const fm = cache?.frontmatter;
-            if (!fm?.['id'] || !fm?.['name']) continue;
-            const entry: ProjectEntry = {
-                id: String(fm['id']),
-                name: String(fm['name']),
-                status: (fm['status'] || 'active') as ProjectEntry['status'],
-                goal: String(fm['goal'] || ''),
-                due: fm['due'] ? String(fm['due']) : undefined,
-                created: String(fm['created'] || ''),
-                color: fm['color'] ? String(fm['color']) : undefined,
-                filePath: file.path,
-            };
-            this.projectIndex.set(entry.id, entry);
+            await this.indexProjectFile(file);
         }
     }
 
@@ -313,6 +308,50 @@ export class IndexService {
     removeDueFile(path: string, skipRebuild = false): void {
         const removed = this.dueIndex.delete(path);
         if (removed && !skipRebuild) this.rebuildCalculatedState();
+    }
+
+    async indexProjectFile(file: TFile): Promise<void> {
+        this.removeProjectFile(file.path);
+        if (!this.isProjectFile(file.path)) return;
+
+        const cache = this.app.metadataCache.getFileCache(file);
+        const content = await this.app.vault.read(file);
+        const fallbackFrontmatter = IndexService.parseFrontmatterFallback(content);
+        const cacheFrontmatter = cache?.frontmatter as Record<string, unknown> | undefined;
+        const fm = {
+            ...(fallbackFrontmatter ?? {}),
+            ...(cacheFrontmatter ?? {}),
+        } as Record<string, unknown>;
+        const id = String(fm['id'] ?? '').trim();
+        const name = String(fm['name'] ?? '').trim();
+        if (!id || !name) return;
+
+        const rawStatus = String(fm['status'] ?? 'active').trim();
+        const allowedStatuses: ProjectEntry['status'][] = ['active', 'on-hold', 'completed', 'archived'];
+        const status = allowedStatuses.includes(rawStatus as ProjectEntry['status'])
+            ? rawStatus as ProjectEntry['status']
+            : 'active';
+
+        this.projectIndex.set(id, {
+            id,
+            name,
+            status,
+            goal: String(fm['goal'] ?? ''),
+            due: fm['due'] ? String(fm['due']) : undefined,
+            created: String(fm['created'] ?? ''),
+            color: fm['color'] ? String(fm['color']) : undefined,
+            filePath: file.path,
+        });
+    }
+
+    removeProjectFile(path: string): boolean {
+        let removed = false;
+        for (const [projectId, entry] of this.projectIndex.entries()) {
+            if (entry.filePath !== path) continue;
+            this.projectIndex.delete(projectId);
+            removed = true;
+        }
+        return removed;
     }
 
     async buildThoughtIndex(): Promise<void> {
@@ -613,6 +652,24 @@ export class IndexService {
         const normalizedPath = this.normalizeVaultPath(path);
         return this.pathIsInFolder(normalizedPath, folder)
             && normalizedPath.toLowerCase().endsWith('.md');
+    }
+
+    isProjectFile(path: string): boolean {
+        const folder = this.getConfiguredProjectsFolder();
+        const normalizedPath = this.normalizeVaultPath(path);
+        return this.pathIsInFolder(normalizedPath, folder)
+            && normalizedPath.toLowerCase().endsWith('.md')
+            && !normalizedPath.toLowerCase().includes('/trash/');
+    }
+
+    projectsFolderChanged(): boolean {
+        return this.getConfiguredProjectsFolder().toLowerCase() !== this._lastIndexedProjectsFolderSetting.toLowerCase();
+    }
+
+    pathAffectsProjectsFolder(path: string): boolean {
+        const normalizedPath = this.normalizeVaultPath(path);
+        const folder = this.getConfiguredProjectsFolder();
+        return this.pathIsInFolder(normalizedPath, folder) || this.pathIsInFolder(folder, normalizedPath);
     }
 
     getProjects(): string[] {
