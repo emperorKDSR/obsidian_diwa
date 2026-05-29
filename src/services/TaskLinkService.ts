@@ -3,6 +3,7 @@ import type { DiwaSettings, Task, TaskEntry } from '../types';
 import type { IndexService } from './IndexService';
 import { generateTaskId, normalizeTaskFields, isoNow } from '../utils/taskModel';
 import { createVaultFile } from './VaultService';
+import { buildYamlFrontmatter } from '../utils/vaultFiles';
 
 /**
  * TaskLinkService — manages the bidirectional relationship between tasks and
@@ -230,34 +231,26 @@ export class TaskLinkService {
      */
     private _buildTaskFrontmatter(task: Task, created: string, dayStr: string): string {
         const safeTitle = this._sanitizeYaml(task.title);
-        const sourceLines = task.sourceThoughtIds.length > 0
-            ? ['sourceThoughtIds:', ...task.sourceThoughtIds.map(id => `  - "${id}"`)]
-            : ['sourceThoughtIds:'];
         const ts = task.createdAt ?? isoNow();
 
-        return [
-            '---',
-            `title: "${safeTitle}"`,
-            `created: ${created}`,
-            `modified: ${created}`,
-            `day: "[[${dayStr}]]"`,
-            `area: DIWA_TASKS`,
-            `status: open`,
-            `due: ""`,
-            `context:`,
-            `  []`,
-            `tags:`,
-            `  []`,
-            `taskId: ${task.id}`,
-            `origin: ${task.origin}`,
-            ...sourceLines,
-            `lifecycleStatus: ${task.status}`,
-            `createdAt: ${ts}`,
-            `updatedAt: ${ts}`,
-            `completedAt:`,
-            '---',
-            '',
-        ].join('\n');
+        return `${buildYamlFrontmatter({
+            title: safeTitle,
+            created,
+            modified: created,
+            day: `[[${dayStr}]]`,
+            area: 'DIWA_TASKS',
+            status: 'open',
+            due: '',
+            context: [],
+            tags: [],
+            taskId: task.id,
+            origin: task.origin,
+            sourceThoughtIds: task.sourceThoughtIds,
+            lifecycleStatus: task.status,
+            createdAt: ts,
+            updatedAt: ts,
+            completedAt: null,
+        })}\n`;
     }
 
     /** Creates the physical task file from a normalised Task object. */

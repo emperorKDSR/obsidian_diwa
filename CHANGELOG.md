@@ -1,4 +1,12 @@
 
+## [10.2.11] — Vault Serialization Hardening
+
+### Changed
+- Replaced raw frontmatter interpolation with shared vault file and YAML serialization helpers for people, project, task-link, and reflection note creation.
+- Switched project milestone persistence to structured `diwa-milestones` blocks while preserving reads of legacy milestone lists.
+- Hardened task comment storage and parsing with explicit DIWA markers so user-authored text cannot impersonate structural reply headers.
+- Routed remaining attachment writes through the centralized binary vault helper path.
+
 ## [10.2.10] — Desktop Performance Tuning
 
 ### Changed

@@ -4,6 +4,7 @@ import type { IndexService } from './IndexService';
 import { generateReflectionPrompt } from '../utils/taskReflection';
 import { isoNow } from '../utils/taskModel';
 import { createVaultFile } from './VaultService';
+import { buildYamlFrontmatter } from '../utils/vaultFiles';
 
 /**
  * TaskReflectionService — handles creation of structured reflection notes
@@ -67,27 +68,18 @@ export class TaskReflectionService {
             ? `[[${taskFilePath}]]`
             : task.id;
 
-        const linkedTasksYaml = taskFilePath
-            ? `linkedTasks:\n  - "${taskFilePath.replace(/"/g, "'")}"`
-            : 'linkedTasks: []';
-
-        const frontmatter = [
-            '---',
-            `title: "${safeTitle}"`,
-            `created: ${created}`,
-            `modified: ${created}`,
-            `day: "[[${dayStr}]]"`,
-            `area: DIWA`,
-            `reflectionFor: "${task.id}"`,
-            linkedTasksYaml,
-            `context:`,
-            `  []`,
-            `tags:`,
-            `  []`,
-            `pinned: false`,
-            '---',
-            '',
-        ].join('\n');
+        const frontmatter = `${buildYamlFrontmatter({
+            title: safeTitle,
+            created,
+            modified: created,
+            day: `[[${dayStr}]]`,
+            area: 'DIWA',
+            reflectionFor: task.id,
+            linkedTasks: taskFilePath ? [taskFilePath] : [],
+            context: [],
+            tags: [],
+            pinned: false,
+        })}\n`;
 
         const body = [
             `## Reflection: ${task.title}`,

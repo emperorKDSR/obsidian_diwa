@@ -4,6 +4,7 @@ import { FileSuggestModal } from './modals/FileSuggestModal';
 import { ContextSuggestModal } from './modals/ContextSuggestModal';
 import { PersonSuggestModal } from './modals/PersonSuggestModal';
 import type { RecurrenceRule, TaskEntry } from './types';
+import { createVaultBinaryFile } from './utils/vaultFiles';
 
 export function computeNextDue(currentDue: string, rule: RecurrenceRule): string {
     const m = moment(currentDue, 'YYYY-MM-DD', true);
@@ -267,10 +268,9 @@ async function saveAttachmentFile(app: App, file: File, folderPath: string, pref
         const ts = moment().format('YYYYMMDD_HHmmss');
         const rand = Math.random().toString(36).substring(2, 6);
         const filename = `${prefix}_${ts}_${rand}.${ext}`;
-        const path = `${folder}/${filename}`;
         const buffer = await file.arrayBuffer();
-        await app.vault.createBinary(path, buffer);
-        return path;
+        const saved = await createVaultBinaryFile(app, folder, filename, buffer);
+        return saved.path;
     } catch (error) {
         console.error('[DIWA] Attachment save failed:', error);
         return null;

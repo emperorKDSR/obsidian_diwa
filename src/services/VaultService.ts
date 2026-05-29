@@ -4,70 +4,15 @@ import { generateTaskId } from '../utils/taskModel';
 import { buildJournalContexts, normalizeJournalType } from '../journal/shared';
 import { normalizeThoughtTopics, toStoredThoughtTopic } from '../utils/topics';
 import { buildAttachmentWikiLink, ensureVaultFolder } from '../utils';
+import { buildTaskCommentBlock, parseTaskCommentBlocks, splitTaskBodyAndCommentSuffix } from '../utils/taskComments';
+import { buildYamlFrontmatter, createVaultBinaryFile, createVaultFile } from '../utils/vaultFiles';
 
 interface ThoughtWriteOptions {
     title?: string;
     journalType?: string | null;
 }
 
-interface VaultCreateOptions {
-    onCollision?: 'suffix' | 'error';
-}
-
-function normalizeVaultFolder(folder: string): string {
-    const normalized = (folder || '').trim().replace(/\\/g, '/').replace(/\/+$/, '');
-    if (normalized.includes('..') || normalized.startsWith('/')) {
-        throw new Error(`Invalid folder path: "${folder}"`);
-    }
-    return normalized;
-}
-
-function sanitizeVaultFilename(filename: string): string {
-    const trimmed = (filename || '').trim();
-    const extIdx = trimmed.lastIndexOf('.');
-    const base = extIdx > 0 ? trimmed.substring(0, extIdx) : trimmed;
-    const ext = extIdx > 0 ? trimmed.substring(extIdx) : '';
-    const safeBase = base
-        .replace(/[\/\\?%*:|"<>]/g, '-')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .replace(/^\.+|\.+$/g, '') || 'Untitled';
-    const safeExt = ext.replace(/[^.\w-]/g, '');
-    return `${safeBase}${safeExt}`;
-}
-
-async function resolveVaultCreatePath(app: App, folder: string, filename: string, options: VaultCreateOptions = {}): Promise<string> {
-    const normalizedFolder = normalizeVaultFolder(folder);
-    const normalizedFilename = sanitizeVaultFilename(filename);
-    if (normalizedFolder) {
-        await ensureVaultFolder(app, normalizedFolder);
-    }
-
-    const path = normalizedFolder ? `${normalizedFolder}/${normalizedFilename}` : normalizedFilename;
-    if (!app.vault.getAbstractFileByPath(path)) {
-        return path;
-    }
-
-    if (options.onCollision === 'error') {
-        throw new Error('A file with that name already exists.');
-    }
-
-    const extIdx = normalizedFilename.lastIndexOf('.');
-    const base = extIdx !== -1 ? normalizedFilename.substring(0, extIdx) : normalizedFilename;
-    const ext = extIdx !== -1 ? normalizedFilename.substring(extIdx) : '';
-    const uniqueName = `${base} (${Date.now()})${ext}`;
-    return normalizedFolder ? `${normalizedFolder}/${uniqueName}` : uniqueName;
-}
-
-export async function createVaultFile(app: App, folder: string, filename: string, content: string, options: VaultCreateOptions = {}): Promise<TFile> {
-    const finalPath = await resolveVaultCreatePath(app, folder, filename, options);
-    return app.vault.create(finalPath, content);
-}
-
-export async function createVaultBinaryFile(app: App, folder: string, filename: string, content: ArrayBuffer, options: VaultCreateOptions = {}): Promise<TFile> {
-    const finalPath = await resolveVaultCreatePath(app, folder, filename, options);
-    return app.vault.createBinary(finalPath, content);
-}
+export { createVaultBinaryFile, createVaultFile };
 
 export class VaultService {
     app: App;
@@ -108,23 +53,26 @@ export class VaultService {
     }
 
     private buildFrontmatter(title: string, created: string, modified: string, dayStr: string, contexts: string[], pinned: boolean = false, project?: string, topic?: string | string[] | null, journalType?: string | null): string {
-        // sec-006: Sanitize title and contexts before YAML embedding to prevent injection
-        const safeTitle = this.sanitizeYamlString(title);
         const safeContexts = contexts.map(c => this.sanitizeContext(c));
-        const contextYaml = safeContexts.length > 0 ? safeContexts.map(c => `  - ${c}`).join('\n') : '  []';
         const safeTopics = this.normalizeTopics(topic);
-        const topicLine = safeTopics.length === 0
-            ? ''
-            : safeTopics.length === 1
-                ? `topic: "${this.sanitizeYamlString(safeTopics[0])}"\n`
-                : `topic:\n${safeTopics.map((value) => `  - "${this.sanitizeYamlString(value)}"`).join('\n')}\n`;
         const safeTags = safeTopics.length > 0
             ? safeContexts.flatMap((context) => safeTopics.map((value) => `${context}/${value}`))
             : safeContexts;
-        const tagsYaml = safeTags.length > 0 ? safeTags.map((value) => `  - ${value}`).join('\n') : '  []';
-        const projectLine = project ? `project: "${this.sanitizeYamlString(project)}"\n` : '';
-        const journalTypeLine = journalType ? `journalType: "${this.sanitizeYamlString(journalType)}"\n` : '';
-        return `---\ntitle: "${safeTitle}"\ncreated: ${created}\nmodified: ${modified}\nday: "[[${dayStr}]]"\narea: DIWA\ncontext:\n${contextYaml}\ntags:\n${tagsYaml}\npinned: ${pinned}\n${journalTypeLine}${topicLine}${projectLine}---\n`;
+        return buildYamlFrontmatter({
+            title,
+            created,
+            modified,
+            day: `[[${dayStr}]]`,
+            area: 'DIWA',
+            context: safeContexts,
+            tags: safeTags,
+            pinned,
+            journalType: journalType || undefined,
+            topic: safeTopics.length === 0
+                ? undefined
+                : (safeTopics.length === 1 ? safeTopics[0] : safeTopics),
+            project: project || undefined,
+        });
     }
 
     private buildTaskFrontmatter(
@@ -142,26 +90,35 @@ export class VaultService {
         energy?: string,
         milestone?: string,
     ): string {
-        // sec-006: Sanitize title and contexts before YAML embedding to prevent injection
-        const safeTitle = this.sanitizeYamlString(title);
         const safeContexts = contexts.map(c => this.sanitizeContext(c));
-        const contextYaml = safeContexts.length > 0 ? safeContexts.map(c => `  - ${c}`).join('\n') : '  []';
         const safeStatus = this.normalizeTaskStatus(status);
         const safeDue = this.normalizeTaskDue(due);
         const safeRecurrence = this.normalizeTaskRecurrence(recurrence);
         const safePriority = this.normalizeTaskLevel(priority);
         const safeEnergy = this.normalizeTaskLevel(energy);
         const safeParentId = this.normalizeTaskRecurrenceParentId(recurrenceParentId);
-        const dueYaml = safeDue ? `"[[${safeDue}]]"` : '""';
         const taskId = generateTaskId();
-        const projectLine = project ? `project: "${this.sanitizeYamlString(project)}"\n` : '';
-        const milestoneLine = milestone ? `milestone: "${this.sanitizeYamlString(milestone)}"\n` : '';
-        const recurrenceLine = safeRecurrence ? `recurrence: ${safeRecurrence}\n` : '';
-        const parentLine = safeParentId ? `recurrenceParentId: "${safeParentId}"\n` : '';
-        const priorityLine = safePriority ? `priority: ${safePriority}\n` : '';
-        const energyLine = safeEnergy ? `energy: ${safeEnergy}\n` : '';
-        const bucketLine = safeStatus === 'done' ? 'bucket: done\n' : (safeStatus === 'waiting' ? 'bucket: active\n' : 'bucket: backlog\n');
-        return `---\ntitle: "${safeTitle}"\ntaskId: ${taskId}\ncreated: ${created}\nmodified: ${modified}\nday: "[[${dayStr}]]"\narea: DIWA_TASKS\nstatus: ${safeStatus}\n${bucketLine}focus: false\ndue: ${dueYaml}\ncontext:\n${contextYaml}\ntags:\n${contextYaml}\n${projectLine}${milestoneLine}${recurrenceLine}${parentLine}${priorityLine}${energyLine}---\n`;
+        const bucket = safeStatus === 'done' ? 'done' : (safeStatus === 'waiting' ? 'active' : 'backlog');
+        return buildYamlFrontmatter({
+            title,
+            taskId,
+            created,
+            modified,
+            day: `[[${dayStr}]]`,
+            area: 'DIWA_TASKS',
+            status: safeStatus,
+            bucket,
+            focus: false,
+            due: safeDue ? `[[${safeDue}]]` : '',
+            context: safeContexts,
+            tags: safeContexts,
+            project: project || undefined,
+            milestone: milestone || undefined,
+            recurrence: safeRecurrence || undefined,
+            recurrenceParentId: safeParentId || undefined,
+            priority: safePriority || undefined,
+            energy: safeEnergy || undefined,
+        });
     }
 
     // sec-006: Strip characters that break YAML string values
@@ -188,23 +145,9 @@ export class VaultService {
         return normalized || '0.00';
     }
 
-    private isReplyHeaderLine(line: string): boolean {
-        return /^## \[\[[^\]]+\]\] \d{2}:\d{2}:\d{2} \^reply-[\w-]+$/.test(line.trim());
-    }
-
     private splitBodyAndReplySuffix(body: string): { body: string; replySuffix: string } {
-        const lines = body.split('\n');
-        const replyHeader = lines.findIndex((line) => this.isReplyHeaderLine(line));
-        if (replyHeader === -1) {
-            return { body, replySuffix: '' };
-        }
-
-        let replyStart = replyHeader;
-        while (replyStart > 0 && lines[replyStart - 1].trim() === '') replyStart -= 1;
-        return {
-            body: lines.slice(0, replyStart).join('\n'),
-            replySuffix: lines.slice(replyStart).join('\n'),
-        };
+        const split = splitTaskBodyAndCommentSuffix(body);
+        return { body: split.body, replySuffix: split.commentSuffix };
     }
 
     private composeBodyWithReplySuffix(body: string, replySuffix: string): string {
@@ -244,6 +187,41 @@ export class VaultService {
             case 'open':
             default:
                 return 'open';
+        }
+    }
+
+    private buildMilestonesSection(milestones: Milestone[]): string {
+        const normalized = milestones.map((milestone, index) => ({
+            id: milestone.id || this.buildFallbackMilestoneId(`${milestone.title}|${milestone.dueDate ?? ''}|${index}`),
+            title: milestone.title,
+            done: !!milestone.done,
+            dueDate: milestone.dueDate || null,
+        }));
+        return `## Milestones\n\`\`\`diwa-milestones\n${JSON.stringify(normalized, null, 2)}\n\`\`\``;
+    }
+
+    private parseStructuredMilestones(section: string): Milestone[] | null {
+        const match = section.match(/^\s*```diwa-milestones\r?\n([\s\S]*?)\r?\n```\s*$/);
+        if (!match) return null;
+        try {
+            const parsed = JSON.parse(match[1]) as Array<Partial<Milestone>>;
+            if (!Array.isArray(parsed)) return [];
+            return parsed.map((milestone, index) => {
+                const title = String(milestone.title ?? '').trim();
+                const dueDate = typeof milestone.dueDate === 'string' && this.isMilestoneDateToken(milestone.dueDate)
+                    ? milestone.dueDate
+                    : undefined;
+                return {
+                    id: typeof milestone.id === 'string' && milestone.id.trim()
+                        ? milestone.id.trim()
+                        : this.buildFallbackMilestoneId(`${title}|${dueDate ?? ''}|${index}`),
+                    title,
+                    done: Boolean(milestone.done),
+                    dueDate,
+                };
+            }).filter((milestone) => milestone.title);
+        } catch {
+            return [];
         }
     }
 
@@ -323,17 +301,13 @@ export class VaultService {
         const lastPaymentDate = this.normalizeDueDateValue(input.lastPaymentDate);
         const amount = this.normalizeAmountValue(input.amount);
         const body = this.normalizeLineBreaks(input.notes || '').trim();
-        const content = [
-            '---',
-            'category: "recurring payment"',
-            'active_status: true',
-            `next_duedate: "${this.sanitizeYamlString(nextDueDate)}"`,
-            `last_payment_date: "${this.sanitizeYamlString(lastPaymentDate)}"`,
-            `amount: "${this.sanitizeYamlString(amount)}"`,
-            '---',
-            '',
-            body,
-        ].join('\n').trimEnd() + '\n';
+        const content = `${buildYamlFrontmatter({
+            category: 'recurring payment',
+            active_status: true,
+            next_duedate: nextDueDate,
+            last_payment_date: lastPaymentDate,
+            amount,
+        })}\n${body}`.trimEnd() + '\n';
 
         return createVaultFile(
             this.app,
@@ -655,10 +629,9 @@ export class VaultService {
             const anchor = `reply-${Date.now()}`;
             const dateStr = this.formatDate(now);
             const timeStr = this.formatTime(now);
-            const header = `## [[${dateStr}]] ${timeStr} ^${anchor}`;
-
             const content = await this.app.vault.read(file);
-            await this.app.vault.modify(file, content.trimEnd() + `\n\n${header}\n${text}\n`);
+            const commentBlock = buildTaskCommentBlock({ anchor, date: dateStr, time: timeStr }, text);
+            await this.app.vault.modify(file, `${content.trimEnd()}\n\n${commentBlock}\n`);
             await this.touchModified(file, now);
 
             return true;
@@ -675,7 +648,12 @@ export class VaultService {
         try {
             const content = await this.app.vault.read(file);
             const updated = this.rewriteCommentSection(content, anchor, (lines, range) => {
-                const replacement = newText.replace(/<br>/g, '\n').split('\n');
+                const parsed = parseTaskCommentBlocks(content).find((comment) => comment.anchor === anchor);
+                if (!parsed) return;
+                const replacement = buildTaskCommentBlock(
+                    { anchor: parsed.anchor, date: parsed.date, time: parsed.time },
+                    newText.replace(/<br>/g, '\n'),
+                ).split('\n');
                 if (range.end < lines.length) replacement.push('');
                 lines.splice(range.header + 1, range.end - (range.header + 1), ...replacement);
             });
@@ -721,16 +699,12 @@ export class VaultService {
         mutate: (lines: string[], range: { start: number; header: number; end: number }) => void | string[]
     ): string | null {
         const lines = content.split('\n');
-        const header = lines.findIndex((line) => this.isReplyHeaderLine(line) && line.includes(`^${anchor}`));
-        if (header === -1) return null;
+        const parsed = parseTaskCommentBlocks(content).find((comment) => comment.anchor === anchor);
+        if (!parsed) return null;
 
-        let start = header;
+        let start = parsed.startLine;
         while (start > 0 && lines[start - 1].trim() === '') start -= 1;
-
-        let end = lines.findIndex((line, index) => index > header && this.isReplyHeaderLine(line));
-        if (end === -1) end = lines.length;
-
-        mutate(lines, { start, header, end });
+        mutate(lines, { start, header: start - 1, end: parsed.endLineExclusive });
         return lines.join('\n').replace(/\n{3,}/g, '\n\n');
     }
 
@@ -880,19 +854,23 @@ export class VaultService {
         const folder = (this.settings.projectsFolder || 'Projects').replace(/\\/g, '/');
         await this.ensureFolder(folder);
         const safeName = entry.id.replace(/[/\\?%*:|"<>]/g, '-');
-        const path = `${folder}/${safeName}.md`;
-        const lines = [
-            '---',
-            `id: "${entry.id}"`,
-            `name: "${entry.name.replace(/"/g, '\\"')}"`,
-            `status: ${entry.status}`,
-            `goal: "${entry.goal.replace(/"/g, '\\"')}"`,
-        ];
-        if (entry.due) lines.push(`due: "${entry.due}"`);
-        lines.push(`created: "${entry.created}"`);
-        if (entry.color) lines.push(`color: "${entry.color}"`);
-        lines.push('---', '', '## Milestones', '', '## Notes', '');
-        return await this.app.vault.create(path, lines.join('\n'));
+        const content = [
+            buildYamlFrontmatter({
+                id: entry.id,
+                name: entry.name,
+                status: entry.status,
+                goal: entry.goal,
+                due: entry.due,
+                created: entry.created,
+                color: entry.color,
+            }).trimEnd(),
+            '',
+            this.buildMilestonesSection([]),
+            '',
+            '## Notes',
+            '',
+        ].join('\n');
+        return await createVaultFile(this.app, folder, `${safeName}.md`, content, { onCollision: 'error' });
     }
 
     async updateProject(file: TFile, updates: Partial<ProjectEntry>): Promise<void> {
@@ -925,6 +903,8 @@ export class VaultService {
             const content = await this.app.vault.read(file);
             const match = content.match(/## Milestones\r?\n([\s\S]*?)(?=\r?\n##|$)/);
             if (!match) return [];
+            const structured = this.parseStructuredMilestones(match[1]);
+            if (structured) return structured;
             const lines = match[1].split('\n').filter(l => l.trim().match(/^- \[[ x]\]/));
             return lines.map((line, i) => {
                 const done = line.includes('- [x]');
@@ -958,11 +938,7 @@ export class VaultService {
         const file = this.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) return;
         const content = await this.app.vault.read(file);
-        const milestoneMd = milestones.map((milestone, index) => {
-            const id = milestone.id || this.buildFallbackMilestoneId(`${milestone.title}|${milestone.dueDate ?? ''}|${index}`);
-            return `- [${milestone.done ? 'x' : ' '}] ${milestone.title}${milestone.dueDate ? ` | ${milestone.dueDate}` : ''} | id:${id}`;
-        }).join('\n');
-        const section = `## Milestones\n${milestoneMd}`;
+        const section = this.buildMilestonesSection(milestones);
         const sectionRegex = /## Milestones\r?\n[\s\S]*?(?=\r?\n##|$)/;
         const newContent = sectionRegex.test(content)
             ? content.replace(sectionRegex, section)
@@ -1002,7 +978,7 @@ export class VaultService {
         const path = `${folder}/${monthId}.md`;
         const now = this.formatDateTime(new Date());
         const goalLines = goals.map((g, i) => `${i + 1}. ${(g || '').trim()}`).join('\n');
-        const content = `---\nmonth: "${monthId}"\nsaved: "${now}"\n---\n\n# 📅 ${monthId} — Monthly Focus\n\n## Next Month's Goals\n${goalLines}\n`;
+        const content = `${buildYamlFrontmatter({ month: monthId, saved: now })}\n# 📅 ${monthId} — Monthly Focus\n\n## Next Month's Goals\n${goalLines}\n`;
         try {
             await this.ensureFolder(folder);
             const existing = this.app.vault.getAbstractFileByPath(path);

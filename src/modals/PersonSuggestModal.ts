@@ -1,5 +1,6 @@
 import { App, TFile, SuggestModal, Notice } from 'obsidian';
 import { createVaultFile } from '../services/VaultService';
+import { buildYamlFrontmatter } from '../utils/vaultFiles';
 
 type PersonItem = TFile | { create: true; name: string };
 
@@ -83,7 +84,11 @@ export class PersonSuggestModal extends SuggestModal<PersonItem> {
             // Check if file already exists (race condition guard)
             let file = this.app.vault.getAbstractFileByPath(path);
             if (!(file instanceof TFile)) {
-                const content = `---\ncategory: people\nname: "${name}"\ncreated: "${new Date().toISOString().slice(0, 10)}"\n---\n\n# ${name}\n`;
+                const content = `${buildYamlFrontmatter({
+                    category: 'people',
+                    name,
+                    created: new Date().toISOString().slice(0, 10),
+                })}\n# ${name}\n`;
                 file = await createVaultFile(this.app, folder, `${safeName}.md`, content);
             }
 
@@ -92,4 +97,3 @@ export class PersonSuggestModal extends SuggestModal<PersonItem> {
         }
     }
 }
-

@@ -3,6 +3,7 @@ import { DiwaSettings, ThoughtEntry, TaskEntry, DueEntry, ProjectEntry, TaskBuck
 import { extractWikiLinks } from '../utils/wikilinks';
 import { getThoughtDisplayTitle, inferJournalType } from '../journal/shared';
 import { normalizeThoughtTopics, toStoredThoughtTopic } from '../utils/topics';
+import { splitTaskBodyAndCommentSuffix } from '../utils/taskComments';
 
 export interface ChecklistItem {
     text: string;
@@ -519,7 +520,8 @@ export class IndexService {
             console.warn('[DIWA IndexService] indexTaskFile: no parseable frontmatter, skipping', { path: file.path });
             return;
         }
-        const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').trim();
+        const rawTaskBody = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').trim();
+        const { body, comments } = splitTaskBodyAndCommentSuffix(rawTaskBody);
         const rawWorkflowStatus = String(pickFrontmatter(['status', 'state']) ?? 'backlog').toLowerCase().trim();
         const normalizedTaskIdValue = pickFrontmatter(['taskId', 'taskID']);
         const normalizedTaskId = normalizedTaskIdValue ? String(normalizedTaskIdValue) : undefined;
@@ -601,7 +603,7 @@ export class IndexService {
             lastUpdate: file.stat.mtime,
             day: String(dayValue || '').replace(/^\[\[|\]\]$/g, ''),
             context: IndexService.normalizeContext(fm.context ?? fm.contexts),
-            children: [],
+            children: comments,
             project: projectValue ? String(projectValue) : undefined,
             milestone: milestoneValue ? String(milestoneValue) : undefined,
             priority: priorityValue as TaskEntry['priority'] | undefined,
