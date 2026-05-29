@@ -27,7 +27,7 @@ export class ReviewTab extends BaseTab {
     constructor(view: DiwaView) { super(view); }
 
     render(container: HTMLElement) {
-        this.renderReviewMode(container);
+        void this.renderReviewMode(container, this.beginRenderCycle());
     }
 
     private getWeekId(): string {
@@ -114,7 +114,7 @@ export class ReviewTab extends BaseTab {
         return ta;
     }
 
-    async renderReviewMode(container: HTMLElement) {
+    async renderReviewMode(container: HTMLElement, renderToken: number) {
         container.empty();
 
         const weekId = this.getWeekId();
@@ -125,6 +125,7 @@ export class ReviewTab extends BaseTab {
 
         // Load existing data
         const existing = await this.vault.loadWeeklyReview(weekId);
+        if (!this.isRenderCycleActive(renderToken, container)) return;
         let wins = existing?.wins ?? '';
         let lessons = existing?.lessons ?? '';
         let focus = existing?.focus ?? ['', '', ''];
@@ -188,7 +189,7 @@ export class ReviewTab extends BaseTab {
         }
 
         // ── Next Week Plan Section ──────────────────────────────────
-        this._renderWeekPlanSection(wrap, dayPlans, markDirty, () => ({ wins, lessons, focus }));
+        this._renderWeekPlanSection(wrap, dayPlans, markDirty, () => ({ wins, lessons, focus }), renderToken, container);
 
         // ── Save Row ─────────────────────────────────────────────
         const saveRow = wrap.createEl('div', { cls: 'diwa-review-save-row' });
@@ -202,20 +203,24 @@ export class ReviewTab extends BaseTab {
             saveBtn.disabled = true;
             try {
                 await this.vault.saveWeeklyReview(weekId, dateRange, wins, lessons, focus, dayPlans);
+                if (!this.isRenderCycleActive(renderToken, container)) return;
                 isDirty = false;
                 dirtyDot.style.display = 'none';
                 saveBtn.textContent = '✓  Saved';
                 saveBtn.classList.add('is-saved');
                 setTimeout(() => {
+                    if (!this.isRenderCycleActive(renderToken, container)) return;
                     saveBtn.textContent = '💾  Save Review';
                     saveBtn.classList.remove('is-saved');
                     saveBtn.disabled = false;
                 }, 1800);
             } catch {
+                if (!this.isRenderCycleActive(renderToken, container)) return;
                 saveBtn.textContent = '⚠ Save Failed — Retry';
                 saveBtn.classList.add('is-error');
                 saveBtn.disabled = false;
                 setTimeout(() => {
+                    if (!this.isRenderCycleActive(renderToken, container)) return;
                     saveBtn.textContent = '💾  Save Review';
                     saveBtn.classList.remove('is-error');
                 }, 3000);
@@ -250,8 +255,10 @@ export class ReviewTab extends BaseTab {
                     prevBody.createEl('span', { cls: 'diwa-review-readonly-badge', text: 'READ-ONLY' });
                     const rendered = prevBody.createEl('div', { cls: 'diwa-review-prev-content' });
                     const content = await this.app.vault.read(prevFile);
+                    if (!this.isRenderCycleActive(renderToken, container) || !rendered.isConnected) return;
                     const bodyOnly = content.replace(/^---\n[\s\S]*?\n---\n/, '').trim();
                     await MarkdownRenderer.render(this.app, bodyOnly, rendered, prevFile.path, this.view);
+                    if (!this.isRenderCycleActive(renderToken, container) || !rendered.isConnected) return;
                     const openBtn = prevBody.createEl('button', { cls: 'diwa-btn-secondary diwa-review-prev-open-btn', text: 'Open in Vault →' });
                     openBtn.addEventListener('click', () => {
                         this.app.workspace.openLinkText(prevFile.path, '', Platform.isMobile ? 'tab' : 'window');
@@ -264,7 +271,14 @@ export class ReviewTab extends BaseTab {
     }
 
     // ── Next Week Plan ────────────────────────────────────────────────
-    private _renderWeekPlanSection(parent: HTMLElement, dayPlans: Record<string, string>, markDirty: () => void, getFormData: () => { wins: string; lessons: string; focus: string[] }): void {
+    private _renderWeekPlanSection(
+        parent: HTMLElement,
+        dayPlans: Record<string, string>,
+        markDirty: () => void,
+        getFormData: () => { wins: string; lessons: string; focus: string[] },
+        renderToken: number,
+        container: HTMLElement,
+    ): void {
         const { body: planBody } = this.createSection(parent, 'week-plan', '📅', 'NEXT WEEK PLAN');
         let taskSnapshotCache: WeekPlanTaskSnapshot | null = null;
         const invalidateTaskSnapshot = () => {
@@ -454,6 +468,7 @@ export class ReviewTab extends BaseTab {
                             quickAdd.remove();
                             // Brief delay for index to catch up via file watcher
                             setTimeout(() => {
+                                if (!this.isRenderCycleActive(renderToken, container)) return;
                                 invalidateTaskSnapshot();
                                 renderPlan();
                             }, 300);
@@ -469,7 +484,10 @@ export class ReviewTab extends BaseTab {
                     });
                     quickInput.addEventListener('click', (ev) => ev.stopPropagation());
                     submitBtn.addEventListener('click', (ev) => { ev.stopPropagation(); doCreate(); });
-                    requestAnimationFrame(() => quickInput.focus());
+                    requestAnimationFrame(() => {
+                        if (!this.isRenderCycleActive(renderToken, container) || !quickInput.isConnected) return;
+                        quickInput.focus();
+                    });
                 });
             }
 
@@ -551,7 +569,10 @@ export class ReviewTab extends BaseTab {
         renderList('');
 
         // Auto-focus search
-        requestAnimationFrame(() => searchInput.focus());
+        requestAnimationFrame(() => {
+            if (!searchInput.isConnected) return;
+            searchInput.focus();
+        });
     }
 
     private renderGlancePanel(parent: HTMLElement, weekId: string): void {

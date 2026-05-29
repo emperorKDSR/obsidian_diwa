@@ -1,4 +1,11 @@
 
+## [10.2.16] — Lifecycle Async Guards
+
+### Changed
+- Guarded startup work scheduled from `onLayoutReady()` so it cannot continue mutating plugin state after unload or reload.
+- Added render-cycle disposal checks to weekly and monthly review tabs so async work cannot paint stale UI after tab switches.
+- Tightened delayed mobile Gawa migration and context scanning to respect the active startup run only.
+
 ## [10.2.15] — Task Folder Routing and Full Index Refresh
 
 ### Changed

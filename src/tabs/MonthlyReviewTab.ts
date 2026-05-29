@@ -6,10 +6,10 @@ export class MonthlyReviewTab extends BaseTab {
     constructor(view: DiwaView) { super(view); }
 
     render(container: HTMLElement) {
-        this.renderMonthlyReview(container);
+        void this.renderMonthlyReview(container, this.beginRenderCycle());
     }
 
-    async renderMonthlyReview(container: HTMLElement) {
+    async renderMonthlyReview(container: HTMLElement, renderToken: number) {
         container.empty();
 
         const wrap = container.createEl('div', { cls: 'diwa-tab-wrap diwa-monthly-wrap' });
@@ -81,6 +81,7 @@ export class MonthlyReviewTab extends BaseTab {
         const monthId = now.format('YYYY-MM');
         // Load from MD file first (source of truth), fallback to settings
         const savedGoals = await this.vault.loadMonthlyGoals(monthId);
+        if (!this.isRenderCycleActive(renderToken, container)) return;
         const goals = savedGoals ?? (this.settings.monthlyGoals || []);
         // Sync settings if MD had fresher data
         if (savedGoals) { this.settings.monthlyGoals = savedGoals; }
@@ -102,4 +103,3 @@ export class MonthlyReviewTab extends BaseTab {
         }
     }
 }
-

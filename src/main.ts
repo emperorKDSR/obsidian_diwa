@@ -77,6 +77,7 @@ export default class DiwaPlugin extends Plugin {
     zenCaptureDraft: string = '';
     private pendingJournalInputFocus = false;
     private unloading = false;
+    private startupRunToken = 0;
     private legacyMigrationTimer: number | null = null;
     private readonly scheduledThoughtRenderTimers = new Map<HTMLElement, number>();
     private readonly thoughtRenderTokens = new WeakMap<HTMLElement, number>();
@@ -163,8 +164,10 @@ export default class DiwaPlugin extends Plugin {
         };
 
         this.app.workspace.onLayoutReady(async () => {
+            const startupToken = ++this.startupRunToken;
             this.thoughtController.beginIndexing(); // suppress notifications during bulk load
             await this.index.buildIndices();
+            if (!this.isStartupRunActive(startupToken)) return;
             const normalizedTasks = this.normalizeIndexedTasks(Array.from(this.index.taskIndex.values()));
             this.taskIndex.set(normalizedTasks);
             normalizedTasks.forEach((task) => {
@@ -177,8 +180,9 @@ export default class DiwaPlugin extends Plugin {
             this.logTaskControllerPanes();
             this.notifyRefresh(); // ensure view re-renders with freshly-built index
             this.refreshOpenTaskPanes();
-            this.scanForContexts();
-            await this.migrateLegacyMobileGawaLeaves();
+            void this.scanForContexts(startupToken);
+            await this.migrateLegacyMobileGawaLeaves(startupToken);
+            if (!this.isStartupRunActive(startupToken)) return;
             
             // --- REACTIVE NERVE SYSTEM ---
             // vault events: fast path for local writes (create/delete/rename)
@@ -310,11 +314,16 @@ export default class DiwaPlugin extends Plugin {
 
     async onunload() {
         this.unloading = true;
+        this.startupRunToken++;
         this.clearLegacyMigrationTimer();
         this.clearScheduledThoughtContentRenders();
         this.restoreGlobalDomState();
         this.refreshCoordinator?.onunload();
         this.detachRegisteredLeaves();
+    }
+
+    private isStartupRunActive(token: number): boolean {
+        return !this.unloading && this.startupRunToken === token;
     }
 
     private scheduleLegacyMigration(): void {
@@ -465,9 +474,11 @@ export default class DiwaPlugin extends Plugin {
         if (leaf) { await leaf.setViewState({ type: VIEW_TYPE_TABLET_HUB, active: true }); workspace.revealLeaf(leaf); }
     }
 
-    private async migrateLegacyMobileGawaLeaves(): Promise<void> {
+    private async migrateLegacyMobileGawaLeaves(startupToken?: number): Promise<void> {
+        if (startupToken !== undefined && !this.isStartupRunActive(startupToken)) return;
         const leaves = this.app.workspace.getLeavesOfType('diwa-mobile-gawa');
         if (leaves.length === 0) return;
+        if (startupToken !== undefined && !this.isStartupRunActive(startupToken)) return;
         await Promise.all(leaves.map((leaf) => leaf.setViewState({
             type: VIEW_TYPE_DIWA,
             active: false,
@@ -529,11 +540,12 @@ export default class DiwaPlugin extends Plugin {
         }
     }
 
-    async scanForContexts() {
+    async scanForContexts(startupToken?: number) {
         const foundContexts = await this.index.scanForContexts();
+        if (startupToken !== undefined && !this.isStartupRunActive(startupToken)) return;
         let newCtx = false;
         foundContexts.forEach(c => { if (c && typeof c === 'string' && !this.settings.contexts.includes(c)) { this.settings.contexts.push(c); newCtx = true; } });
-        if (newCtx) await this.saveSettings();
+        if (newCtx && (startupToken === undefined || this.isStartupRunActive(startupToken))) await this.saveSettings();
     }
 
 	async loadSettings() {

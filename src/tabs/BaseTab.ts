@@ -11,6 +11,8 @@ import { isTablet, parseContextString } from '../utils';
 
 export class BaseTab {
     view: DiwaView;
+    private disposed = false;
+    private renderCycleToken = 0;
     constructor(view: DiwaView) { this.view = view; }
 
     // Unified Access to Services
@@ -268,8 +270,22 @@ export class BaseTab {
         this.hookInternalLinks(card, parent.filePath); this.hookImageZoom(card);
     }
 
+    protected beginRenderCycle(): number {
+        this.disposed = false;
+        return ++this.renderCycleToken;
+    }
+
+    protected isRenderCycleActive(token: number, container?: HTMLElement | null): boolean {
+        return !this.disposed
+            && this.renderCycleToken === token
+            && (!container || container.isConnected);
+    }
+
     // Default unload hook — override in tabs that allocate global resources
-    onunload(): void { /* no-op */ }
+    onunload(): void {
+        this.disposed = true;
+        this.renderCycleToken++;
+    }
 
     /** Optional hook: called when only tasks have changed (avoids full re-render). Override in task-aware tabs. */
     onTasksRefresh?(): void;
