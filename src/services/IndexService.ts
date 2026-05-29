@@ -158,15 +158,24 @@ export class IndexService {
     totalDues: number = 0;
     private _activeTasksFolder: string;
     private _lastIndexedTasksFolderSetting: string;
+    private _lastIndexedThoughtsFolderSetting: string;
+    private _lastIndexedPfFolderSetting: string;
+    private _lastIndexedCapturePath: string;
     private _lastIndexedProjectsFolderSetting: string;
 
     constructor(app: App, settings: DiwaSettings) {
         this.app = app;
         this.settings = settings;
         const initialTasksFolder = this.getConfiguredTasksFolder();
+        const initialThoughtsFolder = this.getConfiguredThoughtsFolder();
+        const initialPfFolder = this.getConfiguredPfFolder();
+        const initialCapturePath = this.getConfiguredCapturePath();
         const initialProjectsFolder = this.getConfiguredProjectsFolder();
         this._activeTasksFolder = initialTasksFolder;
         this._lastIndexedTasksFolderSetting = initialTasksFolder;
+        this._lastIndexedThoughtsFolderSetting = initialThoughtsFolder;
+        this._lastIndexedPfFolderSetting = initialPfFolder;
+        this._lastIndexedCapturePath = initialCapturePath;
         this._lastIndexedProjectsFolderSetting = initialProjectsFolder;
     }
 
@@ -187,6 +196,20 @@ export class IndexService {
 
     private getConfiguredTasksFolder(): string {
         return this.normalizeVaultPath(this.settings.tasksFolder || '000 Bin/DIWA Gawa');
+    }
+
+    private getConfiguredThoughtsFolder(): string {
+        return this.normalizeVaultPath(this.settings.thoughtsFolder || '000 Bin/DIWA');
+    }
+
+    private getConfiguredPfFolder(): string {
+        return this.normalizeVaultPath(this.settings.pfFolder || '000 Bin/DIWA PF');
+    }
+
+    private getConfiguredCapturePath(): string {
+        const folder = this.normalizeVaultPath(this.settings.captureFolder || '000 Bin/DIWA');
+        const file = this.normalizeVaultPath(this.settings.captureFilePath.trim() || 'Daily Capture.md');
+        return this.normalizeVaultPath(folder ? `${folder}/${file}` : file);
     }
 
     private getConfiguredProjectsFolder(): string {
@@ -235,9 +258,8 @@ export class IndexService {
     }
 
     async buildChecklistIndex(): Promise<void> {
-        const folder = this.settings.captureFolder.trim() || '000 Bin/DIWA';
-        const filename = this.settings.captureFilePath.trim() || 'Daily Capture.md';
-        const path = folder && folder !== '/' ? `${folder}/${filename}` : filename;
+        const path = this.getConfiguredCapturePath();
+        this._lastIndexedCapturePath = path;
         const file = this.app.vault.getAbstractFileByPath(path);
         
         this.checklistIndex = [];
@@ -266,9 +288,10 @@ export class IndexService {
     }
 
     async buildDueIndex(): Promise<void> {
-        const pfFolder = (this.settings.pfFolder || '000 Bin/DIWA PF').replace(/\\/g, '/');
+        const pfFolder = this.getConfiguredPfFolder();
         this.dueIndex.clear();
-        const files = this.app.vault.getMarkdownFiles().filter(f => f.path.startsWith(pfFolder + '/'));
+        this._lastIndexedPfFolderSetting = pfFolder;
+        const files = this.app.vault.getMarkdownFiles().filter((file) => this.isDueFile(file.path));
         for (const file of files) {
             this.indexDueFile(file, true);
         }
@@ -356,6 +379,7 @@ export class IndexService {
     }
 
     async buildThoughtIndex(): Promise<void> {
+        this._lastIndexedThoughtsFolderSetting = this.getConfiguredThoughtsFolder();
         this.thoughtIndex.clear();
         this._thoughtChecklistMap.clear();
         this._thoughtDoneChecklistMap.clear();
@@ -630,15 +654,19 @@ export class IndexService {
     }
 
     isThoughtFile(path: string): boolean {
-        const folder = this.settings.thoughtsFolder || '000 Bin/DIWA';
+        const folder = this.getConfiguredThoughtsFolder();
         const normalizedPath = this.normalizeVaultPath(path);
         return this.pathIsInFolder(normalizedPath, folder)
             && normalizedPath.toLowerCase().endsWith('.md')
             && !normalizedPath.toLowerCase().includes('/trash/');
     }
 
+    getEffectiveTasksFolder(): string {
+        return this._activeTasksFolder || this.getConfiguredTasksFolder();
+    }
+
     isTaskFile(path: string): boolean {
-        const folder = this._activeTasksFolder || this.getConfiguredTasksFolder();
+        const folder = this.getEffectiveTasksFolder();
         const normalizedPath = this.normalizeVaultPath(path);
         return this.pathIsInFolder(normalizedPath, folder)
             && normalizedPath.toLowerCase().endsWith('.md')
@@ -649,11 +677,23 @@ export class IndexService {
         return this.getConfiguredTasksFolder().toLowerCase() !== this._lastIndexedTasksFolderSetting.toLowerCase();
     }
 
+    thoughtsFolderChanged(): boolean {
+        return this.getConfiguredThoughtsFolder().toLowerCase() !== this._lastIndexedThoughtsFolderSetting.toLowerCase();
+    }
+
     isDueFile(path: string): boolean {
-        const folder = this.settings.pfFolder || '000 Bin/DIWA PF';
+        const folder = this.getConfiguredPfFolder();
         const normalizedPath = this.normalizeVaultPath(path);
         return this.pathIsInFolder(normalizedPath, folder)
             && normalizedPath.toLowerCase().endsWith('.md');
+    }
+
+    dueFolderChanged(): boolean {
+        return this.getConfiguredPfFolder().toLowerCase() !== this._lastIndexedPfFolderSetting.toLowerCase();
+    }
+
+    captureLocationChanged(): boolean {
+        return this.getConfiguredCapturePath().toLowerCase() !== this._lastIndexedCapturePath.toLowerCase();
     }
 
     isProjectFile(path: string): boolean {

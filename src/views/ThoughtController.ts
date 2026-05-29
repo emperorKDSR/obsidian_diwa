@@ -78,17 +78,17 @@ export class ThoughtController {
         return this.updatingThoughtPaths.has(filePath);
     }
 
-    setThoughts(thoughts: ThoughtEntry[]): void {
+    setThoughts(thoughts: ThoughtEntry[], options?: { force?: boolean }): void {
         // Allow re-hydration if the incoming set is non-empty — the controller may have
         // been created (and initialized with an empty index) before buildIndices() ran.
-        if (this.initialized && thoughts.length === 0) return;
+        if (!options?.force && this.initialized && thoughts.length === 0) return;
         const normalized = thoughts.map((thought) => this.normalizeThought(thought));
         this.thoughtIndex.set(normalized);
         this.initialized = true;
     }
 
-    hydrateFromIndex(entries: ThoughtEntry[]): void {
-        this.setThoughts(entries);
+    hydrateFromIndex(entries: ThoughtEntry[], options?: { force?: boolean }): void {
+        this.setThoughts(entries, options);
     }
 
     normalizeThought(thought: Partial<ThoughtEntry> & { filePath?: string }): ThoughtEntry {

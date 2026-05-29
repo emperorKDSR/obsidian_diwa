@@ -145,6 +145,7 @@ export default class DiwaPlugin extends Plugin {
         // Initialize Services
         this.vault = new VaultService(this.app, this.settings);
         this.index = new IndexService(this.app, this.settings);
+        this.vault.setTaskFolderResolver(() => this.index.getEffectiveTasksFolder());
         this.taskIndex = new TaskIndexCompat(this);
         this.controller = new TaskController(this);
         this.taskController = this.controller;
@@ -589,19 +590,51 @@ export default class DiwaPlugin extends Plugin {
 	    if (this.taskReflection) this.taskReflection.updateSettings(this.settings);
 	    if (this.refreshCoordinator) this.refreshCoordinator.updateSettings(this.settings);
         this.applyMobileCssVars();
-        if (this.index?.tasksFolderChanged()) {
-            await this.index.buildTaskIndex();
-            this.index.rebuildCalculatedState();
+        const shouldRefreshTasks = this.index?.tasksFolderChanged() ?? false;
+        const shouldRefreshThoughts = this.index?.thoughtsFolderChanged() ?? false;
+        const shouldRefreshDues = this.index?.dueFolderChanged() ?? false;
+        const shouldRefreshChecklist = this.index?.captureLocationChanged() ?? false;
+        const shouldRefreshProjects = this.index?.projectsFolderChanged() ?? false;
+        const shouldRefreshIndexedState = shouldRefreshTasks
+            || shouldRefreshThoughts
+            || shouldRefreshDues
+            || shouldRefreshChecklist
+            || shouldRefreshProjects;
+
+        if (!this.index || !shouldRefreshIndexedState) return;
+
+        await Promise.all([
+            shouldRefreshTasks ? this.index.buildTaskIndex() : Promise.resolve(),
+            shouldRefreshThoughts ? this.index.buildThoughtIndex() : Promise.resolve(),
+            shouldRefreshDues ? this.index.buildDueIndex() : Promise.resolve(),
+            shouldRefreshChecklist ? this.index.buildChecklistIndex() : Promise.resolve(),
+            shouldRefreshProjects ? this.index.buildProjectIndex() : Promise.resolve(),
+        ]);
+
+        this.index.rebuildCalculatedState();
+
+        if (shouldRefreshTasks) {
             const normalizedTasks = this.normalizeIndexedTasks(Array.from(this.index.taskIndex.values()));
             this.taskIndex.set(normalizedTasks);
             this.controller?.syncFromIndex();
             this.refreshOpenTaskPanes();
-            this.notifyRefresh('tasks');
         }
-        if (this.index?.projectsFolderChanged()) {
-            await this.index.buildProjectIndex();
-            this.notifyRefresh('all');
+
+        if (shouldRefreshThoughts) {
+            const thoughtController = this.getThoughtController();
+            thoughtController.beginIndexing();
+            thoughtController.hydrateFromIndex(Array.from(this.index.thoughtIndex.values()), { force: true });
+            thoughtController.endIndexing();
         }
+
+        const refreshScope: RefreshScope = shouldRefreshTasks
+            && !shouldRefreshThoughts
+            && !shouldRefreshDues
+            && !shouldRefreshChecklist
+            && !shouldRefreshProjects
+            ? 'tasks'
+            : 'all';
+        this.notifyRefresh(refreshScope);
 	}
 
     async updateSetting<K extends keyof DiwaSettings>(

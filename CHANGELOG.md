@@ -1,4 +1,11 @@
 
+## [10.2.15] — Task Folder Routing and Full Index Refresh
+
+### Changed
+- Routed new task creation through the same effective task folder that the live task index uses, including legacy fallback resolution.
+- Expanded settings-driven rebuilds so task, thought, due, capture, and project path changes all refresh the affected indices and controllers together.
+- Added force-capable thought rehydration so folder/path changes can safely replace stale thought state after a settings save.
+
 ## [10.2.14] — Lifecycle and Settings Cleanup
 
 ### Changed

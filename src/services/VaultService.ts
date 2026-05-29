@@ -17,6 +17,7 @@ export { createVaultBinaryFile, createVaultFile };
 export class VaultService {
     app: App;
     settings: DiwaSettings;
+    private taskFolderResolver?: () => string;
 
     constructor(app: App, settings: DiwaSettings) {
         this.app = app;
@@ -25,6 +26,10 @@ export class VaultService {
 
     updateSettings(settings: DiwaSettings) {
         this.settings = settings;
+    }
+
+    setTaskFolderResolver(resolver?: () => string) {
+        this.taskFolderResolver = resolver;
     }
 
     /** sec-015: Map errors to user-friendly messages; never surface raw e.message */
@@ -342,7 +347,9 @@ export class VaultService {
     ): Promise<TFile> {
         // arch-08: Normalize <br> → newline at service boundary
         text = text.replace(/<br>/g, '\n');
-        const folder = this.settings.tasksFolder.trim() || '000 Bin/DIWA Gawa';
+        const folder = this.taskFolderResolver?.().replace(/\\/g, '/').trim()
+            || this.settings.tasksFolder.replace(/\\/g, '/').trim()
+            || '000 Bin/DIWA Gawa';
         const now = new Date();
         const created = this.formatDateTime(now);
         const dayStr = this.formatDate(now);
