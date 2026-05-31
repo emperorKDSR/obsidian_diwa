@@ -1732,9 +1732,24 @@ export class DesktopHubView extends ItemView {
             });
             const header = row.createEl('div', { cls: 'diwa-dh-pinned-note-header' });
             header.createEl('span', { cls: 'diwa-dh-pinned-note-title', text: title });
-            header.createEl('span', {
+            const headerMeta = header.createEl('div', { cls: 'diwa-dh-pinned-note-header-meta' });
+            headerMeta.createEl('span', {
                 cls: 'diwa-dh-pinned-note-time',
                 text: this.formatThoughtTime(thought),
+            });
+            const editBtn = headerMeta.createEl('button', {
+                cls: 'diwa-dh-pinned-note-action diwa-dh-pinned-note-edit',
+                attr: {
+                    type: 'button',
+                    title: 'Edit note',
+                    'aria-label': `Edit pinned note: ${title}`,
+                },
+            }) as HTMLButtonElement;
+            setIcon(editBtn, 'pencil');
+            editBtn.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void this.openPinnedThought(thought, { edit: true });
             });
 
             if (markdown.trim()) {
@@ -1778,20 +1793,28 @@ export class DesktopHubView extends ItemView {
                 ) {
                     return;
                 }
-                this.openPinnedThought(thought);
+                void this.openPinnedThought(thought);
             });
             row.addEventListener('keydown', (event: KeyboardEvent) => {
                 if (event.key !== 'Enter' && event.key !== ' ') return;
                 event.preventDefault();
-                this.openPinnedThought(thought);
+                void this.openPinnedThought(thought);
             });
         }
     }
 
-    private openPinnedThought(thought: ThoughtEntry): void {
+    private async openPinnedThought(thought: ThoughtEntry, options: { edit?: boolean } = {}): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(thought.filePath);
         if (file instanceof TFile) {
-            void this.app.workspace.getLeaf(false).openFile(file);
+            const leaf = this.app.workspace.getLeaf(false);
+            await leaf.openFile(file, options.edit ? {
+                active: true,
+                state: { mode: 'source' },
+                eState: { mode: 'source' },
+            } : undefined);
+            if (options.edit) {
+                this.app.workspace.setActiveLeaf(leaf, { focus: true });
+            }
             return;
         }
         new Notice('Pinned note file could not be opened.');

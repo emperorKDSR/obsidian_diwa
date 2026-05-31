@@ -18685,10 +18685,13 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
 .diwa-dh-pinned-note-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 8px;
 }
 
 .diwa-dh-pinned-note-title {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-normal);
@@ -18697,10 +18700,41 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
   white-space: nowrap;
 }
 
+.diwa-dh-pinned-note-header-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .diwa-dh-pinned-note-time {
   flex-shrink: 0;
   font-size: 11px;
   color: var(--text-faint);
+}
+
+.diwa-dh-pinned-note-action {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  background: transparent;
+  cursor: pointer;
+}
+
+.diwa-dh-pinned-note-action:hover {
+  color: var(--text-normal);
+  background: color-mix(in srgb, var(--background-modifier-hover) 70%, transparent);
+}
+
+.diwa-dh-pinned-note-action:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--interactive-accent) 62%, transparent);
+  outline-offset: 1px;
 }
 
 .diwa-dh-pinned-note-preview {
