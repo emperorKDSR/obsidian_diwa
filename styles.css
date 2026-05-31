@@ -11259,6 +11259,12 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   overflow-wrap: anywhere;
 }
 
+.diwa-mobile-home-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .diwa-mobile-hero-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -18566,6 +18572,67 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
 
 .diwa-mobile-weekly-review-content {
     min-height: 100%;
+}
+
+.diwa-mobile-weekly-review.is-mobile {
+    margin: 14px 12px 20px;
+    border-radius: 14px;
+}
+
+.diwa-mobile-weekly-review.is-tablet {
+    margin: 12px 10px 20px;
+    border-radius: 16px;
+}
+
+.diwa-mobile-weekly-review-content .diwa-weekly-rework-wrap {
+    gap: 10px;
+    padding: 10px;
+}
+
+.diwa-mobile-weekly-review-content .diwa-weekly-rework-header {
+    gap: 8px;
+}
+
+.diwa-mobile-weekly-review-content[data-shell-platform="mobile"] .diwa-weekly-rework-header {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.diwa-mobile-weekly-review-content[data-shell-platform="mobile"] .diwa-weekly-rework-picker {
+    width: 100%;
+}
+
+.diwa-mobile-weekly-review-content[data-shell-platform="mobile"] .diwa-weekly-rework-select {
+    width: 100%;
+    min-width: 0;
+}
+
+.diwa-mobile-weekly-review-content[data-shell-platform="mobile"] .diwa-weekly-rework-row--thought,
+.diwa-mobile-weekly-review-content[data-shell-platform="mobile"] .diwa-weekly-rework-row--task {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+}
+
+.diwa-mobile-weekly-review-content[data-shell-platform="mobile"] .diwa-weekly-rework-time,
+.diwa-mobile-weekly-review-content[data-shell-platform="mobile"] .diwa-weekly-rework-meta-inline {
+    justify-self: start;
+}
+
+.diwa-mobile-weekly-review-content[data-shell-platform="mobile"] .diwa-weekly-rework-main {
+    padding-right: 0;
+}
+
+.diwa-mobile-weekly-review-content[data-shell-platform="mobile"] .diwa-weekly-rework-task-group-head {
+    padding: 8px 10px;
+}
+
+.diwa-mobile-weekly-review-content[data-shell-platform="mobile"] .diwa-weekly-rework-retro-input {
+    min-height: 78px;
+}
+
+.diwa-mobile-weekly-review-content[data-shell-platform="tablet"] .diwa-weekly-rework-wrap {
+    max-width: 100%;
+    margin: 0;
 }
 
 /* DIWA desktop right-pane toggle (Tasks | Pinned Notes) */
