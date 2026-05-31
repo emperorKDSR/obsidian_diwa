@@ -18423,6 +18423,14 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
     font-size: 0.82rem;
 }
 
+.diwa-weekly-rework-objective-item > :first-child {
+    margin-top: 0;
+}
+
+.diwa-weekly-rework-objective-item > :last-child {
+    margin-bottom: 0;
+}
+
 .diwa-weekly-rework-retro-stack {
     display: flex;
     flex-direction: column;
