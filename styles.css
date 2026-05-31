@@ -11093,6 +11093,26 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   font-size: 12px;
 }
 
+.diwa-mobile-nav[data-nav-count="6"] {
+  gap: 4px;
+  padding: 6px;
+}
+
+.diwa-mobile-nav[data-nav-count="6"] .diwa-mobile-nav-btn {
+  min-height: 56px;
+  gap: 4px;
+  padding: 6px 2px;
+}
+
+.diwa-mobile-nav[data-nav-count="6"] .diwa-mobile-nav-icon {
+  width: 36px;
+  height: 28px;
+}
+
+.diwa-mobile-nav[data-nav-count="6"] .diwa-mobile-nav-label {
+  font-size: 11px;
+}
+
 .diwa-mobile-nav-btn.is-active {
   background: color-mix(in srgb, var(--interactive-accent) 10%, transparent);
   color: var(--text-normal);
@@ -18538,6 +18558,16 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
     font-style: italic;
 }
 
+.diwa-mobile-weekly-review {
+    margin: 18px 16px 24px;
+    padding: 0;
+    overflow: hidden;
+}
+
+.diwa-mobile-weekly-review-content {
+    min-height: 100%;
+}
+
 /* DIWA desktop right-pane toggle (Tasks | Pinned Notes) */
 .diwa-dh-right-pane-shell {
   display: flex;
@@ -18545,6 +18575,21 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
   gap: 10px;
   height: 100%;
   min-height: 0;
+  border-radius: 12px;
+  padding: 2px;
+  --diwa-right-pane-accent-rgb: var(--color-blue-rgb, 59, 130, 246);
+  --diwa-right-pane-accent: rgb(var(--diwa-right-pane-accent-rgb));
+  --diwa-right-pane-accent-soft: color-mix(in srgb, var(--diwa-right-pane-accent) 22%, transparent);
+  --diwa-right-pane-accent-bg: color-mix(in srgb, var(--diwa-right-pane-accent) 8%, var(--background-primary));
+  background: linear-gradient(
+    to bottom,
+    var(--diwa-right-pane-accent-soft),
+    color-mix(in srgb, var(--background-primary) 92%, transparent) 26px
+  );
+}
+
+.diwa-dh-right-pane-shell.is-mode-pinned {
+  --diwa-right-pane-accent-rgb: var(--color-purple-rgb, 168, 85, 247);
 }
 
 .diwa-dh-right-pane-toggle {
@@ -18565,23 +18610,38 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
   cursor: pointer;
   color: var(--text-muted);
   background: transparent;
+  border: 1px solid transparent;
+  transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease;
 }
 
 .diwa-dh-right-pane-toggle-btn.is-active {
   color: var(--text-normal);
-  background: var(--background-primary);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
+  background: var(--diwa-right-pane-accent-bg);
+  border-color: var(--diwa-right-pane-accent-soft);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--diwa-right-pane-accent) 24%, transparent);
+}
+
+.diwa-dh-right-pane-toggle-btn--tasks.is-active {
+  --diwa-right-pane-accent-rgb: var(--color-blue-rgb, 59, 130, 246);
+}
+
+.diwa-dh-right-pane-toggle-btn--pinned.is-active {
+  --diwa-right-pane-accent-rgb: var(--color-purple-rgb, 168, 85, 247);
 }
 
 .diwa-dh-right-pane-panel {
   display: none;
   min-height: 0;
   flex: 1;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 72%, transparent);
+  background: color-mix(in srgb, var(--background-primary) 90%, transparent);
 }
 
 .diwa-dh-right-pane-panel.is-active {
   display: flex;
   flex-direction: column;
+  border-color: var(--diwa-right-pane-accent-soft);
 }
 
 .diwa-dh-pinned-notes-list {
@@ -18613,6 +18673,11 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
   background: color-mix(in srgb, var(--background-secondary) 75%, transparent);
 }
 
+.diwa-dh-pinned-note-row:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--interactive-accent) 62%, transparent);
+  outline-offset: 1px;
+}
+
 .diwa-dh-pinned-note-row:hover {
   background: color-mix(in srgb, var(--background-modifier-hover) 65%, var(--background-secondary));
 }
@@ -18642,6 +18707,18 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
   font-size: 12px;
   color: var(--text-muted);
   line-height: 1.35;
+}
+
+.diwa-dh-pinned-note-content {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.diwa-dh-pinned-note-content > .markdown-rendered,
+.diwa-dh-pinned-note-content > .markdown-preview-view {
+  max-width: 100%;
 }
 
 .diwa-dh-pinned-note-context {

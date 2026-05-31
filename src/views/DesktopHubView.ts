@@ -91,6 +91,7 @@ export class DesktopHubView extends ItemView {
     private _rightEl: HTMLElement | null = null;
     private _taskPaneView: DesktopTaskPaneView | null = null;
     private _rightPaneMode: RightPaneMode = 'tasks';
+    private _rightPaneShellEl: HTMLElement | null = null;
     private _rightPaneTasksHostEl: HTMLElement | null = null;
     private _rightPanePinnedHostEl: HTMLElement | null = null;
     private _rightPaneTasksBtnEl: HTMLButtonElement | null = null;
@@ -359,6 +360,7 @@ export class DesktopHubView extends ItemView {
         this._rightResizeHandleEl = null;
         this._rightEl = null;
         this._taskPaneView = null;
+        this._rightPaneShellEl = null;
         this._rightPaneTasksHostEl = null;
         this._rightPanePinnedHostEl = null;
         this._rightPaneTasksBtnEl = null;
@@ -1621,17 +1623,18 @@ export class DesktopHubView extends ItemView {
     private mountRightPane(parent: HTMLElement): void {
         parent.empty();
         const shell = parent.createEl('div', { cls: 'diwa-dh-right-pane-shell' });
+        this._rightPaneShellEl = shell;
         const toggle = shell.createEl('div', {
             cls: 'diwa-dh-right-pane-toggle',
             attr: { role: 'tablist', 'aria-label': 'Right pane content' },
         });
         this._rightPaneTasksBtnEl = toggle.createEl('button', {
-            cls: 'diwa-dh-right-pane-toggle-btn',
+            cls: 'diwa-dh-right-pane-toggle-btn diwa-dh-right-pane-toggle-btn--tasks',
             text: 'Tasks',
             attr: { type: 'button', role: 'tab', 'aria-controls': 'diwa-dh-right-pane-tasks' },
         }) as HTMLButtonElement;
         this._rightPanePinnedBtnEl = toggle.createEl('button', {
-            cls: 'diwa-dh-right-pane-toggle-btn',
+            cls: 'diwa-dh-right-pane-toggle-btn diwa-dh-right-pane-toggle-btn--pinned',
             text: 'Pinned Notes',
             attr: { type: 'button', role: 'tab', 'aria-controls': 'diwa-dh-right-pane-pinned' },
         }) as HTMLButtonElement;
@@ -1669,6 +1672,8 @@ export class DesktopHubView extends ItemView {
 
     private syncRightPaneModeUI(): void {
         const isTasks = this._rightPaneMode === 'tasks';
+        this._rightPaneShellEl?.toggleClass('is-mode-tasks', isTasks);
+        this._rightPaneShellEl?.toggleClass('is-mode-pinned', !isTasks);
         this._rightPaneTasksHostEl?.toggleClass('is-active', isTasks);
         this._rightPanePinnedHostEl?.toggleClass('is-active', !isTasks);
         this._rightPaneTasksBtnEl?.toggleClass('is-active', isTasks);
@@ -1682,6 +1687,9 @@ export class DesktopHubView extends ItemView {
             this._rightPanePinnedBtnEl.tabIndex = isTasks ? -1 : 0;
         }
         if (this._rightEl) {
+            this._rightEl.toggleClass('is-mode-tasks', isTasks);
+            this._rightEl.toggleClass('is-mode-pinned', !isTasks);
+            this._rightEl.setAttribute('data-right-pane-mode', isTasks ? 'tasks' : 'pinned');
             this._rightEl.setAttribute('aria-label', isTasks ? 'Task side pane' : 'Pinned notes side pane');
         }
     }
@@ -1712,26 +1720,45 @@ export class DesktopHubView extends ItemView {
 
         for (const thought of pinnedThoughts) {
             const title = (thought.title || thought.body || thought.content || 'Untitled thought').trim();
-            const previewSource = (thought.body || thought.content || thought.title || '').replace(/\s+/g, ' ').trim();
-            const preview = previewSource.length > 96 ? `${previewSource.slice(0, 93)}...` : previewSource;
-            const row = list.createEl('button', {
+            const markdown = thought.body || thought.content || thought.title || '';
+            const row = list.createEl('div', {
                 cls: 'diwa-dh-pinned-note-row',
                 attr: {
-                    type: 'button',
                     role: 'listitem',
+                    tabindex: '0',
                     title,
                     'aria-label': `Open pinned note: ${title}`,
                 },
-            }) as HTMLButtonElement;
+            });
             const header = row.createEl('div', { cls: 'diwa-dh-pinned-note-header' });
             header.createEl('span', { cls: 'diwa-dh-pinned-note-title', text: title });
             header.createEl('span', {
                 cls: 'diwa-dh-pinned-note-time',
                 text: this.formatThoughtTime(thought),
             });
-            if (preview) {
-                row.createEl('div', { cls: 'diwa-dh-pinned-note-preview', text: preview });
+
+            if (markdown.trim()) {
+                const contentEl = row.createEl('div', {
+                    cls: 'diwa-dh-pinned-note-content diwa-dh-thought-row-text',
+                    text: markdown,
+                });
+                const stagedEl = document.createElement('div');
+                void MarkdownRenderer.render(this.app, markdown, stagedEl, thought.filePath || '', this)
+                    .then(() => {
+                        if (this._closed || !contentEl.isConnected) return;
+                        contentEl.empty();
+                        while (stagedEl.firstChild) {
+                            contentEl.appendChild(stagedEl.firstChild);
+                        }
+                        enableImageZoom(this.app, contentEl);
+                    })
+                    .catch((error) => {
+                        if (!this._closed) {
+                            console.error('[DesktopHubView] Failed to render pinned note markdown.', error);
+                        }
+                    });
             }
+
             const contexts = [...new Set((thought.context ?? []).map((context) => context.trim()).filter(Boolean))];
             if (contexts.length > 0) {
                 row.createEl('div', {
@@ -1739,7 +1766,25 @@ export class DesktopHubView extends ItemView {
                     text: contexts.slice(0, 2).map((context) => `#${context}`).join(' | '),
                 });
             }
-            row.addEventListener('click', () => this.openPinnedThought(thought));
+            row.addEventListener('click', (event) => {
+                const target = event.target as HTMLElement | null;
+                if (
+                    target?.closest('a')
+                    || target?.closest('button')
+                    || target?.closest('input')
+                    || target?.closest('textarea')
+                    || target?.closest('select')
+                    || target?.closest('[role="button"]')
+                ) {
+                    return;
+                }
+                this.openPinnedThought(thought);
+            });
+            row.addEventListener('keydown', (event: KeyboardEvent) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                this.openPinnedThought(thought);
+            });
         }
     }
 
