@@ -18567,11 +18567,11 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
 .diwa-mobile-weekly-review {
     margin: 18px 16px 24px;
     padding: 0;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .diwa-mobile-weekly-review-content {
-    min-height: 100%;
+    min-height: 0;
 }
 
 .diwa-mobile-weekly-review.is-mobile {
@@ -18587,6 +18587,7 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
 .diwa-mobile-weekly-review-content .diwa-weekly-rework-wrap {
     gap: 10px;
     padding: 10px;
+    overflow-y: visible;
 }
 
 .diwa-mobile-weekly-review-content .diwa-weekly-rework-header {
