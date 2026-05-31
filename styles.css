@@ -18568,10 +18568,21 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
     margin: 18px 16px 24px;
     padding: 0;
     overflow: visible;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .diwa-mobile-weekly-review-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
     min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+    gap: 12px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
 }
 
 .diwa-mobile-weekly-review.is-mobile {
@@ -18585,9 +18596,11 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
 }
 
 .diwa-mobile-weekly-review-content .diwa-weekly-rework-wrap {
+    flex: 1 1 auto;
     gap: 10px;
     padding: 10px;
-    overflow-y: visible;
+    min-height: 0;
+    overflow: visible;
 }
 
 .diwa-mobile-weekly-review-content .diwa-weekly-rework-header {
@@ -18631,9 +18644,14 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
     min-height: 78px;
 }
 
+.diwa-mobile-weekly-review-content[data-shell-platform="tablet"] {
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+
 .diwa-mobile-weekly-review-content[data-shell-platform="tablet"] .diwa-weekly-rework-wrap {
-    max-width: 100%;
-    margin: 0;
+    max-width: 820px;
+    margin: 0 auto;
+    width: 100%;
 }
 
 /* DIWA desktop right-pane toggle (Tasks | Pinned Notes) */
