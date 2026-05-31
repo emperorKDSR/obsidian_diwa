@@ -18571,6 +18571,8 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    flex: 1 1 auto;
+    width: 100%;
 }
 
 .diwa-mobile-weekly-review-content {
@@ -18579,10 +18581,13 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     box-sizing: border-box;
     gap: 12px;
     padding-bottom: max(20px, env(safe-area-inset-bottom));
+    scroll-padding-top: 60px;
+    scroll-padding-bottom: max(20px, env(safe-area-inset-bottom));
 }
 
 .diwa-mobile-weekly-review.is-mobile {
@@ -18598,8 +18603,13 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
 .diwa-mobile-weekly-review-content .diwa-weekly-rework-wrap {
     flex: 1 1 auto;
     gap: 10px;
-    padding: 10px;
+    padding: 10px 10px 24px;
     min-height: 0;
+    overflow: visible;
+    max-height: none;
+}
+
+.diwa-mobile-weekly-review-content .diwa-weekly-rework-section {
     overflow: visible;
 }
 
@@ -18619,6 +18629,11 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
 .diwa-mobile-weekly-review-content[data-shell-platform="mobile"] .diwa-weekly-rework-select {
     width: 100%;
     min-width: 0;
+}
+
+.diwa-mobile-weekly-review-content[data-shell-platform="mobile"] {
+    max-height: 100vh;
+    height: 100%;
 }
 
 .diwa-mobile-weekly-review-content[data-shell-platform="mobile"] .diwa-weekly-rework-row--thought,
@@ -18645,12 +18660,20 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
 }
 
 .diwa-mobile-weekly-review-content[data-shell-platform="tablet"] {
-    padding-bottom: max(24px, env(safe-area-inset-bottom));
+    padding-bottom: max(28px, env(safe-area-inset-bottom));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .diwa-mobile-weekly-review-content[data-shell-platform="tablet"] .diwa-weekly-rework-wrap {
-    max-width: 820px;
+    max-width: 920px;
     margin: 0 auto;
+    width: 100%;
+    overflow: visible;
+    flex: 1 1 auto;
+}
+
+.diwa-mobile-shell .diwa-mobile-weekly-review {
     width: 100%;
 }
 
