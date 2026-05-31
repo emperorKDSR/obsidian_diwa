@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, setIcon, Notice, ViewStateResult, MarkdownRenderer } from 'obsidian';
+import { ItemView, WorkspaceLeaf, setIcon, Notice, ViewStateResult, MarkdownRenderer, TFile } from 'obsidian';
 import type DiwaPlugin from '../main';
 import {
     VIEW_TYPE_DESKTOP_HUB,
@@ -60,6 +60,7 @@ const DESKTOP_RIGHT_PANE_DEFAULT_WIDTH = 272;
 const DESKTOP_RIGHT_PANE_MIN_WIDTH = 240;
 const DESKTOP_RIGHT_PANE_MAX_WIDTH = 420;
 const DESKTOP_RIGHT_PANE_KEYBOARD_STEP = 16;
+type RightPaneMode = 'tasks' | 'pinned';
 
 function clampDesktopRightPaneWidth(width: number): number {
     return Math.min(
@@ -89,6 +90,11 @@ export class DesktopHubView extends ItemView {
     private _rightResizeHandleEl: HTMLElement | null = null;
     private _rightEl: HTMLElement | null = null;
     private _taskPaneView: DesktopTaskPaneView | null = null;
+    private _rightPaneMode: RightPaneMode = 'tasks';
+    private _rightPaneTasksHostEl: HTMLElement | null = null;
+    private _rightPanePinnedHostEl: HTMLElement | null = null;
+    private _rightPaneTasksBtnEl: HTMLButtonElement | null = null;
+    private _rightPanePinnedBtnEl: HTMLButtonElement | null = null;
     private _taskController: TaskController;
     private _thoughtController: ThoughtController;
     private _captureSectionEl: HTMLElement | null = null;
@@ -157,6 +163,7 @@ export class DesktopHubView extends ItemView {
             isFocusMode: this.isFocusMode,
             activeContext: this._activeContext,
             rightPaneWidth: this._rightPaneWidth,
+            rightPaneMode: this._rightPaneMode,
         };
     }
 
@@ -171,6 +178,7 @@ export class DesktopHubView extends ItemView {
         this._rightPaneWidth = Number.isFinite(parsedRightPaneWidth)
             ? clampDesktopRightPaneWidth(parsedRightPaneWidth)
             : DESKTOP_RIGHT_PANE_DEFAULT_WIDTH;
+        this._rightPaneMode = this.normalizeRightPaneMode(state?.rightPaneMode);
         await super.setState(state, result);
         this.renderView();
     }
@@ -183,6 +191,7 @@ export class DesktopHubView extends ItemView {
         this._thoughtUnsubscribe = this._thoughtController.subscribe(() => {
             this.invalidateFeedProjection();
             this.scheduleFeedRefresh();
+            this.renderPinnedNotesPane();
         });
         this.renderView();
         // Wait for the index to be fully ready before the first real feed render.
@@ -282,6 +291,8 @@ export class DesktopHubView extends ItemView {
         }
 
         this.updateTaskPaneFromIndex();
+        this.renderPinnedNotesPane();
+        this.syncRightPaneModeUI();
     }
 
     private applyMobileLayout(root: HTMLElement): void {
@@ -331,10 +342,10 @@ export class DesktopHubView extends ItemView {
         this.bindRightPaneResize(this._rightResizeHandleEl);
         this._rightEl = cols.createEl('aside', {
             cls: 'diwa-dh-right',
-            attr: { 'aria-label': 'Task side pane' },
+            attr: { 'aria-label': 'Workspace side pane' },
         });
         this.applyRightPaneWidth();
-        this.mountTaskPane(this._rightEl);
+        this.mountRightPane(this._rightEl);
     }
 
     private resetLayoutRefs(): void {
@@ -348,6 +359,10 @@ export class DesktopHubView extends ItemView {
         this._rightResizeHandleEl = null;
         this._rightEl = null;
         this._taskPaneView = null;
+        this._rightPaneTasksHostEl = null;
+        this._rightPanePinnedHostEl = null;
+        this._rightPaneTasksBtnEl = null;
+        this._rightPanePinnedBtnEl = null;
         this._captureSectionEl = null;
         this._captureInputEl = null;
         this._captureHintEl = null;
@@ -1599,9 +1614,142 @@ export class DesktopHubView extends ItemView {
     }
 
     // ── RIGHT Panel ───────────────────────────────────────────────────────────
+    private normalizeRightPaneMode(mode: unknown): RightPaneMode {
+        return mode === 'pinned' ? 'pinned' : 'tasks';
+    }
+
+    private mountRightPane(parent: HTMLElement): void {
+        parent.empty();
+        const shell = parent.createEl('div', { cls: 'diwa-dh-right-pane-shell' });
+        const toggle = shell.createEl('div', {
+            cls: 'diwa-dh-right-pane-toggle',
+            attr: { role: 'tablist', 'aria-label': 'Right pane content' },
+        });
+        this._rightPaneTasksBtnEl = toggle.createEl('button', {
+            cls: 'diwa-dh-right-pane-toggle-btn',
+            text: 'Tasks',
+            attr: { type: 'button', role: 'tab', 'aria-controls': 'diwa-dh-right-pane-tasks' },
+        }) as HTMLButtonElement;
+        this._rightPanePinnedBtnEl = toggle.createEl('button', {
+            cls: 'diwa-dh-right-pane-toggle-btn',
+            text: 'Pinned Notes',
+            attr: { type: 'button', role: 'tab', 'aria-controls': 'diwa-dh-right-pane-pinned' },
+        }) as HTMLButtonElement;
+
+        this._rightPaneTasksBtnEl.addEventListener('click', () => this.setRightPaneMode('tasks', { persist: true }));
+        this._rightPanePinnedBtnEl.addEventListener('click', () => this.setRightPaneMode('pinned', { persist: true }));
+
+        this._rightPaneTasksHostEl = shell.createEl('div', {
+            cls: 'diwa-dh-right-pane-panel diwa-dh-right-pane-panel--tasks',
+            attr: { id: 'diwa-dh-right-pane-tasks', role: 'tabpanel' },
+        });
+        this._rightPanePinnedHostEl = shell.createEl('div', {
+            cls: 'diwa-dh-right-pane-panel diwa-dh-right-pane-panel--pinned',
+            attr: { id: 'diwa-dh-right-pane-pinned', role: 'tabpanel' },
+        });
+
+        this.mountTaskPane(this._rightPaneTasksHostEl);
+        this.renderPinnedNotesPane();
+        this.syncRightPaneModeUI();
+    }
+
     private mountTaskPane(parent: HTMLElement) {
         this._taskPaneView = new DesktopTaskPaneView(this, parent, this._taskController);
         this._taskPaneView.mount();
+    }
+
+    private setRightPaneMode(mode: RightPaneMode, options: { persist?: boolean } = {}): void {
+        const nextMode = this.normalizeRightPaneMode(mode);
+        if (this._rightPaneMode !== nextMode) {
+            this._rightPaneMode = nextMode;
+        }
+        this.syncRightPaneModeUI();
+        if (options.persist) this.requestWorkspaceLayoutSave();
+    }
+
+    private syncRightPaneModeUI(): void {
+        const isTasks = this._rightPaneMode === 'tasks';
+        this._rightPaneTasksHostEl?.toggleClass('is-active', isTasks);
+        this._rightPanePinnedHostEl?.toggleClass('is-active', !isTasks);
+        this._rightPaneTasksBtnEl?.toggleClass('is-active', isTasks);
+        this._rightPanePinnedBtnEl?.toggleClass('is-active', !isTasks);
+        if (this._rightPaneTasksBtnEl) {
+            this._rightPaneTasksBtnEl.setAttribute('aria-selected', isTasks ? 'true' : 'false');
+            this._rightPaneTasksBtnEl.tabIndex = isTasks ? 0 : -1;
+        }
+        if (this._rightPanePinnedBtnEl) {
+            this._rightPanePinnedBtnEl.setAttribute('aria-selected', isTasks ? 'false' : 'true');
+            this._rightPanePinnedBtnEl.tabIndex = isTasks ? -1 : 0;
+        }
+        if (this._rightEl) {
+            this._rightEl.setAttribute('aria-label', isTasks ? 'Task side pane' : 'Pinned notes side pane');
+        }
+    }
+
+    private getPinnedThoughts(): ThoughtEntry[] {
+        return this._thoughtController.getAllThoughts()
+            .filter((thought) => !thought.archived && !!thought.pinned)
+            .sort((left, right) =>
+                (right.updatedAt ?? right.createdAt ?? 0) - (left.updatedAt ?? left.createdAt ?? 0)
+            );
+    }
+
+    private renderPinnedNotesPane(): void {
+        if (!this._rightPanePinnedHostEl) return;
+        this._rightPanePinnedHostEl.empty();
+        const list = this._rightPanePinnedHostEl.createEl('div', {
+            cls: 'diwa-dh-pinned-notes-list',
+            attr: { role: 'list', 'aria-label': 'Pinned thoughts' },
+        });
+        const pinnedThoughts = this.getPinnedThoughts();
+        if (pinnedThoughts.length === 0) {
+            list.createEl('div', {
+                cls: 'diwa-dh-pinned-notes-empty',
+                text: 'No pinned notes yet.',
+            });
+            return;
+        }
+
+        for (const thought of pinnedThoughts) {
+            const title = (thought.title || thought.body || thought.content || 'Untitled thought').trim();
+            const previewSource = (thought.body || thought.content || thought.title || '').replace(/\s+/g, ' ').trim();
+            const preview = previewSource.length > 96 ? `${previewSource.slice(0, 93)}...` : previewSource;
+            const row = list.createEl('button', {
+                cls: 'diwa-dh-pinned-note-row',
+                attr: {
+                    type: 'button',
+                    role: 'listitem',
+                    title,
+                    'aria-label': `Open pinned note: ${title}`,
+                },
+            }) as HTMLButtonElement;
+            const header = row.createEl('div', { cls: 'diwa-dh-pinned-note-header' });
+            header.createEl('span', { cls: 'diwa-dh-pinned-note-title', text: title });
+            header.createEl('span', {
+                cls: 'diwa-dh-pinned-note-time',
+                text: this.formatThoughtTime(thought),
+            });
+            if (preview) {
+                row.createEl('div', { cls: 'diwa-dh-pinned-note-preview', text: preview });
+            }
+            const contexts = [...new Set((thought.context ?? []).map((context) => context.trim()).filter(Boolean))];
+            if (contexts.length > 0) {
+                row.createEl('div', {
+                    cls: 'diwa-dh-pinned-note-context',
+                    text: contexts.slice(0, 2).map((context) => `#${context}`).join(' | '),
+                });
+            }
+            row.addEventListener('click', () => this.openPinnedThought(thought));
+        }
+    }
+
+    private openPinnedThought(thought: ThoughtEntry): void {
+        const file = this.app.vault.getAbstractFileByPath(thought.filePath);
+        if (file instanceof TFile) {
+            void this.app.workspace.getLeaf(false).openFile(file);
+            return;
+        }
+        new Notice('Pinned note file could not be opened.');
     }
 
     private getWorkspaceRoot(): HTMLElement | null {
