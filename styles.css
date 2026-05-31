@@ -18727,6 +18727,21 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
   cursor: pointer;
 }
 
+.diwa-dh-pinned-note-unpin {
+  width: auto;
+  min-height: 20px;
+  padding: 0 7px;
+  gap: 4px;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--background-secondary-alt) 72%, transparent);
+}
+
+.diwa-dh-pinned-note-action-label {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+
 .diwa-dh-pinned-note-action:hover {
   color: var(--text-normal);
   background: color-mix(in srgb, var(--background-modifier-hover) 70%, transparent);

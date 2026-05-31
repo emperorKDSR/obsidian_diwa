@@ -1751,6 +1751,41 @@ export class DesktopHubView extends ItemView {
                 event.stopPropagation();
                 void this.openPinnedThought(thought, { edit: true });
             });
+            const unpinBtn = headerMeta.createEl('button', {
+                cls: 'diwa-dh-pinned-note-action diwa-dh-pinned-note-unpin',
+                attr: {
+                    type: 'button',
+                    title: 'Unpin note',
+                    'aria-label': `Unpin pinned note: ${title}`,
+                },
+            }) as HTMLButtonElement;
+            setIcon(unpinBtn, 'pin-off');
+            unpinBtn.createEl('span', {
+                cls: 'diwa-dh-pinned-note-action-label',
+                text: 'Unpin',
+            });
+            unpinBtn.addEventListener('click', async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const thoughtRef = thought.id ?? thought.filePath;
+                if (!thoughtRef) return;
+                const currentThought = this._thoughtController.getThought(thoughtRef);
+                if (!currentThought) return;
+                await this._thoughtController.setPinned(thoughtRef, false);
+            });
+
+            const isInteractiveTarget = (target: EventTarget | null): boolean => {
+                const element = target instanceof HTMLElement ? target : null;
+                if (!element) return false;
+                return Boolean(
+                    element.closest('a')
+                    || element.closest('button')
+                    || element.closest('input')
+                    || element.closest('textarea')
+                    || element.closest('select')
+                    || element.closest('[role="button"]')
+                );
+            };
 
             if (markdown.trim()) {
                 const contentEl = row.createEl('div', {
@@ -1782,20 +1817,11 @@ export class DesktopHubView extends ItemView {
                 });
             }
             row.addEventListener('click', (event) => {
-                const target = event.target as HTMLElement | null;
-                if (
-                    target?.closest('a')
-                    || target?.closest('button')
-                    || target?.closest('input')
-                    || target?.closest('textarea')
-                    || target?.closest('select')
-                    || target?.closest('[role="button"]')
-                ) {
-                    return;
-                }
+                if (isInteractiveTarget(event.target)) return;
                 void this.openPinnedThought(thought);
             });
             row.addEventListener('keydown', (event: KeyboardEvent) => {
+                if (isInteractiveTarget(event.target)) return;
                 if (event.key !== 'Enter' && event.key !== ' ') return;
                 event.preventDefault();
                 void this.openPinnedThought(thought);
