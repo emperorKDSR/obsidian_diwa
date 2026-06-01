@@ -1,7 +1,11 @@
+import { moment } from 'obsidian';
+import type { ThoughtEntry } from '../types';
 import { decodeUtf8Base64, encodeUtf8Base64 } from './base64';
 
 const WEEKLY_REVIEW_MARKER_PREFIX = '<!-- DIWA-WEEKLY-REVIEW ';
 const WEEKLY_REVIEW_MARKER_SUFFIX = ' -->';
+const WEEK_ID_FORMAT = 'GGGG-[W]WW';
+const LEGACY_WEEK_ID_FORMAT = 'YYYY-[W]WW';
 
 export interface WeeklyReviewRecord {
     weekId: string;
@@ -21,6 +25,22 @@ export interface ParsedWeeklyReview {
     dayPlans?: Record<string, string>;
     dateRange?: string;
     weekId?: string;
+}
+
+export interface WeeklyReviewWeekMeta {
+    weekId: string;
+    inputValue: string;
+    weekNumber: number;
+    label: string;
+    dateRange: string;
+    startDate: string;
+    endDate: string;
+}
+
+export interface WeeklyReviewThoughtGroup {
+    day: string;
+    label: string;
+    thoughts: ThoughtEntry[];
 }
 
 interface ParsedWeeklyReviewSections {
@@ -57,6 +77,75 @@ function normalizeDayPlans(dayPlans?: Record<string, string>): Record<string, st
 function buildStructuredReviewMarker(record: WeeklyReviewRecord): string {
     const payload = encodeUtf8Base64(JSON.stringify(record));
     return `${WEEKLY_REVIEW_MARKER_PREFIX}${payload}${WEEKLY_REVIEW_MARKER_SUFFIX}`;
+}
+
+function parseWeekMoment(weekId?: string | null) {
+    const parsed = weekId
+        ? moment(weekId, [WEEK_ID_FORMAT, LEGACY_WEEK_ID_FORMAT], true)
+        : null;
+    return parsed && parsed.isValid() ? parsed.startOf('isoWeek') : moment().startOf('isoWeek');
+}
+
+export function getCurrentWeeklyReviewWeekId(): string {
+    return moment().format(WEEK_ID_FORMAT);
+}
+
+export function shiftWeeklyReviewWeek(weekId: string, offset: number): string {
+    return parseWeekMoment(weekId).add(offset, 'week').format(WEEK_ID_FORMAT);
+}
+
+export function getLegacyWeeklyReviewWeekId(weekId?: string | null): string {
+    return parseWeekMoment(weekId).format(LEGACY_WEEK_ID_FORMAT);
+}
+
+export function getWeeklyReviewWeekMeta(weekId?: string | null): WeeklyReviewWeekMeta {
+    const week = parseWeekMoment(weekId);
+    const end = week.clone().endOf('isoWeek');
+    return {
+        weekId: week.format(WEEK_ID_FORMAT),
+        inputValue: week.format(WEEK_ID_FORMAT),
+        weekNumber: week.isoWeek(),
+        label: `Week ${week.isoWeek()} · ${week.format('MMM D')}–${end.format('MMM D')}`,
+        dateRange: `${week.format('YYYY-MM-DD')} to ${end.format('YYYY-MM-DD')}`,
+        startDate: week.format('YYYY-MM-DD'),
+        endDate: end.format('YYYY-MM-DD'),
+    };
+}
+
+export function getThoughtReviewDay(entry: Pick<ThoughtEntry, 'day' | 'created'>): string | null {
+    if (typeof entry.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(entry.day.trim())) {
+        return entry.day.trim();
+    }
+    const createdDay = typeof entry.created === 'string' ? entry.created.slice(0, 10) : '';
+    return /^\d{4}-\d{2}-\d{2}$/.test(createdDay) ? createdDay : null;
+}
+
+export function getWeeklyReviewThoughtGroups(thoughts: Iterable<ThoughtEntry>, weekId: string): WeeklyReviewThoughtGroup[] {
+    const meta = getWeeklyReviewWeekMeta(weekId);
+    const groups = new Map<string, ThoughtEntry[]>();
+
+    for (const thought of thoughts) {
+        const thoughtDay = getThoughtReviewDay(thought);
+        if (!thoughtDay || thoughtDay < meta.startDate || thoughtDay > meta.endDate) continue;
+        const list = groups.get(thoughtDay);
+        if (list) list.push(thought);
+        else groups.set(thoughtDay, [thought]);
+    }
+
+    return Array.from(groups.entries())
+        .sort(([leftDay], [rightDay]) => leftDay.localeCompare(rightDay))
+        .map(([day, entries]) => ({
+            day,
+            label: `${moment(day, 'YYYY-MM-DD', true).format('ddd · MMM D')}`,
+            thoughts: entries.sort((left, right) => {
+                const leftCreated = moment(left.created, ['YYYY-MM-DD HH:mm:ss', moment.ISO_8601], true);
+                const rightCreated = moment(right.created, ['YYYY-MM-DD HH:mm:ss', moment.ISO_8601], true);
+                if (leftCreated.isValid() && rightCreated.isValid()) {
+                    return leftCreated.valueOf() - rightCreated.valueOf();
+                }
+                return (right.lastThreadUpdate || 0) - (left.lastThreadUpdate || 0);
+            }),
+        }));
 }
 
 export function buildWeeklyReviewContent(record: WeeklyReviewRecord): string {

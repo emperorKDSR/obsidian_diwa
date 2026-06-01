@@ -6,7 +6,12 @@ import { normalizeThoughtTopics, toStoredThoughtTopic } from '../utils/topics';
 import { buildAttachmentWikiLink } from '../utils';
 import { buildTaskCommentBlock, parseTaskCommentBlocks, splitTaskBodyAndCommentSuffix } from '../utils/taskComments';
 import { getCanonicalMonthlyGoalsPath, getCanonicalWeeklyReviewPath, getCanonicalWeeklyReviewsFolder } from '../utils/settingsPaths';
-import { buildWeeklyReviewContent, parseLegacyWeeklyReviewBody, parseStructuredWeeklyReview } from '../utils/weeklyReview';
+import {
+    buildWeeklyReviewContent,
+    getLegacyWeeklyReviewWeekId,
+    parseLegacyWeeklyReviewBody,
+    parseStructuredWeeklyReview,
+} from '../utils/weeklyReview';
 import { buildYamlFrontmatter, createVaultBinaryFile, createVaultFile, ensureVaultFolder, normalizeVaultRelativePath } from '../utils/vaultFiles';
 
 interface ThoughtWriteOptions {
@@ -848,12 +853,11 @@ export class VaultService {
         options?: { expectedMtime?: number | null },
     ): Promise<number> {
         const folder = getCanonicalWeeklyReviewsFolder(this.settings);
-        const path = getCanonicalWeeklyReviewPath(this.settings, weekId);
         const now = this.formatDateTime(new Date());
         const content = buildWeeklyReviewContent({ weekId, dateRange, wins, lessons, focus, saved: now, dayPlans });
         try {
             await this.ensureFolder(folder);
-            const existing = this.app.vault.getAbstractFileByPath(path);
+            const { existing, path } = this.resolveWeeklyReviewFile(weekId);
             const currentMtime = existing instanceof TFile ? existing.stat.mtime : null;
             if (Object.prototype.hasOwnProperty.call(options ?? {}, 'expectedMtime') && currentMtime !== (options?.expectedMtime ?? null)) {
                 const error = new Error('Weekly review changed on disk');
@@ -1032,10 +1036,24 @@ export class VaultService {
         }
     }
 
+    async loadWeeklyReviewPreview(weekId: string): Promise<{ file: TFile; body: string } | null> {
+        const { existing: file } = this.resolveWeeklyReviewFile(weekId);
+        if (!(file instanceof TFile)) return null;
+        try {
+            const raw = await this.app.vault.read(file);
+            return {
+                file,
+                body: raw.replace(/^---\n[\s\S]*?\n---\n?/, '').trim(),
+            };
+        } catch (e) {
+            console.error('[DIWA VaultService] loadWeeklyReviewPreview', e);
+            return null;
+        }
+    }
+
     /** Load a weekly review file and parse wins/lessons/focus sections */
     async loadWeeklyReview(weekId: string): Promise<{ wins: string; lessons: string; focus: string[]; saved: string; dayPlans?: Record<string, string>; mtime: number } | null> {
-        const path = getCanonicalWeeklyReviewPath(this.settings, weekId);
-        const file = this.app.vault.getAbstractFileByPath(path);
+        const { existing: file } = this.resolveWeeklyReviewFile(weekId);
         if (!(file instanceof TFile)) return null;
         try {
             const raw = await this.app.vault.read(file);
@@ -1068,5 +1086,28 @@ export class VaultService {
             console.error('[DIWA VaultService] loadWeeklyReview', e);
             return null;
         }
+    }
+
+    private getWeeklyReviewCandidatePaths(weekId: string): string[] {
+        const canonicalPath = getCanonicalWeeklyReviewPath(this.settings, weekId);
+        const legacyPath = getCanonicalWeeklyReviewPath(this.settings, getLegacyWeeklyReviewWeekId(weekId));
+        return canonicalPath === legacyPath ? [canonicalPath] : [canonicalPath, legacyPath];
+    }
+
+    private resolveWeeklyReviewFile(weekId: string): { path: string; existing: TFile | null } {
+        const [canonicalPath, ...fallbackPaths] = this.getWeeklyReviewCandidatePaths(weekId);
+        const canonicalFile = this.app.vault.getAbstractFileByPath(canonicalPath);
+        if (canonicalFile instanceof TFile) {
+            return { path: canonicalPath, existing: canonicalFile };
+        }
+
+        for (const fallbackPath of fallbackPaths) {
+            const fallbackFile = this.app.vault.getAbstractFileByPath(fallbackPath);
+            if (fallbackFile instanceof TFile) {
+                return { path: fallbackPath, existing: fallbackFile };
+            }
+        }
+
+        return { path: canonicalPath, existing: null };
     }
 }

@@ -33,6 +33,7 @@ export class MobileHubView extends ItemView {
     }
 
     async onClose() {
+        this.shell.destroy();
         const header = this.containerEl.children[0] as HTMLElement;
         if (header) header.style.display = '';
     }
@@ -60,6 +61,7 @@ export class MobileHubView extends ItemView {
         root.classList.toggle('diwa-tablet-hub-root', platform === 'tablet');
         root.classList.toggle('diwa-mobile-hub-root', platform === 'mobile');
         if (platform === 'desktop') {
+            this.shell.destroy();
             root.empty();
             root.createEl('div', {
                 text: 'DIWA Mobile Shell is available on mobile devices only.',

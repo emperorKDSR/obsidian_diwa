@@ -19521,3 +19521,227 @@ body.is-mobile .diwa-project-focus__topbar {
 body.is-mobile .diwa-project-focus__topbar-left {
     flex-wrap: wrap;
 }
+
+.diwa-review-week-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.diwa-review-week-picker__label,
+.diwa-review-save-note,
+.diwa-weekplan-action-note,
+.diwa-review-thought-card__path {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.diwa-review-week-picker__label {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.diwa-review-week-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.diwa-review-week-actions,
+.diwa-review-save-hints,
+.diwa-review-thought-summary,
+.diwa-weekplan-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.diwa-review-week-actions {
+  justify-content: flex-start;
+}
+
+.diwa-review-week-btn {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--diwa-review-border);
+  border-radius: 12px;
+  background: var(--background-primary);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.diwa-review-week-btn:hover {
+  border-color: color-mix(in srgb, var(--interactive-accent) 24%, var(--diwa-review-border-strong) 76%);
+  color: var(--interactive-accent);
+  background: var(--diwa-review-accent-faint);
+}
+
+.diwa-review-week-btn:focus-visible,
+.diwa-review-thought-card:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--diwa-review-accent-soft);
+}
+
+.diwa-review-thought-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.diwa-review-thought-day {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--diwa-review-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--background-primary) 84%, var(--background-secondary) 16%);
+}
+
+.diwa-review-thought-day__header,
+.diwa-review-thought-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.diwa-review-thought-day__label,
+.diwa-review-thought-card__title {
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+.diwa-review-thought-day__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--diwa-review-accent-faint);
+  color: var(--interactive-accent);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.diwa-review-thought-day__list {
+  display: grid;
+  gap: 8px;
+}
+
+.diwa-review-thought-card {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--diwa-review-border);
+  border-radius: 12px;
+  background: var(--background-primary);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.diwa-review-thought-card:hover {
+  border-color: color-mix(in srgb, var(--interactive-accent) 28%, var(--diwa-review-border-strong) 72%);
+  background: var(--diwa-review-panel-hover);
+  transform: translateY(-1px);
+}
+
+.diwa-review-thought-card__titles {
+  min-width: 0;
+  flex: 1;
+}
+
+.diwa-review-thought-card__title,
+.diwa-review-thought-card__path,
+.diwa-review-thought-card__excerpt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.diwa-review-thought-card__excerpt {
+  margin-top: 8px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.diwa-review-thought-card__time {
+  flex: 0 0 auto;
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.diwa-review-thought-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.diwa-review-thought-card__pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--background-secondary) 72%, var(--background-primary) 28%);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.diwa-review-thought-empty {
+  padding: 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--background-secondary) 70%, var(--background-primary) 30%);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.diwa-glance-item--overdue {
+  color: var(--text-error);
+}
+
+.diwa-weekplan-day__intention.is-readonly {
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--background-secondary) 74%, var(--background-primary) 26%);
+  cursor: default;
+}
+
+.diwa-weekplan-task__check:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.diwa-weekplan-action-note {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--background-secondary) 70%, var(--background-primary) 30%);
+  line-height: 1.45;
+}
+
+body.is-mobile:not(.is-tablet) .diwa-review-week-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+}
+
+body.is-mobile:not(.is-tablet) .diwa-review-thought-day,
+body.is-mobile:not(.is-tablet) .diwa-review-thought-card {
+  border-radius: 12px;
+}
+
+body.is-mobile:not(.is-tablet) .diwa-review-thought-card__top,
+body.is-mobile:not(.is-tablet) .diwa-review-thought-day__header {
+  flex-direction: column;
+  align-items: flex-start;
+}

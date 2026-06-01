@@ -38,6 +38,16 @@ interface DiwaViewState extends Record<string, unknown> {
     activeTab?: string;
     isDedicated?: boolean;
     focusedProjectId?: string | null;
+    selectedReviewWeekId?: string | null;
+    reviewDraft?: { wins: string; lessons: string; focus: string[] } | null;
+    reviewDraftWeekId?: string | null;
+    reviewDraftRevision?: number | null;
+    reviewDraftDirty?: boolean;
+    weekPlanDraft?: Record<string, string> | null;
+    weekPlanDraftWeekId?: string | null;
+    weekPlanDraftRevision?: number | null;
+    weekPlanDraftDirty?: boolean;
+    weekPlanTargetMode?: 'next' | 'this';
 }
 
 export class DiwaView extends ItemView {
@@ -68,11 +78,16 @@ export class DiwaView extends ItemView {
     checklistCompletedToday: Map<string, { text: string; date: string }> = new Map();
     
     // Week Plan State
+    reviewDraft: { wins: string; lessons: string; focus: string[] } | null = null;
+    reviewDraftWeekId: string | null = null;
+    reviewDraftRevision: number | null = null;
+    reviewDraftDirty: boolean = false;
     weekPlanDraft: Record<string, string> | null = null;
     weekPlanDraftWeekId: string | null = null;
     weekPlanDraftRevision: number | null = null;
     weekPlanDraftDirty: boolean = false;
     weekPlanTargetMode: 'next' | 'this' = 'next';
+    selectedReviewWeekId: string | null = null;
 
     // Journal State
     journalSearch: string = '';
@@ -141,7 +156,21 @@ export class DiwaView extends ItemView {
 
     /** Persist activeTab + isDedicated so Obsidian can restore the window on reload. */
     getState(): DiwaViewState {
-        return { activeTab: this.activeTab, isDedicated: this.isDedicated, focusedProjectId: this.focusedProjectId };
+        return {
+            activeTab: this.activeTab,
+            isDedicated: this.isDedicated,
+            focusedProjectId: this.focusedProjectId,
+            selectedReviewWeekId: this.selectedReviewWeekId,
+            reviewDraft: this.reviewDraft,
+            reviewDraftWeekId: this.reviewDraftWeekId,
+            reviewDraftRevision: this.reviewDraftRevision,
+            reviewDraftDirty: this.reviewDraftDirty,
+            weekPlanDraft: this.weekPlanDraft,
+            weekPlanDraftWeekId: this.weekPlanDraftWeekId,
+            weekPlanDraftRevision: this.weekPlanDraftRevision,
+            weekPlanDraftDirty: this.weekPlanDraftDirty,
+            weekPlanTargetMode: this.weekPlanTargetMode,
+        };
     }
 
     /** Called by Obsidian after setViewState() — apply activeTab/isDedicated then re-render. */
@@ -151,6 +180,30 @@ export class DiwaView extends ItemView {
         }
         if (state?.isDedicated !== undefined) this.isDedicated = state.isDedicated;
         if (state?.focusedProjectId !== undefined) this.focusedProjectId = state.focusedProjectId;
+        if (state?.selectedReviewWeekId !== undefined) this.selectedReviewWeekId = state.selectedReviewWeekId;
+        if (state?.reviewDraft && typeof state.reviewDraft === 'object') {
+            this.reviewDraft = {
+                wins: typeof state.reviewDraft.wins === 'string' ? state.reviewDraft.wins : '',
+                lessons: typeof state.reviewDraft.lessons === 'string' ? state.reviewDraft.lessons : '',
+                focus: Array.isArray(state.reviewDraft.focus) ? state.reviewDraft.focus.map((value) => String(value ?? '')) : [],
+            };
+        } else if (state?.reviewDraft === null) {
+            this.reviewDraft = null;
+        }
+        if (state?.reviewDraftWeekId !== undefined) this.reviewDraftWeekId = state.reviewDraftWeekId ?? null;
+        if (state?.reviewDraftRevision !== undefined) this.reviewDraftRevision = typeof state.reviewDraftRevision === 'number' ? state.reviewDraftRevision : null;
+        if (state?.reviewDraftDirty !== undefined) this.reviewDraftDirty = state.reviewDraftDirty === true;
+        if (state?.weekPlanDraft && typeof state.weekPlanDraft === 'object') {
+            this.weekPlanDraft = Object.fromEntries(
+                Object.entries(state.weekPlanDraft).map(([date, value]) => [date, String(value ?? '')]),
+            );
+        } else if (state?.weekPlanDraft === null) {
+            this.weekPlanDraft = null;
+        }
+        if (state?.weekPlanDraftWeekId !== undefined) this.weekPlanDraftWeekId = state.weekPlanDraftWeekId ?? null;
+        if (state?.weekPlanDraftRevision !== undefined) this.weekPlanDraftRevision = typeof state.weekPlanDraftRevision === 'number' ? state.weekPlanDraftRevision : null;
+        if (state?.weekPlanDraftDirty !== undefined) this.weekPlanDraftDirty = state.weekPlanDraftDirty === true;
+        if (state?.weekPlanTargetMode === 'next' || state?.weekPlanTargetMode === 'this') this.weekPlanTargetMode = state.weekPlanTargetMode;
         await super.setState(state, result);
         this.renderView();
     }

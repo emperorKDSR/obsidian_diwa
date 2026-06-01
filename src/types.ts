@@ -34,7 +34,7 @@ export interface GawaLayoutPreferences {
     tablet: Record<GawaTabletBucketId, GawaLayoutBucketPreference>;
 }
 
-export type ResponsiveWorkspaceView = 'home' | 'tasks' | 'projects' | 'thoughts' | 'bulsa';
+export type ResponsiveWorkspaceView = 'home' | 'review' | 'tasks' | 'projects' | 'thoughts' | 'bulsa';
 export type ResponsiveProjectFilter = 'all' | 'active' | 'on-hold' | 'completed';
 export type BulsaMode = 'ledger' | 'insights';
 
@@ -52,6 +52,16 @@ export interface ResponsiveShellState extends Record<string, unknown> {
     selectedMilestoneIds?: Record<string, string | null>;
     selectedThoughtId?: string | null;
     selectedBulsaDuePath?: string | null;
+    selectedReviewWeekId?: string | null;
+    reviewDraft?: { wins: string; lessons: string; focus: string[] } | null;
+    reviewDraftWeekId?: string | null;
+    reviewDraftRevision?: number | null;
+    reviewDraftDirty?: boolean;
+    weekPlanDraft?: Record<string, string> | null;
+    weekPlanDraftWeekId?: string | null;
+    weekPlanDraftRevision?: number | null;
+    weekPlanDraftDirty?: boolean;
+    weekPlanTargetMode?: 'next' | 'this';
     bulsa?: BulsaLeafState;
 }
 

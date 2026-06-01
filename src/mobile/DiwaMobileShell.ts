@@ -1,4 +1,4 @@
-import { App, Modal, Notice, TFile, moment, setIcon } from 'obsidian';
+import { App, Component, Modal, Notice, TFile, moment, setIcon } from 'obsidian';
 import type {
     BulsaLeafState,
     Milestone,
@@ -17,6 +17,7 @@ import { EditTaskModal } from '../modals/EditTaskModal';
 import { NewDueModal } from '../modals/NewDueModal';
 import { PaymentModal } from '../modals/PaymentModal';
 import { renderResponsiveBulsa } from './BulsaResponsiveRenderer';
+import { WeeklyReviewWorkspace } from '../review/WeeklyReviewWorkspace';
 
 export type ShellPlatform = 'mobile' | 'tablet' | 'desktop';
 
@@ -31,6 +32,7 @@ interface ShellNavItem {
 const SHELL_ITEMS: ShellNavItem[] = [
     { id: 'home', label: 'Home', icon: 'house' },
     { id: 'projects', label: 'Projects', shortLabel: 'Proj', ariaLabel: 'Projects', icon: 'folder-kanban' },
+    { id: 'review', label: 'Review', shortLabel: 'Rev', ariaLabel: 'Weekly Review', icon: 'calendar' },
     { id: 'bulsa', label: 'Bulsa', icon: 'wallet' },
     { id: 'tasks', label: 'Gawa', icon: 'check-square-2' },
     { id: 'thoughts', label: 'Diwa', icon: 'pen-square' },
@@ -128,6 +130,16 @@ export class DiwaMobileShell {
     private selectedThought: ThoughtEntry | null = null;
     private bulsa: Required<BulsaLeafState> = { ...DEFAULT_BULSA_STATE };
     private selectedBulsaDuePath: string | null = null;
+    private selectedReviewWeekId: string | null = null;
+    private reviewDraft: { wins: string; lessons: string; focus: string[] } | null = null;
+    private reviewDraftWeekId: string | null = null;
+    private reviewDraftRevision: number | null = null;
+    private reviewDraftDirty = false;
+    private weekPlanDraft: Record<string, string> | null = null;
+    private weekPlanDraftWeekId: string | null = null;
+    private weekPlanDraftRevision: number | null = null;
+    private weekPlanDraftDirty = false;
+    private weekPlanTargetMode: 'next' | 'this' = 'next';
     private hostEl: HTMLElement | null = null;
     private shellEl: HTMLElement | null = null;
     private contentEl: HTMLElement | null = null;
@@ -142,6 +154,7 @@ export class DiwaMobileShell {
     private readonly loadingProjectMilestones: Map<string, Promise<Milestone[]>> = new Map();
     private readonly selectedMilestoneIds: Map<string, string | null> = new Map();
     private renderCycleToken = 0;
+    private reviewMarkdownHost: Component | null = null;
 
     constructor(
         private app: App,
@@ -165,6 +178,16 @@ export class DiwaMobileShell {
             selectedMilestoneIds: Object.fromEntries(this.selectedMilestoneIds.entries()),
             selectedThoughtId: this.selectedThought?.id || this.selectedThought?.filePath || null,
             selectedBulsaDuePath: this.selectedBulsaDuePath,
+            selectedReviewWeekId: this.selectedReviewWeekId,
+            reviewDraft: this.reviewDraft,
+            reviewDraftWeekId: this.reviewDraftWeekId,
+            reviewDraftRevision: this.reviewDraftRevision,
+            reviewDraftDirty: this.reviewDraftDirty,
+            weekPlanDraft: this.weekPlanDraft,
+            weekPlanDraftWeekId: this.weekPlanDraftWeekId,
+            weekPlanDraftRevision: this.weekPlanDraftRevision,
+            weekPlanDraftDirty: this.weekPlanDraftDirty,
+            weekPlanTargetMode: this.weekPlanTargetMode,
             bulsa: { ...this.bulsa },
         };
     }
@@ -205,6 +228,52 @@ export class DiwaMobileShell {
                 ? state.selectedBulsaDuePath
                 : null;
         }
+        if (Object.prototype.hasOwnProperty.call(state, 'selectedReviewWeekId')) {
+            this.selectedReviewWeekId = typeof state.selectedReviewWeekId === 'string' && state.selectedReviewWeekId.length > 0
+                ? state.selectedReviewWeekId
+                : null;
+        }
+        if (Object.prototype.hasOwnProperty.call(state, 'reviewDraft')) {
+            const reviewDraft = state.reviewDraft;
+            this.reviewDraft = reviewDraft && typeof reviewDraft === 'object'
+                ? {
+                    wins: typeof reviewDraft.wins === 'string' ? reviewDraft.wins : '',
+                    lessons: typeof reviewDraft.lessons === 'string' ? reviewDraft.lessons : '',
+                    focus: Array.isArray(reviewDraft.focus) ? reviewDraft.focus.map((value) => String(value ?? '')) : [],
+                }
+                : null;
+        }
+        if (Object.prototype.hasOwnProperty.call(state, 'reviewDraftWeekId')) {
+            this.reviewDraftWeekId = typeof state.reviewDraftWeekId === 'string' && state.reviewDraftWeekId.length > 0
+                ? state.reviewDraftWeekId
+                : null;
+        }
+        if (Object.prototype.hasOwnProperty.call(state, 'reviewDraftRevision')) {
+            this.reviewDraftRevision = typeof state.reviewDraftRevision === 'number' ? state.reviewDraftRevision : null;
+        }
+        if (Object.prototype.hasOwnProperty.call(state, 'reviewDraftDirty')) {
+            this.reviewDraftDirty = state.reviewDraftDirty === true;
+        }
+        if (Object.prototype.hasOwnProperty.call(state, 'weekPlanDraft')) {
+            const weekPlanDraft = state.weekPlanDraft;
+            this.weekPlanDraft = weekPlanDraft && typeof weekPlanDraft === 'object'
+                ? Object.fromEntries(Object.entries(weekPlanDraft).map(([date, value]) => [date, String(value ?? '')]))
+                : null;
+        }
+        if (Object.prototype.hasOwnProperty.call(state, 'weekPlanDraftWeekId')) {
+            this.weekPlanDraftWeekId = typeof state.weekPlanDraftWeekId === 'string' && state.weekPlanDraftWeekId.length > 0
+                ? state.weekPlanDraftWeekId
+                : null;
+        }
+        if (Object.prototype.hasOwnProperty.call(state, 'weekPlanDraftRevision')) {
+            this.weekPlanDraftRevision = typeof state.weekPlanDraftRevision === 'number' ? state.weekPlanDraftRevision : null;
+        }
+        if (Object.prototype.hasOwnProperty.call(state, 'weekPlanDraftDirty')) {
+            this.weekPlanDraftDirty = state.weekPlanDraftDirty === true;
+        }
+        if (state.weekPlanTargetMode === 'next' || state.weekPlanTargetMode === 'this') {
+            this.weekPlanTargetMode = state.weekPlanTargetMode;
+        }
         if (state.bulsa !== undefined) {
             this.bulsa = {
                 mode: state.bulsa?.mode === 'insights' ? 'insights' : DEFAULT_BULSA_STATE.mode,
@@ -222,12 +291,21 @@ export class DiwaMobileShell {
     public refreshThoughts(): void {
         this.invalidateCaches('thoughts');
         this.selectedThought = this.findThoughtById(this.selectedThought?.id || this.selectedThought?.filePath || null);
-        if (this.activeView !== 'home' && this.activeView !== 'thoughts') return;
+        if (this.activeView !== 'home' && this.activeView !== 'thoughts' && this.activeView !== 'review') return;
         this.refreshView();
     }
 
     public invalidateAllCaches(): void {
         this.invalidateCaches('all');
+    }
+
+    public destroy(): void {
+        this.disposeReviewMarkdownHost();
+        this.hostEl = null;
+        this.shellEl = null;
+        this.contentEl = null;
+        this.navEl = null;
+        this.tabsEl = null;
     }
 
     public render(container: HTMLElement): void {
@@ -302,6 +380,8 @@ export class DiwaMobileShell {
     }
 
     private renderActiveView(container: HTMLElement): void {
+        this.invalidateRenderCycle();
+        this.disposeReviewMarkdownHost();
         container.empty();
 
         switch (this.activeView) {
@@ -310,6 +390,9 @@ export class DiwaMobileShell {
                 break;
             case 'bulsa':
                 this.renderBulsa(container);
+                break;
+            case 'review':
+                this.renderReview(container);
                 break;
             case 'tasks':
                 this.renderTasks(container);
@@ -327,6 +410,53 @@ export class DiwaMobileShell {
         if (this.activeView === view) return;
         this.activeView = view;
         this.refreshView();
+    }
+
+    private renderReview(container: HTMLElement): void {
+        const renderToken = this.beginRenderCycle();
+        this.reviewMarkdownHost = new Component();
+        this.plugin.addChild(this.reviewMarkdownHost);
+        const workspace = new WeeklyReviewWorkspace({
+            app: this.app,
+            component: this.reviewMarkdownHost,
+            plugin: this.plugin,
+            settings: this.plugin.settings,
+            index: this.plugin.index,
+            vault: this.plugin.vault,
+            platform: this.platform,
+            getState: () => ({
+                selectedReviewWeekId: this.selectedReviewWeekId,
+                reviewDraft: this.reviewDraft,
+                reviewDraftWeekId: this.reviewDraftWeekId,
+                reviewDraftRevision: this.reviewDraftRevision,
+                reviewDraftDirty: this.reviewDraftDirty,
+                weekPlanDraft: this.weekPlanDraft,
+                weekPlanDraftWeekId: this.weekPlanDraftWeekId,
+                weekPlanDraftRevision: this.weekPlanDraftRevision,
+                weekPlanDraftDirty: this.weekPlanDraftDirty,
+                weekPlanTargetMode: this.weekPlanTargetMode,
+            }),
+            updateState: (patch) => {
+                if (patch.selectedReviewWeekId !== undefined) this.selectedReviewWeekId = patch.selectedReviewWeekId;
+                if (patch.reviewDraft !== undefined) this.reviewDraft = patch.reviewDraft;
+                if (patch.reviewDraftWeekId !== undefined) this.reviewDraftWeekId = patch.reviewDraftWeekId;
+                if (patch.reviewDraftRevision !== undefined) this.reviewDraftRevision = patch.reviewDraftRevision;
+                if (patch.reviewDraftDirty !== undefined) this.reviewDraftDirty = patch.reviewDraftDirty;
+                if (patch.weekPlanDraft !== undefined) this.weekPlanDraft = patch.weekPlanDraft;
+                if (patch.weekPlanDraftWeekId !== undefined) this.weekPlanDraftWeekId = patch.weekPlanDraftWeekId;
+                if (patch.weekPlanDraftRevision !== undefined) this.weekPlanDraftRevision = patch.weekPlanDraftRevision;
+                if (patch.weekPlanDraftDirty !== undefined) this.weekPlanDraftDirty = patch.weekPlanDraftDirty;
+                if (patch.weekPlanTargetMode !== undefined) this.weekPlanTargetMode = patch.weekPlanTargetMode;
+            },
+            rerender: () => this.refreshView(),
+            isRenderActive: (token, target) => this.isRenderCycleActive(token, target),
+        });
+        workspace.render(container, renderToken);
+    }
+
+    private disposeReviewMarkdownHost(): void {
+        this.reviewMarkdownHost?.unload();
+        this.reviewMarkdownHost = null;
     }
 
     private renderBulsa(container: HTMLElement): void {
@@ -1377,6 +1507,10 @@ export class DiwaMobileShell {
         return this.renderCycleToken;
     }
 
+    private invalidateRenderCycle(): void {
+        this.renderCycleToken += 1;
+    }
+
     private isRenderCycleActive(token: number, container: HTMLElement | null): boolean {
         return this.renderCycleToken === token && !!container?.isConnected;
     }
@@ -1733,16 +1867,16 @@ export class DiwaMobileShell {
     }
 
     private getShellItems(): ShellNavItem[] {
-        const useShortProjectLabel = this.platform === 'mobile' && this.getViewportWidth() <= 390;
+        const useCompactLabels = this.platform === 'mobile' && this.getViewportWidth() <= 390;
         return SHELL_ITEMS.map((item) => ({
             ...item,
-            label: item.id === 'projects' && useShortProjectLabel ? (item.shortLabel ?? item.label) : item.label,
+            label: useCompactLabels ? (item.shortLabel ?? item.label) : item.label,
         }));
     }
 
     private getChromeKey(): string {
-        const useShortProjectLabel = this.platform === 'mobile' && this.getViewportWidth() <= 390;
-        return `${this.platform}:${this.activeView}:${useShortProjectLabel ? 'short' : 'full'}`;
+        const useCompactLabels = this.platform === 'mobile' && this.getViewportWidth() <= 390;
+        return `${this.platform}:${this.activeView}:${useCompactLabels ? 'compact' : 'full'}`;
     }
 
     private getViewportWidth(): number {

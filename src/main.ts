@@ -773,7 +773,20 @@ export default class DiwaPlugin extends Plugin {
         }
         if (!targetLeaf) targetLeaf = Platform.isMobile ? workspace.getLeaf(false) : workspace.getLeaf('window');
         if (targetLeaf) {
-            await targetLeaf.setViewState({ type: VIEW_TYPE_DIWA, active: true, state: { activeTab: targetTab, isDedicated } });
+            const currentState = targetLeaf.getViewState();
+            const currentLeafState = currentState.state && typeof currentState.state === 'object'
+                ? { ...(currentState.state as Record<string, unknown>) }
+                : {};
+            await targetLeaf.setViewState({
+                ...currentState,
+                type: VIEW_TYPE_DIWA,
+                active: true,
+                state: {
+                    ...currentLeafState,
+                    activeTab: targetTab,
+                    isDedicated,
+                },
+            });
             workspace.revealLeaf(targetLeaf);
         }
     }
