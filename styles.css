@@ -3921,6 +3921,909 @@ body.diwa-task-edit-active .modal-bg { background: rgba(0,0,0,0.5) !important; }
 /* ── Task Edit Icon ── */
 .diwa-weekplan-task__edit{font-size:0.78em;cursor:pointer;opacity:0.5;margin-left:4px;transition:opacity 0.15s;}
 .diwa-weekplan-task__edit:hover{opacity:1;}
+/* ═══════════════════════════════════════════════════════════════════
+   WEEKLY REVIEW REDESIGN
+   ═══════════════════════════════════════════════════════════════════ */
+.diwa-review-wrap {
+  --diwa-review-border: var(--background-modifier-border-faint);
+  --diwa-review-border-strong: var(--background-modifier-border);
+  --diwa-review-panel: color-mix(in srgb, var(--background-primary) 74%, var(--background-secondary) 26%);
+  --diwa-review-panel-strong: color-mix(in srgb, var(--background-secondary) 62%, var(--background-primary) 38%);
+  --diwa-review-panel-hover: color-mix(in srgb, var(--interactive-accent) 5%, var(--background-secondary) 95%);
+  --diwa-review-accent-soft: color-mix(in srgb, var(--interactive-accent) 10%, transparent);
+  --diwa-review-accent-faint: color-mix(in srgb, var(--interactive-accent) 6%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(100%, var(--diwa-content-max-width, 1100px));
+  margin: 0 auto;
+  padding-bottom: 132px;
+}
+
+.diwa-review-header,
+.diwa-review-glance,
+.diwa-review-section,
+.diwa-review-save-row,
+.diwa-review-prev-card {
+  border: 1px solid var(--diwa-review-border);
+  border-radius: 18px;
+  background: var(--diwa-review-panel);
+}
+
+.diwa-review-header {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+}
+
+.diwa-review-nav-row {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 10px;
+}
+
+.diwa-review-dirty-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--interactive-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--interactive-accent) 16%, transparent);
+}
+
+.diwa-review-header .diwa-tab-title {
+  margin: 0;
+  font-size: 1.32rem;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.diwa-review-subtitle-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.diwa-review-week-label,
+.diwa-review-saved-badge,
+.diwa-review-prev-week-chip,
+.diwa-review-readonly-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--diwa-review-border);
+  background: color-mix(in srgb, var(--background-primary) 78%, var(--background-secondary) 22%);
+  font-size: 0.73rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.diwa-review-saved-badge,
+.diwa-review-readonly-badge {
+  border-color: color-mix(in srgb, var(--interactive-accent) 22%, var(--diwa-review-border-strong) 78%);
+  background: var(--diwa-review-accent-faint);
+  color: var(--interactive-accent);
+}
+
+.diwa-review-glance {
+  overflow: hidden;
+}
+
+.diwa-review-glance__header,
+.diwa-review-section-header,
+.diwa-review-prev-card__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.diwa-review-glance__header {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--diwa-review-border);
+  background: color-mix(in srgb, var(--background-primary) 30%, transparent);
+}
+
+.diwa-review-glance__title,
+.diwa-review-section-title {
+  font-size: 0.73rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.diwa-review-glance__title {
+  color: var(--interactive-accent);
+}
+
+.diwa-review-glance__actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.diwa-review-glance__refresh,
+.diwa-review-glance__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--diwa-review-border);
+  border-radius: 10px;
+  background: var(--background-primary);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.diwa-review-glance__refresh:hover,
+.diwa-review-glance__toggle:hover,
+.diwa-review-section-header:hover,
+.diwa-review-prev-card__trigger:hover {
+  border-color: color-mix(in srgb, var(--interactive-accent) 24%, var(--diwa-review-border-strong) 76%);
+  color: var(--interactive-accent);
+  background: var(--diwa-review-panel-hover);
+}
+
+.diwa-review-glance__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  padding: 10px 12px 12px;
+}
+
+.diwa-review-glance.is-collapsed .diwa-review-glance__body {
+  display: none;
+}
+
+.diwa-glance-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--diwa-review-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--background-primary) 82%, var(--background-secondary) 18%);
+}
+
+.diwa-glance-card__header,
+.diwa-glance-project-row,
+.diwa-glance-finance-row,
+.diwa-glance-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.diwa-glance-card__header {
+  justify-content: space-between;
+}
+
+.diwa-glance-card__icon {
+  font-size: 0.95rem;
+}
+
+.diwa-glance-card__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.diwa-glance-stat-row {
+  flex-wrap: wrap;
+  color: var(--text-muted);
+}
+
+.diwa-glance-stat {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--background-secondary) 72%, var(--background-primary) 28%);
+  color: var(--text-muted);
+}
+
+.diwa-glance-stat--done {
+  background: var(--diwa-review-accent-faint);
+  color: var(--interactive-accent);
+}
+
+.diwa-glance-stat--overdue {
+  background: color-mix(in srgb, var(--text-error) 10%, transparent);
+  color: var(--text-error);
+}
+
+.diwa-glance-stat-sep {
+  color: var(--text-faint);
+}
+
+.diwa-glance-list {
+  margin: 0;
+  padding-left: 17px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.diwa-glance-item,
+.diwa-glance-project-name,
+.diwa-glance-finance-name {
+  min-width: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--text-normal);
+}
+
+.diwa-glance-item--empty {
+  list-style: none;
+  margin-left: -17px;
+  color: var(--text-faint);
+}
+
+.diwa-glance-project-row,
+.diwa-glance-finance-row {
+  min-height: 28px;
+}
+
+.diwa-glance-project-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--interactive-accent);
+  flex: 0 0 auto;
+}
+
+.diwa-glance-project-status {
+  margin-left: auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--background-secondary) 72%, var(--background-primary) 28%);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.diwa-glance-finance-row--paid .diwa-glance-finance-icon {
+  color: var(--interactive-accent);
+}
+
+.diwa-glance-finance-row--overdue .diwa-glance-finance-icon {
+  color: var(--text-error);
+}
+
+.diwa-review-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.diwa-review-col--left,
+.diwa-review-col--right {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.diwa-review-section {
+  overflow: hidden;
+}
+
+.diwa-review-section-header {
+  padding: 11px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.diwa-review-section-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.diwa-review-section-icon {
+  font-size: 0.96rem;
+  line-height: 1;
+}
+
+.diwa-review-section-title {
+  color: var(--text-muted);
+}
+
+.diwa-review-section-toggle,
+.diwa-review-prev-card__chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--text-faint);
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.diwa-review-section-header:hover .diwa-review-section-toggle,
+.diwa-review-prev-card__trigger:hover .diwa-review-prev-card__chevron {
+  color: var(--interactive-accent);
+}
+
+.diwa-review-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--diwa-review-border);
+  transition: opacity 0.12s ease;
+}
+
+.diwa-review-textarea,
+.diwa-review-input,
+.diwa-weekplan-day__intention,
+.diwa-weekplan-picker__search,
+.diwa-weekplan-quickadd__input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--diwa-review-border-strong);
+  border-radius: 12px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font: inherit;
+  line-height: 1.45;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.diwa-review-textarea,
+.diwa-weekplan-day__intention,
+.diwa-weekplan-picker__search,
+.diwa-weekplan-quickadd__input {
+  font-size: 0.84rem;
+}
+
+.diwa-review-textarea {
+  min-height: 112px;
+  padding: 10px 12px;
+  resize: none;
+}
+
+.diwa-review-input,
+.diwa-weekplan-day__intention,
+.diwa-weekplan-picker__search,
+.diwa-weekplan-quickadd__input {
+  min-height: 38px;
+  padding: 7px 11px;
+}
+
+.diwa-review-textarea::placeholder,
+.diwa-review-input::placeholder,
+.diwa-weekplan-day__intention::placeholder,
+.diwa-weekplan-picker__search::placeholder,
+.diwa-weekplan-quickadd__input::placeholder {
+  color: var(--text-faint);
+}
+
+.diwa-review-textarea:focus,
+.diwa-review-input:focus,
+.diwa-weekplan-day__intention:focus,
+.diwa-weekplan-picker__search:focus,
+.diwa-weekplan-quickadd__input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 3px var(--diwa-review-accent-soft);
+}
+
+.diwa-review-focus-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.diwa-review-focus-item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.diwa-review-focus-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  background: var(--diwa-review-accent-faint);
+  color: var(--interactive-accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.diwa-review-save-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.diwa-review-kbd-hint {
+  font-size: 0.73rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.diwa-review-save-btn,
+.diwa-weekplan-target-btn,
+.diwa-weekplan-assign-btn,
+.diwa-weekplan-new-btn,
+.diwa-weekplan-quickadd__submit,
+.diwa-review-prev-open-btn {
+  min-height: 36px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.diwa-review-save-btn {
+  min-width: 172px;
+  padding: 0 14px;
+  border: 1px solid var(--interactive-accent);
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  cursor: pointer;
+}
+
+.diwa-review-save-btn:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.diwa-review-save-btn:disabled {
+  cursor: wait;
+  opacity: 0.78;
+}
+
+.diwa-review-save-btn.is-saved {
+  border-color: var(--interactive-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 90%, var(--background-primary) 10%);
+  color: var(--text-on-accent);
+}
+
+.diwa-review-save-btn.is-error {
+  border-color: var(--text-error);
+  background: color-mix(in srgb, var(--text-error) 84%, var(--background-primary) 16%);
+  color: var(--text-on-accent);
+}
+
+.diwa-review-prev-card {
+  overflow: hidden;
+}
+
+.diwa-review-prev-card__trigger {
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.diwa-review-prev-card__left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.diwa-review-prev-card.is-collapsed .diwa-review-prev-card__body {
+  display: none;
+}
+
+.diwa-review-prev-card.is-collapsed .diwa-review-prev-card__chevron {
+  transform: rotate(-90deg);
+}
+
+.diwa-review-prev-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--diwa-review-border);
+}
+
+.diwa-review-prev-content {
+  padding-top: 2px;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.diwa-review-prev-content .markdown-preview-view {
+  padding: 0;
+  background: transparent;
+}
+
+.diwa-review-prev-content :is(h1, h2, h3, h4, h5, h6) {
+  margin-top: 0;
+}
+
+.diwa-review-prev-open-btn {
+  align-self: flex-start;
+}
+
+.diwa-review-prev-empty {
+  padding-top: 12px;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+
+.diwa-weekplan-target-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-self: flex-start;
+  margin-bottom: 12px;
+  padding: 4px;
+  border: 1px solid var(--diwa-review-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--background-primary) 54%, var(--background-secondary) 46%);
+}
+
+.diwa-weekplan-target-btn {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.diwa-weekplan-target-btn.is-active {
+  border-color: color-mix(in srgb, var(--interactive-accent) 24%, var(--diwa-review-border-strong) 76%);
+  background: var(--diwa-review-accent-faint);
+  color: var(--interactive-accent);
+}
+
+.diwa-weekplan-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.diwa-weekplan-day {
+  border: 1px solid var(--diwa-review-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--background-primary) 84%, var(--background-secondary) 16%);
+  overflow: hidden;
+}
+
+.diwa-weekplan-day:hover {
+  border-color: color-mix(in srgb, var(--interactive-accent) 24%, var(--diwa-review-border-strong) 76%);
+}
+
+.diwa-weekplan-day__header {
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--background-secondary) 62%, var(--background-primary) 38%);
+}
+
+.diwa-weekplan-day__label {
+  font-size: 0.79rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.diwa-weekplan-day__count {
+  border: 1px solid color-mix(in srgb, var(--interactive-accent) 22%, var(--diwa-review-border-strong) 78%);
+  background: var(--diwa-review-accent-faint);
+  color: var(--interactive-accent);
+  min-width: 24px;
+  padding: 1px 7px;
+}
+
+.diwa-weekplan-day__count--warn {
+  border-color: color-mix(in srgb, var(--text-warning) 24%, var(--diwa-review-border-strong) 76%) !important;
+  background: color-mix(in srgb, var(--text-warning) 12%, var(--background-primary) 88%) !important;
+  color: var(--text-warning) !important;
+}
+
+.diwa-weekplan-day__count--danger {
+  border-color: color-mix(in srgb, var(--text-error) 24%, var(--diwa-review-border-strong) 76%) !important;
+  background: color-mix(in srgb, var(--text-error) 12%, var(--background-primary) 88%) !important;
+  color: var(--text-error) !important;
+}
+
+.diwa-weekplan-day__body {
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+
+.diwa-weekplan-day__tasks,
+.diwa-weekplan-picker__list {
+  gap: 4px;
+}
+
+.diwa-weekplan-task {
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 0.8rem;
+}
+
+.diwa-weekplan-task__title {
+  line-height: 1.35;
+}
+
+.diwa-weekplan-task__priority,
+.diwa-weekplan-picker__priority {
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+.diwa-weekplan-task__priority--high,
+.diwa-weekplan-picker__priority--high {
+  color: var(--text-error);
+  background: color-mix(in srgb, var(--text-error) 10%, transparent);
+}
+
+.diwa-weekplan-task__priority--medium,
+.diwa-weekplan-picker__priority--medium {
+  color: var(--text-warning);
+  background: color-mix(in srgb, var(--text-warning) 10%, transparent);
+}
+
+.diwa-weekplan-task__priority--low,
+.diwa-weekplan-picker__priority--low {
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--background-secondary) 74%, var(--background-primary) 26%);
+}
+
+.diwa-weekplan-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.diwa-weekplan-assign-btn,
+.diwa-weekplan-new-btn {
+  width: 100%;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.diwa-weekplan-assign-btn {
+  border: 1px dashed var(--diwa-review-border-strong);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.diwa-weekplan-new-btn {
+  border: 1px dashed color-mix(in srgb, var(--interactive-accent) 28%, var(--diwa-review-border-strong) 72%);
+  background: var(--diwa-review-accent-faint);
+  color: var(--interactive-accent);
+}
+
+.diwa-weekplan-assign-btn:hover,
+.diwa-weekplan-new-btn:hover {
+  border-style: solid;
+}
+
+.diwa-weekplan-assign-btn:hover {
+  border-color: color-mix(in srgb, var(--interactive-accent) 28%, var(--diwa-review-border-strong) 72%);
+  background: var(--diwa-review-accent-faint);
+  color: var(--interactive-accent);
+}
+
+.diwa-weekplan-new-btn:hover {
+  border-color: var(--interactive-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary) 86%);
+}
+
+.diwa-weekplan-picker {
+  margin-top: 4px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--interactive-accent) 24%, var(--diwa-review-border-strong) 76%);
+  border-radius: 14px;
+  background: var(--background-primary);
+  box-shadow: var(--shadow-s);
+}
+
+.diwa-weekplan-picker__search {
+  margin-bottom: 6px;
+}
+
+.diwa-weekplan-picker__item {
+  border-radius: 10px;
+  padding: 7px 8px;
+}
+
+.diwa-weekplan-picker__item:hover {
+  background: var(--diwa-review-accent-faint);
+}
+
+.diwa-weekplan-picker__empty,
+.diwa-weekplan-empty {
+  padding: 10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--background-secondary) 68%, var(--background-primary) 32%);
+}
+
+.diwa-weekplan-empty {
+  margin-top: 2px;
+  font-style: normal;
+}
+
+.diwa-weekplan-quickadd {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.diwa-weekplan-quickadd__submit {
+  min-width: 40px;
+  border: 1px solid var(--interactive-accent);
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.diwa-weekplan-quickadd__submit:disabled {
+  cursor: wait;
+}
+
+.diwa-weekplan-task__edit {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.diwa-weekplan-task__edit:hover {
+  color: var(--interactive-accent);
+}
+
+.diwa-review-glance__refresh:focus-visible,
+.diwa-review-glance__toggle:focus-visible,
+.diwa-review-save-btn:focus-visible,
+.diwa-weekplan-target-btn:focus-visible,
+.diwa-weekplan-assign-btn:focus-visible,
+.diwa-weekplan-new-btn:focus-visible,
+.diwa-weekplan-picker__item:focus-visible,
+.diwa-weekplan-quickadd__submit:focus-visible,
+.diwa-review-prev-open-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--diwa-review-accent-soft);
+}
+
+@media (min-width: 720px) {
+  .diwa-review-glance__body,
+  .diwa-weekplan-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 860px) {
+  .diwa-review-body {
+    grid-template-columns: minmax(0, 0.96fr) minmax(0, 1.04fr);
+  }
+}
+
+@media (min-width: 1040px) {
+  .diwa-review-glance__body {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .diwa-weekplan-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1320px) {
+  .diwa-weekplan-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+body.is-tablet .diwa-review-wrap {
+  width: min(100%, 1080px);
+  gap: 12px;
+}
+
+body.is-tablet .diwa-review-body {
+  gap: 14px;
+}
+
+body.is-tablet .diwa-review-glance__body,
+body.is-tablet .diwa-weekplan-grid {
+  gap: 10px;
+}
+
+body.is-tablet .diwa-review-save-row {
+  padding-inline: 16px;
+}
+
+body.is-mobile:not(.is-tablet) .diwa-review-wrap {
+  gap: 10px;
+  padding-bottom: calc(136px + env(safe-area-inset-bottom, 0px));
+}
+
+body.is-mobile:not(.is-tablet) .diwa-review-header,
+body.is-mobile:not(.is-tablet) .diwa-review-glance,
+body.is-mobile:not(.is-tablet) .diwa-review-section,
+body.is-mobile:not(.is-tablet) .diwa-review-save-row,
+body.is-mobile:not(.is-tablet) .diwa-review-prev-card {
+  border-radius: 16px;
+}
+
+body.is-mobile:not(.is-tablet) .diwa-review-header,
+body.is-mobile:not(.is-tablet) .diwa-review-save-row,
+body.is-mobile:not(.is-tablet) .diwa-review-prev-card__trigger,
+body.is-mobile:not(.is-tablet) .diwa-review-prev-card__body,
+body.is-mobile:not(.is-tablet) .diwa-review-glance__header,
+body.is-mobile:not(.is-tablet) .diwa-review-glance__body,
+body.is-mobile:not(.is-tablet) .diwa-review-section-header,
+body.is-mobile:not(.is-tablet) .diwa-review-section-body {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+body.is-mobile:not(.is-tablet) .diwa-review-body,
+body.is-mobile:not(.is-tablet) .diwa-review-glance__body,
+body.is-mobile:not(.is-tablet) .diwa-weekplan-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+body.is-mobile:not(.is-tablet) .diwa-review-save-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+body.is-mobile:not(.is-tablet) .diwa-review-save-btn,
+body.is-mobile:not(.is-tablet) .diwa-weekplan-target-btn,
+body.is-mobile:not(.is-tablet) .diwa-weekplan-assign-btn,
+body.is-mobile:not(.is-tablet) .diwa-weekplan-new-btn,
+body.is-mobile:not(.is-tablet) .diwa-weekplan-quickadd__submit,
+body.is-mobile:not(.is-tablet) .diwa-review-prev-open-btn {
+  min-height: 40px;
+}
+
+body.is-mobile:not(.is-tablet) .diwa-weekplan-target-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-self: stretch;
+}
+
+body.is-mobile:not(.is-tablet) .diwa-review-kbd-hint {
+  text-align: center;
+}
+
+body.is-mobile:not(.is-tablet) .diwa-review-prev-card__trigger {
+  align-items: flex-start;
+}
+
+body.is-mobile:not(.is-tablet) .diwa-weekplan-actions {
+  grid-template-columns: minmax(0, 1fr);
+}
 /* ── Calendar: padding days non-interactive ── */
 .diwa-cal-cell.is-outside{pointer-events:none;opacity:0.3;}
 /* ── Calendar Detail Quick Add ── */

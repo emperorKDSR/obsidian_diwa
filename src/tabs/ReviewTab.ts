@@ -60,6 +60,8 @@ export class ReviewTab extends BaseTab {
 
     private createSection(parent: HTMLElement, id: string, emoji: string, label: string): { section: HTMLElement; body: HTMLElement; toggle: HTMLElement } {
         const section = parent.createEl('div', { cls: 'diwa-review-section' });
+        section.addClass(`diwa-review-section--${id}`);
+        section.setAttribute('data-section-id', id);
         const header = section.createEl('div', { cls: 'diwa-review-section-header' });
         header.setAttribute('data-section-id', id);
 
@@ -147,7 +149,6 @@ export class ReviewTab extends BaseTab {
         this.view.weekPlanDraft = dayPlans;
 
         const wrap = container.createEl('div', { cls: 'diwa-review-wrap' });
-        wrap.setAttribute('container-type', 'inline-size');
 
         // ── Header ──────────────────────────────────────────────
         const header = wrap.createEl('div', { cls: 'diwa-review-header' });
