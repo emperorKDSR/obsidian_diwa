@@ -1,5 +1,5 @@
 import { App, TFile, Notice, moment } from 'obsidian';
-import type { DiwaSettings, ThoughtEntry, TaskEntry, ReplyEntry, ProjectEntry, Milestone } from '../types';
+import type { DiwaSettings, ThoughtEntry, TaskEntry, ReplyEntry } from '../types';
 import { generateTaskId } from '../utils/taskModel';
 import { buildJournalContexts, normalizeJournalType } from '../journal/shared';
 import { normalizeThoughtTopics, toStoredThoughtTopic } from '../utils/topics';
@@ -9,14 +9,19 @@ import { getCanonicalMonthlyGoalsPath, getCanonicalWeeklyReviewPath, getCanonica
 import {
     buildWeeklyReviewContent,
     getLegacyWeeklyReviewWeekId,
+    getWeeklyReviewWeekMeta,
     parseLegacyWeeklyReviewBody,
     parseStructuredWeeklyReview,
+    shiftWeeklyReviewWeek,
 } from '../utils/weeklyReview';
 import { buildYamlFrontmatter, createVaultBinaryFile, createVaultFile, ensureVaultFolder, normalizeVaultRelativePath } from '../utils/vaultFiles';
 
 interface ThoughtWriteOptions {
     title?: string;
     journalType?: string | null;
+    day?: string;
+    created?: string;
+    modified?: string;
 }
 
 export { createVaultBinaryFile, createVaultFile };
@@ -25,6 +30,9 @@ export class VaultService {
     app: App;
     settings: DiwaSettings;
     private taskFolderResolver?: () => string;
+    private static readonly WEEKLY_OBJECTIVE_WIKILINK = '[[weeklyObjective]]';
+    private static readonly WEEKLY_OBJECTIVE_MARKER_PREFIX = '<!-- DIWA-WEEKLY-OBJECTIVE ';
+    private static readonly WEEKLY_OBJECTIVE_MARKER_SUFFIX = ' -->';
 
     constructor(app: App, settings: DiwaSettings) {
         this.app = app;
@@ -68,7 +76,7 @@ export class VaultService {
             .filter(Boolean);
     }
 
-    private buildFrontmatter(title: string, created: string, modified: string, dayStr: string, contexts: string[], pinned: boolean = false, project?: string, topic?: string | string[] | null, journalType?: string | null): string {
+    private buildFrontmatter(title: string, created: string, modified: string, dayStr: string, contexts: string[], pinned: boolean = false, topic?: string | string[] | null, journalType?: string | null): string {
         const safeContexts = contexts.map(c => this.sanitizeContext(c));
         const safeTopics = this.normalizeTopics(topic);
         const safeTags = safeTopics.length > 0
@@ -87,7 +95,6 @@ export class VaultService {
             topic: safeTopics.length === 0
                 ? undefined
                 : (safeTopics.length === 1 ? safeTopics[0] : safeTopics),
-            project: project || undefined,
         });
     }
 
@@ -99,12 +106,10 @@ export class VaultService {
         status: string,
         due: string,
         contexts: string[],
-        project?: string,
         recurrence?: string,
         recurrenceParentId?: string,
         priority?: string,
         energy?: string,
-        milestone?: string,
     ): string {
         const safeContexts = contexts.map(c => this.sanitizeContext(c));
         const safeStatus = this.normalizeTaskStatus(status);
@@ -128,8 +133,6 @@ export class VaultService {
             due: safeDue ? `[[${safeDue}]]` : '',
             context: safeContexts,
             tags: safeContexts,
-            project: project || undefined,
-            milestone: milestone || undefined,
             recurrence: safeRecurrence || undefined,
             recurrenceParentId: safeParentId || undefined,
             priority: safePriority || undefined,
@@ -192,6 +195,95 @@ export class VaultService {
         return `${prefix}_${ts}_${rand}_${stem}${extension || '.bin'}`;
     }
 
+    private getWeeklyObjectiveMarker(weekId: string): string {
+        return `${VaultService.WEEKLY_OBJECTIVE_MARKER_PREFIX}${weekId}${VaultService.WEEKLY_OBJECTIVE_MARKER_SUFFIX}`;
+    }
+
+    private getWeeklyObjectiveTitle(weekId: string): string {
+        return `Weekly Focus · ${weekId}`;
+    }
+
+    private getThoughtsFolder(): string {
+        return this.resolveConfiguredFolder(this.settings.thoughtsFolder, '000 Bin/DIWA');
+    }
+
+    private normalizeWeeklyObjectiveLines(focus: string[]): string[] {
+        return focus
+            .flatMap((value) => this.normalizeLineBreaks(String(value ?? '')).split('\n'))
+            .map((value) => value.replace(/\[\[weeklyObjective\]\]/g, ' ').replace(/\s+/g, ' ').trim())
+            .filter(Boolean);
+    }
+
+    private buildWeeklyObjectiveBody(weekId: string, focus: string[]): string {
+        const lines = this.normalizeWeeklyObjectiveLines(focus);
+        const marker = this.getWeeklyObjectiveMarker(weekId);
+        if (lines.length === 0) return `${marker}\n`;
+        return `${marker}\n\n${lines.map((line) => `- ${VaultService.WEEKLY_OBJECTIVE_WIKILINK} ${line}`).join('\n')}\n`;
+    }
+
+    private async findWeeklyObjectiveThought(weekId: string, day: string): Promise<TFile | null> {
+        const thoughtsFolder = this.getThoughtsFolder();
+        const dayCandidates = this.app.vault.getMarkdownFiles().filter((file) => {
+            if (file.path !== thoughtsFolder && !file.path.startsWith(`${thoughtsFolder}/`)) return false;
+            const cache = this.app.metadataCache.getFileCache(file);
+            const frontmatter = cache?.frontmatter as Record<string, unknown> | undefined;
+            const cachedDay = typeof frontmatter?.day === 'string'
+                ? frontmatter.day.replace(/^\[\[|\]\]$/g, '').trim()
+                : '';
+            return cachedDay === day;
+        });
+        const marker = this.getWeeklyObjectiveMarker(weekId);
+        for (const file of dayCandidates) {
+            const raw = await this.app.vault.read(file);
+            if (raw.includes(marker)) return file;
+        }
+        return null;
+    }
+
+    private async writeThoughtFile(
+        file: TFile | null,
+        text: string,
+        contexts: string[],
+        topic?: string | string[] | null,
+        options?: ThoughtWriteOptions,
+    ): Promise<TFile> {
+        if (file) {
+            await this.editThought(file.path, text, contexts, {
+                topic,
+                title: options?.title,
+                journalType: options?.journalType,
+                day: options?.day,
+                modified: options?.modified,
+            });
+            return file;
+        }
+        return this.createThoughtFile(text, contexts, topic, options);
+    }
+
+    private async upsertWeeklyObjectiveThought(reviewWeekId: string, focus: string[]): Promise<void> {
+        const targetWeekId = shiftWeeklyReviewWeek(reviewWeekId, 1);
+        const targetWeekMeta = getWeeklyReviewWeekMeta(targetWeekId);
+        const targetDay = targetWeekMeta.startDate;
+        const title = this.getWeeklyObjectiveTitle(targetWeekId);
+        const existing = await this.findWeeklyObjectiveThought(targetWeekId, targetDay);
+        const body = this.buildWeeklyObjectiveBody(targetWeekId, focus);
+        const created = existing ? undefined : `${targetDay} 09:00:00`;
+        const modified = this.formatDateTime(new Date());
+
+        await this.writeThoughtFile(
+            existing,
+            body,
+            [],
+            null,
+            {
+                title,
+                day: targetDay,
+                created,
+                modified,
+            },
+        );
+    }
+
     private normalizeTaskStatus(value?: string): TaskEntry['status'] {
         switch (value?.trim()) {
             case 'done':
@@ -203,41 +295,6 @@ export class VaultService {
             case 'open':
             default:
                 return 'open';
-        }
-    }
-
-    private buildMilestonesSection(milestones: Milestone[]): string {
-        const normalized = milestones.map((milestone, index) => ({
-            id: milestone.id || this.buildFallbackMilestoneId(`${milestone.title}|${milestone.dueDate ?? ''}|${index}`),
-            title: milestone.title,
-            done: !!milestone.done,
-            dueDate: milestone.dueDate || null,
-        }));
-        return `## Milestones\n\`\`\`diwa-milestones\n${JSON.stringify(normalized, null, 2)}\n\`\`\``;
-    }
-
-    private parseStructuredMilestones(section: string): Milestone[] | null {
-        const match = section.match(/^\s*```diwa-milestones\r?\n([\s\S]*?)\r?\n```\s*$/);
-        if (!match) return null;
-        try {
-            const parsed = JSON.parse(match[1]) as Array<Partial<Milestone>>;
-            if (!Array.isArray(parsed)) return [];
-            return parsed.map((milestone, index) => {
-                const title = String(milestone.title ?? '').trim();
-                const dueDate = typeof milestone.dueDate === 'string' && this.isMilestoneDateToken(milestone.dueDate)
-                    ? milestone.dueDate
-                    : undefined;
-                return {
-                    id: typeof milestone.id === 'string' && milestone.id.trim()
-                        ? milestone.id.trim()
-                        : this.buildFallbackMilestoneId(`${title}|${dueDate ?? ''}|${index}`),
-                    title,
-                    done: Boolean(milestone.done),
-                    dueDate,
-                };
-            }).filter((milestone) => milestone.title);
-        } catch {
-            return [];
         }
     }
 
@@ -334,17 +391,18 @@ export class VaultService {
         );
     }
 
-    async createThoughtFile(text: string, contexts: string[], project?: string, topic?: string | string[] | null, options?: ThoughtWriteOptions): Promise<TFile> {
+    async createThoughtFile(text: string, contexts: string[], topic?: string | string[] | null, options?: ThoughtWriteOptions): Promise<TFile> {
         // arch-08: Normalize <br> → newline at service boundary
         text = text.replace(/<br>/g, '\n');
-        const folder = this.resolveConfiguredFolder(this.settings.thoughtsFolder, '000 Bin/DIWA');
+        const folder = this.getThoughtsFolder();
         const now = new Date();
-        const created = this.formatDateTime(now);
-        const dayStr = this.formatDate(now);
+        const created = options?.created?.trim() || this.formatDateTime(now);
+        const modified = options?.modified?.trim() || created;
+        const dayStr = options?.day?.trim() || this.formatDate(now);
         const journalType = normalizeJournalType(options?.journalType);
         const normalizedContexts = journalType ? buildJournalContexts(contexts, journalType) : contexts;
         const title = options?.title?.trim() || this.extractTitle(text) || 'Untitled thought';
-        const fm = this.buildFrontmatter(title, created, created, dayStr, normalizedContexts, false, project, topic, journalType);
+        const fm = this.buildFrontmatter(title, created, modified, dayStr, normalizedContexts, false, topic, journalType);
         const filename = this.generateFilename();
         return await this.createFile(folder, filename, fm + text);
     }
@@ -353,8 +411,7 @@ export class VaultService {
         text: string,
         contexts: string[],
         dueDate?: string,
-        project?: string,
-        opts?: { priority?: string; energy?: string; status?: string; recurrence?: string; recurrenceParentId?: string; milestone?: string },
+        opts?: { priority?: string; energy?: string; status?: string; recurrence?: string; recurrenceParentId?: string },
     ): Promise<TFile> {
         // arch-08: Normalize <br> → newline at service boundary
         text = text.replace(/<br>/g, '\n');
@@ -376,26 +433,24 @@ export class VaultService {
             opts?.status ?? 'open',
             due,
             contexts,
-            project,
             opts?.recurrence,
             opts?.recurrenceParentId,
             opts?.priority,
             opts?.energy,
-            opts?.milestone,
         );
         const filename = this.generateFilename('task_');
         return await this.createFile(folder, filename, fm + text);
     }
 
-    async editThought(filePath: string, newText: string, contexts: string[], options?: { topic?: string | string[] | null; title?: string; journalType?: string | null }): Promise<void> {
+    async editThought(filePath: string, newText: string, contexts: string[], options?: { topic?: string | string[] | null; title?: string; journalType?: string | null; day?: string; modified?: string }): Promise<void> {
         // arch-08: Normalize <br> → newline at service boundary
         newText = newText.replace(/<br>/g, '\n');
         const file = this.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) return;
         try {
             const now = new Date();
-            const nowStr = this.formatDateTime(now);
-            const dayStr = this.formatDate(now);
+            const nowStr = options?.modified?.trim() || this.formatDateTime(now);
+            const dayStr = options?.day?.trim() || this.formatDate(now);
             const journalType = normalizeJournalType(options?.journalType);
             const title = options?.title?.trim() || this.extractTitle(newText) || 'Untitled thought';
             const normalizedContexts = journalType ? buildJournalContexts(contexts, journalType) : contexts;
@@ -415,7 +470,7 @@ export class VaultService {
                 if (journalType) fm['journalType'] = journalType;
                 else delete fm['journalType'];
                 fm['tags'] = tags;
-                // preserve existing created, pinned, project
+                // preserve existing created and pinned
             });
 
             // Step 2: update body text, preserving comment/reply section
@@ -449,7 +504,7 @@ export class VaultService {
                 fm['topic'] = toStoredThoughtTopic(safeTopics);
                 fm['tags'] = tags;
                 fm['modified'] = nowStr;
-                // preserve: created, title, day, body, pinned, project
+                // preserve: created, title, day, body, pinned
             });
         } catch (e) {
             console.error('[DIWA VaultService]', e);
@@ -466,7 +521,7 @@ export class VaultService {
             const nowStr = this.formatDateTime(now);
             const dayStr = this.formatDate(now);
             const title = this.extractTitle(newText);
-            const safeContexts = contexts.map(c => this.sanitizeContext(c));            // Step 1: update FM fields safely via Obsidian API — preserves status, created, project
+            const safeContexts = contexts.map(c => this.sanitizeContext(c));            // Step 1: update FM fields safely via Obsidian API — preserves status and created
             await this.app.fileManager.processFrontMatter(file, (fm) => {
                 fm['title'] = this.sanitizeYamlString(title);
                 fm['modified'] = nowStr;
@@ -536,8 +591,6 @@ export class VaultService {
         energy:     string | null;
         status:     string;
         contexts:   string[];
-        project:    string | null;
-        milestone?: string | null;
         bucketStatus?: 'backlog' | 'active' | 'done' | null;
         focus?: boolean | null;
         bodyText?: string;
@@ -572,14 +625,6 @@ export class VaultService {
                 else { delete fm['energy']; }
                 if (updates.recurrence !== null) { fm['recurrence'] = updates.recurrence; }
                 else { delete fm['recurrence']; }
-                if (updates.project !== null) { fm['project'] = updates.project; }
-                else { delete fm['project']; }
-                if (updates.milestone !== undefined) {
-                    if (updates.milestone !== null) fm['milestone'] = updates.milestone;
-                    else delete fm['milestone'];
-                } else if (updates.project === null) {
-                    delete fm['milestone'];
-                }
             });
 
             // Update body text — preserve any reply sections
@@ -869,6 +914,12 @@ export class VaultService {
             } else {
                 await this.app.vault.create(path, content);
             }
+            try {
+                await this.upsertWeeklyObjectiveThought(weekId, focus);
+            } catch (objectiveError) {
+                console.error('[DIWA VaultService] upsertWeeklyObjectiveThought', objectiveError);
+                new Notice('Weekly review saved, but Next Week’s Focus note could not be updated.');
+            }
             const savedFile = this.app.vault.getAbstractFileByPath(path);
             return savedFile instanceof TFile ? savedFile.stat.mtime : Date.now();
         } catch (e) {
@@ -877,126 +928,6 @@ export class VaultService {
         }
     }
 
-    async createProject(entry: ProjectEntry): Promise<TFile> {
-        const folder = this.resolveConfiguredFolder(this.settings.projectsFolder, 'Projects');
-        await this.ensureFolder(folder);
-        const safeName = entry.id.replace(/[/\\?%*:|"<>]/g, '-');
-        const content = [
-            buildYamlFrontmatter({
-                id: entry.id,
-                name: entry.name,
-                status: entry.status,
-                goal: entry.goal,
-                due: entry.due,
-                created: entry.created,
-                color: entry.color,
-            }).trimEnd(),
-            '',
-            this.buildMilestonesSection([]),
-            '',
-            '## Notes',
-            '',
-        ].join('\n');
-        return await createVaultFile(this.app, folder, `${safeName}.md`, content, { onCollision: 'error' });
-    }
-
-    async updateProject(file: TFile, updates: Partial<ProjectEntry>): Promise<void> {
-        await this.app.fileManager.processFrontMatter(file, (fm) => {
-            if (updates.name !== undefined) fm['name'] = updates.name;
-            if (updates.status !== undefined) fm['status'] = updates.status;
-            if (updates.goal !== undefined) fm['goal'] = updates.goal;
-            if (updates.due !== undefined) fm['due'] = updates.due;
-            if (updates.color !== undefined) fm['color'] = updates.color;
-        });
-    }
-
-    private buildFallbackMilestoneId(seed: string): string {
-        let hash = 0;
-        for (let index = 0; index < seed.length; index++) {
-            hash = ((hash << 5) - hash) + seed.charCodeAt(index);
-            hash |= 0;
-        }
-        return `m-${Math.abs(hash).toString(36)}`;
-    }
-
-    private isMilestoneDateToken(value: string): boolean {
-        return /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
-    }
-
-    async readMilestones(filePath: string): Promise<Milestone[]> {
-        const file = this.app.vault.getAbstractFileByPath(filePath);
-        if (!(file instanceof TFile)) return [];
-        try {
-            const content = await this.app.vault.read(file);
-            const match = content.match(/## Milestones\r?\n([\s\S]*?)(?=\r?\n##|$)/);
-            if (!match) return [];
-            const structured = this.parseStructuredMilestones(match[1]);
-            if (structured) return structured;
-            const lines = match[1].split('\n').filter(l => l.trim().match(/^- \[[ x]\]/));
-            return lines.map((line, i) => {
-                const done = line.includes('- [x]');
-                const rest = line.replace(/^- \[[ x]\] /, '').trim();
-                const parts = rest.split(' | ').map((part) => part.trim()).filter(Boolean);
-                let remainingParts = [...parts];
-                let id: string | undefined;
-                const lastPart = remainingParts[remainingParts.length - 1];
-                if (lastPart?.startsWith('id:')) {
-                    id = lastPart.slice(3).trim() || undefined;
-                    remainingParts = remainingParts.slice(0, -1);
-                }
-                let dueDate: string | undefined;
-                const dueCandidate = remainingParts[remainingParts.length - 1];
-                if (remainingParts.length > 1 && dueCandidate && this.isMilestoneDateToken(dueCandidate)) {
-                    dueDate = dueCandidate;
-                    remainingParts = remainingParts.slice(0, -1);
-                }
-                const title = remainingParts.join(' | ').trim();
-                return {
-                    id: id || this.buildFallbackMilestoneId(`${title}|${dueDate ?? ''}|${i}`),
-                    title,
-                    done,
-                    dueDate,
-                };
-            });
-        } catch { return []; }
-    }
-
-    async writeMilestones(filePath: string, milestones: Milestone[]): Promise<void> {
-        const file = this.app.vault.getAbstractFileByPath(filePath);
-        if (!(file instanceof TFile)) return;
-        const content = await this.app.vault.read(file);
-        const section = this.buildMilestonesSection(milestones);
-        const sectionRegex = /## Milestones\r?\n[\s\S]*?(?=\r?\n##|$)/;
-        const newContent = sectionRegex.test(content)
-            ? content.replace(sectionRegex, section)
-            : content + '\n\n' + section;
-        await this.app.vault.modify(file, newContent);
-    }
-
-    async setTaskProjectMilestone(filePath: string, projectId: string | null, milestoneId: string | null): Promise<void> {
-        const file = this.app.vault.getAbstractFileByPath(filePath);
-        if (!(file instanceof TFile)) return;
-        await this.app.fileManager.processFrontMatter(file, (fm) => {
-            fm['modified'] = this.formatDateTime(new Date());
-            if (projectId) fm['project'] = projectId;
-            else delete fm['project'];
-            if (milestoneId) fm['milestone'] = milestoneId;
-            else delete fm['milestone'];
-        });
-    }
-
-    async archiveProject(file: TFile): Promise<void> {
-        await this.app.fileManager.processFrontMatter(file, (fm) => {
-            fm['status'] = 'archived';
-        });
-    }
-
-    async loadProjectNotes(file: TFile): Promise<string> {
-        const content = await this.app.vault.read(file);
-        const yamlEnd = content.indexOf('\n---', 3);
-        if (yamlEnd === -1) return content;
-        return content.slice(yamlEnd + 4).trim();
-    }
 
     /** Save monthly goals to {reviewsFolder}/Monthly/YYYY-MM.md */
     async saveMonthlyGoals(monthId: string, goals: string[]): Promise<void> {

@@ -384,7 +384,6 @@ export class DesktopTaskPaneView implements TaskPanePort {
                             payload.text,
                             payload.contexts,
                             payload.dueDate || undefined,
-                            payload.project || undefined,
                             {
                                 priority: payload.priority ?? undefined,
                                 status: payload.status,
@@ -1093,10 +1092,6 @@ export class TaskPane implements TaskPanePort {
                 return count > 0
                     ? `${count} capture${count === 1 ? '' : 's'} waiting to be shaped`
                     : 'Quick ideas land here first';
-            case 'gawa-projects':
-                return count > 0
-                    ? `${count} project-linked task${count === 1 ? '' : 's'} in play`
-                    : 'Project-linked tasks stay collected here';
             case 'gawa-today':
                 return count > 0
                     ? `${count} task${count === 1 ? '' : 's'} demanding attention today`
@@ -1492,7 +1487,6 @@ export class TaskItemView {
     private taskLinkCountEl: HTMLElement;
     private checkboxEl: HTMLElement;
     private titleEl: HTMLElement;
-    private projectChipEl: HTMLButtonElement | null = null;
     private dueChipEl: HTMLButtonElement | null = null;
     private quickActionsEl: HTMLElement | null = null;
     private linkIconsEl: HTMLElement | null = null;
@@ -1853,7 +1847,6 @@ export class TaskItemView {
                 });
             };
 
-            createOption('Change project', () => this.openProjectPicker(anchor));
             createOption('Change date', () => this.openDuePicker(anchor));
             createOption('Link thought', () => this.openLinkModal());
             createOption('Duplicate', async () => this.duplicateCurrentTask());
@@ -1990,7 +1983,7 @@ export class TaskItemView {
         if (force || wasDone !== isDone) this.rootEl.toggleClass('is-done', isDone);
         if (force || wasFocused !== isFocused) this.rootEl.toggleClass('is-focused', isFocused);
         if (force || prev.title !== task.title) this.titleEl.setText(task.title);
-        if (force || prev.due !== task.due || prev.project !== task.project || wasOverdue !== isOverdue) {
+        if (force || prev.due !== task.due || wasOverdue !== isOverdue) {
             this.renderMetaChips(task, isOverdue);
         }
         if (force || !areStringArraysEqual(prevThoughtIds, nextThoughtIds)) {
@@ -2003,17 +1996,6 @@ export class TaskItemView {
     }
 
     private renderMetaChips(task: TaskEntry, isOverdue: boolean): void {
-        if (!this.projectChipEl) {
-            this.projectChipEl = this.metaEl.createEl('button', {
-                cls: 'diwa-dh-task-chip diwa-dh-task-chip--project',
-                attr: { type: 'button', 'aria-label': 'Edit project' },
-            }) as HTMLButtonElement;
-            this.projectChipEl.addEventListener('click', (event) => {
-                event.stopPropagation();
-                this.openProjectPicker(this.projectChipEl!);
-            });
-        }
-
         if (!this.dueChipEl) {
             this.dueChipEl = this.metaEl.createEl('button', {
                 cls: 'diwa-dh-task-chip diwa-dh-task-chip--due',
@@ -2023,15 +2005,6 @@ export class TaskItemView {
                 event.stopPropagation();
                 this.openDuePicker(this.dueChipEl!);
             });
-        }
-
-        const projectName = task.project?.trim() || '';
-        const hasProject = projectName.length > 0;
-        if (hasProject) {
-            this.projectChipEl.setText(`#${projectName}`);
-            this.projectChipEl.style.display = '';
-        } else {
-            this.projectChipEl.style.display = 'none';
         }
 
         const hasDue = !!task.due;
@@ -2046,7 +2019,7 @@ export class TaskItemView {
             this.dueChipEl.removeClass('is-overdue');
         }
 
-        this.syncMetaVisibility(hasProject || hasDue);
+        this.syncMetaVisibility(hasDue);
     }
 
     private syncMetaVisibility(visible: boolean): void {
@@ -2060,7 +2033,7 @@ export class TaskItemView {
     }
 
     private hasVisibleMetadata(task: TaskEntry): boolean {
-        return !!(task.project?.trim() || task.due);
+        return !!task.due;
     }
 
     private isOverdue(due: string): boolean {
@@ -2392,69 +2365,6 @@ export class TaskItemView {
         });
     }
 
-    private openProjectPicker(anchor: HTMLElement): void {
-        const projects = (Array.from(this.view.plugin.index.projectIndex.values()) as Array<{ name: string; status: string }>)
-            .filter((project) => project.status !== 'archived')
-            .sort((a, b) => a.name.localeCompare(b.name));
-
-        this.openInlinePopover(anchor, (popover) => {
-            const search = popover.createEl('input', {
-                cls: 'diwa-dh-inline-popover-search',
-                attr: {
-                    type: 'text',
-                    placeholder: 'Search projects…',
-                    spellcheck: 'false',
-                },
-            }) as HTMLInputElement;
-            const list = popover.createEl('div', { cls: 'diwa-dh-inline-popover-list' });
-
-            const renderOptions = (query: string) => {
-                const q = query.trim().toLowerCase();
-                list.empty();
-
-                const clearBtn = list.createEl('button', {
-                    cls: 'diwa-dh-inline-option',
-                    text: '#none',
-                    attr: { type: 'button' },
-                });
-                clearBtn.toggleClass('is-active', !this.currentTask.project);
-                clearBtn.addEventListener('click', () => {
-                    void this.applyInlineMetadata({ project: null });
-                });
-
-                let visibleCount = 0;
-                for (const project of projects) {
-                    if (q && !project.name.toLowerCase().includes(q)) continue;
-                    const option = list.createEl('button', {
-                        cls: 'diwa-dh-inline-option',
-                        text: `#${project.name}`,
-                        attr: { type: 'button' },
-                    });
-                    option.toggleClass('is-active', this.currentTask.project === project.name);
-                    option.addEventListener('click', () => {
-                        void this.applyInlineMetadata({ project: project.name });
-                    });
-                    visibleCount++;
-                }
-
-                if (visibleCount === 0 && q) {
-                    list.createEl('div', {
-                        cls: 'diwa-dh-inline-empty',
-                        text: 'No matching projects',
-                    });
-                }
-            };
-
-            renderOptions('');
-            search.addEventListener('input', () => renderOptions(search.value));
-            setTimeout(() => search.focus(), 30);
-        }, {
-            eyebrow: 'Metadata',
-            title: 'Project',
-            description: 'Assign a project or clear it for a lighter task card.',
-            kind: 'project',
-        });
-    }
 
     private openDuePicker(anchor: HTMLElement): void {
         this.openInlinePopover(anchor, (popover) => {
@@ -2519,7 +2429,6 @@ export class TaskItemView {
         const state = this.getWorkflowState(this.currentTask);
         const title = (this.currentTask.title || this.currentTask.body || 'Untitled task').trim();
         const meta: string[] = [];
-        if (this.currentTask.project?.trim()) meta.push(`#${this.currentTask.project.trim()}`);
         if (this.currentTask.due?.trim()) meta.push(`Due ${this.currentTask.due.trim()}`);
 
         this.openInlinePopover(this.rootEl, (popover) => {
@@ -2582,7 +2491,6 @@ export class TaskItemView {
                 });
             };
 
-            createOption('Change project', () => this.openProjectPicker(this.rootEl));
             createOption('Change due date', () => this.openDuePicker(this.rootEl));
             createOption('Open full editor', () => this.openStructuredEditor());
             createOption('Link thought', () => this.openLinkModal());
@@ -2731,7 +2639,6 @@ export class TaskItemView {
                 bodyText,
                 [...(source.context || [])],
                 source.due || undefined,
-                source.project || undefined,
                 {
                     priority: source.priority ?? undefined,
                     energy: source.energy ?? undefined,
@@ -2754,7 +2661,7 @@ export class TaskItemView {
         }
     }
 
-    private async applyInlineMetadata(updates: { project?: string | null; dueDate?: string | null }): Promise<void> {
+    private async applyInlineMetadata(updates: { dueDate?: string | null }): Promise<void> {
         if (this.destroyed) return;
         if (this.rootEl.hasClass('is-completing')) return;
         this.closeInlinePopover();

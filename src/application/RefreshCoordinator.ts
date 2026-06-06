@@ -51,7 +51,6 @@ export class RefreshCoordinator {
         if (this.index.isThoughtFile(file.path)) await this.index.indexThoughtFile(file);
         else if (this.index.isTaskFile(file.path)) await this.index.indexTaskFile(file);
         else if (this.index.isDueFile(file.path)) this.index.indexDueFile(file);
-        else if (this.index.isProjectFile(file.path)) await this.index.indexProjectFile(file);
 
         if (file.path === capPath) await this.index.buildChecklistIndex();
     }

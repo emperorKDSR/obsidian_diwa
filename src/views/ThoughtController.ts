@@ -180,7 +180,7 @@ export class ThoughtController {
         return this.upsertThought(indexed, true);
     }
 
-    async addThought(thought: Partial<ThoughtEntry> & { content?: string; context?: string[]; topic?: string | string[] | null; project?: string | null; title?: string; journalType?: string | null }): Promise<ThoughtEntry | null> {
+    async addThought(thought: Partial<ThoughtEntry> & { content?: string; context?: string[]; topic?: string | string[] | null; title?: string; journalType?: string | null }): Promise<ThoughtEntry | null> {
         const content = (thought.content ?? thought.body ?? '').trim();
         const title = String(thought.title || '').trim();
         if (!content && !title) return null;
@@ -190,7 +190,6 @@ export class ThoughtController {
             const created = await this.plugin.vault.createThoughtFile(
                 content,
                 thought.context ?? [],
-                thought.project ?? undefined,
                 thought.topic ?? undefined,
                 {
                     title: title || undefined,
@@ -484,7 +483,7 @@ export class ThoughtController {
         if (!thought) return false;
         const content = (thought.content || thought.body || thought.title || '').trim();
         if (!content) return false;
-        const created = await this.plugin.vault.createTaskFile(content, [...(thought.context || [])], undefined, thought.project || undefined, { status: 'open' });
+        const created = await this.plugin.vault.createTaskFile(content, [...(thought.context || [])], undefined, { status: 'open' });
         await this.plugin.refreshCoordinator.reindexFile(created);
         const indexedTask = this.plugin.index.taskIndex.get(created.path);
         if (!indexedTask) return false;

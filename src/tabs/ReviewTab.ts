@@ -1,15 +1,22 @@
+import { Component } from 'obsidian';
 import type { DiwaView } from '../view';
 import { WeeklyReviewWorkspace } from '../review/WeeklyReviewWorkspace';
 import { BaseTab } from './BaseTab';
 
 export class ReviewTab extends BaseTab {
     private readonly workspace: WeeklyReviewWorkspace;
+    private reviewMarkdownHost: Component;
 
     constructor(view: DiwaView) {
         super(view);
+        const tab = this;
+        this.reviewMarkdownHost = new Component();
+        this.view.addChild(this.reviewMarkdownHost);
         this.workspace = new WeeklyReviewWorkspace({
             app: this.app,
-            component: this.view,
+            get component() {
+                return tab.reviewMarkdownHost;
+            },
             plugin: this.plugin,
             settings: this.settings,
             index: this.index,
@@ -45,6 +52,14 @@ export class ReviewTab extends BaseTab {
     }
 
     render(container: HTMLElement): void {
+        this.reviewMarkdownHost.unload();
+        this.reviewMarkdownHost = new Component();
+        this.view.addChild(this.reviewMarkdownHost);
         this.workspace.render(container, this.beginRenderCycle());
+    }
+
+    onunload(): void {
+        super.onunload();
+        this.reviewMarkdownHost.unload();
     }
 }

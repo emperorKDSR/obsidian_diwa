@@ -30,13 +30,12 @@ interface PaneConfig {
     focusOnDrop?: boolean;
 }
 
-type MobileTabId = 'inbox' | 'today' | 'focus' | 'projects';
-const MOBILE_TAB_ORDER: MobileTabId[] = ['inbox', 'today', 'focus', 'projects'];
+type MobileTabId = 'inbox' | 'today' | 'focus';
+const MOBILE_TAB_ORDER: MobileTabId[] = ['inbox', 'today', 'focus'];
 const MOBILE_TAB_META: Record<MobileTabId, { label: string; icon: string }> = {
     inbox: { label: 'Inbox', icon: 'inbox' },
     today: { label: 'Today', icon: 'sun-medium' },
     focus: { label: 'Focus', icon: 'target' },
-    projects: { label: 'Projects', icon: 'folder-kanban' },
 };
 type GawaLayoutMode = 'desktop' | 'tablet' | 'phone';
 type InboxCaptureTarget = 'backlog' | 'active' | 'focus';
@@ -45,7 +44,6 @@ interface ParsedInboxCapture {
     text: string;
     contexts: string[];
     dueDate: string | null;
-    project: string | null;
     priority: 'high' | 'medium' | 'low' | null;
 }
 
@@ -65,7 +63,6 @@ export class GawaTab extends BaseTab {
     private _taskPending = 0;
     private _taskFilter: 'upcoming' | 'all' = 'all';
     private _taskIndexRecoveryInFlight = false;
-    private readonly _collapsedProjectGroups = new Set<string>();
 
     constructor(view: DiwaView) {
         super(view);
@@ -389,7 +386,6 @@ export class GawaTab extends BaseTab {
             inbox: this.createInboxPaneConfig(),
             today: this.createTodayPaneConfig(),
             focus: this.createFocusPaneConfig(),
-            projects: this.createProjectsPaneConfig(),
         };
 
         for (const tabId of MOBILE_TAB_ORDER) {
@@ -534,7 +530,6 @@ export class GawaTab extends BaseTab {
                     parsed.text,
                     parsed.contexts,
                     parsed.dueDate || undefined,
-                    parsed.project || undefined,
                     {
                         priority: parsed.priority ?? undefined,
                         status,
@@ -659,7 +654,6 @@ export class GawaTab extends BaseTab {
     private buildPaneConfigMap(): Record<GawaPaneId, PaneConfig> {
         return {
             'gawa-inbox': this.createInboxPaneConfig(),
-            'gawa-projects': this.createProjectsPaneConfig(),
             'gawa-today': this.createTodayPaneConfig(),
             'gawa-focus': this.createFocusPaneConfig(),
             'gawa-active': this.createActivePaneConfig(),
@@ -695,7 +689,6 @@ export class GawaTab extends BaseTab {
                 payload.text,
                 payload.contexts,
                 payload.dueDate || undefined,
-                payload.project || undefined,
                 {
                     priority: payload.priority ?? undefined,
                     status: payload.status,
@@ -733,15 +726,8 @@ export class GawaTab extends BaseTab {
         const dueTokens = Array.from(value.matchAll(/(^|\s)@([^\s#@!.,;:!?()[\]{}]+)/g)).map((match) => match[2]);
         const priorityTokens = Array.from(value.matchAll(/(^|\s)!([^\s#@!.,;:!?()[\]{}]+)/g)).map((match) => match[2]);
 
-        const projectLookup = this.buildProjectLookup();
         const contexts: string[] = [];
-        let project: string | null = null;
         for (const tag of tags) {
-            const resolvedProject = projectLookup.get(this.normalizeCaptureToken(tag));
-            if (!project && resolvedProject) {
-                project = resolvedProject;
-                continue;
-            }
             if (!contexts.includes(tag)) contexts.push(tag);
         }
 
@@ -768,18 +754,9 @@ export class GawaTab extends BaseTab {
             .replace(/\s+/g, ' ')
             .trim();
 
-        return { text, contexts, dueDate, project, priority };
+        return { text, contexts, dueDate, priority };
     }
 
-    private buildProjectLookup(): Map<string, string> {
-        const projectLookup = new Map<string, string>();
-        for (const project of this.plugin.index.projectIndex.values()) {
-            if (project.status === 'archived') continue;
-            projectLookup.set(this.normalizeCaptureToken(project.name), project.name);
-            projectLookup.set(this.normalizeCaptureToken(project.id), project.name);
-        }
-        return projectLookup;
-    }
 
     private normalizeCaptureToken(value: string): string {
         return value.toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -835,7 +812,6 @@ export class GawaTab extends BaseTab {
             body: parsed.text,
             lastUpdate: now,
             children: [],
-            project: parsed.project || undefined,
             priority: parsed.priority ?? undefined,
             bucketStatus,
             focus,
@@ -848,43 +824,6 @@ export class GawaTab extends BaseTab {
         return task.taskId?.trim() || task.filePath;
     }
 
-    private normalizeProjectGroupKey(value: string | null | undefined): string | null {
-        const normalized = value?.trim();
-        return normalized ? normalized : null;
-    }
-
-    private isProjectGroupCollapsed(groupKey: string): boolean {
-        return this._collapsedProjectGroups.has(groupKey);
-    }
-
-    private setProjectGroupCollapsed(groupKey: string, collapsed: boolean): void {
-        if (!groupKey) return;
-        if (collapsed) {
-            this._collapsedProjectGroups.add(groupKey);
-            return;
-        }
-        this._collapsedProjectGroups.delete(groupKey);
-    }
-
-    private getProjectsGroupController(): TaskPaneGroupController {
-        return {
-            getLabel: (groupKey) => groupKey,
-            isCollapsed: (groupKey) => this.isProjectGroupCollapsed(groupKey),
-            setCollapsed: (groupKey, collapsed) => this.setProjectGroupCollapsed(groupKey, collapsed),
-        };
-    }
-
-    private compareProjectTasks(a: TaskEntry, b: TaskEntry): number {
-        const aProject = this.normalizeProjectGroupKey(a.project) || '';
-        const bProject = this.normalizeProjectGroupKey(b.project) || '';
-        const projectCompare = aProject.localeCompare(bProject, undefined, { sensitivity: 'base' });
-        if (projectCompare !== 0) return projectCompare;
-        if (a.due && b.due) return a.due.localeCompare(b.due);
-        if (a.due && !b.due) return -1;
-        if (!a.due && b.due) return 1;
-        return (b.lastUpdate || 0) - (a.lastUpdate || 0);
-    }
-
     private createInboxPaneConfig(): PaneConfig {
         return {
             paneId: 'gawa-inbox',
@@ -893,31 +832,12 @@ export class GawaTab extends BaseTab {
             emptyMessage: 'Inbox is clear. New quick captures land here first.',
             bucketOnDrop: 'backlog',
             focusOnDrop: false,
-            canDropTask: (task) => !task.project && !task.due,
+            canDropTask: (task) => !task.due,
             baseFilterFn: (task) => this.getBucketStatus(task) === 'backlog',
-            filterFn: (task) => !task.project && !task.due,
+            filterFn: (task) => !task.due,
         };
     }
 
-    private createProjectsPaneConfig(): PaneConfig {
-        return {
-            paneId: 'gawa-projects',
-            title: 'Projects',
-            eyebrow: 'Planning lane',
-            emptyMessage: 'No project-linked work yet.',
-            bucketOnDrop: 'backlog',
-            focusOnDrop: false,
-            sortFn: (a, b) => this.compareProjectTasks(a, b),
-            plugins: [{
-                id: 'gawa-project-grouping',
-                groupBy: (task) => this.normalizeProjectGroupKey(task.project),
-            }],
-            canDropTask: (task) => !!this.normalizeProjectGroupKey(task.project),
-            groupController: this.getProjectsGroupController(),
-            baseFilterFn: (task) => this.getBucketStatus(task) === 'backlog',
-            filterFn: (task) => !!task.project,
-        };
-    }
 
     private createTodayPaneConfig(): PaneConfig {
         return {

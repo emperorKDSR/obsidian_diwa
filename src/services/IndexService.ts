@@ -1,5 +1,5 @@
 import { App, TFile, moment } from 'obsidian';
-import { DiwaSettings, ThoughtEntry, TaskEntry, DueEntry, ProjectEntry, TaskBucketStatus } from '../types';
+import { DiwaSettings, ThoughtEntry, TaskEntry, DueEntry, TaskBucketStatus } from '../types';
 import { extractWikiLinks } from '../utils/wikilinks';
 import { getThoughtDisplayTitle, inferJournalType } from '../journal/shared';
 import { normalizeThoughtTopics, toStoredThoughtTopic } from '../utils/topics';
@@ -25,7 +25,6 @@ type IndexRebuildSelection = {
     tasks?: boolean;
     dues?: boolean;
     checklist?: boolean;
-    projects?: boolean;
 };
 
 export class IndexService {
@@ -172,7 +171,6 @@ export class IndexService {
         this._thoughtDoneChecklistMap.forEach(items => result.push(...items));
         return result;
     }
-    projectIndex: Map<string, ProjectEntry> = new Map();
     
     // Performance Cache (Synchronous Access)
     radarQueue: TaskEntry[] = [];
@@ -182,7 +180,6 @@ export class IndexService {
     private _lastIndexedThoughtsFolderSetting: string;
     private _lastIndexedPfFolderSetting: string;
     private _lastIndexedCapturePath: string;
-    private _lastIndexedProjectsFolderSetting: string;
 
     constructor(app: App, settings: DiwaSettings) {
         this.app = app;
@@ -191,13 +188,11 @@ export class IndexService {
         const initialThoughtsFolder = this.getConfiguredThoughtsFolder();
         const initialPfFolder = this.getConfiguredPfFolder();
         const initialCapturePath = this.getConfiguredCapturePath();
-        const initialProjectsFolder = this.getConfiguredProjectsFolder();
         this._activeTasksFolder = initialTasksFolder;
         this._lastIndexedTasksFolderSetting = initialTasksFolder;
         this._lastIndexedThoughtsFolderSetting = initialThoughtsFolder;
         this._lastIndexedPfFolderSetting = initialPfFolder;
         this._lastIndexedCapturePath = initialCapturePath;
-        this._lastIndexedProjectsFolderSetting = initialProjectsFolder;
     }
 
     private normalizeVaultPath(path: string): string {
@@ -231,9 +226,6 @@ export class IndexService {
         return getCanonicalCapturePath(this.settings);
     }
 
-    private getConfiguredProjectsFolder(): string {
-        return this.normalizeConfiguredPath(this.settings.projectsFolder, 'Projects', 'projectsFolder');
-    }
 
     private getTaskMarkdownFilesForFolder(folder: string): TFile[] {
         return this.app.vault.getMarkdownFiles().filter((file) =>
@@ -253,7 +245,6 @@ export class IndexService {
             tasks: true,
             dues: true,
             checklist: true,
-            projects: true,
         });
     }
 
@@ -273,7 +264,6 @@ export class IndexService {
             tasks: selection.tasks === true,
             dues: selection.dues === true,
             checklist: selection.checklist === true,
-            projects: selection.projects === true,
         };
     }
 
@@ -283,7 +273,6 @@ export class IndexService {
             selection.tasks ? this.buildTaskIndexInPlace() : Promise.resolve(),
             selection.dues ? this.buildDueIndexInPlace() : Promise.resolve(),
             selection.checklist ? this.buildChecklistIndexInPlace() : Promise.resolve(),
-            selection.projects ? this.buildProjectIndexInPlace() : Promise.resolve(),
         ]);
     }
 
@@ -311,17 +300,12 @@ export class IndexService {
             this.checklistIndex = [...source.checklistIndex];
             this._lastIndexedCapturePath = source._lastIndexedCapturePath;
         }
-        if (selection.projects) {
-            this.projectIndex = new Map(source.projectIndex);
-            this._lastIndexedProjectsFolderSetting = source._lastIndexedProjectsFolderSetting;
-        }
     }
 
     resetAllIndices(): void {
         this.thoughtIndex.clear();
         this.taskIndex.clear();
         this.dueIndex.clear();
-        this.projectIndex.clear();
         this.checklistIndex = [];
         this._thoughtChecklistMap.clear();
         this._thoughtDoneChecklistMap.clear();
@@ -371,19 +355,6 @@ export class IndexService {
         }
     }
 
-    async buildProjectIndex(): Promise<void> {
-        await this.rebuildSelectedIndices({ projects: true });
-    }
-
-    private async buildProjectIndexInPlace(): Promise<void> {
-        const folder = this.getConfiguredProjectsFolder();
-        this.projectIndex.clear();
-        this._lastIndexedProjectsFolderSetting = folder;
-        const files = this.app.vault.getMarkdownFiles().filter((file) => this.isProjectFile(file.path));
-        for (const file of files) {
-            await this.indexProjectFile(file);
-        }
-    }
 
     async buildDueIndex(): Promise<void> {
         await this.rebuildSelectedIndices({ dues: true });
@@ -437,49 +408,6 @@ export class IndexService {
         if (removed && !skipRebuild) this.rebuildCalculatedState();
     }
 
-    async indexProjectFile(file: TFile): Promise<void> {
-        this.removeProjectFile(file.path);
-        if (!this.isProjectFile(file.path)) return;
-
-        const cache = this.app.metadataCache.getFileCache(file);
-        const content = await this.app.vault.read(file);
-        const fallbackFrontmatter = IndexService.parseFrontmatterFallback(content);
-        const cacheFrontmatter = cache?.frontmatter as Record<string, unknown> | undefined;
-        const fm = {
-            ...(fallbackFrontmatter ?? {}),
-            ...(cacheFrontmatter ?? {}),
-        } as Record<string, unknown>;
-        const id = String(fm['id'] ?? '').trim();
-        const name = String(fm['name'] ?? '').trim();
-        if (!id || !name) return;
-
-        const rawStatus = String(fm['status'] ?? 'active').trim();
-        const allowedStatuses: ProjectEntry['status'][] = ['active', 'on-hold', 'completed', 'archived'];
-        const status = allowedStatuses.includes(rawStatus as ProjectEntry['status'])
-            ? rawStatus as ProjectEntry['status']
-            : 'active';
-
-        this.projectIndex.set(id, {
-            id,
-            name,
-            status,
-            goal: String(fm['goal'] ?? ''),
-            due: fm['due'] ? String(fm['due']) : undefined,
-            created: String(fm['created'] ?? ''),
-            color: fm['color'] ? String(fm['color']) : undefined,
-            filePath: file.path,
-        });
-    }
-
-    removeProjectFile(path: string): boolean {
-        let removed = false;
-        for (const [projectId, entry] of this.projectIndex.entries()) {
-            if (entry.filePath !== path) continue;
-            this.projectIndex.delete(projectId);
-            removed = true;
-        }
-        return removed;
-    }
 
     async buildThoughtIndex(): Promise<void> {
         await this.rebuildSelectedIndices({ thoughts: true });
@@ -601,7 +529,6 @@ export class IndexService {
             pinned: Boolean(fm.pinned),
             archived: Boolean(fm.archived),
             tags,
-            project: fm.project || null,
             allDates: fm.allDates || [],
             lastThreadUpdate: file.stat.mtime,
             links: {
@@ -666,12 +593,10 @@ export class IndexService {
         const dayValue = pickFrontmatter(['day']) ?? fm.day;
         const createdValue = pickFrontmatter(['created']) ?? fm.created;
         const modifiedValue = pickFrontmatter(['modified']) ?? fm.modified;
-        const projectValue = pickFrontmatter(['project']) ?? fm.project;
         const priorityValue = pickFrontmatter(['priority']) ?? fm.priority;
         const energyValue = pickFrontmatter(['energy']) ?? fm.energy;
         const recurrenceValue = pickFrontmatter(['recurrence']) ?? fm.recurrence;
         const recurrenceParentIdValue = pickFrontmatter(['recurrenceParentId']) ?? fm.recurrenceParentId;
-        const milestoneValue = pickFrontmatter(['milestone']) ?? fm.milestone;
         const focusValue = pickFrontmatter(['focus']) ?? fm.focus;
 
         let normalizedStatus: TaskEntry['status'] = 'open';
@@ -739,8 +664,6 @@ export class IndexService {
             day: String(dayValue || '').replace(/^\[\[|\]\]$/g, ''),
             context: IndexService.normalizeContext(fm.context ?? fm.contexts),
             children: comments,
-            project: projectValue ? String(projectValue) : undefined,
-            milestone: milestoneValue ? String(milestoneValue) : undefined,
             priority: priorityValue as TaskEntry['priority'] | undefined,
             energy: energyValue as TaskEntry['energy'] | undefined,
             recurrence: recurrenceValue as TaskEntry['recurrence'] | undefined,
@@ -813,35 +736,6 @@ export class IndexService {
         return this.getConfiguredCapturePath().toLowerCase() !== this._lastIndexedCapturePath.toLowerCase();
     }
 
-    isProjectFile(path: string): boolean {
-        const folder = this.getConfiguredProjectsFolder();
-        const normalizedPath = this.normalizeVaultPath(path);
-        return this.pathIsInFolder(normalizedPath, folder)
-            && normalizedPath.toLowerCase().endsWith('.md')
-            && !normalizedPath.toLowerCase().includes('/trash/');
-    }
-
-    projectsFolderChanged(): boolean {
-        return this.getConfiguredProjectsFolder().toLowerCase() !== this._lastIndexedProjectsFolderSetting.toLowerCase();
-    }
-
-    pathAffectsProjectsFolder(path: string): boolean {
-        const normalizedPath = this.normalizeVaultPath(path);
-        const folder = this.getConfiguredProjectsFolder();
-        return this.pathIsInFolder(normalizedPath, folder) || this.pathIsInFolder(folder, normalizedPath);
-    }
-
-    pathTouchesProjectsFolderBoundary(path: string): boolean {
-        const normalizedPath = this.normalizeVaultPath(path);
-        const folder = this.getConfiguredProjectsFolder();
-        return normalizedPath === folder || this.pathIsInFolder(folder, normalizedPath);
-    }
-
-    getProjects(): string[] {
-        const p = new Set<string>();
-        this.thoughtIndex.forEach(t => { if (t.project) p.add(t.project); });
-        return Array.from(p);
-    }
 
     async scanForContexts(): Promise<string[]> {
         const c = new Set<string>();

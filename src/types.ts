@@ -1,20 +1,7 @@
 import { TFile } from 'obsidian';
 
-export interface ProjectEntry {
-    id: string;
-    name: string;
-    status: 'active' | 'on-hold' | 'completed' | 'archived';
-    goal: string;
-    due?: string;
-    created: string;
-    color?: string;
-    filePath: string;
-    milestones?: Milestone[];
-}
-
 export type GawaPaneId =
     | 'gawa-inbox'
-    | 'gawa-projects'
     | 'gawa-today'
     | 'gawa-focus'
     | 'gawa-active'
@@ -34,8 +21,7 @@ export interface GawaLayoutPreferences {
     tablet: Record<GawaTabletBucketId, GawaLayoutBucketPreference>;
 }
 
-export type ResponsiveWorkspaceView = 'home' | 'review' | 'tasks' | 'projects' | 'thoughts' | 'bulsa';
-export type ResponsiveProjectFilter = 'all' | 'active' | 'on-hold' | 'completed';
+export type ResponsiveWorkspaceView = 'home' | 'review' | 'tasks' | 'thoughts' | 'bulsa';
 export type BulsaMode = 'ledger' | 'insights';
 
 export interface BulsaLeafState {
@@ -46,10 +32,6 @@ export interface BulsaLeafState {
 export interface ResponsiveShellState extends Record<string, unknown> {
     activeView?: ResponsiveWorkspaceView;
     activeContexts?: string[];
-    projectFilter?: ResponsiveProjectFilter;
-    expandedProjectIds?: string[];
-    selectedProjectId?: string | null;
-    selectedMilestoneIds?: Record<string, string | null>;
     selectedThoughtId?: string | null;
     selectedBulsaDuePath?: string | null;
     selectedReviewWeekId?: string | null;
@@ -100,20 +82,12 @@ export interface DiwaSettings {
     monthlyIncome: number;
     northStarGoals: string[];
     attachmentsFolder: string;
-    projectsFolder: string;
     reviewsFolder: string;
     mobileBottomBarHeight: number;
     legacyMigrated?: boolean;
     peopleFolder: string;
     contextOrder: string[];
     gawaLayoutPreferences: GawaLayoutPreferences;
-}
-
-export interface Milestone {
-    id: string;
-    title: string;
-    done: boolean;
-    dueDate?: string;
 }
 
 export interface CustomMode {
@@ -152,7 +126,6 @@ export interface ThoughtEntry {
     pinned?: boolean;          // true if the thought is pinned
     archived?: boolean;
     tags?: string[];
-    project?: string;          // associated project name
     synthesized?: boolean;     // true if the thought has been synthesized into a master note
     links?: {
         tasks: string[];       // linked task IDs (file paths in current implementation)
@@ -174,8 +147,6 @@ export interface TaskEntry {
     body: string;
     lastUpdate: number;    // ms timestamp of modified for sorting
     children: ReplyEntry[]; // Support comments/replies on tasks
-    project?: string;       // associated project name
-    milestone?: string;
     priority?: 'high' | 'medium' | 'low';
     energy?: 'high' | 'medium' | 'low';
     recurrence?: RecurrenceRule;

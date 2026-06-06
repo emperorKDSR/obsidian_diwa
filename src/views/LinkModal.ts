@@ -452,7 +452,6 @@ export class LinkModal {
             const created = await this.thoughtController.addThought({
                 content,
                 context: source?.context ?? [],
-                project: source?.project,
             });
             if (!created) {
                 return false;
@@ -469,9 +468,8 @@ export class LinkModal {
         const seedTask = this.activeContext.taskId ? this.taskController.getTask(this.activeContext.taskId) : null;
         const seedThought = this.activeContext.thoughtId ? this.thoughtController.getThought(this.activeContext.thoughtId) : null;
         const contexts = seedTask?.context ?? seedThought?.context ?? [];
-        const project = seedTask?.project ?? seedThought?.project ?? undefined;
 
-        const created = await this.plugin.vault.createTaskFile(content, contexts, undefined, project, { status: 'open' });
+        const created = await this.plugin.vault.createTaskFile(content, contexts, undefined, { status: 'open' });
         await this.plugin.refreshCoordinator.reindexFile(created);
         const indexedTask = this.plugin.index.taskIndex.get(created.path);
         if (!indexedTask) {

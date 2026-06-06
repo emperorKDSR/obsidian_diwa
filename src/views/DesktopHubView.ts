@@ -432,7 +432,6 @@ export class DesktopHubView extends ItemView {
                 title: 'Modules',
                 variant: 'primary',
                 items: [
-                    { label: 'Projects', icon: 'folder-kanban', tab: 'projects' },
                     { label: 'Gawa', icon: 'lucide-check-square-2', tab: 'review-gawa' },
                     { label: 'Bulsa', icon: PF_ICON_ID, tab: 'dues' },
                     { label: 'Review', icon: REVIEW_ICON_ID, tab: 'review' },

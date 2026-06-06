@@ -3,7 +3,6 @@ import DiwaPlugin from '../main';
 import { isTablet, parseNaturalDate, parseContextString, attachInlineTriggers, attachMediaPasteHandler } from '../utils';
 import { FileSuggestModal } from './FileSuggestModal';
 import { ContextSuggestModal } from './ContextSuggestModal';
-import { ProjectPickerModal } from './ProjectPickerModal';
 import type { RecurrenceRule } from '../types';
 
 type CaptureMode = 'thought' | 'task';
@@ -18,7 +17,6 @@ export class EditEntryModal extends Modal {
         newText: string,
         newContexts: string,
         newDueDate: string | null,
-        project: string | null,
         recurrence?: RecurrenceRule | null,
         priority?: 'high' | 'medium' | 'low' | null,
         energy?: 'high' | 'medium' | 'low' | null,
@@ -27,7 +25,6 @@ export class EditEntryModal extends Modal {
     customTitle?: string;
     stayOpen: boolean;
 
-    currentProject: string | null = null;
     currentRecurrence: RecurrenceRule | null = null;
     currentPriority: 'high' | 'medium' | 'low' | null = null;
     currentEnergy: 'high' | 'medium' | 'low' | null = null;
@@ -50,7 +47,6 @@ export class EditEntryModal extends Modal {
             newText: string,
             newContexts: string,
             newDueDate: string | null,
-            project: string | null,
             recurrence?: RecurrenceRule | null,
             priority?: 'high' | 'medium' | 'low' | null,
             energy?: 'high' | 'medium' | 'low' | null,
@@ -142,46 +138,6 @@ export class EditEntryModal extends Modal {
             if (this.initialContexts.length === 0) {
                 chipStrip.createSpan({ text: '# to tag', cls: 'diwa-chip-hint' });
             }
-            // Project pill
-            const allProjects = Array.from(this.plugin.index.projectIndex.values())
-                .filter(p => p.status !== 'archived');
-            if (allProjects.length > 0 || this.currentProject) {
-                const openProjectPicker = () => {
-                    new ProjectPickerModal(this.app, allProjects, (picked) => {
-                        this.currentProject = picked ? picked.name : null;
-                        renderChips();
-                    }).open();
-                };
-                if (this.currentProject) {
-                    const proj = allProjects.find(p => p.name === this.currentProject || p.id === this.currentProject);
-                    const projPill = chipStrip.createEl('span', {
-                        cls: 'diwa-mobile-chip diwa-project-pill diwa-project-pill--active'
-                    });
-                    if (proj?.color) {
-                        projPill.style.setProperty('--project-color', proj.color);
-                    }
-                    const dot = projPill.createEl('span', { cls: 'diwa-project-pill-dot' });
-                    projPill.createEl('span', { text: this.currentProject, cls: 'diwa-project-pill-name' });
-                    const xBtn = projPill.createEl('button', { text: '×', cls: 'diwa-project-pill-x' });
-                    xBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        this.currentProject = null;
-                        renderChips();
-                    });
-                    projPill.addEventListener('click', (e) => {
-                        if ((e.target as HTMLElement).classList.contains('diwa-project-pill-x')) return;
-                        openProjectPicker();
-                    });
-                } else {
-                    const projPill = chipStrip.createEl('button', {
-                        cls: 'diwa-mobile-chip diwa-project-pill diwa-project-pill--empty',
-                        attr: { 'aria-label': 'Assign project' }
-                    });
-                    projPill.createEl('span', { text: '◈', cls: 'diwa-project-pill-icon' });
-                    projPill.createEl('span', { text: 'Project', cls: 'diwa-project-pill-label' });
-                    projPill.addEventListener('click', openProjectPicker);
-                }
-            }
         };
         renderChips();
 
@@ -234,7 +190,7 @@ export class EditEntryModal extends Modal {
             const priority = this.currentMode === 'task' ? this.currentPriority : null;
             const energy = this.currentMode === 'task' ? this.currentEnergy : null;
             const status = this.currentMode === 'task' ? this.currentStatus : 'open';
-            this.onSave(text, contexts, due, this.currentProject, recur, priority, energy, status);
+            this.onSave(text, contexts, due, recur, priority, energy, status);
             if (this.stayOpen) { textArea.value = ''; textArea.focus(); }
             else this.close();
         };
@@ -667,7 +623,7 @@ export class EditEntryModal extends Modal {
         if (this.currentEnergy) setEnergy(this.currentEnergy);
         if (this.currentStatus !== 'open') setStatus(this.currentStatus);
 
-        // ── Dock: context chips + project + actions ───────────────────────
+        // ── Dock: context chips + actions ─────────────────────────────────
         const dock = contentEl.createEl('div', { cls: 'diwa-edit-modal-dock' });
 
         const chipArea = dock.createDiv({ cls: 'diwa-capture-desktop-chip-area' });
@@ -697,44 +653,6 @@ export class EditEntryModal extends Modal {
         };
         renderChips();
 
-        const projectArea = chipArea.createDiv('diwa-proj-zone');
-        const allProjects = Array.from(this.plugin.index.projectIndex.values())
-            .filter(p => p.status !== 'archived');
-        const updateProjectChip = (project: string | null) => {
-            projectArea.empty();
-            if (allProjects.length === 0 && !project) return;
-            const openProjPicker = () => {
-                new ProjectPickerModal(this.app, allProjects, (picked) => {
-                    this.currentProject = picked ? picked.name : null;
-                    updateProjectChip(this.currentProject);
-                }).open();
-            };
-            if (project) {
-                const proj = allProjects.find(p => p.name === project || p.id === project);
-                const pChip = projectArea.createEl('span', {
-                    cls: 'diwa-edit-modal-project-chip diwa-proj-chip--active'
-                });
-                if (proj?.color) pChip.style.setProperty('--project-color', proj.color);
-                projectArea.createEl('span', { cls: 'diwa-project-pill-dot' });
-                pChip.createEl('span', { text: project, cls: 'diwa-proj-chip-name' });
-                const x = pChip.createEl('span', { text: '×', cls: 'diwa-mobile-chip-x' });
-                x.addEventListener('click', (e) => { e.stopPropagation(); this.currentProject = null; updateProjectChip(null); });
-                pChip.addEventListener('click', (e) => {
-                    if ((e.target as HTMLElement).classList.contains('diwa-mobile-chip-x')) return;
-                    openProjPicker();
-                });
-            } else {
-                const pickBtn = projectArea.createEl('button', {
-                    cls: 'diwa-recur-btn diwa-proj-pick-btn',
-                    attr: { 'aria-label': 'Assign project', title: 'Assign project' }
-                });
-                const icon = pickBtn.createEl('span');
-                setIcon(icon, 'folder');
-                pickBtn.createEl('span', { text: 'Project' });
-                pickBtn.addEventListener('click', openProjPicker);
-            }
-        };
-        updateProjectChip(this.currentProject);
 
         const actions = dock.createDiv({ cls: 'diwa-capture-desktop-actions' });
         const saveLabel = () => this.stayOpen ? 'ADD' : (this.currentMode === 'task' ? 'ADD TASK' : 'SAVE');
@@ -776,7 +694,7 @@ export class EditEntryModal extends Modal {
             const priority = this.currentMode === 'task' ? this.currentPriority : null;
             const energy = this.currentMode === 'task' ? this.currentEnergy : null;
             const status = this.currentMode === 'task' ? this.currentStatus : 'open';
-            this.onSave(text, contexts, due, this.currentProject, recur, priority, energy, status);
+            this.onSave(text, contexts, due, recur, priority, energy, status);
             if (this.stayOpen) { textArea.value = ''; textArea.focus(); }
             else this.close();
         };

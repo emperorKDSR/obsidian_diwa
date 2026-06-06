@@ -40,7 +40,7 @@ export class ExportTab extends BaseTab {
         // ── Full Backup ───────────────────────────────────────────────────
         const backupCard = wrap.createEl('div', { cls: 'diwa-export-card' });
         backupCard.createEl('div', { text: '💾 Full Backup', cls: 'diwa-export-card-title' });
-        backupCard.createEl('div', { text: 'Creates a JSON backup of thoughts, tasks, projects, and settings (no API keys).', cls: 'diwa-export-card-desc' });
+        backupCard.createEl('div', { text: 'Creates a JSON backup of thoughts, tasks, and settings (no API keys).', cls: 'diwa-export-card-desc' });
         const backupBtn = backupCard.createEl('button', { text: 'Create Backup', cls: 'diwa-export-btn' });
         backupBtn.addEventListener('click', () => this._createBackup(backupBtn));
     }
@@ -110,7 +110,6 @@ export class ExportTab extends BaseTab {
                 exportedAt: new Date().toISOString(),
                 thoughts: Array.from(this.index.thoughtIndex.values()),
                 tasks: Array.from(this.index.taskIndex.values()),
-                projects: Array.from(this.index.projectIndex.values()),
                 settings: {
                     contexts: safeSettings.contexts,
                     weeklyGoals: safeSettings.weeklyGoals,

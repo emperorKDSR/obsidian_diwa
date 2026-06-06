@@ -43,6 +43,13 @@ export interface WeeklyReviewThoughtGroup {
     thoughts: ThoughtEntry[];
 }
 
+export interface WeeklyReviewFocusEntry {
+    day: string;
+    created: string;
+    filePath: string;
+    line: string;
+}
+
 interface ParsedWeeklyReviewSections {
     wins: string;
     lessons: string;
@@ -60,9 +67,9 @@ function normalizeText(value: string): string {
 }
 
 function normalizeFocus(values: string[]): string[] {
-    const normalized = values.slice(0, 3).map((value) => normalizeText(String(value ?? '')));
-    while (normalized.length < 3) normalized.push('');
-    return normalized;
+    return values
+        .map((value) => normalizeText(String(value ?? '')))
+        .filter(Boolean);
 }
 
 function normalizeDayPlans(dayPlans?: Record<string, string>): Record<string, string> | undefined {
@@ -146,6 +153,31 @@ export function getWeeklyReviewThoughtGroups(thoughts: Iterable<ThoughtEntry>, w
                 return (right.lastThreadUpdate || 0) - (left.lastThreadUpdate || 0);
             }),
         }));
+}
+
+export function getWeeklyReviewFocusEntries(thoughts: Iterable<ThoughtEntry>, weekId: string): WeeklyReviewFocusEntry[] {
+    return getWeeklyReviewThoughtGroups(thoughts, weekId).flatMap((group) => (
+        group.thoughts.flatMap((thought) => (
+            normalizeLineBreaks(thought.body || '')
+                .split('\n')
+                .filter((line) => line.includes('[[weeklyObjective]]'))
+                .map((line) => ({
+                    day: group.day,
+                    created: thought.created,
+                    filePath: thought.filePath,
+                    line: line.trim(),
+                }))
+        ))
+    ));
+}
+
+export function stripWeeklyObjectiveToken(line: string): string {
+    return normalizeLineBreaks(line)
+        .replace(/\[\[weeklyObjective\]\]/g, ' ')
+        .replace(/^[-*+]\s+/, '')
+        .replace(/^\d+[.)]\s+/, '')
+        .replace(/\s+/g, ' ')
+        .trim();
 }
 
 export function buildWeeklyReviewContent(record: WeeklyReviewRecord): string {

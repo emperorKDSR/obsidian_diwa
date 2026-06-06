@@ -1,21 +1,23 @@
-import { App, Component, MarkdownRenderer, Notice, Platform, TFile, moment, setIcon } from 'obsidian';
+import { App, Component, MarkdownRenderer, Notice, Platform, moment, setIcon } from 'obsidian';
 import type DiwaPlugin from '../main';
 import { EditTaskModal } from '../modals/EditTaskModal';
 import { IndexService } from '../services/IndexService';
 import { VaultService } from '../services/VaultService';
-import type { DiwaSettings, DueEntry, ProjectEntry, TaskEntry, ThoughtEntry } from '../types';
+import type { DiwaSettings, DueEntry, TaskEntry, ThoughtEntry } from '../types';
+import { enableImageZoom } from '../utils/imageZoom';
 import {
     getCurrentWeeklyReviewWeekId,
-    getThoughtReviewDay,
+    getWeeklyReviewFocusEntries,
     getWeeklyReviewThoughtGroups,
     getWeeklyReviewWeekMeta,
     shiftWeeklyReviewWeek,
+    stripWeeklyObjectiveToken,
+    type WeeklyReviewFocusEntry,
     type WeeklyReviewWeekMeta,
 } from '../utils/weeklyReview';
 
 interface GlanceData {
     tasks: { completed: TaskEntry[]; overdue: TaskEntry[] };
-    projects: ProjectEntry[];
     finance: { paid: DueEntry[]; overdue: DueEntry[] };
 }
 
@@ -132,6 +134,20 @@ export class WeeklyReviewWorkspace {
         return ta;
     }
 
+    private getEditableFocusRows(values: string[]): string[] {
+        const rows = values.map((value) => String(value ?? ''));
+        while (rows.length > 0 && !rows[rows.length - 1].trim()) rows.pop();
+        rows.push('');
+        return rows;
+    }
+
+    private getFocusPlaceholder(index: number): string {
+        if (index === 0) return 'Primary focus for next week…';
+        if (index === 1) return 'Secondary focus…';
+        if (index === 2) return 'Third priority…';
+        return `Focus line ${index + 1}…`;
+    }
+
     private getState(): WeeklyReviewWorkspaceState {
         return this.host.getState();
     }
@@ -171,23 +187,57 @@ export class WeeklyReviewWorkspace {
             .replace(/\s+/g, ' ')
             .trim();
         if (!excerpt) return 'Open note';
-        return excerpt.length > 180 ? `${excerpt.slice(0, 177)}…` : excerpt;
+        return excerpt.length > 280 ? `${excerpt.slice(0, 277)}…` : excerpt;
     }
 
-    private getThoughtMetaPills(thought: ThoughtEntry): string[] {
-        const pills: string[] = [];
-        const topics = Array.isArray(thought.topic)
-            ? thought.topic.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-            : typeof thought.topic === 'string' && thought.topic.trim().length > 0
-                ? [thought.topic]
-                : [];
-        topics.slice(0, 2).forEach((topic) => pills.push(topic));
-        thought.context.slice(0, 3).forEach((context) => pills.push(`#${context}`));
-        return pills.slice(0, 4);
+    private isInteractiveThoughtCardTarget(target: EventTarget | null): boolean {
+        return target instanceof HTMLElement
+            && Boolean(target.closest('a, button, input, textarea, select, summary, details, [contenteditable="true"]'));
     }
 
-    private renderThoughtsSection(parent: HTMLElement, weekMeta: WeeklyReviewWeekMeta): void {
-        const thoughtGroups = getWeeklyReviewThoughtGroups(this.host.index.thoughtIndex.values(), weekMeta.weekId);
+    private openThoughtNote(filePath: string): void {
+        void this.host.app.workspace.openLinkText(filePath, '', Platform.isMobile ? 'tab' : 'window');
+    }
+
+    private formatThoughtTime(thought: ThoughtEntry): string {
+        if (!thought.created) return '';
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const timeStr = thought.created.slice(11, 16);
+        if (thought.day === today) return timeStr;
+        const dateStr = thought.created.slice(5, 10).replace('-', '/');
+        return `${dateStr} ${timeStr}`;
+    }
+
+    private async renderThoughtMarkdown(
+        content: HTMLElement,
+        thought: ThoughtEntry,
+        renderToken: number,
+        container: HTMLElement,
+    ): Promise<void> {
+        const staged = document.createElement('div');
+        staged.className = content.className;
+
+        const markdown = thought.body?.trim();
+        if (markdown) {
+            try {
+                await MarkdownRenderer.render(this.host.app, markdown, staged, thought.filePath, this.host.component);
+            } catch {
+                staged.setText(this.getThoughtExcerpt(thought));
+            }
+        } else {
+            staged.setText(this.getThoughtExcerpt(thought));
+        }
+
+        if (!this.host.isRenderActive(renderToken, container) || !content.isConnected) return;
+        content.replaceWith(staged);
+        enableImageZoom(this.host.app, staged);
+    }
+
+    private renderThoughtsSection(parent: HTMLElement, weekMeta: WeeklyReviewWeekMeta, renderToken: number, container: HTMLElement): void {
+        const thoughtGroups = getWeeklyReviewThoughtGroups(this.host.index.thoughtIndex.values(), weekMeta.weekId)
+            .slice()
+            .sort((left, right) => left.day.localeCompare(right.day));
         const thoughtCount = thoughtGroups.reduce((total, group) => total + group.thoughts.length, 0);
         const { body } = this.createSection(parent, 'thoughts', '💭', 'THOUGHTS OF THE WEEK');
 
@@ -218,46 +268,97 @@ export class WeeklyReviewWorkspace {
 
             const dayList = groupEl.createEl('div', { cls: 'diwa-review-thought-day__list' });
             group.thoughts.forEach((thought) => {
-                const thoughtDay = getThoughtReviewDay(thought) ?? group.day;
-                const createdMoment = moment(thought.created, ['YYYY-MM-DD HH:mm:ss', moment.ISO_8601], true);
-                const card = dayList.createEl('button', {
-                    cls: 'diwa-review-thought-card',
+                const card = dayList.createEl('div', {
+                    cls: 'diwa-dh-thought-row diwa-review-thought-feed-row',
                     attr: {
-                        type: 'button',
+                        role: 'button',
+                        tabindex: '0',
                         'aria-label': `Open thought ${thought.title || 'Untitled thought'}`,
                     },
                 });
-                const top = card.createEl('div', { cls: 'diwa-review-thought-card__top' });
-                const titleWrap = top.createEl('div', { cls: 'diwa-review-thought-card__titles' });
-                titleWrap.createEl('div', {
-                    cls: 'diwa-review-thought-card__title',
-                    text: thought.title?.trim() || 'Untitled thought',
-                });
-                titleWrap.createEl('div', {
-                    cls: 'diwa-review-thought-card__path',
-                    text: thought.filePath.split('/').slice(-2).join(' / '),
-                });
-                top.createEl('span', {
-                    cls: 'diwa-review-thought-card__time',
-                    text: createdMoment.isValid() ? createdMoment.format('h:mm A') : thoughtDay,
+                const left = card.createEl('div', { cls: 'diwa-dh-thought-row-left' });
+                const meta = left.createEl('div', { cls: 'diwa-dh-thought-row-meta' });
+                meta.createEl('span', {
+                    cls: 'diwa-dh-thought-row-time',
+                    text: this.formatThoughtTime(thought),
                 });
 
-                card.createEl('div', {
-                    cls: 'diwa-review-thought-card__excerpt',
+                const body = card.createEl('div', { cls: 'diwa-dh-thought-row-body' });
+                const content = body.createEl('div', { cls: 'diwa-dh-thought-row-content' });
+                const text = content.createEl('div', {
+                    cls: 'diwa-dh-thought-row-text diwa-review-thought-feed-row__text',
                     text: this.getThoughtExcerpt(thought),
                 });
+                void this.renderThoughtMarkdown(text, thought, renderToken, container);
 
-                const pills = this.getThoughtMetaPills(thought);
-                if (pills.length > 0) {
-                    const meta = card.createEl('div', { cls: 'diwa-review-thought-card__meta' });
-                    pills.forEach((pill) => {
-                        meta.createEl('span', { cls: 'diwa-review-thought-card__pill', text: pill });
-                    });
-                }
-
-                card.addEventListener('click', () => {
-                    void this.host.app.workspace.openLinkText(thought.filePath, '', Platform.isMobile ? 'tab' : 'window');
+                card.addEventListener('click', (event) => {
+                    if (this.isInteractiveThoughtCardTarget(event.target)) return;
+                    this.openThoughtNote(thought.filePath);
                 });
+                card.addEventListener('keydown', (event: KeyboardEvent) => {
+                    if (this.isInteractiveThoughtCardTarget(event.target)) return;
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    this.openThoughtNote(thought.filePath);
+                });
+            });
+        });
+    }
+
+    private formatWeekFocusMeta(entry: WeeklyReviewFocusEntry): string {
+        const dayLabel = moment(entry.day, 'YYYY-MM-DD', true).format('ddd · MMM D');
+        const created = moment(entry.created, ['YYYY-MM-DD HH:mm:ss', moment.ISO_8601], true);
+        return created.isValid()
+            ? `${dayLabel} · ${created.format('HH:mm')}`
+            : dayLabel;
+    }
+
+    private renderWeekFocusSection(parent: HTMLElement, weekMeta: WeeklyReviewWeekMeta): void {
+        const entries = getWeeklyReviewFocusEntries(this.host.index.thoughtIndex.values(), weekMeta.weekId);
+        const { body } = this.createSection(parent, 'week-focus', '🎯', 'WEEK\'S FOCUS');
+
+        const summary = body.createEl('div', { cls: 'diwa-review-week-focus-summary' });
+        summary.createEl('span', {
+            cls: 'diwa-review-week-label',
+            text: entries.length === 0 ? 'No weekly objectives in this week' : `${entries.length} objective${entries.length === 1 ? '' : 's'}`,
+        });
+
+        if (entries.length === 0) {
+            body.createEl('div', {
+                cls: 'diwa-review-thought-empty',
+                text: 'Any thought line with [[weeklyObjective]] in this week will appear here.',
+            });
+            return;
+        }
+
+        const list = body.createEl('div', { cls: 'diwa-review-week-focus-list' });
+        entries.forEach((entry) => {
+            const row = list.createEl('div', {
+                cls: 'diwa-review-week-focus-row',
+                attr: {
+                    role: 'button',
+                    tabindex: '0',
+                    'aria-label': `Open weekly focus note for ${entry.day}`,
+                },
+            });
+            row.createEl('span', {
+                cls: 'diwa-review-week-focus-row__meta',
+                text: this.formatWeekFocusMeta(entry),
+            });
+            row.createEl('span', {
+                cls: 'diwa-review-week-focus-row__text',
+                text: stripWeeklyObjectiveToken(entry.line) || 'Open note',
+            });
+
+            row.addEventListener('click', (event) => {
+                if (this.isInteractiveThoughtCardTarget(event.target)) return;
+                this.openThoughtNote(entry.filePath);
+            });
+            row.addEventListener('keydown', (event: KeyboardEvent) => {
+                if (this.isInteractiveThoughtCardTarget(event.target)) return;
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                this.openThoughtNote(entry.filePath);
             });
         });
     }
@@ -277,9 +378,8 @@ export class WeeklyReviewWorkspace {
         const persistedReviewDraft: WeeklyReviewDraftState = {
             wins: existing?.wins ?? '',
             lessons: existing?.lessons ?? '',
-            focus: [...(existing?.focus ?? ['', '', ''])],
+            focus: [...(existing?.focus ?? [])],
         };
-        while (persistedReviewDraft.focus.length < 3) persistedReviewDraft.focus.push('');
         const persistedRevision = existing?.mtime ?? null;
         const shouldReloadReviewDraft = !state.reviewDraft
             || state.reviewDraftWeekId !== weekMeta.weekId
@@ -309,8 +409,7 @@ export class WeeklyReviewWorkspace {
         const latestReviewDraft = latestState.reviewDraft ?? persistedReviewDraft;
         let wins = latestReviewDraft.wins;
         let lessons = latestReviewDraft.lessons;
-        let focus = [...latestReviewDraft.focus];
-        while (focus.length < 3) focus.push('');
+        let focus = this.getEditableFocusRows(latestReviewDraft.focus);
         let isDirty = Boolean(latestState.reviewDraftDirty || latestState.weekPlanDraftDirty);
         const nextWeekDayPlans = latestState.weekPlanDraft ?? {};
         const thisWeekDayPlans = { ...(previousReview?.dayPlans ?? {}) };
@@ -411,40 +510,75 @@ export class WeeklyReviewWorkspace {
             markDirtyIndicator();
         };
 
-        this.renderGlancePanel(wrap, weekMeta);
+        const topStack = wrap.createEl('div', { cls: 'diwa-review-top-stack' });
+        this.renderGlancePanel(topStack, weekMeta);
+        this.renderWeekFocusSection(topStack, weekMeta);
+        this.renderThoughtsSection(topStack, weekMeta, renderToken, container);
 
         const body = wrap.createEl('div', { cls: 'diwa-review-body' });
-        const leftCol = body.createEl('div', { cls: 'diwa-review-col--left' });
-        const rightCol = body.createEl('div', { cls: 'diwa-review-col--right' });
 
-        const { body: winsBody } = this.createSection(leftCol, 'wins', '🏆', 'THIS WEEK\'S WINS');
+        const inlineRow = body.createEl('div', { cls: 'diwa-review-inline-sections' });
+
+        const { body: winsBody } = this.createSection(inlineRow, 'wins', '🏆', "THIS WEEK'S WINS");
         this.createAutoResizeTextarea(winsBody, 'diwa-review-textarea', 'What went well this week…', wins, (value) => { wins = value; syncReviewDraft(); });
 
-        const { body: lessonsBody } = this.createSection(leftCol, 'lessons', '📚', 'LESSONS LEARNED');
+        const { body: lessonsBody } = this.createSection(inlineRow, 'lessons', '📚', 'LESSONS LEARNED');
         this.createAutoResizeTextarea(lessonsBody, 'diwa-review-textarea', 'What would you do differently…', lessons, (value) => { lessons = value; syncReviewDraft(); });
 
-        const { body: focusBody } = this.createSection(rightCol, 'focus', '🎯', 'NEXT WEEK\'S FOCUS');
+        const { body: focusBody } = this.createSection(body, 'focus', '🎯', "NEXT WEEK'S FOCUS");
         const focusList = focusBody.createEl('div', { cls: 'diwa-review-focus-list' });
-        const placeholders = ['Primary focus for next week…', 'Secondary focus…', 'Third priority…'];
-        for (let index = 0; index < 3; index++) {
-            const item = focusList.createEl('div', { cls: 'diwa-review-focus-item' });
-            item.createEl('span', { cls: 'diwa-review-focus-num', text: String(index + 1) });
-            const input = item.createEl('input', {
-                cls: 'diwa-review-input',
-                attr: {
-                    type: 'text',
-                    placeholder: placeholders[index],
-                    value: focus[index] || '',
-                },
-            }) as HTMLInputElement;
-            input.addEventListener('input', () => {
-                focus[index] = input.value;
-                syncReviewDraft();
-            });
-        }
+        const renderFocusInputs = (focusIndex?: number, cursorPosition?: number) => {
+            focus = this.getEditableFocusRows(focus);
+            focusList.empty();
 
-        this.renderThoughtsSection(rightCol, weekMeta);
-        this.renderWeekPlanSection(wrap, weekMeta, prevWeekMeta, nextWeekDayPlans, thisWeekDayPlans, markWeekPlanDirty, renderToken, container);
+            focus.forEach((value, index) => {
+                const item = focusList.createEl('div', { cls: 'diwa-review-focus-item' });
+                item.createEl('span', { cls: 'diwa-review-focus-num', text: String(index + 1) });
+                const input = item.createEl('input', {
+                    cls: 'diwa-review-input',
+                    attr: {
+                        type: 'text',
+                        placeholder: this.getFocusPlaceholder(index),
+                        value,
+                        'aria-label': `Next week focus line ${index + 1}`,
+                    },
+                }) as HTMLInputElement;
+                input.addEventListener('input', () => {
+                    const before = this.getEditableFocusRows(focus);
+                    focus[index] = input.value;
+                    const after = this.getEditableFocusRows(focus);
+                    const caret = input.selectionStart ?? input.value.length;
+                    focus = after;
+                    syncReviewDraft();
+                    if (after.length !== before.length) {
+                        renderFocusInputs(index, caret);
+                    }
+                });
+                input.addEventListener('keydown', (event: KeyboardEvent) => {
+                    if (event.key !== 'Enter') return;
+                    event.preventDefault();
+                    const insertionIndex = Math.min(index + 1, focus.length);
+                    focus.splice(insertionIndex, 0, '');
+                    focus = this.getEditableFocusRows(focus);
+                    syncReviewDraft();
+                    renderFocusInputs(insertionIndex, 0);
+                });
+            });
+
+            if (typeof focusIndex !== 'number') return;
+            requestAnimationFrame(() => {
+                if (!this.host.isRenderActive(renderToken, container)) return;
+                const inputs = focusList.querySelectorAll<HTMLInputElement>('input');
+                const target = inputs[Math.max(0, Math.min(focusIndex, inputs.length - 1))];
+                if (!target) return;
+                target.focus();
+                const caret = cursorPosition ?? target.value.length;
+                target.setSelectionRange(caret, caret);
+            });
+        };
+        renderFocusInputs();
+
+        this.renderWeekPlanSection(body, weekMeta, prevWeekMeta, nextWeekDayPlans, thisWeekDayPlans, markWeekPlanDirty, renderToken, container);
 
         const saveRow = wrap.createEl('div', { cls: 'diwa-review-save-row' });
         const hintStack = saveRow.createEl('div', { cls: 'diwa-review-save-hints' });
@@ -498,8 +632,7 @@ export class WeeklyReviewWorkspace {
                 if (!this.host.isRenderActive(renderToken, container)) return;
                 if (error instanceof Error && error.name === 'DIWA_WEEKLY_REVIEW_CONFLICT') {
                     const latest = await this.host.vault.loadWeeklyReview(weekMeta.weekId);
-                    const latestFocus = [...(latest?.focus ?? ['', '', ''])];
-                    while (latestFocus.length < 3) latestFocus.push('');
+                    const latestFocus = [...(latest?.focus ?? [])];
                     this.updateState({
                         reviewDraft: {
                             wins: latest?.wins ?? '',
@@ -623,8 +756,8 @@ export class WeeklyReviewWorkspace {
 
         const targetRow = planBody.createEl('div', { cls: 'diwa-weekplan-target-row' });
         const targetModes: Array<{ key: 'next' | 'this'; label: string }> = [
-            { key: 'next', label: 'Next Week' },
-            { key: 'this', label: 'This Week' },
+            { key: 'this', label: 'This week' },
+            { key: 'next', label: 'Next week' },
         ];
 
         const renderPlan = () => {
@@ -648,7 +781,7 @@ export class WeeklyReviewWorkspace {
             const planMeta = planBody.createEl('div', { cls: 'diwa-weekplan-meta' });
             planMeta.createEl('span', {
                 cls: 'diwa-review-week-label',
-                text: `${activeTarget === 'this' ? 'Selected week' : 'Following week'} · ${anchorWeekMeta.label}`,
+                text: `${activeTarget === 'this' ? 'This week' : 'Next week'} · ${anchorWeekMeta.label}`,
             });
             if (activeTarget === 'this') {
                 planMeta.createEl('span', {
@@ -673,31 +806,47 @@ export class WeeklyReviewWorkspace {
                 const dayTasks = taskSnapshot.openTasksByDue.get(dateStr) ?? [];
 
                 const card = grid.createEl('div', { cls: 'diwa-weekplan-day' });
-                const header = card.createEl('div', { cls: 'diwa-weekplan-day__header' });
-                header.createEl('span', { cls: 'diwa-weekplan-day__label', text: dayLabel });
+                const storageKey = `diwa-weekplan-collapse-${dateStr}`;
+                const bodyId = `diwa-weekplan-day-${activeTarget}-${dateStr}`;
+                const header = card.createEl('button', {
+                    cls: 'diwa-weekplan-day__header',
+                    attr: {
+                        type: 'button',
+                        'aria-controls': bodyId,
+                    },
+                });
+                const headerMain = header.createEl('span', { cls: 'diwa-weekplan-day__header-main' });
+                headerMain.createEl('span', { cls: 'diwa-weekplan-day__label', text: dayLabel });
                 if (dayTasks.length > 0) {
                     const countCls = dayTasks.length >= 6
                         ? 'diwa-weekplan-day__count diwa-weekplan-day__count--danger'
                         : dayTasks.length >= 4
                             ? 'diwa-weekplan-day__count diwa-weekplan-day__count--warn'
                             : 'diwa-weekplan-day__count';
-                    header.createEl('span', { cls: countCls, text: String(dayTasks.length) });
+                    headerMain.createEl('span', { cls: countCls, text: String(dayTasks.length) });
                 }
+                const chevron = header.createEl('span', {
+                    cls: 'diwa-weekplan-day__chevron',
+                    attr: { 'aria-hidden': 'true' },
+                });
+                setIcon(chevron, 'chevron-down');
 
-                const cardBody = card.createEl('div', { cls: 'diwa-weekplan-day__body' });
-                const storageKey = `diwa-weekplan-collapse-${dateStr}`;
-                const isCollapsed = sessionStorage.getItem(storageKey) === 'true';
-                if (isCollapsed) cardBody.style.display = 'none';
+                const cardBody = card.createEl('div', {
+                    cls: 'diwa-weekplan-day__body',
+                    attr: { id: bodyId },
+                });
+                const setCollapsed = (collapsed: boolean) => {
+                    card.classList.toggle('is-collapsed', collapsed);
+                    cardBody.style.display = collapsed ? 'none' : 'flex';
+                    header.setAttribute('aria-expanded', String(!collapsed));
+                    if (collapsed) sessionStorage.setItem(storageKey, 'true');
+                    else sessionStorage.removeItem(storageKey);
+                };
+                setCollapsed(sessionStorage.getItem(storageKey) === 'true');
 
                 header.addEventListener('click', () => {
-                    const collapsed = cardBody.style.display === 'none';
-                    if (collapsed) {
-                        cardBody.style.display = 'flex';
-                        sessionStorage.removeItem(storageKey);
-                    } else {
-                        cardBody.style.display = 'none';
-                        sessionStorage.setItem(storageKey, 'true');
-                    }
+                    const expanded = header.getAttribute('aria-expanded') === 'true';
+                    setCollapsed(expanded);
                 });
 
                 const intentionInput = cardBody.createEl('input', {
@@ -852,11 +1001,17 @@ export class WeeklyReviewWorkspace {
             const button = targetRow.createEl('button', {
                 cls: `diwa-weekplan-target-btn${this.getState().weekPlanTargetMode === key ? ' is-active' : ''}`,
                 text: label,
+                attr: {
+                    type: 'button',
+                    'aria-pressed': String(this.getState().weekPlanTargetMode === key),
+                },
             });
             button.addEventListener('click', () => {
                 this.updateState({ weekPlanTargetMode: key });
-                targetRow.querySelectorAll('.diwa-weekplan-target-btn').forEach((el) => el.classList.remove('is-active'));
-                button.classList.add('is-active');
+                targetRow.querySelectorAll<HTMLButtonElement>('.diwa-weekplan-target-btn').forEach((el) => {
+                    el.classList.toggle('is-active', el === button);
+                    el.setAttribute('aria-pressed', String(el === button));
+                });
                 renderPlan();
             });
         });
@@ -941,7 +1096,6 @@ export class WeeklyReviewWorkspace {
             glanceBody.empty();
             const data = this.computeGlanceData(weekMeta);
             this.renderGlanceTasks(glanceBody, data.tasks);
-            this.renderGlanceProjects(glanceBody, data.projects);
             this.renderGlanceFinance(glanceBody, data.finance);
         };
         render();
@@ -985,14 +1139,6 @@ export class WeeklyReviewWorkspace {
         completed.sort((left, right) => (right.lastUpdate || 0) - (left.lastUpdate || 0));
         overdue.sort((left, right) => left.due.localeCompare(right.due) || (right.lastUpdate || 0) - (left.lastUpdate || 0));
 
-        const projects = Array.from(this.host.index.projectIndex.values()).filter((project) => {
-            if (project.status === 'archived') return false;
-            const file = this.host.app.vault.getAbstractFileByPath(project.filePath);
-            if (!(file instanceof TFile)) return false;
-            const modified = moment(file.stat.mtime);
-            return modified.isSameOrAfter(weekStart) && modified.isSameOrBefore(weekEnd);
-        });
-
         const finPaid: DueEntry[] = [];
         for (const due of this.host.index.dueIndex.values()) {
             if (!due.lastPayment) continue;
@@ -1013,7 +1159,7 @@ export class WeeklyReviewWorkspace {
             if (isOverdue) finOverdue.push(due);
         }
 
-        return { tasks: { completed, overdue }, projects, finance: { paid: finPaid, overdue: finOverdue } };
+        return { tasks: { completed, overdue }, finance: { paid: finPaid, overdue: finOverdue } };
     }
 
     private renderGlanceTasks(parent: HTMLElement, tasks: { completed: TaskEntry[]; overdue: TaskEntry[] }): void {
@@ -1039,24 +1185,6 @@ export class WeeklyReviewWorkspace {
         }
     }
 
-    private renderGlanceProjects(parent: HTMLElement, projects: ProjectEntry[]): void {
-        if (projects.length === 0) return;
-        const card = parent.createEl('div', { cls: 'diwa-glance-card' });
-        const header = card.createEl('div', { cls: 'diwa-glance-card__header' });
-        header.createEl('span', { cls: 'diwa-glance-card__icon', text: '🗂' });
-        header.createEl('span', { cls: 'diwa-glance-card__title', text: 'ACTIVE PROJECTS' });
-
-        projects.forEach((project) => {
-            const row = card.createEl('div', { cls: 'diwa-glance-project-row' });
-            const dot = row.createEl('span', { cls: 'diwa-glance-project-dot' });
-            if (project.color) dot.style.background = project.color;
-            row.createEl('span', { cls: 'diwa-glance-project-name', text: project.name });
-            row.createEl('span', {
-                cls: `diwa-glance-project-status diwa-glance-project-status--${project.status}`,
-                text: project.status,
-            });
-        });
-    }
 
     private renderGlanceFinance(parent: HTMLElement, finance: { paid: DueEntry[]; overdue: DueEntry[] }): void {
         if (finance.paid.length === 0 && finance.overdue.length === 0) return;

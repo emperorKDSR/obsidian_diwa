@@ -226,7 +226,6 @@ export class TaskController {
                 sourceText,
                 [...(resolvedThought.thought.context || [])],
                 undefined,
-                resolvedThought.thought.project || undefined,
                 { status: 'open' },
             );
             await this.reindexTask(created.path);
@@ -319,7 +318,6 @@ export class TaskController {
             const created = await this.plugin.getThoughtController().addThought({
                 content: thoughtText,
                 context: [...(resolvedTask.task.context || [])],
-                project: resolvedTask.task.project || undefined,
             });
             if (!created) return false;
             return this.linkThoughtToTask(created.filePath, getTaskKey(resolvedTask.task));
@@ -430,7 +428,7 @@ export class TaskController {
 
     async updateTaskMetadata(
         taskId: string,
-        updates: { project?: string | null; dueDate?: string | null },
+        updates: { dueDate?: string | null },
     ): Promise<boolean> {
         const resolved = this.resolveTaskRecord(taskId);
         if (!resolved) {
@@ -440,11 +438,9 @@ export class TaskController {
         const task = this.plugin.index.taskIndex.get(resolved.filePath) ?? resolved.task;
         const now = Date.now();
         const due = updates.dueDate !== undefined ? (updates.dueDate || '') : task.due;
-        const project = updates.project !== undefined ? (updates.project || undefined) : task.project;
         const updatedTask: TaskEntry = {
             ...task,
             due,
-            project,
             modified: moment(now).format('YYYY-MM-DD HH:mm:ss'),
             updatedAt: new Date(now).toISOString(),
             lastUpdate: now,
@@ -560,7 +556,6 @@ export class TaskController {
             energy: task.energy || null,
             status: task.status,
             contexts: task.context || [],
-            project: task.project || null,
             bucketStatus: task.bucketStatus ?? null,
             focus: task.focus ?? null,
         });

@@ -13,10 +13,6 @@ export const GAWA_PANE_META: Record<GawaPaneId, { title: string; description: st
         title: 'Inbox',
         description: 'Capture lane for unsorted incoming work.',
     },
-    'gawa-projects': {
-        title: 'Projects',
-        description: 'Planning lane for project-linked tasks.',
-    },
     'gawa-today': {
         title: 'Today',
         description: 'Execution lane for overdue and due-today tasks.',
@@ -38,7 +34,7 @@ export const GAWA_PANE_META: Record<GawaPaneId, { title: string; description: st
 export const GAWA_DESKTOP_BUCKET_META: Record<GawaDesktopBucketId, { label: string; description: string }> = {
     left: {
         label: 'Left column',
-        description: 'Planning surfaces for capture and project sorting.',
+        description: 'Planning surfaces for capture and task intake.',
     },
     center: {
         label: 'Center column',
@@ -53,7 +49,7 @@ export const GAWA_DESKTOP_BUCKET_META: Record<GawaDesktopBucketId, { label: stri
 export const GAWA_TABLET_BUCKET_META: Record<GawaTabletBucketId, { label: string; description: string }> = {
     planning: {
         label: 'Planning stack',
-        description: 'Tablet planning group for capture and projects.',
+        description: 'Tablet planning group for capture and intake.',
     },
     execution: {
         label: 'Execution stack',
@@ -66,13 +62,13 @@ export const GAWA_TABLET_BUCKET_META: Record<GawaTabletBucketId, { label: string
 };
 
 export const GAWA_DESKTOP_BUCKET_DEFAULT_ORDER: Record<GawaDesktopBucketId, readonly GawaPaneId[]> = {
-    left: ['gawa-inbox', 'gawa-projects'],
+    left: ['gawa-inbox'],
     center: ['gawa-today', 'gawa-focus'],
     right: ['gawa-active', 'gawa-backlog'],
 };
 
 export const GAWA_TABLET_BUCKET_DEFAULT_ORDER: Record<GawaTabletBucketId, readonly GawaPaneId[]> = {
-    planning: ['gawa-inbox', 'gawa-projects'],
+    planning: ['gawa-inbox'],
     execution: ['gawa-today', 'gawa-focus'],
     support: ['gawa-active', 'gawa-backlog'],
 };

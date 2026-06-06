@@ -18,12 +18,12 @@ const LEGACY_HOME_TAB_IDS = new Set([
 
 const REMOVED_TAB_FALLBACKS: Record<string, string> = {
     manual: 'settings',
+    projects: 'review-gawa',
 };
 
 const RENDERABLE_TAB_IDS = new Set([
     'review-gawa',
     'dues',
-    'projects',
     'review',
     'monthly-review',
     'settings',
@@ -37,7 +37,6 @@ const DEFAULT_DIWA_TAB_ID = 'settings';
 interface DiwaViewState extends Record<string, unknown> {
     activeTab?: string;
     isDedicated?: boolean;
-    focusedProjectId?: string | null;
     selectedReviewWeekId?: string | null;
     reviewDraft?: { wins: string; lessons: string; focus: string[] } | null;
     reviewDraftWeekId?: string | null;
@@ -56,7 +55,6 @@ export class DiwaView extends ItemView {
     dueDate: string = moment().format('YYYY-MM-DD');
     activeTab: string = 'home';
     isDedicated: boolean = false;
-    focusedProjectId: string | null = null;
     
     collapsedThreads: Set<string> = new Set();
     activeMasterNote: TFile | null = null;
@@ -86,7 +84,7 @@ export class DiwaView extends ItemView {
     weekPlanDraftWeekId: string | null = null;
     weekPlanDraftRevision: number | null = null;
     weekPlanDraftDirty: boolean = false;
-    weekPlanTargetMode: 'next' | 'this' = 'next';
+    weekPlanTargetMode: 'next' | 'this' = 'this';
     selectedReviewWeekId: string | null = null;
 
     // Journal State
@@ -127,14 +125,12 @@ export class DiwaView extends ItemView {
             case 'review-thoughts': return "Thoughts";
             case 'review-gawa': return "Gawa";
             case 'dues': return "Bulsa";
-            case 'projects': return "Projects";
             case 'review': return "Weekly Review";
             case 'monthly-review': return "Monthly Review";
             case 'settings': return "Settings";
             case 'journal': return "Journal";
             case 'export': return "Export";
             case 'finance-analytics': return "Bulsa Insights";
-            case 'milestones': return "Project Milestones";
             default: return "DIWA";
         }
     }
@@ -159,7 +155,6 @@ export class DiwaView extends ItemView {
         return {
             activeTab: this.activeTab,
             isDedicated: this.isDedicated,
-            focusedProjectId: this.focusedProjectId,
             selectedReviewWeekId: this.selectedReviewWeekId,
             reviewDraft: this.reviewDraft,
             reviewDraftWeekId: this.reviewDraftWeekId,
@@ -179,7 +174,6 @@ export class DiwaView extends ItemView {
             this.activeTab = this.resolveActiveTab(state.activeTab);
         }
         if (state?.isDedicated !== undefined) this.isDedicated = state.isDedicated;
-        if (state?.focusedProjectId !== undefined) this.focusedProjectId = state.focusedProjectId;
         if (state?.selectedReviewWeekId !== undefined) this.selectedReviewWeekId = state.selectedReviewWeekId;
         if (state?.reviewDraft && typeof state.reviewDraft === 'object') {
             this.reviewDraft = {
@@ -303,7 +297,6 @@ export class DiwaView extends ItemView {
         const tab = this.activeTab;
         if (tab === 'review-gawa') instantiate(import('./tabs/GawaTab'), 'GawaTab');
         else if (tab === 'dues') instantiate(import('./tabs/DuesTab'), 'DuesTab');
-        else if (tab === 'projects') instantiate(import('./tabs/ProjectsTab'), 'ProjectsTab');
         else if (tab === 'review') instantiate(import('./tabs/ReviewTab'), 'ReviewTab');
         else if (tab === 'monthly-review') instantiate(import('./tabs/MonthlyReviewTab'), 'MonthlyReviewTab');
         else if (tab === 'settings') instantiate(import('./tabs/SettingsTab'), 'SettingsTab');

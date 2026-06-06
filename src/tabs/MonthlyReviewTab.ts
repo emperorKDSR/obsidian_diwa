@@ -46,35 +46,7 @@ export class MonthlyReviewTab extends BaseTab {
         statCard('Thoughts', monthThoughts.length, `${processedThoughts.length} processed`);
         statCard('Open Gawa', allOpen.length, 'remaining');
 
-        // 3. Project Progress
-        const projectsSection = wrap.createEl('div', { cls: 'diwa-monthly-section' });
-        projectsSection.createEl('h3', { text: 'Project Progress', cls: 'diwa-section-label' });
-
-        const projectMap = new Map<string, { open: number; done: number }>();
-        allTasks.forEach(t => {
-            if (!t.project) return;
-            const entry = projectMap.get(t.project) || { open: 0, done: 0 };
-            if (t.status === 'done') entry.done++;
-            else entry.open++;
-            projectMap.set(t.project, entry);
-        });
-
-        if (projectMap.size === 0) {
-            this.renderEmptyState(projectsSection, 'No project tasks found.');
-        } else {
-            Array.from(projectMap.entries()).sort((a, b) => a[0].localeCompare(b[0])).forEach(([name, counts]) => {
-                const total = counts.open + counts.done;
-                const pct = total > 0 ? Math.round((counts.done / total) * 100) : 0;
-                const row = projectsSection.createEl('div', { cls: 'diwa-monthly-project-row' });
-                const labelRow = row.createEl('div', { cls: 'diwa-monthly-project-header' });
-                labelRow.createEl('span', { text: name, cls: 'diwa-monthly-project-name' });
-                labelRow.createEl('span', { text: `${counts.done}/${total} · ${pct}%`, cls: 'diwa-monthly-project-stat' });
-                const bar = row.createEl('div', { cls: 'diwa-monthly-progress-track' });
-                bar.createEl('div', { cls: 'diwa-monthly-progress-fill', attr: { style: `width: ${pct}%` } });
-            });
-        }
-
-        // 4. Next Month Focus
+        // 3. Next Month Focus
         const focusSection = wrap.createEl('div', { cls: 'diwa-monthly-focus' });
         focusSection.createEl('h3', { text: 'Next Month\'s Focus', cls: 'diwa-monthly-focus-title' });
 

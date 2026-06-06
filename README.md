@@ -1,8 +1,8 @@
 # DIWA — Personal OS for Obsidian
 
-**DIWA** is an Obsidian plugin for capturing thoughts, managing gawa, tracking projects and Bulsa, reviewing your week, and keeping a journal from one connected workspace across desktop, tablet, and mobile.
+**DIWA** is an Obsidian plugin for capturing thoughts, managing gawa and Bulsa, reviewing your week, and keeping a journal from one connected workspace across desktop, tablet, and mobile.
 
-Current release: **v11.1.0** · See [CHANGELOG.md](./CHANGELOG.md) for release history.
+Current release: **v11.1.3** · See [CHANGELOG.md](./CHANGELOG.md) for release history.
 
 ---
 
@@ -11,11 +11,10 @@ Current release: **v11.1.0** · See [CHANGELOG.md](./CHANGELOG.md) for release h
 DIWA’s primary workspace navigation is now:
 
 1. **Workspace**
-2. **Projects**
-3. **Gawa**
-4. **Bulsa**
-5. **Review**
-6. **Journal**
+2. **Gawa**
+3. **Bulsa**
+4. **Review**
+5. **Journal**
 
 Supporting tabs and tools still in the plugin:
 - **Settings**
@@ -33,7 +32,7 @@ The current 11.1.0 line no longer includes the removed Search, AI, Voice, Timeli
 - `Open Workspace` routes to the right shell for your platform.
 - **Desktop:** dedicated workspace window with sidebar navigation, capture/feed center column, and right task pane.
 - **Tablet:** dense touch layout with top tabs and quick actions.
-- **Mobile:** bottom-nav shell for Workspace, Projects, Gawa, and thoughts.
+- **Mobile:** bottom-nav shell for Workspace, Review, Bulsa, Gawa, and thoughts.
 - **Focus Mode** collapses desktop chrome so the center workspace can expand.
 
 ### Quick capture
@@ -42,15 +41,9 @@ The current 11.1.0 line no longer includes the removed Search, AI, Voice, Timeli
 - Handles pasted or dropped files/images in supported editors.
 - Keyboard shortcuts: `⌘K / Ctrl+K` to open capture, `⌘↵ / Ctrl+↵` to save.
 
-### Projects
-- YAML-backed project notes with name, goal, status, due date, and color.
-- Statuses: `active`, `on-hold`, `completed`, `archived`.
-- Built-in milestone tracking stored in the project note body.
-- Thoughts and tasks can be linked to projects during capture or editing.
-
 ### Gawa
 - Task workspace with Open / Done / Waiting / Someday organization.
-- Supports due dates, priority, energy, recurrence, comments, and project links.
+- Supports due dates, priority, energy, recurrence, and comments.
 - Available from nav or the `Open Gawa` command.
 
 ### Bulsa
@@ -105,7 +98,6 @@ Primary workspace routing
 
 Feature tabs
   ├── src/tabs/GawaTab.ts
-  ├── src/tabs/ProjectsTab.ts
   ├── src/tabs/DuesTab.ts
   ├── src/tabs/FinanceAnalyticsTab.ts
   ├── src/tabs/ReviewTab.ts
@@ -132,7 +124,6 @@ Key folders and outputs:
 - `thoughtsFolder` → thought notes
 - `tasksFolder` → gawa notes and CSV task exports
 - `pfFolder` → Bulsa notes
-- `projectsFolder` → project notes
 - `reviewsFolder/Weekly` → weekly review notes
 - `reviewsFolder/Monthly` → monthly review notes
 - `attachmentsFolder` → pasted and dropped files

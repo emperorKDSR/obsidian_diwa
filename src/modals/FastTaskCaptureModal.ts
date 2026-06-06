@@ -41,7 +41,6 @@ export interface FastTaskCapturePayload {
     contexts: string[];
     dueDate: string | null;
     priority: TaskPriority;
-    project: string | null;
     target: TaskTarget;
     status: 'open' | 'waiting';
     focus: boolean;
@@ -52,11 +51,9 @@ interface ParsedCapture {
     contexts: string[];
     dueDate: string | null;
     priority: TaskPriority;
-    project: string | null;
 }
 
 interface CaptureOverrides {
-    project: 'auto' | 'none' | string;
     due: string;
     priority: 'auto' | 'none' | 'high' | 'medium' | 'low';
 }
@@ -74,7 +71,6 @@ export class FastTaskCaptureModal extends Modal {
     private advancedToggleBtn: HTMLButtonElement | null = null;
     private selectedTarget: TaskTarget = 'backlog';
     private overrides: CaptureOverrides = {
-        project: 'auto',
         due: '',
         priority: 'auto',
     };
@@ -220,7 +216,7 @@ export class FastTaskCaptureModal extends Modal {
         this.renderInputSection(captureCard);
         captureCard.createEl('div', {
             cls: 'diwa-ftc-mobile-inline-hint',
-            text: 'Use #project, @date, and !priority inline or refine below.',
+            text: 'Use #context, @date, and !priority inline or refine below.',
         });
 
         const routeCard = body.createEl('section', { cls: 'diwa-ftc-mobile-card' });
@@ -281,7 +277,7 @@ export class FastTaskCaptureModal extends Modal {
             cls: this.isMobileSheet ? 'diwa-ftc-mobile-input' : 'diwa-ftc-input',
             attr: {
                 rows: '1',
-                placeholder: 'Add task… (#project @date !priority)',
+                placeholder: 'Add task… (#context @date !priority)',
                 'aria-label': 'Task input',
             },
         }) as HTMLTextAreaElement;
@@ -364,25 +360,6 @@ export class FastTaskCaptureModal extends Modal {
     private renderAdvancedFields(parent: HTMLElement, layout: AdvancedLayout): void {
         const grid = parent.createEl('div', {
             cls: layout === 'mobile' ? 'diwa-ftc-mobile-advanced-grid' : 'diwa-ftc-advanced-grid',
-        });
-
-        const projectField = this.createAdvancedField(grid, layout, 'Project');
-        const projectSelect = projectField.createEl('select', {
-            cls: 'diwa-ftc-select',
-            attr: { 'aria-label': 'Project override' },
-        }) as HTMLSelectElement;
-        projectSelect.createEl('option', { text: 'Project: Auto', value: 'auto' });
-        projectSelect.createEl('option', { text: 'Project: None', value: 'none' });
-        const projects = Array.from(this.plugin.index.projectIndex.values())
-            .filter((project) => project.status !== 'archived')
-            .sort((a, b) => a.name.localeCompare(b.name));
-        for (const project of projects) {
-            projectSelect.createEl('option', { text: `Project: ${project.name}`, value: project.name });
-        }
-        projectSelect.value = this.overrides.project;
-        projectSelect.addEventListener('change', () => {
-            this.overrides.project = projectSelect.value as CaptureOverrides['project'];
-            this.renderMetadataPreview();
         });
 
         const dueField = this.createAdvancedField(grid, layout, 'Due');
@@ -473,9 +450,6 @@ export class FastTaskCaptureModal extends Modal {
             ? moment(parsed.dueDate, 'YYYY-MM-DD').format(this.isMobileSheet ? 'ddd, MMM D' : 'MMM D')
             : null;
 
-        if (parsed.project) {
-            this.chipsEl.createEl('span', { cls: chipClass, text: `#${parsed.project}` });
-        }
         for (const context of parsed.contexts) {
             this.chipsEl.createEl('span', { cls: chipClass, text: `#${context}` });
         }
@@ -505,16 +479,10 @@ export class FastTaskCaptureModal extends Modal {
                 ? null
                 : (this.overrides.priority === 'none' ? null : this.overrides.priority);
 
-        const projectOverride =
-            this.overrides.project === 'auto'
-                ? parsed.project
-                : (this.overrides.project === 'none' ? null : this.overrides.project);
-
         return {
             ...parsed,
             dueDate: dueOverride ?? parsed.dueDate,
             priority: this.overrides.priority === 'auto' ? parsed.priority : priorityOverride,
-            project: projectOverride,
         };
     }
 
@@ -523,16 +491,8 @@ export class FastTaskCaptureModal extends Modal {
         const dueTokens = Array.from(value.matchAll(/(^|\s)@([^\s#@!.,;:!?()[\]{}]+)/g)).map((match) => match[2]);
         const priorityTokens = Array.from(value.matchAll(/(^|\s)!([^\s#@!.,;:!?()[\]{}]+)/g)).map((match) => match[2]);
 
-        const projectLookup = this.buildProjectLookup();
-        let resolvedProject: string | null = null;
         const contexts: string[] = [];
         for (const tag of tags) {
-            const key = this.normalizeToken(tag);
-            const project = projectLookup.get(key);
-            if (!resolvedProject && project) {
-                resolvedProject = project;
-                continue;
-            }
             if (!contexts.includes(tag)) contexts.push(tag);
         }
 
@@ -564,19 +524,9 @@ export class FastTaskCaptureModal extends Modal {
             contexts,
             dueDate: resolvedDue,
             priority: resolvedPriority,
-            project: resolvedProject,
         };
     }
 
-    private buildProjectLookup(): Map<string, string> {
-        const map = new Map<string, string>();
-        for (const project of this.plugin.index.projectIndex.values()) {
-            if (project.status === 'archived') continue;
-            map.set(this.normalizeToken(project.name), project.name);
-            map.set(this.normalizeToken(project.id), project.name);
-        }
-        return map;
-    }
 
     private normalizeToken(value: string): string {
         return value.toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -615,7 +565,6 @@ export class FastTaskCaptureModal extends Modal {
                 contexts: capture.contexts,
                 dueDate: capture.dueDate,
                 priority: capture.priority,
-                project: capture.project,
                 target,
                 status,
                 focus,

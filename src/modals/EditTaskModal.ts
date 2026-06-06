@@ -2,8 +2,7 @@ import { App, Modal, Platform, moment, setIcon } from 'obsidian';
 import { isTablet, parseNaturalDate } from '../utils';
 import { attachMobileSheetViewportBehavior } from '../utils/mobileSheetViewport';
 import { ContextSuggestModal } from './ContextSuggestModal';
-import { ProjectPickerModal } from './ProjectPickerModal';
-import type { TaskEntry, ProjectEntry, RecurrenceRule } from '../types';
+import type { TaskEntry, RecurrenceRule } from '../types';
 import type { VaultService } from '../services/VaultService';
 import type { IndexService } from '../services/IndexService';
 
@@ -21,7 +20,6 @@ export class EditTaskModal extends Modal {
     private _energy:   'high' | 'medium' | 'low' | null;
     private _status:   'open' | 'waiting' | 'someday';
     private _contexts: string[];
-    private _project:  ProjectEntry | null;
 
     private _isMobileSheet = false;
     private _viewportCleanup: (() => void) | null = null;
@@ -49,11 +47,6 @@ export class EditTaskModal extends Modal {
                            ? task.status : 'open';
         this._contexts   = [...(task.context ?? [])];
 
-        const projName = task.project ?? null;
-        this._project = projName
-            ? (Array.from(index.projectIndex.values()).find(
-                p => p.name === projName || p.id === projName) ?? null)
-            : null;
     }
 
     // ── Lifecycle ────────────────────────────────────────────────────────
@@ -94,7 +87,6 @@ export class EditTaskModal extends Modal {
             energy:     this._energy,
             status:     this._status ?? 'open',
             contexts:   this._contexts,
-            project:    this._project?.name ?? null,
         });
         if (ok) {
             this.onSaved();
@@ -158,7 +150,7 @@ export class EditTaskModal extends Modal {
         this._buildToolbarChips(dock, dockWrap, 'diwa-ets-tool-chip', 'diwa-ets-toolbar-dot');
         dock.createEl('span', { cls: 'diwa-ets-toolbar-dot', text: '·' });
         this._buildChipsRow(dock, 'diwa-ets-inline-chips',
-            'diwa-ets-tag-chip', 'diwa-ets-tag-add-btn', 'diwa-ets-project-pill')();
+            'diwa-ets-tag-chip', 'diwa-ets-tag-add-btn')();
 
         // Footer
         const footer = root.createDiv({ cls: 'diwa-ets-footer' });
@@ -246,7 +238,7 @@ export class EditTaskModal extends Modal {
             leftPane.createDiv({ cls: 'diwa-tem-spacer' });
 
             const chipZone = leftPane.createDiv({ cls: 'diwa-tem-section diwa-tem-chip-zone' });
-            this._buildChipsRow(chipZone, 'diwa-tem-chips-row', 'diwa-tem-tag-chip', 'diwa-tem-tag-add-btn', 'diwa-tem-project-pill')();
+            this._buildChipsRow(chipZone, 'diwa-tem-chips-row', 'diwa-tem-tag-chip', 'diwa-tem-tag-add-btn')();
 
             // Toolbar in right pane (landscape)
             const twWrap  = rightPane.createDiv({ cls: 'diwa-tem-toolbar-wrap' });
@@ -263,7 +255,7 @@ export class EditTaskModal extends Modal {
                 'diwa-tem-tool-chip', 'diwa-tem-toolbar-dot');
 
             const chipSec = body.createDiv({ cls: 'diwa-tem-section diwa-tem-chip-zone' });
-            this._buildChipsRow(chipSec, 'diwa-tem-chips-row', 'diwa-tem-tag-chip', 'diwa-tem-tag-add-btn', 'diwa-tem-project-pill')();
+            this._buildChipsRow(chipSec, 'diwa-tem-chips-row', 'diwa-tem-tag-chip', 'diwa-tem-tag-add-btn')();
         }
 
         // Footer
@@ -336,11 +328,11 @@ export class EditTaskModal extends Modal {
         this._buildToolbarChips(toolbar, toolbarWrap,
             'diwa-etm-tool-chip', 'diwa-etm-toolbar-dot', true);
 
-        // Tags + project
+        // Tags
         const chipsRow = body.createDiv({ cls: 'diwa-etm-chips-row' });
         this._buildChipsRow(
             chipsRow, 'diwa-etm-chips-inner',
-            'diwa-etm-chip', 'diwa-etm-chip-add-btn', 'diwa-etm-proj-pill'
+            'diwa-etm-chip', 'diwa-etm-chip-add-btn'
         )();
 
         // Footer
@@ -983,12 +975,8 @@ export class EditTaskModal extends Modal {
         rowCls:         string,
         chipCls:        string,
         addBtnCls:      string,
-        projectPillCls: string
     ): () => void {
         const row = container.createDiv({ cls: rowCls });
-        const allProjects = Array.from(this.index.projectIndex.values())
-            .filter(p => p.status !== 'archived');
-
         const renderChips = (): void => {
             row.empty();
 
@@ -1023,44 +1011,6 @@ export class EditTaskModal extends Modal {
                     }
                 }).open();
             });
-
-            const openProjectPicker = () => {
-                new ProjectPickerModal(this.app, allProjects, (picked: ProjectEntry | null) => {
-                    this._project = picked;
-                    renderChips();
-                }).open();
-            };
-
-            if (this._project) {
-                const pill = row.createEl('span', {
-                    cls: `${projectPillCls} diwa-project-pill--active`,
-                    attr: { role: 'button', tabindex: '0' }
-                });
-                if (this._project.color) pill.style.setProperty('--project-color', this._project.color);
-                pill.createEl('span', { cls: 'diwa-project-pill-dot' });
-                pill.createEl('span', { text: this._project.name, cls: 'diwa-project-pill-name' });
-                const xBtn = pill.createEl('button', {
-                    text: '×', cls: 'diwa-project-pill-x',
-                    attr: { 'aria-label': 'Remove project' }
-                });
-                xBtn.addEventListener('click', (e: MouseEvent) => {
-                    e.stopPropagation();
-                    this._project = null;
-                    renderChips();
-                });
-                pill.addEventListener('click', (e: MouseEvent) => {
-                    if ((e.target as HTMLElement).classList.contains('diwa-project-pill-x')) return;
-                    openProjectPicker();
-                });
-            } else if (allProjects.length > 0) {
-                const emptyPill = row.createEl('button', {
-                    cls: `${projectPillCls} diwa-project-pill--empty`,
-                    attr: { 'aria-label': 'Assign project' }
-                });
-                emptyPill.createEl('span', { text: '◈', cls: 'diwa-project-pill-icon' });
-                emptyPill.createEl('span', { text: 'Project' });
-                emptyPill.addEventListener('click', openProjectPicker);
-            }
         };
 
         return renderChips;

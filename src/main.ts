@@ -1,5 +1,5 @@
 import { Plugin, TFile, Notice, WorkspaceLeaf, Platform, moment, addIcon, setIcon, MarkdownRenderer, Menu } from 'obsidian';
-import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, PROJECT_ICON_ID, PROJECT_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB } from './constants';
+import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB } from './constants';
 import type { BulsaLeafState, ResponsiveShellState } from './types';
 import { DiwaSettings, GawaLayoutPreferences, TaskEntry, ThoughtEntry } from './types';
 import { sanitizeGawaLayoutPreferences } from './gawaLayout';
@@ -31,7 +31,6 @@ import { normalizeVaultRelativePath } from './utils/vaultFiles';
 const OPENABLE_DIWA_TAB_IDS = new Set([
     'review-gawa',
     'dues',
-    'projects',
     'review',
     'monthly-review',
     'settings',
@@ -42,6 +41,7 @@ const OPENABLE_DIWA_TAB_IDS = new Set([
 
 const REMOVED_DIWA_TAB_FALLBACKS: Record<string, string> = {
     manual: 'settings',
+    projects: 'review-gawa',
 };
 
 const DEFAULT_OPENABLE_DIWA_TAB_ID = 'settings';
@@ -187,7 +187,6 @@ export default class DiwaPlugin extends Plugin {
 		addIcon(DAILY_ICON_ID, DAILY_ICON_SVG);
 		addIcon(GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG);
 		addIcon(PF_ICON_ID, PF_ICON_SVG);
-		addIcon(PROJECT_ICON_ID, PROJECT_ICON_SVG);
 		addIcon(REVIEW_ICON_ID, REVIEW_ICON_SVG);
 		addIcon(SETTINGS_ICON_ID, SETTINGS_ICON_SVG);
         addIcon(DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG);
@@ -450,14 +449,7 @@ export default class DiwaPlugin extends Plugin {
 
         this.registerEvent(this.app.vault.on('create', async (f) => {
             const scope = this.getRefreshScopeForPath(f.path);
-            if (!scope) {
-                if (!(f instanceof TFile)) await this.handleProjectFolderMutation(f.path);
-                return;
-            }
-            if (!(f instanceof TFile)) {
-                await this.handleProjectFolderMutation(f.path);
-                return;
-            }
+            if (!scope || !(f instanceof TFile)) return;
             if (this.index.isThoughtFile(f.path)) {
                 await this.index.indexThoughtFile(f);
                 if (!this.getThoughtController().isUpdatingThoughtPath(f.path)) {
@@ -466,20 +458,12 @@ export default class DiwaPlugin extends Plugin {
             }
             else if (this.index.isTaskFile(f.path)) await this.index.indexTaskFile(f);
             else if (this.index.isDueFile(f.path)) this.index.indexDueFile(f);
-            else if (this.index.isProjectFile(f.path)) await this.index.indexProjectFile(f);
             this.notifyRefresh(scope);
         }));
 
         this.registerEvent(this.app.vault.on('modify', async (f) => {
             const scope = this.getRefreshScopeForPath(f.path);
-            if (!scope) {
-                if (!(f instanceof TFile)) await this.handleProjectFolderMutation(f.path);
-                return;
-            }
-            if (!(f instanceof TFile)) {
-                await this.handleProjectFolderMutation(f.path);
-                return;
-            }
+            if (!scope || !(f instanceof TFile)) return;
             await this.refreshCoordinator.reindexFile(f);
             if (this.index.isThoughtFile(f.path) && !this.getThoughtController().isUpdatingThoughtPath(f.path)) {
                 this.getThoughtController().syncIndexedThought(f.path);
@@ -489,14 +473,10 @@ export default class DiwaPlugin extends Plugin {
 
         this.registerEvent(this.app.vault.on('delete', async (f) => {
             const scope = this.getRefreshScopeForPath(f.path);
-            if (!scope) {
-                if (!(f instanceof TFile)) await this.handleProjectFolderMutation(f.path);
-                return;
-            }
+            if (!scope) return;
             this.getThoughtController().removeThoughtFromIndex(f.path);
             this.index.removeTaskFile(f.path);
             if (this.index.isDueFile(f.path)) this.index.removeDueFile(f.path);
-            if (this.index.isProjectFile(f.path)) this.index.removeProjectFile(f.path);
             this.notifyRefresh(scope);
         }));
 
@@ -505,18 +485,10 @@ export default class DiwaPlugin extends Plugin {
                 this.getRefreshScopeForPath(oldPath),
                 this.getRefreshScopeForPath(f.path),
             );
-            if (!scope) {
-                if (!(f instanceof TFile)) await this.handleProjectFolderMutation(oldPath, f.path);
-                return;
-            }
-            if (!(f instanceof TFile)) {
-                await this.handleProjectFolderMutation(oldPath, f.path);
-                return;
-            }
+            if (!scope || !(f instanceof TFile)) return;
             this.getThoughtController().removeThoughtFromIndex(oldPath);
             const removedTask = this.index.removeTaskFile(oldPath, true);
             if (this.index.isDueFile(oldPath)) this.index.removeDueFile(oldPath, true);
-            if (this.index.isProjectFile(oldPath)) this.index.removeProjectFile(oldPath);
             if (this.index.isThoughtFile(f.path)) {
                 await this.index.indexThoughtFile(f);
                 if (!this.getThoughtController().isUpdatingThoughtPath(f.path)) {
@@ -525,7 +497,6 @@ export default class DiwaPlugin extends Plugin {
             }
             else if (this.index.isTaskFile(f.path)) await this.index.indexTaskFile(f);
             else if (this.index.isDueFile(f.path)) this.index.indexDueFile(f, true);
-            else if (this.index.isProjectFile(f.path)) await this.index.indexProjectFile(f);
             if (
                 (removedTask && !this.index.isTaskFile(f.path))
                 || this.index.isDueFile(oldPath)
@@ -629,13 +600,31 @@ export default class DiwaPlugin extends Plugin {
         return isTablet(this.app) ? VIEW_TYPE_TABLET_HUB : VIEW_TYPE_MOBILE_HUB;
     }
 
+    private sanitizeResponsiveShellState(state: Record<string, unknown>): ResponsiveShellState {
+        const nextState: Record<string, unknown> = { ...state };
+        if (nextState.activeView === 'projects') nextState.activeView = 'tasks';
+        delete nextState.projectFilter;
+        delete nextState.expandedProjectIds;
+        delete nextState.selectedProjectId;
+        delete nextState.selectedMilestoneIds;
+        return nextState as ResponsiveShellState;
+    }
+
+    private maybeSanitizeLeafState(type: string, state: unknown): unknown {
+        if (!state || typeof state !== 'object') return state;
+        if (type === VIEW_TYPE_MOBILE_HUB || type === VIEW_TYPE_TABLET_HUB) {
+            return this.sanitizeResponsiveShellState(state as Record<string, unknown>);
+        }
+        return { ...(state as Record<string, unknown>) };
+    }
+
     private async setLeafViewType(leaf: WorkspaceLeaf, type: string, active: boolean): Promise<void> {
         const currentState = leaf.getViewState();
         await leaf.setViewState({
             ...currentState,
             type,
             active,
-            state: currentState.state && typeof currentState.state === 'object' ? { ...currentState.state } : currentState.state,
+            state: this.maybeSanitizeLeafState(type, currentState.state) as Record<string, unknown> | undefined,
         });
     }
 
@@ -680,11 +669,13 @@ export default class DiwaPlugin extends Plugin {
         const currentLeafState = currentState.state && typeof currentState.state === 'object'
             ? { ...(currentState.state as ResponsiveShellState) }
             : {};
-        const currentBulsaState = this.getBulsaLeafState(currentLeafState.bulsa);
-        const nextBulsaState = this.getBulsaLeafState(statePatch.bulsa);
+        const sanitizedCurrentState = this.sanitizeResponsiveShellState(currentLeafState);
+        const sanitizedPatch = this.sanitizeResponsiveShellState(statePatch as Record<string, unknown>);
+        const currentBulsaState = this.getBulsaLeafState(sanitizedCurrentState.bulsa);
+        const nextBulsaState = this.getBulsaLeafState(sanitizedPatch.bulsa);
         const nextState: ResponsiveShellState = {
-            ...currentLeafState,
-            ...statePatch,
+            ...sanitizedCurrentState,
+            ...sanitizedPatch,
         };
 
         if (currentBulsaState || nextBulsaState) {
@@ -818,8 +809,9 @@ export default class DiwaPlugin extends Plugin {
             aiChatFolder?: string;
             enableAutoClassification?: boolean;
             ai?: unknown;
+            projectsFolder?: string;
         };
-        const removedLegacyKeys = ['voiceMemoFolder', 'transcriptionLanguage', 'geminiApiKey', 'geminiModel', 'maxOutputTokens', 'aiChatFolder', 'enableAutoClassification', 'ai'] as const;
+        const removedLegacyKeys = ['voiceMemoFolder', 'transcriptionLanguage', 'geminiApiKey', 'geminiModel', 'maxOutputTokens', 'aiChatFolder', 'enableAutoClassification', 'ai', 'projectsFolder'] as const;
         for (const key of removedLegacyKeys) {
             if (Object.prototype.hasOwnProperty.call(legacySettings, key)) {
                 delete legacySettings[key];
@@ -871,12 +863,11 @@ export default class DiwaPlugin extends Plugin {
         const shouldRefreshThoughts = this.index?.thoughtsFolderChanged() ?? false;
         const shouldRefreshDues = this.index?.dueFolderChanged() ?? false;
         const shouldRefreshChecklist = this.index?.captureLocationChanged() ?? false;
-        const shouldRefreshProjects = this.index?.projectsFolderChanged() ?? false;
         const shouldRefreshIndexedState = shouldRefreshTasks
             || shouldRefreshThoughts
             || shouldRefreshDues
             || shouldRefreshChecklist
-            || shouldRefreshProjects;
+;
 
         if (!this.index || !shouldRefreshIndexedState) return;
 
@@ -885,7 +876,6 @@ export default class DiwaPlugin extends Plugin {
             thoughts: shouldRefreshThoughts,
             dues: shouldRefreshDues,
             checklist: shouldRefreshChecklist,
-            projects: shouldRefreshProjects,
         });
 
         if (shouldRefreshTasks) {
@@ -906,7 +896,6 @@ export default class DiwaPlugin extends Plugin {
             && !shouldRefreshThoughts
             && !shouldRefreshDues
             && !shouldRefreshChecklist
-            && !shouldRefreshProjects
             ? 'tasks'
             : 'all';
         this.notifyRefresh(refreshScope);
@@ -1109,21 +1098,10 @@ export default class DiwaPlugin extends Plugin {
         return rows;
     }
 
-    private async rebuildProjectIndexAndRefresh(): Promise<void> {
-        await this.index.buildProjectIndex();
-        this.notifyRefresh('all');
-    }
-
-    private async handleProjectFolderMutation(...paths: string[]): Promise<boolean> {
-        if (!paths.some((path) => path && this.index.pathTouchesProjectsFolderBoundary(path))) return false;
-        await this.rebuildProjectIndexAndRefresh();
-        return true;
-    }
 
     private getRefreshScopeForPath(path: string): RefreshScope | null {
         if (this.index.isTaskFile(path)) return 'tasks';
         if (this.index.isThoughtFile(path)) return 'thoughts';
-        if (this.index.isProjectFile(path)) return 'all';
         if (this.index.isDueFile(path)) return 'all';
 
         if (normalizeVaultRelativePath(path, 'path') === getCanonicalCapturePath(this.settings)) return 'all';
@@ -1137,9 +1115,6 @@ export default class DiwaPlugin extends Plugin {
         return 'all';
     }
 
-    getProjects(): string[] {
-        return this.index ? this.index.getProjects() : [];
-    }
 
     openCaptureModal(): void {
         if (Platform.isMobile && !isTablet(this.app)) {

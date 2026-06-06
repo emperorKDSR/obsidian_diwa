@@ -940,7 +940,6 @@ body.is-tablet .diwa-bills-list {
 .diwa-search-result-icon--due      { background: rgba(245,158,11,0.08);  color: #f59e0b; border-color: rgba(245,158,11,0.18);  }
 .diwa-search-result-icon--project  { background: rgba(16,185,129,0.08);  color: #10b981; border-color: rgba(16,185,129,0.18);  }
 
-
 /* ── Result body ─────────────────────────────────────────────────── */
 .diwa-search-result-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .diwa-search-result-title {
@@ -1457,23 +1456,6 @@ body.is-mobile:not(.is-tablet) .diwa-fanalytics-period-chip {
 body.is-mobile:not(.is-tablet) .diwa-fanalytics-bar-row {
     grid-template-columns: 1fr;
 }
-/* ── Milestones ─────────────────────────────────────────────────────────── */
-.diwa-milestones-wrap { margin-top: 10px; border-top: 1px solid var(--background-modifier-border); padding-top: 8px; }
-.diwa-milestones-toggle { font-size: 11px; color: var(--text-muted); cursor: pointer; background: none; border: none; padding: 2px 0; }
-.diwa-milestones-toggle:hover { color: var(--text-normal); }
-.diwa-milestones-body { padding: 6px 0 2px; }
-.diwa-milestones-loading { font-size: 12px; color: var(--text-muted); }
-.diwa-milestone-progress-wrap { margin-bottom: 8px; }
-.diwa-milestone-progress-label { font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 3px; }
-.diwa-milestone-progress-track { height: 3px; background: var(--background-modifier-border); border-radius: 2px; }
-.diwa-milestone-progress { height: 3px; background: var(--interactive-accent); border-radius: 2px; transition: width 0.3s; }
-.diwa-milestone-row { display: flex; align-items: center; gap: 6px; padding: 4px 0; min-height: 28px; }
-.diwa-milestone-row input[type="checkbox"] { min-width: 16px; min-height: 16px; cursor: pointer; }
-.diwa-milestone-title { font-size: 13px; flex: 1; }
-.diwa-milestone-title.is-done { text-decoration: line-through; color: var(--text-muted); }
-.diwa-milestone-add-row { display: flex; gap: 6px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
-.diwa-milestone-add-input { flex: 1; min-width: 120px; font-size: 12px; padding: 4px 8px; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: var(--background-secondary); color: var(--text-normal); }
-.diwa-milestone-add-date { font-size: 12px; padding: 4px 6px; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: var(--background-secondary); color: var(--text-normal); }
 
 /* ── Daily Note Panel ────────────────────────────────────────────────────── */
 .diwa-dw-daily-note-panel { margin: 10px 0 6px; padding: 10px 12px; border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-secondary); }
@@ -2296,18 +2278,6 @@ body.diwa-task-edit-active .modal-bg { background: rgba(0,0,0,0.5) !important; }
   flex-shrink: 0;
 }
 .diwa-ets-tag-add-btn:hover { border-color: var(--interactive-accent); color: var(--interactive-accent); }
-.diwa-ets-project-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border-radius: 16px;
-  padding: 3px 8px;
-  font-size: 0.75rem;
-  cursor: pointer;
-  min-height: 28px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
 
 .diwa-ets-footer {
   display: flex;
@@ -2921,7 +2891,6 @@ body.diwa-task-edit-active .modal-bg { background: rgba(0,0,0,0.5) !important; }
     from { opacity: 1; transform: translateY(0)     scale(1);    }
     to   { opacity: 0; transform: translateY(-12px) scale(0.97); }
 }
-
 
 /* ═══════════════════════════════════════════════════════════════════════════
    EDIT TASK MODAL — Design Tokens (v2 Modernize)
@@ -3820,12 +3789,10 @@ body.diwa-task-edit-active .modal-bg { background: rgba(0,0,0,0.5) !important; }
 }
 .diwa-pillar-cluster--action .diwa-pillar-item, .diwa-pillar-cluster--features .diwa-pillar-item { min-width: 90px; }
 
-
 /* Command Center: make pillar clusters responsive and wrap */
 .diwa-pillar-cluster { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .diwa-pillar-cluster .diwa-pillar-item { flex: 0 1 auto; min-width: 84px; }
 @media (min-width: 900px) { .diwa-pillar-cluster .diwa-pillar-item { min-width: 110px; } }
-
 
 /* ── Week Plan Section ────────────────────────────────── */
 .diwa-weekplan-target-row { display: flex; gap: 4px; margin-bottom: 10px; }
@@ -3954,6 +3921,12 @@ body.diwa-task-edit-active .modal-bg { background: rgba(0,0,0,0.5) !important; }
   display: grid;
   gap: 8px;
   padding: 14px 16px;
+}
+
+.diwa-review-top-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .diwa-review-nav-row {
@@ -4226,6 +4199,22 @@ body.diwa-task-edit-active .modal-bg { background: rgba(0,0,0,0.5) !important; }
   min-width: 0;
 }
 
+.diwa-review-inline-sections {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.diwa-review-inline-sections,
+.diwa-review-section--focus,
+.diwa-review-section--week-plan {
+  grid-column: 1 / -1;
+}
+
+.diwa-review-wrap--desktop .diwa-review-inline-sections {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .diwa-review-section {
   overflow: hidden;
 }
@@ -4275,6 +4264,21 @@ body.diwa-task-edit-active .modal-bg { background: rgba(0,0,0,0.5) !important; }
   padding: 0 12px 12px;
   border-top: 1px solid var(--diwa-review-border);
   transition: opacity 0.12s ease;
+}
+
+.diwa-review-section--thoughts .diwa-review-section-header {
+  background: color-mix(in srgb, var(--background-primary) 30%, transparent);
+  border-bottom: 1px solid var(--diwa-review-border);
+}
+
+.diwa-review-section--thoughts .diwa-review-section-title {
+  color: var(--interactive-accent);
+}
+
+.diwa-review-section--thoughts .diwa-review-section-body {
+  padding: 10px 12px 12px;
+  border-top: 0;
+  min-height: 280px;
 }
 
 .diwa-review-textarea,
@@ -4521,8 +4525,41 @@ body.diwa-task-edit-active .modal-bg { background: rgba(0,0,0,0.5) !important; }
 }
 
 .diwa-weekplan-day__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
   padding: 10px 12px;
+  border: 0;
   background: color-mix(in srgb, var(--background-secondary) 62%, var(--background-primary) 38%);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.diwa-weekplan-day__header-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.diwa-weekplan-day__chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.diwa-weekplan-day.is-collapsed .diwa-weekplan-day__chevron {
+  transform: rotate(-90deg);
+}
+
+.diwa-weekplan-day__header:hover .diwa-weekplan-day__chevron {
+  color: var(--interactive-accent);
 }
 
 .diwa-weekplan-day__label {
@@ -4706,6 +4743,7 @@ body.diwa-task-edit-active .modal-bg { background: rgba(0,0,0,0.5) !important; }
 .diwa-review-glance__toggle:focus-visible,
 .diwa-review-save-btn:focus-visible,
 .diwa-weekplan-target-btn:focus-visible,
+.diwa-weekplan-day__header:focus-visible,
 .diwa-weekplan-assign-btn:focus-visible,
 .diwa-weekplan-new-btn:focus-visible,
 .diwa-weekplan-picker__item:focus-visible,
@@ -4716,8 +4754,7 @@ body.diwa-task-edit-active .modal-bg { background: rgba(0,0,0,0.5) !important; }
 }
 
 @media (min-width: 720px) {
-  .diwa-review-glance__body,
-  .diwa-weekplan-grid {
+  .diwa-review-glance__body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -4726,21 +4763,19 @@ body.diwa-task-edit-active .modal-bg { background: rgba(0,0,0,0.5) !important; }
   .diwa-review-body {
     grid-template-columns: minmax(0, 0.96fr) minmax(0, 1.04fr);
   }
+
+  .diwa-review-inline-sections {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .diwa-review-section--thoughts .diwa-review-section-body {
+    min-height: 420px;
+  }
 }
 
 @media (min-width: 1040px) {
   .diwa-review-glance__body {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .diwa-weekplan-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1320px) {
-  .diwa-weekplan-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -4751,6 +4786,10 @@ body.is-tablet .diwa-review-wrap {
 
 body.is-tablet .diwa-review-body {
   gap: 14px;
+}
+
+body.is-tablet .diwa-review-section--thoughts .diwa-review-section-body {
+  min-height: 320px;
 }
 
 body.is-tablet .diwa-review-glance__body,
@@ -4796,6 +4835,10 @@ body.is-mobile:not(.is-tablet) .diwa-weekplan-grid {
 body.is-mobile:not(.is-tablet) .diwa-review-save-row {
   flex-direction: column;
   align-items: stretch;
+}
+
+body.is-mobile:not(.is-tablet) .diwa-review-section--thoughts .diwa-review-section-body {
+  min-height: 0;
 }
 
 body.is-mobile:not(.is-tablet) .diwa-review-save-btn,
@@ -5739,7 +5782,6 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   height: 14px;
 }
 
-
 /* ── Today Feed ──────────────────────────────── */
 .diwa-dh-feed {
   width: 100%;
@@ -6050,8 +6092,6 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 .diwa-dh-thought-archived-section {
   display: none;
 }
-
-
 
 /* ── RIGHT Panel ───────────────────────────────────────────────── */
 .diwa-dh-right {
@@ -7303,7 +7343,6 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   .diwa-dh-wrap.is-focus-mode .diwa-dh-right { max-height: 0; border: none; }
 }
 
-
 /* ═══════════════════════════════════════════════════════════════
 
 /* ── Shared Inline Edit Form (Desktop + Mobile Hub) ──────────── */
@@ -7608,10 +7647,6 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 .diwa-sv-section[data-type="project"] .diwa-sv-section-icon  { color: var(--sv-color-project, #8b5cf6); }
 .diwa-sv-section[data-type="project"] .diwa-sv-section-label { color: var(--sv-color-project, #8b5cf6); opacity: 0.75; }
 
-
-
-
-
 /* ── 7. Result Rows — Left-Border Accent + Hover Motion ─────────────────── */
 .diwa-sv-result-row {
   display: flex;
@@ -7638,7 +7673,6 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 .diwa-sv-result-row:has(.diwa-sv-result-icon--due):hover     { border-left-color: var(--sv-color-due, #f59e0b); }
 .diwa-sv-result-row:has(.diwa-sv-result-icon--project):hover { border-left-color: var(--sv-color-project, #8b5cf6); }
 
-
 .diwa-sv-result-row.is-focused {
   background: var(--background-secondary-alt, var(--background-secondary));
   box-shadow:
@@ -7661,7 +7695,6 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 .diwa-sv-result-icon--task    { background: rgba(16,185,129,0.12);   color: var(--sv-color-task,    #10b981); }
 .diwa-sv-result-icon--due     { background: rgba(245,158,11,0.12);   color: var(--sv-color-due,     #f59e0b); }
 .diwa-sv-result-icon--project { background: rgba(139,92,246,0.12);   color: var(--sv-color-project, #8b5cf6); }
-
 
 /* ── 9. Result Body ─────────────────────────────────────────────────────── */
 .diwa-sv-result-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -7743,8 +7776,6 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 
 .diwa-sv-quickjump-btn[data-tab="review-gawa"] .diwa-sv-quickjump-icon { background: rgba(16,185,129,0.12);  color: var(--sv-color-task,    #10b981); }
 .diwa-sv-quickjump-btn[data-tab="dues"]         .diwa-sv-quickjump-icon { background: rgba(245,158,11,0.12);  color: var(--sv-color-due,     #f59e0b); }
-.diwa-sv-quickjump-btn[data-tab="projects"]     .diwa-sv-quickjump-icon { background: rgba(139,92,246,0.12);  color: var(--sv-color-project, #8b5cf6); }
-
 .diwa-sv-quickjump-btn[data-tab="journal"]      .diwa-sv-quickjump-icon { background: rgba(13,148,136,0.12);  color: var(--sv-color-journal, #0d9488); }
 
 .diwa-sv-quickjump-label-text {
@@ -9662,10 +9693,6 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
 
 .diwa-gawa-pane-shell--gawa-inbox {
   flex: 1.15;
-}
-
-.diwa-gawa-pane-shell--gawa-projects {
-  flex: 0.85;
 }
 
 .diwa-gawa-pane-shell--gawa-today {
@@ -17285,783 +17312,6 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
     color: rgba(255, 255, 255, 0.82);
 }
 
-/* ── Projects module redesign ─────────────────────────────────────────────── */
-.diwa-projects-shell {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-height: 100%;
-  padding: 18px 18px calc(var(--diwa-footer-clearance) + 24px);
-  scroll-padding-bottom: calc(var(--diwa-footer-clearance) + 24px);
-  color: var(--text-normal);
-  container-type: inline-size;
-  container-name: projects-workspace;
-}
-
-.diwa-projects-header {
-  border: 1px solid color-mix(in srgb, var(--interactive-accent) 10%, var(--background-modifier-border-faint) 90%);
-  border-radius: 28px;
-  background:
-    radial-gradient(circle at top left, color-mix(in srgb, var(--interactive-accent) 12%, transparent), transparent 50%),
-    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0)),
-    color-mix(in srgb, var(--background-secondary-alt) 86%, var(--background-primary) 14%);
-  box-shadow: 0 20px 38px color-mix(in srgb, var(--background-primary) 86%, transparent);
-}
-
-.diwa-projects-header__stats {
-  flex: 1 1 280px;
-}
-
-.diwa-projects-actions {
-  flex: 1 1 240px;
-}
-
-.diwa-projects-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 4px 0;
-}
-
-.diwa-projects-filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.diwa-projects-filter-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 42px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 76%, transparent);
-  background: color-mix(in srgb, var(--background-secondary) 76%, transparent);
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition:
-    border-color 160ms ease,
-    background-color 160ms ease,
-    color 160ms ease,
-    transform 160ms ease,
-    box-shadow 160ms ease;
-}
-
-.diwa-projects-filter-pill__label {
-  white-space: nowrap;
-}
-
-.diwa-projects-filter-pill__count {
-  min-width: 24px;
-  min-height: 24px;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--background-primary) 70%, transparent);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-normal);
-}
-
-.diwa-projects-filter-pill.is-active {
-  border-color: color-mix(in srgb, var(--interactive-accent) 28%, transparent);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--interactive-accent) 18%, transparent), transparent),
-    color-mix(in srgb, var(--background-primary) 72%, var(--interactive-accent) 28%);
-  color: var(--text-normal);
-  box-shadow: 0 12px 22px color-mix(in srgb, var(--interactive-accent) 10%, transparent);
-  transform: translateY(-1px);
-}
-
-.diwa-projects-summary {
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--text-muted);
-}
-
-.diwa-projects-board {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
-  align-content: start;
-}
-
-.diwa-project-card,
-.diwa-mobile-project-card,
-.diwa-tablet-project-list-card,
-.diwa-tablet-project-detail {
-  --project-color: var(--interactive-accent);
-}
-
-.diwa-project-card {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-width: 0;
-  padding: 18px;
-  border-radius: 26px;
-  border: 1px solid color-mix(in srgb, var(--project-color) 18%, var(--background-modifier-border-faint) 82%);
-  background:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--project-color) 10%, transparent), transparent 46%),
-    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0)),
-    color-mix(in srgb, var(--background-secondary-alt) 86%, var(--background-primary) 14%);
-  box-shadow: 0 18px 34px color-mix(in srgb, var(--background-primary) 88%, transparent);
-}
-
-.diwa-project-card__head,
-.diwa-mobile-project-card__head,
-.diwa-tablet-project-detail__header,
-.diwa-tablet-project-list-card__title-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.diwa-project-card__identity,
-.diwa-mobile-project-card__identity {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  min-width: 0;
-}
-
-.diwa-project-card__swatch,
-.diwa-mobile-project-card__swatch {
-  width: 14px;
-  height: 14px;
-  border-radius: 999px;
-  margin-top: 6px;
-  background: var(--project-color);
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--project-color) 12%, transparent);
-  flex-shrink: 0;
-}
-
-.diwa-project-card__copy,
-.diwa-mobile-project-card__copy,
-.diwa-tablet-project-detail__copy {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.diwa-project-card__eyebrow,
-.diwa-mobile-project-card__eyebrow,
-.diwa-tablet-project-detail__eyebrow,
-.diwa-project-modal-eyebrow {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--project-color) 56%, var(--text-faint) 44%);
-}
-
-.diwa-project-card__name,
-.diwa-mobile-project-card__title,
-.diwa-tablet-project-detail__title {
-  margin: 0;
-  font-size: 20px;
-  line-height: 1.15;
-  font-weight: 780;
-  letter-spacing: -0.03em;
-  color: var(--text-normal);
-}
-
-.diwa-project-card__header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.diwa-project-status-btn,
-.diwa-mobile-project-status {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 36px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 74%, transparent);
-  background: color-mix(in srgb, var(--background-secondary) 76%, transparent);
-  color: var(--text-normal);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.diwa-project-status-btn {
-  cursor: pointer;
-  transition:
-    border-color 160ms ease,
-    background-color 160ms ease,
-    color 160ms ease,
-    transform 160ms ease;
-}
-
-.diwa-project-status-btn:hover,
-.diwa-project-status-btn:focus-visible {
-  border-color: color-mix(in srgb, var(--project-color) 26%, transparent);
-  background: color-mix(in srgb, var(--project-color) 12%, var(--background-primary) 88%);
-  outline: none;
-}
-
-.diwa-project-status-btn--active,
-.diwa-mobile-project-status--active {
-  border-color: color-mix(in srgb, var(--color-green) 24%, var(--background-modifier-border) 76%);
-  background: color-mix(in srgb, var(--color-green) 12%, var(--background-secondary) 88%);
-  color: var(--color-green);
-}
-
-.diwa-project-status-btn--on-hold,
-.diwa-mobile-project-status--on-hold {
-  border-color: color-mix(in srgb, var(--color-orange) 24%, var(--background-modifier-border) 76%);
-  background: color-mix(in srgb, var(--color-orange) 12%, var(--background-secondary) 88%);
-  color: color-mix(in srgb, var(--color-orange) 82%, var(--text-normal) 18%);
-}
-
-.diwa-project-status-btn--completed,
-.diwa-mobile-project-status--completed {
-  border-color: color-mix(in srgb, var(--interactive-accent) 24%, var(--background-modifier-border) 76%);
-  background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-secondary) 88%);
-  color: var(--interactive-accent);
-}
-
-.diwa-project-icon-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 74%, transparent);
-  background: color-mix(in srgb, var(--background-secondary) 78%, transparent);
-  color: var(--text-muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition:
-    border-color 160ms ease,
-    background-color 160ms ease,
-    color 160ms ease,
-    transform 160ms ease;
-}
-
-.diwa-project-icon-btn:hover,
-.diwa-project-icon-btn:focus-visible {
-  border-color: color-mix(in srgb, var(--project-color) 26%, transparent);
-  background: color-mix(in srgb, var(--project-color) 12%, var(--background-primary) 88%);
-  color: var(--text-normal);
-  outline: none;
-  transform: translateY(-1px);
-}
-
-.diwa-project-card__goal,
-.diwa-tablet-project-list-card__subtitle,
-.diwa-tablet-project-detail__body,
-.diwa-mobile-project-card__goal {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--text-muted);
-}
-
-.diwa-project-card__stats,
-.diwa-mobile-project-card__meta,
-.diwa-tablet-project-detail__metrics {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.diwa-project-card__stat,
-.diwa-tablet-project-detail__metric {
-  min-width: 92px;
-  padding: 10px 12px;
-  border-radius: 18px;
-  border: 1px solid color-mix(in srgb, var(--background-modifier-border-faint) 84%, transparent);
-  background: color-mix(in srgb, var(--background-primary) 64%, var(--background-secondary) 36%);
-}
-
-.diwa-project-card__stat-label,
-.diwa-tablet-project-detail__metric-label {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-}
-
-.diwa-project-card__stat-value,
-.diwa-tablet-project-detail__metric-value {
-  margin-top: 4px;
-  font-size: 14px;
-  font-weight: 760;
-  color: var(--text-normal);
-}
-
-.diwa-project-card__stat.is-urgent,
-.diwa-tablet-project-detail__metric.is-urgent,
-.diwa-mobile-project-chip.is-urgent {
-  border-color: color-mix(in srgb, var(--text-error) 18%, var(--background-modifier-border-faint) 82%);
-  background: color-mix(in srgb, var(--text-error) 8%, var(--background-secondary) 92%);
-}
-
-.diwa-project-card__progress {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.diwa-project-card__progress-label {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.diwa-project-card__progress-track {
-  height: 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--background-modifier-border) 72%, transparent);
-  overflow: hidden;
-}
-
-.diwa-project-card__progress-bar {
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--project-color) 64%, white 36%), var(--project-color));
-}
-
-.diwa-project-card__next,
-.diwa-mobile-project-card__next {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px;
-  border-radius: 20px;
-  border: 1px solid color-mix(in srgb, var(--project-color) 14%, var(--background-modifier-border-faint) 86%);
-  background: color-mix(in srgb, var(--background-primary) 66%, var(--project-color) 34%);
-}
-
-.diwa-project-card__next-label,
-.diwa-mobile-project-card__next-label {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--project-color) 62%, var(--text-faint) 38%);
-}
-
-.diwa-project-card__next-title,
-.diwa-mobile-project-card__next-title {
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.45;
-  color: var(--text-normal);
-}
-
-.diwa-project-card__footer,
-.diwa-project-expand__actions,
-.diwa-mobile-project-card__actions,
-.diwa-mobile-project-actions,
-.diwa-tablet-project-detail__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.diwa-project-action-btn,
-.diwa-mobile-project-btn,
-.diwa-epm-cancel-btn,
-.diwa-epm-save-btn {
-  min-height: 44px;
-  padding: 0 16px;
-  border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 74%, transparent);
-  background: color-mix(in srgb, var(--background-secondary) 78%, transparent);
-  color: var(--text-normal);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition:
-    border-color 160ms ease,
-    background-color 160ms ease,
-    color 160ms ease,
-    transform 160ms ease,
-    box-shadow 160ms ease;
-}
-
-.diwa-project-action-btn:hover,
-.diwa-project-action-btn:focus-visible,
-.diwa-mobile-project-btn:hover,
-.diwa-mobile-project-btn:focus-visible,
-.diwa-epm-cancel-btn:hover,
-.diwa-epm-cancel-btn:focus-visible,
-.diwa-epm-save-btn:hover,
-.diwa-epm-save-btn:focus-visible {
-  border-color: color-mix(in srgb, var(--project-color) 22%, var(--background-modifier-border) 78%);
-  background: color-mix(in srgb, var(--project-color) 10%, var(--background-primary) 90%);
-  outline: none;
-  transform: translateY(-1px);
-}
-
-.diwa-project-action-btn--primary,
-.diwa-mobile-project-btn.is-primary,
-.diwa-epm-save-btn {
-  border-color: color-mix(in srgb, var(--project-color) 26%, transparent);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--project-color) 18%, transparent), transparent),
-    color-mix(in srgb, var(--background-primary) 72%, var(--project-color) 28%);
-  color: var(--text-normal);
-  box-shadow: 0 12px 22px color-mix(in srgb, var(--project-color) 10%, transparent);
-}
-
-.diwa-project-action-btn--danger,
-.diwa-mobile-project-btn.is-danger {
-  border-color: color-mix(in srgb, var(--text-error) 22%, transparent);
-  background: color-mix(in srgb, var(--text-error) 10%, var(--background-primary) 90%);
-  color: var(--text-error);
-}
-
-.diwa-project-action-btn__icon,
-.diwa-mobile-project-btn-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.diwa-project-card__expand,
-.diwa-mobile-project-card__detail,
-.diwa-tablet-project-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.diwa-project-card__section,
-.diwa-tablet-project-detail__tasks {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 20px;
-  border: 1px solid color-mix(in srgb, var(--background-modifier-border-faint) 84%, transparent);
-  background: color-mix(in srgb, var(--background-primary) 66%, var(--background-secondary) 34%);
-}
-
-.diwa-project-card__section-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.diwa-project-card__section-title {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.diwa-project-card__section-caption {
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--text-faint);
-}
-
-.diwa-project-expand__tasks,
-.diwa-mobile-project-card__task-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.diwa-project-expand__task-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 38px;
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--background-secondary) 70%, transparent);
-}
-
-.diwa-project-expand__dot {
-  width: 16px;
-  height: 16px;
-  color: var(--project-color);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.diwa-project-expand__task-title {
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.diwa-project-task-empty,
-.diwa-project-empty-state,
-.diwa-projects-empty-surface {
-  padding: 18px;
-  border-radius: 24px;
-  border: 1px dashed color-mix(in srgb, var(--background-modifier-border) 74%, transparent);
-  background: color-mix(in srgb, var(--background-secondary) 56%, transparent);
-}
-
-.diwa-project-empty-state {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: flex-start;
-}
-
-.diwa-project-empty-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
-  color: var(--interactive-accent);
-}
-
-.diwa-project-empty-title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 760;
-}
-
-.diwa-project-empty-body {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--text-muted);
-}
-
-.diwa-milestones-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 2px;
-  scroll-margin: 18px 0 36px;
-  padding: 14px;
-  border-radius: 20px;
-  border: 1px solid color-mix(in srgb, var(--background-modifier-border-faint) 84%, transparent);
-  background: color-mix(in srgb, var(--background-primary) 66%, var(--background-secondary) 34%);
-}
-
-.diwa-milestones-toggle {
-  min-height: 40px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text-normal);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.diwa-milestones-toggle__icon {
-  width: 16px;
-  height: 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.diwa-milestones-body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.diwa-milestones-loading,
-.diwa-milestone-progress-label {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.diwa-milestone-progress-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.diwa-milestone-progress-track {
-  height: 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--background-modifier-border) 72%, transparent);
-  overflow: hidden;
-}
-
-.diwa-milestone-progress {
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--project-color) 64%, white 36%), var(--project-color));
-}
-
-.diwa-milestone-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  min-height: 40px;
-  padding: 8px 0;
-}
-
-.diwa-milestone-row input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  min-height: 20px;
-}
-
-.diwa-milestone-title {
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.diwa-milestone-row__content {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.diwa-milestone-row__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.diwa-milestone-row__actions,
-.diwa-milestone-edit-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.diwa-milestone-row__actions {
-  margin-left: auto;
-}
-
-.diwa-milestone-row.is-editing {
-  padding: 12px;
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--background-secondary) 74%, transparent);
-}
-
-.diwa-milestone-edit-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-}
-
-.diwa-milestone-title.is-done {
-  text-decoration: line-through;
-  color: var(--text-muted);
-}
-
-.diwa-milestone-btn {
-  min-height: 36px;
-  padding: 0 12px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 74%, transparent);
-  background: color-mix(in srgb, var(--background-secondary) 78%, transparent);
-  color: var(--text-normal);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition:
-    border-color 160ms ease,
-    background-color 160ms ease,
-    color 160ms ease;
-}
-
-.diwa-milestone-btn:hover,
-.diwa-milestone-btn:focus-visible {
-  border-color: color-mix(in srgb, var(--project-color) 22%, var(--background-modifier-border) 78%);
-  background: color-mix(in srgb, var(--project-color) 10%, var(--background-primary) 90%);
-  outline: none;
-}
-
-.diwa-milestone-btn--primary {
-  border-color: color-mix(in srgb, var(--project-color) 26%, transparent);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--project-color) 18%, transparent), transparent),
-    color-mix(in srgb, var(--background-primary) 72%, var(--project-color) 28%);
-}
-
-.diwa-milestone-btn--danger {
-  border-color: color-mix(in srgb, var(--text-error) 22%, transparent);
-  background: color-mix(in srgb, var(--text-error) 10%, var(--background-primary) 90%);
-  color: var(--text-error);
-}
-
-.diwa-milestone-row__icon-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-}
-
-.diwa-milestone-add-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 10px;
-  align-items: center;
-}
-
-.diwa-milestone-add-input,
-.diwa-milestone-add-date,
-.diwa-project-modal-body .diwa-field-input,
-.diwa-project-modal-body .diwa-field-textarea,
-.diwa-epm-body .diwa-field-input,
-.diwa-epm-body .diwa-field-textarea {
-  width: 100%;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 76%, transparent);
-  background: color-mix(in srgb, var(--background-secondary) 78%, transparent);
-  color: var(--text-normal);
-}
-
-.diwa-milestone-add-input,
-.diwa-milestone-add-date,
-.diwa-project-modal-body .diwa-field-input,
-.diwa-epm-body .diwa-field-input {
-  min-height: 44px;
-  padding: 0 12px;
-}
-
-.diwa-project-modal-body .diwa-field-textarea,
-.diwa-epm-body .diwa-field-textarea {
-  min-height: 92px;
-  padding: 12px 14px;
-  resize: vertical;
-}
-
 .diwa-status-picker {
   position: fixed;
   z-index: 9999;
@@ -18105,27 +17355,6 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
   height: 10px;
   border-radius: 999px;
   background: var(--interactive-accent);
-}
-
-.diwa-project-modal-body,
-.diwa-epm-body {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 18px 22px;
-}
-
-.diwa-project-modal-header-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.diwa-project-color-picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
 }
 
 .diwa-color-swatch {
@@ -18358,70 +17587,11 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
 }
 
 @container projects-workspace (max-width: 960px) {
-  .diwa-projects-shell {
-    padding: 14px 14px calc(var(--diwa-footer-clearance) + 20px);
-  }
 
-  .diwa-projects-header {
-    border-radius: 24px;
-  }
-
-  .diwa-projects-actions {
-    width: 100%;
-    justify-content: flex-start;
-    flex-wrap: wrap;
-  }
-
-  .diwa-projects-actions .diwa-gawa-header-btn {
-    flex: 1 1 calc(50% - 5px);
-    justify-content: center;
-  }
 }
 
 @media (max-width: 960px) {
   .diwa-tablet-projects-split {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 520px) {
-  .diwa-projects-shell,
-  .diwa-mobile-projects,
-  .diwa-tablet-projects {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-
-  .diwa-project-card,
-  .diwa-mobile-project-card,
-  .diwa-tablet-project-list-card,
-  .diwa-tablet-project-detail,
-  .diwa-projects-header,
-  .diwa-mobile-hero,
-  .diwa-mobile-surface {
-    border-radius: 22px;
-  }
-
-  .diwa-project-card__footer,
-  .diwa-project-expand__actions,
-  .diwa-mobile-project-card__actions,
-  .diwa-mobile-project-actions,
-  .diwa-tablet-project-detail__actions {
-    flex-direction: column;
-  }
-
-  .diwa-project-action-btn,
-  .diwa-mobile-project-btn,
-  .diwa-epm-cancel-btn,
-  .diwa-epm-save-btn {
-    width: 100%;
-  }
-
-  .diwa-milestone-add-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .diwa-milestone-edit-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -18711,817 +17881,6 @@ body.is-tablet .diwa-journal-composer--mobile .diwa-journal-composer__surface {
   user-select: text;
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   PROJECT FOCUS WORKSPACE
-   ═══════════════════════════════════════════════════════════════════ */
-.diwa-projects-shell--focus {
-    gap: 14px;
-}
-
-.diwa-project-focus__topbar {
-    grid-template-columns: minmax(0, 1fr);
-    align-items: flex-start;
-    gap: 10px;
-    padding: 12px 16px;
-}
-
-.diwa-project-focus__topbar-left,
-.diwa-project-focus__topbar-actions {
-    display: flex;
-    width: 100%;
-    align-items: center;
-    gap: 8px;
-}
-
-.diwa-project-focus__topbar-left {
-    flex-direction: row;
-    align-items: flex-start;
-    flex-wrap: nowrap;
-    min-width: 0;
-}
-
-.diwa-project-focus__topbar-actions {
-    justify-content: flex-start;
-    flex-wrap: wrap;
-}
-
-.diwa-project-focus__topbar-status,
-.diwa-project-focus__topbar-secondary {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.diwa-project-focus__topbar-secondary {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-.diwa-project-focus__shell {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.diwa-project-focus__topbar-title,
-.diwa-project-focus__topbar-identity,
-.diwa-project-focus__panel-header,
-.diwa-project-focus__panel-copy,
-.diwa-project-focus__task-section-header,
-.diwa-project-focus__milestones-body,
-.diwa-project-focus__milestone-list,
-.diwa-project-focus__task-sections,
-.diwa-project-focus__task-body {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-}
-
-.diwa-project-focus__topbar-title {
-    flex: 1 1 auto;
-    gap: 8px;
-}
-
-.diwa-project-focus__eyebrow,
-.diwa-project-focus__panel-eyebrow,
-.diwa-project-focus__quick-add-label {
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-faint);
-}
-
-.diwa-project-focus__title {
-    font-size: clamp(1.06rem, 1.8vw, 1.28rem);
-    line-height: 1.18;
-    font-weight: 800;
-    color: var(--text-normal);
-    letter-spacing: -0.03em;
-}
-
-.diwa-project-focus__status-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
-    gap: 8px;
-    width: 100%;
-}
-
-.diwa-project-focus__stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 8px;
-    width: 100%;
-}
-
-.diwa-project-focus__overview--compact {
-    border: 1px solid var(--background-modifier-border-faint);
-    border-radius: 18px;
-    padding: 14px 16px;
-    background: color-mix(in srgb, var(--background-primary) 88%, var(--background-secondary) 12%);
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
-}
-
-.diwa-project-focus__description {
-    margin: 0;
-    font-size: 0.9rem;
-    line-height: 1.55;
-    color: var(--text-normal);
-}
-
-.diwa-project-focus__description.is-muted {
-    color: var(--text-muted);
-}
-
-.diwa-project-focus__topbar-actions .diwa-gawa-header-btn,
-.diwa-project-focus__topbar-actions .diwa-project-status-btn {
-    min-height: 44px;
-    padding: 0 12px;
-}
-
-.diwa-project-focus__identity {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    flex: 1 1 auto;
-    max-width: min(76ch, 100%);
-}
-
-.diwa-project-focus__identity .diwa-gawa-header-title {
-    margin: 0;
-    font-size: clamp(1.14rem, 1.8vw, 1.32rem);
-    line-height: 1.15;
-}
-
-.diwa-project-focus__identity-meta {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 10px;
-    min-width: 0;
-}
-
-.diwa-project-focus__identity .diwa-gawa-header-subtitle {
-    font-size: 0.82rem;
-    line-height: 1.4;
-}
-
-.diwa-project-focus__overview {
-    display: grid;
-    gap: 10px;
-}
-
-.diwa-project-focus__overview-card {
-    border: 1px solid var(--background-modifier-border-faint);
-    border-radius: 18px;
-    padding: 14px 16px;
-    background: color-mix(in srgb, var(--background-primary) 88%, var(--background-secondary) 12%);
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
-}
-
-.diwa-project-focus__hero,
-.diwa-project-focus__stat,
-.diwa-project-focus__panel,
-.diwa-project-focus__task-card,
-.diwa-project-focus__bucket {
-    border: 1px solid var(--background-modifier-border-faint);
-    background: color-mix(in srgb, var(--background-primary) 88%, var(--background-secondary) 12%);
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
-}
-
-.diwa-project-focus__hero {
-    border-radius: 18px;
-    padding: 14px 16px;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px 14px;
-    align-items: start;
-}
-
-.diwa-project-focus__overview-main {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-    border-radius: 0;
-}
-
-.diwa-project-focus__hero-copy {
-    margin: 0;
-    font-size: 0.9rem;
-    line-height: 1.55;
-    color: var(--text-normal);
-}
-
-.diwa-project-focus__overview-meta {
-    justify-content: flex-start;
-}
-
-.diwa-project-focus__hero-meta {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 6px;
-    align-items: center;
-}
-
-.diwa-project-focus__overview-chip {
-    color: var(--text-muted);
-}
-
-.diwa-project-focus__overview-stats {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
-}
-
-.diwa-project-focus__stat {
-    border-radius: 14px;
-    padding: 12px 14px;
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-}
-
-.diwa-project-focus__stat-icon {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    background: rgba(var(--interactive-accent-rgb), 0.1);
-    color: var(--interactive-accent);
-}
-
-.diwa-project-focus__stat-copy {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    min-width: 0;
-}
-
-.diwa-project-focus__stat-label {
-    font-size: 0.69rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-faint);
-}
-
-.diwa-project-focus__stat-value {
-    font-size: 1.14rem;
-    font-weight: 800;
-    color: var(--text-normal);
-    letter-spacing: -0.03em;
-}
-
-.diwa-project-focus__stat-detail {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    line-height: 1.35;
-}
-
-.diwa-project-focus__grid {
-    display: grid;
-    grid-template-columns: minmax(240px, 310px) minmax(0, 1fr);
-    gap: 12px;
-    min-height: 0;
-    align-items: start;
-}
-
-.diwa-project-focus__panel {
-    border-radius: 18px;
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    min-height: 0;
-}
-
-.diwa-project-focus__panel--planning {
-    align-self: start;
-    position: sticky;
-    top: 8px;
-}
-
-.diwa-project-focus__panel-head,
-.diwa-project-focus__task-section-head {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-.diwa-project-focus__panel-title,
-.diwa-project-focus__task-section-title,
-.diwa-project-focus__bucket-title {
-    font-size: 1rem;
-    font-weight: 800;
-    color: var(--text-normal);
-    letter-spacing: -0.02em;
-}
-
-.diwa-project-focus__panel-caption,
-.diwa-project-focus__task-section-caption,
-.diwa-project-focus__bucket-meta,
-.diwa-project-focus__selection-empty,
-.diwa-project-focus__task-body,
-.diwa-project-focus__task-context-copy,
-.diwa-project-focus__task-select-label {
-    font-size: 0.8rem;
-    line-height: 1.4;
-    color: var(--text-muted);
-}
-
-.diwa-project-focus__milestones,
-.diwa-project-focus__task-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.diwa-project-focus__milestone-bucket {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    flex: 1 1 auto;
-}
-
-.diwa-project-focus__milestone-label {
-    font-size: 0.92rem;
-    font-weight: 700;
-    color: var(--text-normal);
-}
-
-.diwa-project-focus__milestone-count,
-.diwa-project-focus__task-section-subtitle {
-    font-size: 0.8rem;
-    line-height: 1.4;
-    color: var(--text-muted);
-}
-
-.diwa-project-focus__bucket {
-    border-radius: 14px;
-    padding: 12px 14px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
-}
-
-.diwa-project-focus__bucket:hover,
-.diwa-project-focus__bucket.is-selected,
-.diwa-milestone-row.is-selected {
-    border-color: rgba(var(--interactive-accent-rgb), 0.36);
-    box-shadow: 0 10px 24px rgba(var(--interactive-accent-rgb), 0.1);
-    transform: translateY(-1px);
-}
-
-.diwa-project-focus__bucket-icon {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(var(--interactive-accent-rgb), 0.1);
-    color: var(--interactive-accent);
-    flex-shrink: 0;
-}
-
-.diwa-project-focus__bucket-copy {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-}
-
-.diwa-project-focus__quick-add {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.diwa-project-focus__quick-add-row,
-.diwa-project-focus__milestone-editor,
-.diwa-project-focus__milestone-add,
-.diwa-project-focus__milestone-actions,
-.diwa-project-focus__task-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-}
-
-.diwa-project-focus__panel--planning .diwa-milestone-add-row {
-    grid-template-columns: minmax(0, 1fr) 120px auto;
-    gap: 8px;
-}
-
-.diwa-project-focus__panel--planning .diwa-milestone-add-input,
-.diwa-project-focus__panel--planning .diwa-milestone-add-date,
-.diwa-project-focus__quick-input,
-.diwa-project-focus__quick-date,
-.diwa-project-focus__task-select,
-.diwa-project-focus__quick-add-input,
-.diwa-project-focus__milestone-input,
-.diwa-project-focus__select {
-    width: 100%;
-    border-radius: 12px;
-    border: 1px solid var(--background-modifier-border);
-    background: var(--background-primary-alt, var(--background-primary));
-    color: var(--text-normal);
-    padding: 9px 11px;
-    font-size: 0.88rem;
-}
-
-.diwa-project-focus__panel--planning .diwa-project-action-btn,
-.diwa-project-focus__quick-add .diwa-project-action-btn {
-    min-height: 44px;
-    padding: 0 14px;
-    border-radius: 12px;
-}
-
-.diwa-project-focus__quick-input:focus,
-.diwa-project-focus__quick-date:focus,
-.diwa-project-focus__task-select:focus,
-.diwa-milestone-row__content--selectable:focus-visible,
-.diwa-project-focus__bucket:focus-visible,
-.diwa-project-focus__task-card:focus-within,
-.diwa-project-focus__task-btn:focus-visible {
-    outline: none;
-    border-color: var(--interactive-accent);
-    box-shadow: 0 0 0 3px rgba(var(--interactive-accent-rgb), 0.14);
-}
-
-.diwa-project-focus__task-context {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 10px 12px;
-    border-radius: 14px;
-    border: 1px solid var(--background-modifier-border-faint);
-    background: color-mix(in srgb, var(--background-primary) 92%, var(--background-secondary) 8%);
-}
-
-.diwa-project-focus__task-context-heading {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-.diwa-project-focus__task-context-title {
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: var(--text-normal);
-}
-
-.diwa-project-focus__task-context-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.diwa-project-focus__task-section {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.diwa-project-focus__selection-empty {
-    padding: 12px 14px;
-    border-radius: 14px;
-    border: 1px dashed var(--background-modifier-border);
-    background: rgba(var(--interactive-accent-rgb), 0.04);
-}
-
-.diwa-project-focus__task-card {
-    border-radius: 16px;
-    padding: 12px 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.diwa-project-focus__task-card.is-done {
-    opacity: 0.82;
-}
-
-.diwa-project-focus__task-row {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 10px;
-}
-
-.diwa-project-focus__task-toggle {
-    width: 22px;
-    height: 22px;
-    margin-top: 2px;
-    flex-shrink: 0;
-    accent-color: var(--interactive-accent);
-    cursor: pointer;
-}
-
-.diwa-project-focus__task-row--meta {
-    align-items: center;
-}
-
-.diwa-project-focus__task-main {
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-    min-width: 0;
-    flex: 1 1 auto;
-}
-
-.diwa-project-focus__task-main > input[type='checkbox'] {
-    margin-top: 3px;
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-}
-
-.diwa-project-focus__task-copy {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    flex: 1;
-}
-
-.diwa-project-focus__task-title {
-    font-size: 0.92rem;
-    font-weight: 700;
-    color: var(--text-normal);
-    line-height: 1.4;
-}
-
-.diwa-project-focus__task-title.is-done {
-    color: var(--text-muted);
-    text-decoration: line-through;
-}
-
-.diwa-project-focus__task-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.diwa-project-focus__task-actions {
-    justify-content: flex-end;
-}
-
-.diwa-project-focus__task-toggle:disabled,
-.diwa-project-focus__select:disabled,
-.diwa-project-focus__milestone-input:disabled,
-.diwa-project-focus__quick-add-input:disabled {
-    opacity: 0.6;
-    cursor: progress;
-}
-
-.diwa-project-focus__task-controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    align-items: stretch;
-    justify-content: flex-end;
-    flex: 0 0 auto;
-}
-
-.diwa-project-focus__task-select-wrap {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: min(180px, 100%);
-    flex: 1 1 180px;
-}
-
-.diwa-project-focus__task-assignment {
-    margin-left: auto;
-    max-width: min(220px, 100%);
-}
-
-.diwa-project-focus__task-select-label {
-    font-weight: 700;
-}
-
-.diwa-project-focus__task-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    min-height: 36px;
-    padding: 0 12px;
-    border-radius: 10px;
-    border: 1px solid var(--background-modifier-border);
-    background: transparent;
-    color: var(--text-normal);
-    cursor: pointer;
-    font-size: 0.78rem;
-    font-weight: 700;
-}
-
-.diwa-project-focus__task-btn:hover {
-    background: rgba(var(--interactive-accent-rgb), 0.08);
-    border-color: rgba(var(--interactive-accent-rgb), 0.24);
-}
-
-.diwa-project-focus__task-status,
-.diwa-project-focus__task-priority,
-.diwa-project-focus__stat-chip,
-.diwa-project-focus__selected-chip {
-    background: rgba(var(--interactive-accent-rgb), 0.08);
-    border: 1px solid rgba(var(--interactive-accent-rgb), 0.18);
-    color: var(--interactive-accent);
-}
-
-.diwa-milestone-row--focus {
-    gap: 8px;
-    border-radius: 14px;
-    min-height: 52px;
-    padding: 12px 14px;
-    border: 1px solid var(--background-modifier-border-faint);
-    background: color-mix(in srgb, var(--background-primary) 90%, var(--background-secondary) 10%);
-    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
-}
-
-.diwa-milestone-row--focus .diwa-milestone-row__content {
-    min-width: 0;
-    gap: 6px;
-}
-
-.diwa-milestone-row--focus .diwa-milestone-title {
-    font-size: 0.9rem;
-    line-height: 1.35;
-}
-
-.diwa-milestone-row--focus .diwa-milestone-row__actions {
-    gap: 6px;
-}
-
-.diwa-milestone-row--focus .diwa-milestone-row__icon-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 10px;
-}
-
-.diwa-milestone-row__content--selectable {
-    cursor: pointer;
-}
-
-.diwa-milestone-row--focus .diwa-milestone-row__meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 6px;
-}
-
-@media (max-width: 840px) {
-    .diwa-project-focus__hero {
-        grid-template-columns: 1fr;
-    }
-
-    .diwa-project-focus__overview-card {
-        padding: 12px 14px;
-    }
-
-    .diwa-project-focus__hero-meta {
-        justify-content: flex-start;
-    }
-
-    .diwa-project-focus__overview-stats {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .diwa-project-focus__quick-add,
-    .diwa-project-focus__panel--planning .diwa-milestone-add-row {
-        grid-template-columns: minmax(0, 1fr) 116px auto;
-    }
-}
-
-@media (max-width: 720px) {
-    .diwa-project-focus__panel--planning {
-        position: static;
-    }
-
-    .diwa-project-focus__topbar {
-        gap: 8px;
-        padding: 10px 12px;
-    }
-
-    .diwa-project-focus__topbar-left {
-        flex-wrap: wrap;
-    }
-
-    .diwa-project-focus__topbar-status,
-    .diwa-project-focus__topbar-secondary {
-        width: 100%;
-    }
-
-    .diwa-project-focus__topbar-secondary .diwa-gawa-header-btn,
-    .diwa-project-focus__topbar-status .diwa-project-status-btn {
-        flex: 1 1 calc(50% - 4px);
-        justify-content: center;
-    }
-
-    .diwa-project-focus__grid,
-    .diwa-project-focus__quick-add,
-    .diwa-project-focus__panel--planning .diwa-milestone-add-row {
-        grid-template-columns: 1fr;
-    }
-
-    .diwa-project-focus__panel,
-    .diwa-project-focus__hero,
-    .diwa-project-focus__stat,
-    .diwa-project-focus__task-card,
-    .diwa-project-focus__bucket {
-        border-radius: 14px;
-    }
-
-    .diwa-project-focus__panel {
-        padding: 12px;
-        gap: 10px;
-    }
-
-    .diwa-project-focus__hero {
-        padding: 12px 14px;
-    }
-
-    .diwa-project-focus__task-row,
-    .diwa-project-focus__task-row--meta {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .diwa-project-focus__task-controls {
-        width: 100%;
-        justify-content: flex-start;
-    }
-
-    .diwa-project-focus__task-assignment {
-        margin-left: 0;
-        max-width: 100%;
-    }
-
-    .diwa-project-focus__stat {
-        padding: 10px 12px;
-    }
-
-    .diwa-project-focus__bucket,
-    .diwa-project-focus__task-card {
-        padding: 11px 12px;
-    }
-
-    .diwa-project-focus__panel--planning .diwa-project-action-btn,
-    .diwa-project-focus__quick-add .diwa-project-action-btn,
-    .diwa-project-focus__task-btn {
-        width: 100%;
-        min-height: 42px;
-    }
-
-    .diwa-project-focus__task-controls {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .diwa-project-focus__task-select-wrap {
-        min-width: 0;
-        flex-basis: auto;
-    }
-
-    .diwa-milestone-row--focus {
-        flex-wrap: wrap;
-    }
-
-    .diwa-milestone-row--focus .diwa-milestone-row__actions {
-        width: 100%;
-        margin-left: 28px;
-    }
-}
-
-body.is-mobile .diwa-project-focus__panel,
-body.is-mobile .diwa-project-focus__hero,
-body.is-mobile .diwa-project-focus__stat,
-body.is-mobile .diwa-project-focus__task-card,
-body.is-mobile .diwa-project-focus__bucket {
-    border-radius: 14px;
-}
-
-body.is-mobile .diwa-project-focus__topbar {
-    padding: 10px 12px;
-}
-
-body.is-mobile .diwa-project-focus__topbar-left {
-    flex-wrap: wrap;
-}
-
 .diwa-review-week-picker {
   display: flex;
   flex-direction: column;
@@ -19530,8 +17889,7 @@ body.is-mobile .diwa-project-focus__topbar-left {
 
 .diwa-review-week-picker__label,
 .diwa-review-save-note,
-.diwa-weekplan-action-note,
-.diwa-review-thought-card__path {
+.diwa-weekplan-action-note {
   font-size: 0.75rem;
   color: var(--text-muted);
 }
@@ -19583,7 +17941,8 @@ body.is-mobile .diwa-project-focus__topbar-left {
 }
 
 .diwa-review-week-btn:focus-visible,
-.diwa-review-thought-card:focus-visible {
+.diwa-review-thought-feed-row:focus-visible,
+.diwa-review-week-focus-row:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--diwa-review-accent-soft);
 }
@@ -19592,6 +17951,50 @@ body.is-mobile .diwa-project-focus__topbar-left {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.diwa-review-week-focus-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.diwa-review-week-focus-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.diwa-review-week-focus-row {
+  display: grid;
+  grid-template-columns: minmax(140px, max-content) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border: 1px solid var(--diwa-review-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--background-primary) 86%, var(--background-secondary) 14%);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.diwa-review-week-focus-row:hover {
+  border-color: color-mix(in srgb, var(--interactive-accent) 24%, var(--diwa-review-border-strong) 76%);
+  background: var(--diwa-review-panel-hover);
+}
+
+.diwa-review-week-focus-row__meta {
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.diwa-review-week-focus-row__text {
+  min-width: 0;
+  color: var(--text-normal);
+  line-height: 1.45;
+  word-break: break-word;
 }
 
 .diwa-review-thought-day {
@@ -19604,16 +18007,14 @@ body.is-mobile .diwa-project-focus__topbar-left {
   background: color-mix(in srgb, var(--background-primary) 84%, var(--background-secondary) 16%);
 }
 
-.diwa-review-thought-day__header,
-.diwa-review-thought-card__top {
+.diwa-review-thought-day__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
 }
 
-.diwa-review-thought-day__label,
-.diwa-review-thought-card__title {
+.diwa-review-thought-day__label {
   font-weight: 700;
   color: var(--text-normal);
 }
@@ -19634,69 +18035,68 @@ body.is-mobile .diwa-project-focus__topbar-left {
 
 .diwa-review-thought-day__list {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
-.diwa-review-thought-card {
+.diwa-review-thought-feed-row {
   width: 100%;
-  padding: 11px 12px;
-  border: 1px solid var(--diwa-review-border);
-  border-radius: 12px;
-  background: var(--background-primary);
-  color: inherit;
-  text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
-.diwa-review-thought-card:hover {
-  border-color: color-mix(in srgb, var(--interactive-accent) 28%, var(--diwa-review-border-strong) 72%);
-  background: var(--diwa-review-panel-hover);
-  transform: translateY(-1px);
+.diwa-review-thought-feed-row__text {
+  white-space: normal;
+  word-break: break-word;
 }
 
-.diwa-review-thought-card__titles {
-  min-width: 0;
-  flex: 1;
-}
-
-.diwa-review-thought-card__title,
-.diwa-review-thought-card__path,
-.diwa-review-thought-card__excerpt {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.diwa-review-thought-card__excerpt {
-  margin-top: 8px;
-  color: var(--text-muted);
-  line-height: 1.5;
-}
-
-.diwa-review-thought-card__time {
-  flex: 0 0 auto;
-  font-size: 0.74rem;
-  color: var(--text-faint);
-  white-space: nowrap;
-}
-
-.diwa-review-thought-card__meta {
+.diwa-review-thought-feed-row__text .task-list-item {
   display: flex;
-  flex-wrap: wrap;
+  align-items: baseline;
   gap: 6px;
-  margin-top: 10px;
 }
 
-.diwa-review-thought-card__pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--background-secondary) 72%, var(--background-primary) 28%);
-  color: var(--text-muted);
-  font-size: 0.72rem;
-  font-weight: 700;
+.diwa-review-thought-feed-row__text .task-list-item-checkbox {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  cursor: default;
+}
+
+.diwa-review-thought-feed-row__text :is(img, .internal-embed img, .markdown-embed img) {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 12rem;
+  margin: 0.25rem 0 0.55rem;
+  border-radius: 10px;
+  object-fit: contain;
+  background: color-mix(in srgb, var(--background-secondary) 72%, transparent);
+}
+
+.diwa-review-thought-feed-row__text :is(.internal-embed, .markdown-embed) {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0.25rem 0 0.55rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.diwa-review-thought-feed-row__text :is(.internal-embed, .markdown-embed) .markdown-embed-title,
+.diwa-review-thought-feed-row__text :is(.internal-embed, .markdown-embed) .markdown-embed-link,
+.diwa-review-thought-feed-row__text :is(.internal-embed, .markdown-embed) .file-embed-title {
+  display: none;
+}
+
+.diwa-review-thought-feed-row__text :is(.internal-embed, .markdown-embed) .markdown-embed-content {
+  max-height: none;
+  padding: 0;
+  border: 0;
+}
+
+.diwa-review-thought-feed-row__text :is(video, audio, iframe, embed, object, table) {
+  display: none;
 }
 
 .diwa-review-thought-empty {
@@ -19736,12 +18136,15 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-actions {
 }
 
 body.is-mobile:not(.is-tablet) .diwa-review-thought-day,
-body.is-mobile:not(.is-tablet) .diwa-review-thought-card {
+body.is-mobile:not(.is-tablet) .diwa-review-thought-feed-row {
   border-radius: 12px;
 }
 
-body.is-mobile:not(.is-tablet) .diwa-review-thought-card__top,
 body.is-mobile:not(.is-tablet) .diwa-review-thought-day__header {
   flex-direction: column;
   align-items: flex-start;
+}
+
+body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
+  grid-template-columns: minmax(0, 1fr);
 }
