@@ -206,7 +206,7 @@ export class IndexService {
     private pathIsInFolder(path: string, folder: string): boolean {
         const normalizedPath = this.normalizeVaultPath(path).toLowerCase();
         const normalizedFolder = this.normalizeVaultPath(folder).toLowerCase();
-        if (!normalizedFolder) return false;
+        if (normalizedFolder === '') return true;
         return normalizedPath === normalizedFolder || normalizedPath.startsWith(`${normalizedFolder}/`);
     }
 
