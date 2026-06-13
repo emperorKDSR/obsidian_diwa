@@ -966,13 +966,33 @@ export class WeeklyReviewWorkspace {
                             });
                         }
 
+                        const allOpenTasks: TaskEntry[] = [];
+                        for (const task of this.host.index.taskIndex.values()) {
+                            if (task.status === 'open' && task.due !== dateStr) {
+                                allOpenTasks.push(task);
+                            }
+                        }
+
                         const normalizedQuery = query.toLowerCase();
                         const matches = normalizedQuery
-                            ? taskSnapshot.unscheduledOpenTasks.filter((t) =>
+                            ? allOpenTasks.filter((t) =>
                                   t.title.toLowerCase().includes(normalizedQuery) ||
                                   t.body.toLowerCase().includes(normalizedQuery)
                               )
-                            : taskSnapshot.unscheduledOpenTasks;
+                            : allOpenTasks;
+
+                        matches.sort((left, right) => {
+                            const leftDue = (left.due || '').trim();
+                            const rightDue = (right.due || '').trim();
+                            if (!leftDue && rightDue) return -1;
+                            if (leftDue && !rightDue) return 1;
+
+                            const leftPriority = WEEK_PLAN_PRIORITY_ORDER[left.priority || 'low'] ?? 2;
+                            const rightPriority = WEEK_PLAN_PRIORITY_ORDER[right.priority || 'low'] ?? 2;
+                            if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+
+                            return right.lastUpdate - left.lastUpdate;
+                        });
 
                         matches.slice(0, 8).forEach((task) => {
                             suggestions.push({

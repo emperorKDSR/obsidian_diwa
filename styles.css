@@ -3849,7 +3849,6 @@ body.diwa-task-edit-active .modal-bg { background: rgba(0,0,0,0.5) !important; }
   background: var(--background-primary);
   border: 1px solid var(--diwa-review-border);
   border-radius: 14px;
-  overflow: hidden;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
@@ -3880,7 +3879,10 @@ body.diwa-task-edit-active .modal-bg { background: rgba(0,0,0,0.5) !important; }
   border-top: none;
   border-left: none;
   border-right: none;
-  border-radius: 0;
+  border-top-left-radius: 13px;
+  border-top-right-radius: 13px;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
   text-align: left;
 }
 
