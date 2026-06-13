@@ -940,7 +940,7 @@ export class WeeklyReviewWorkspace {
                                     await this.host.vault.createTaskFile(title, [], dateStr);
                                 }
                             } else if (sugg.type === 'assign' && sugg.task) {
-                                await this.host.vault.editTask(sugg.task.filePath, sugg.task.body, sugg.task.context, dateStr);
+                                await this.host.vault.setTaskDue(sugg.task.filePath, dateStr);
                             }
                             setTimeout(() => {
                                 if (!this.host.isRenderActive(renderToken, container)) return;
