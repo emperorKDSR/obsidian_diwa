@@ -805,7 +805,8 @@ export class WeeklyReviewWorkspace {
                 const dayLabel = `${dayKeys[dayIndex]} · ${dayMoment.format('MMM D')}`;
                 const dayTasks = taskSnapshot.openTasksByDue.get(dateStr) ?? [];
 
-                const card = grid.createEl('div', { cls: 'diwa-weekplan-day' });
+                const isToday = dateStr === moment().format('YYYY-MM-DD');
+                const card = grid.createEl('div', { cls: `diwa-weekplan-day${isToday ? ' is-today' : ''}` });
                 const storageKey = `diwa-weekplan-collapse-${dateStr}`;
                 const bodyId = `diwa-weekplan-day-${activeTarget}-${dateStr}`;
                 const header = card.createEl('button', {

@@ -3795,99 +3795,683 @@ body.diwa-task-edit-active .modal-bg { background: rgba(0,0,0,0.5) !important; }
 @media (min-width: 900px) { .diwa-pillar-cluster .diwa-pillar-item { min-width: 110px; } }
 
 /* ── Week Plan Section ────────────────────────────────── */
-.diwa-weekplan-target-row { display: flex; gap: 4px; margin-bottom: 10px; }
-.diwa-weekplan-target-btn { background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: 8px; padding: 4px 12px; font-size: 0.8em; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.15s ease; }
-.diwa-weekplan-target-btn.is-active { background: var(--interactive-accent); color: var(--text-on-accent); border-color: var(--interactive-accent); }
+.diwa-weekplan-target-row {
+  display: inline-flex;
+  background: var(--diwa-review-panel-strong);
+  border: 1px solid var(--diwa-review-border);
+  border-radius: 20px;
+  padding: 3px;
+  margin-bottom: 14px;
+  gap: 2px;
+}
 
-.diwa-weekplan-grid { display: flex; flex-direction: column; gap: 6px; }
+.diwa-weekplan-target-btn {
+  background: transparent;
+  border: none;
+  border-radius: 16px;
+  padding: 6px 16px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  cursor: pointer;
+  min-height: unset;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-.diwa-weekplan-day { background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: 12px; padding: 0; overflow: hidden; transition: border-color 0.15s ease; }
-.diwa-weekplan-day:hover { border-color: var(--interactive-accent); }
+.diwa-weekplan-target-btn:hover {
+  color: var(--text-normal);
+  background: rgba(var(--mono-rgb-100, 255, 255, 255), 0.03);
+}
 
-.diwa-weekplan-day__header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; cursor: pointer; user-select: none; }
-.diwa-weekplan-day__label { font-size: 0.82em; font-weight: 700; color: var(--text-normal); letter-spacing: 0.02em; }
-.diwa-weekplan-day__count { background: rgba(var(--interactive-accent-rgb, 78, 115, 223), 0.15); color: var(--interactive-accent); font-size: 0.72em; font-weight: 700; padding: 2px 7px; border-radius: 10px; min-width: 18px; text-align: center; }
+.diwa-weekplan-target-btn.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
 
-.diwa-weekplan-day__body { display: flex; flex-direction: column; gap: 6px; padding: 0 12px 10px 12px; }
+.diwa-weekplan-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
 
-.diwa-weekplan-day__intention { background: transparent; border: 1px solid var(--background-modifier-border); border-radius: 8px; padding: 6px 10px; font-size: 0.82em; width: 100%; color: var(--text-normal); font-family: inherit; outline: none; transition: border-color 0.15s ease; }
-.diwa-weekplan-day__intention:focus { border-color: var(--interactive-accent); }
-.diwa-weekplan-day__intention::placeholder { color: var(--text-faint); }
+.diwa-weekplan-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-.diwa-weekplan-day__tasks { display: flex; flex-direction: column; gap: 3px; }
+.diwa-weekplan-day {
+  background: var(--background-primary);
+  border: 1px solid var(--diwa-review-border);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+}
 
-.diwa-weekplan-task { display: flex; align-items: flex-start; gap: 6px; padding: 4px 0; font-size: 0.8em; }
-.diwa-weekplan-task__check { margin-top: 2px; cursor: pointer; accent-color: var(--interactive-accent); }
-.diwa-weekplan-task__title { flex: 1; color: var(--text-normal); white-space: normal; overflow: visible; }
-.diwa-weekplan-task__priority { font-size: 0.72em; font-weight: 700; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
-.diwa-weekplan-task__priority--high { color: #e74c3c; background: rgba(231, 76, 60, 0.12); }
-.diwa-weekplan-task__priority--medium { color: #f39c12; background: rgba(243, 156, 18, 0.12); }
-.diwa-weekplan-task__priority--low { color: var(--text-muted); background: var(--background-secondary-alt); }
+.diwa-weekplan-day:hover {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
 
-.diwa-weekplan-assign-btn { background: transparent; border: 1px dashed var(--background-modifier-border); border-radius: 8px; padding: 5px 10px; font-size: 0.78em; color: var(--text-muted); cursor: pointer; transition: all 0.15s ease; width: 100%; text-align: center; }
-.diwa-weekplan-assign-btn:hover { border-color: var(--interactive-accent); color: var(--interactive-accent); background: rgba(var(--interactive-accent-rgb, 78, 115, 223), 0.06); }
+.diwa-weekplan-day.is-today {
+  border-color: var(--interactive-accent);
+  background: var(--diwa-review-accent-faint);
+  box-shadow: inset 0 0 0 1px var(--interactive-accent);
+}
+
+.diwa-weekplan-day__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--diwa-review-panel-strong);
+  border-bottom: 1px solid var(--diwa-review-border);
+  cursor: pointer;
+  user-select: none;
+  width: 100%;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  border-radius: 0;
+  text-align: left;
+}
+
+.diwa-weekplan-day.is-today .diwa-weekplan-day__header {
+  background: color-mix(in srgb, var(--interactive-accent) 8%, var(--diwa-review-panel-strong));
+}
+
+.diwa-weekplan-day__label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-normal);
+}
+
+.diwa-weekplan-day.is-today .diwa-weekplan-day__label {
+  color: var(--interactive-accent);
+}
+
+.diwa-weekplan-day__count {
+  background: var(--diwa-review-accent-soft);
+  color: var(--interactive-accent);
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.diwa-weekplan-day__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  flex-grow: 1;
+  position: relative;
+}
+
+.diwa-weekplan-day__intention {
+  background: var(--background-primary);
+  border: 1px solid var(--diwa-review-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-normal);
+  transition: all 0.15s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.diwa-weekplan-day__intention:focus {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px var(--diwa-review-accent-soft);
+}
+
+.diwa-weekplan-day__intention::placeholder {
+  font-style: italic;
+  opacity: 0.6;
+}
+
+.diwa-weekplan-day__intention.is-readonly {
+  background: transparent;
+  border-color: transparent;
+  padding: 4px 0;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.diwa-weekplan-day__tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.diwa-weekplan-task {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--background-primary);
+  border: 1px solid var(--diwa-review-border);
+  font-size: 0.78rem;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.diwa-weekplan-task:hover {
+  border-color: var(--interactive-accent);
+  background: var(--diwa-review-panel-hover);
+}
+
+.diwa-weekplan-task__check {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  margin: 0;
+  background: var(--background-primary);
+}
+
+.diwa-weekplan-task__check:checked {
+  background: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+}
+
+.diwa-weekplan-task__check:checked::after {
+  content: "";
+  width: 4px;
+  height: 8px;
+  border: solid var(--text-on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  margin-bottom: 2px;
+}
+
+.diwa-weekplan-task__check:hover {
+  border-color: var(--interactive-accent);
+}
+
+.diwa-weekplan-task__check:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.diwa-weekplan-task__title {
+  flex: 1;
+  color: var(--text-normal);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.diwa-weekplan-task__priority {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.diwa-weekplan-task__priority--high {
+  color: var(--text-error, #e74c3c);
+  background: color-mix(in srgb, var(--text-error, #e74c3c) 12%, transparent);
+}
+
+.diwa-weekplan-task__priority--medium {
+  color: var(--text-warning, #f39c12);
+  background: color-mix(in srgb, var(--text-warning, #f39c12) 12%, transparent);
+}
+
+.diwa-weekplan-task__priority--low {
+  color: var(--text-muted);
+  background: var(--diwa-review-panel-strong);
+}
+
+.diwa-weekplan-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.diwa-weekplan-assign-btn,
+.diwa-weekplan-new-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--background-primary);
+  border: 1px solid var(--diwa-review-border);
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.diwa-weekplan-assign-btn:hover {
+  border-color: var(--interactive-accent);
+  color: var(--interactive-accent);
+  background: var(--diwa-review-panel-hover);
+}
+
+.diwa-weekplan-new-btn {
+  border-color: var(--diwa-review-border);
+  color: var(--text-muted);
+}
+
+.diwa-weekplan-new-btn:hover {
+  border-color: var(--interactive-accent);
+  color: var(--interactive-accent);
+  background: var(--diwa-review-panel-hover);
+}
 
 /* Task Picker (inline dropdown) */
-.diwa-weekplan-picker { background: var(--background-primary); border: 1px solid var(--interactive-accent); border-radius: 10px; margin-top: 4px; padding: 6px; max-height: 220px; overflow-y: auto; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
-.diwa-weekplan-picker__search { width: 100%; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: 6px; padding: 5px 8px; font-size: 0.8em; color: var(--text-normal); outline: none; margin-bottom: 4px; font-family: inherit; }
-.diwa-weekplan-picker__search:focus { border-color: var(--interactive-accent); }
-.diwa-weekplan-picker__list { display: flex; flex-direction: column; gap: 2px; }
-.diwa-weekplan-picker__item { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 0.8em; color: var(--text-normal); transition: background 0.1s ease; }
-.diwa-weekplan-picker__item:hover { background: rgba(var(--interactive-accent-rgb, 78, 115, 223), 0.1); }
-.diwa-weekplan-picker__title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.diwa-weekplan-picker__priority { font-size: 0.72em; font-weight: 700; padding: 1px 5px; border-radius: 4px; }
-.diwa-weekplan-picker__priority--high { color: #e74c3c; background: rgba(231, 76, 60, 0.12); }
-.diwa-weekplan-picker__priority--medium { color: #f39c12; background: rgba(243, 156, 18, 0.12); }
-.diwa-weekplan-picker__priority--low { color: var(--text-muted); background: var(--background-secondary-alt); }
-.diwa-weekplan-picker__empty { padding: 8px; text-align: center; font-size: 0.78em; color: var(--text-faint); }
+.diwa-weekplan-picker {
+  background: var(--background-primary);
+  border: 1px solid var(--interactive-accent);
+  border-radius: 12px;
+  margin-top: 8px;
+  padding: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+  position: absolute;
+  left: 12px;
+  right: 12px;
+}
 
-.diwa-weekplan-empty { padding: 16px; text-align: center; font-size: 0.82em; color: var(--text-faint); font-style: italic; }
+.diwa-weekplan-picker__search {
+  width: 100%;
+  background: var(--background-secondary);
+  border: 1px solid var(--diwa-review-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  color: var(--text-normal);
+  outline: none;
+  margin-bottom: 8px;
+}
+
+.diwa-weekplan-picker__search:focus {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px var(--diwa-review-accent-soft);
+}
+
+.diwa-weekplan-picker__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.diwa-weekplan-picker__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  color: var(--text-normal);
+  transition: all 0.15s ease;
+}
+
+.diwa-weekplan-picker__item:hover {
+  background: var(--diwa-review-panel-hover);
+  color: var(--interactive-accent);
+}
+
+.diwa-weekplan-picker__title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.diwa-weekplan-picker__priority {
+  font-size: 0.72em;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.diwa-weekplan-picker__priority--high {
+  color: var(--text-error, #e74c3c);
+  background: color-mix(in srgb, var(--text-error, #e74c3c) 12%, transparent);
+}
+
+.diwa-weekplan-picker__priority--medium {
+  color: var(--text-warning, #f39c12);
+  background: color-mix(in srgb, var(--text-warning, #f39c12) 12%, transparent);
+}
+
+.diwa-weekplan-picker__priority--low {
+  color: var(--text-muted);
+  background: var(--background-secondary-alt);
+}
+
+.diwa-weekplan-picker__empty {
+  padding: 8px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-faint);
+}
+
+.diwa-weekplan-empty {
+  padding: 24px 16px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  background: var(--background-primary);
+  border: 1px dashed var(--diwa-review-border);
+  border-radius: 12px;
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.diwa-weekplan-empty::before {
+  content: "📅";
+  font-size: 1.5rem;
+  margin-bottom: 4px;
+}
 
 /* Tablet: grid layout for day cards */
 @media (min-width: 768px) {
-  .diwa-weekplan-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; flex-direction: unset; }
-  .diwa-weekplan-day__body { display: flex !important; }
+  .diwa-weekplan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+    flex-direction: unset;
+  }
+  .diwa-weekplan-day__body {
+    display: flex !important;
+  }
 }
+
 /* ── AI Week Architect Staging Panel ── */
-.diwa-weekplan-ai-row{text-align:center;padding:8px 0 4px;}
-.diwa-weekplan-ai-btn{background:var(--interactive-accent);color:var(--text-on-accent);border:none;border-radius:10px;padding:8px 18px;font-size:0.85em;cursor:pointer;font-weight:600;}
-.diwa-weekplan-ai-btn:hover{filter:brightness(1.1);}
-.diwa-weekplan-ai-btn:disabled{opacity:0.6;cursor:wait;}
-.diwa-weekplan-staging{background:var(--background-secondary);border:1px solid var(--background-modifier-border);border-radius:12px;padding:12px;margin-top:10px;}
-.diwa-weekplan-staging__header{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
-.diwa-weekplan-staging__title{font-weight:700;font-size:0.9em;flex:1;}
-.diwa-weekplan-staging__apply-all{background:var(--interactive-accent);color:var(--text-on-accent);border:none;border-radius:8px;padding:4px 12px;font-size:0.8em;cursor:pointer;}
-.diwa-weekplan-staging__dismiss{background:transparent;border:1px solid var(--background-modifier-border);border-radius:8px;padding:4px 10px;font-size:0.8em;cursor:pointer;color:var(--text-muted);}
-.diwa-weekplan-staging__body{display:flex;flex-direction:column;gap:8px;}
-.diwa-weekplan-staging__day{background:var(--background-primary);border-radius:8px;padding:8px 10px;}
-.diwa-weekplan-staging__day-label{font-weight:600;font-size:0.82em;margin-bottom:4px;color:var(--text-muted);}
-.diwa-weekplan-staging__item{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:0.82em;}
-.diwa-weekplan-staging__item-text{flex:1;color:var(--text-normal);}
-.diwa-weekplan-staging__accept{background:transparent;border:1px solid var(--background-modifier-border);border-radius:6px;padding:2px 8px;font-size:0.8em;cursor:pointer;color:var(--text-muted);}
-.diwa-weekplan-staging__accept.is-accepted{background:var(--interactive-accent);color:var(--text-on-accent);border-color:var(--interactive-accent);}
-.diwa-weekplan-staging__footer{text-align:center;padding-top:8px;}
-.diwa-weekplan-staging__apply-selected{background:transparent;border:1px solid var(--interactive-accent);color:var(--interactive-accent);border-radius:8px;padding:5px 14px;font-size:0.82em;cursor:pointer;}
-.diwa-weekplan-staging__apply-selected:hover{background:var(--interactive-accent);color:var(--text-on-accent);}
+.diwa-weekplan-ai-row {
+  text-align: center;
+  padding: 8px 0 4px;
+}
+
+.diwa-weekplan-ai-btn {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 10px;
+  padding: 8px 18px;
+  font-size: 0.85em;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.diwa-weekplan-ai-btn:hover {
+  filter: brightness(1.1);
+}
+
+.diwa-weekplan-ai-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.diwa-weekplan-staging {
+  background: var(--diwa-review-panel-strong);
+  border: 1px solid var(--diwa-review-border-strong);
+  border-radius: 16px;
+  padding: 16px;
+  margin-top: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.diwa-weekplan-staging__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.diwa-weekplan-staging__title {
+  font-weight: 800;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--interactive-accent);
+}
+
+.diwa-weekplan-staging__apply-all,
+.diwa-weekplan-staging__apply-selected {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.diwa-weekplan-staging__apply-all:hover,
+.diwa-weekplan-staging__apply-selected:hover {
+  filter: brightness(1.1);
+}
+
+.diwa-weekplan-staging__dismiss {
+  background: transparent;
+  border: 1px solid var(--diwa-review-border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+}
+
+.diwa-weekplan-staging__dismiss:hover {
+  background: var(--diwa-review-panel-hover);
+  color: var(--text-normal);
+  border-color: var(--diwa-review-border-strong);
+}
+
+.diwa-weekplan-staging__body {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.diwa-weekplan-staging__day {
+  background: var(--background-primary);
+  border: 1px solid var(--diwa-review-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.diwa-weekplan-staging__day-label {
+  font-weight: 700;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--diwa-review-border);
+  padding-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.diwa-weekplan-staging__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  font-size: 0.82em;
+}
+
+.diwa-weekplan-staging__item-text {
+  flex: 1;
+  color: var(--text-normal);
+}
+
+.diwa-weekplan-staging__accept {
+  background: transparent;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.8em;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.diwa-weekplan-staging__accept.is-accepted {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+.diwa-weekplan-staging__footer {
+  text-align: center;
+  padding-top: 8px;
+}
 
 /* ── Calendar Intention Chip ── */
-.diwa-cal-intention-chip{font-size:0.72em;color:var(--text-muted);font-style:italic;padding:1px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.diwa-cal-intention-chip {
+  font-size: 0.72em;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 1px 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 /* ── Week Plan Quick Add ── */
-.diwa-weekplan-actions{display:flex;gap:6px;margin-top:4px;}
-.diwa-weekplan-new-btn{background:transparent;border:1px dashed var(--interactive-accent);color:var(--interactive-accent);border-radius:8px;padding:4px 10px;font-size:0.78em;cursor:pointer;flex:1;}
-.diwa-weekplan-new-btn:hover{background:var(--interactive-accent);color:var(--text-on-accent);border-style:solid;}
-.diwa-weekplan-quickadd{display:flex;gap:4px;margin-top:6px;align-items:center;}
-.diwa-weekplan-quickadd__input{flex:1;background:var(--background-primary);border:1px solid var(--background-modifier-border);border-radius:8px;padding:6px 10px;font-size:0.82em;color:var(--text-normal);outline:none;}
-.diwa-weekplan-quickadd__input:focus{border-color:var(--interactive-accent);}
-.diwa-weekplan-quickadd__submit{background:var(--interactive-accent);color:var(--text-on-accent);border:none;border-radius:8px;padding:6px 10px;font-size:0.85em;cursor:pointer;font-weight:700;line-height:1;}
-.diwa-weekplan-quickadd__submit:disabled{opacity:0.5;cursor:wait;}
+.diwa-weekplan-new-btn {
+  background: transparent;
+  border: 1px dashed var(--interactive-accent);
+  color: var(--interactive-accent);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 0.78em;
+  cursor: pointer;
+  flex: 1;
+}
+
+.diwa-weekplan-new-btn:hover {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-style: solid;
+}
+
+.diwa-weekplan-quickadd {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.diwa-weekplan-quickadd__input {
+  flex: 1;
+  background: var(--background-primary);
+  border: 1px solid var(--diwa-review-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  color: var(--text-normal);
+}
+
+.diwa-weekplan-quickadd__submit {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.diwa-weekplan-quickadd__submit:hover {
+  filter: brightness(1.1);
+}
+
+.diwa-weekplan-quickadd__submit:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
 
 /* ── Load Budget Badge ── */
-.diwa-weekplan-day__count--warn{background:var(--text-warning,#e6a817) !important;color:#fff !important;}
-.diwa-weekplan-day__count--danger{background:var(--text-error,#e03e3e) !important;color:#fff !important;}
+.diwa-weekplan-day__count--warn {
+  background: color-mix(in srgb, var(--text-warning, #e6a817) 15%, transparent) !important;
+  color: var(--text-warning, #e6a817) !important;
+}
+
+.diwa-weekplan-day__count--danger {
+  background: color-mix(in srgb, var(--text-error, #e03e3e) 15%, transparent) !important;
+  color: var(--text-error, #e03e3e) !important;
+}
 
 /* ── Task Edit Icon ── */
-.diwa-weekplan-task__edit{font-size:0.78em;cursor:pointer;opacity:0.5;margin-left:4px;transition:opacity 0.15s;}
-.diwa-weekplan-task__edit:hover{opacity:1;}
+.diwa-weekplan-task__edit {
+  font-size: 0.75rem;
+  cursor: pointer;
+  opacity: 0;
+  margin-left: 4px;
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diwa-weekplan-task:hover .diwa-weekplan-task__edit {
+  opacity: 0.6;
+}
+
+.diwa-weekplan-task:hover .diwa-weekplan-task__edit:hover {
+  opacity: 1;
+  color: var(--interactive-accent);
+}
 /* ═══════════════════════════════════════════════════════════════════
    WEEKLY REVIEW REDESIGN
    ═══════════════════════════════════════════════════════════════════ */
