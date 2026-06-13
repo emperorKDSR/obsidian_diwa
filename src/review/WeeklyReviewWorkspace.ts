@@ -68,8 +68,33 @@ const WEEK_PLAN_PRIORITY_ORDER: Record<string, number> = {
 export class WeeklyReviewWorkspace {
     private glanceCollapsed = false;
     private lastFocusedDateStr: string | null = null;
+    private refreshGlanceContent: (() => void) | null = null;
+    private refreshPlan: (() => void) | null = null;
+    private invalidateTaskSnapshot: (() => void) | null = null;
+    private dayInputValues = new Map<string, string>();
+    private currentRenderedWeekId: string | null = null;
 
     constructor(private readonly host: WeeklyReviewWorkspaceHost) {}
+
+    onTasksRefresh(): void {
+        this.invalidateTaskSnapshot?.();
+        this.refreshPlan?.();
+        this.refreshGlanceContent?.();
+    }
+
+    private findScrollContainer(el: HTMLElement | null): HTMLElement | null {
+        while (el) {
+            if (el.classList.contains('view-content')) {
+                return el;
+            }
+            const style = window.getComputedStyle(el);
+            if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+                return el;
+            }
+            el = el.parentElement;
+        }
+        return null;
+    }
 
     render(container: HTMLElement, renderToken: number): void {
         void this.renderReviewMode(container, renderToken);
@@ -368,6 +393,10 @@ export class WeeklyReviewWorkspace {
         container.empty();
 
         const weekMeta = this.resolveSelectedWeekMeta();
+        if (this.currentRenderedWeekId !== weekMeta.weekId) {
+            this.currentRenderedWeekId = weekMeta.weekId;
+            this.dayInputValues.clear();
+        }
         const prevWeekMeta = getWeeklyReviewWeekMeta(shiftWeeklyReviewWeek(weekMeta.weekId, -1));
         const [existing, previousReview] = await Promise.all([
             this.host.vault.loadWeeklyReview(weekMeta.weekId),
@@ -723,6 +752,7 @@ export class WeeklyReviewWorkspace {
         const invalidateTaskSnapshot = () => {
             taskSnapshotCache = null;
         };
+        this.invalidateTaskSnapshot = invalidateTaskSnapshot;
         const getTaskSnapshot = (): WeekPlanTaskSnapshot => {
             if (taskSnapshotCache) return taskSnapshotCache;
 
@@ -762,6 +792,9 @@ export class WeeklyReviewWorkspace {
         ];
 
         const renderPlan = () => {
+            const scrollContainer = this.findScrollContainer(planBody);
+            const scrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
+
             const children = Array.from(planBody.children);
             children.forEach((child) => {
                 if (child !== targetRow) child.remove();
@@ -913,6 +946,7 @@ export class WeeklyReviewWorkspace {
                         attr: {
                             type: 'text',
                             placeholder: '+ Add or assign task…',
+                            value: this.dayInputValues.get(dateStr) || '',
                         },
                     }) as HTMLInputElement;
 
@@ -931,6 +965,7 @@ export class WeeklyReviewWorkspace {
                         const queryVal = addInput.value.trim();
                         closePicker();
                         addInput.value = '';
+                        this.dayInputValues.delete(dateStr);
                         addInput.disabled = true;
 
                         try {
@@ -1059,6 +1094,7 @@ export class WeeklyReviewWorkspace {
 
                     addInput.addEventListener('input', () => {
                         selectedIndex = 0;
+                        this.dayInputValues.set(dateStr, addInput.value);
                         renderPicker();
                     });
 
@@ -1092,6 +1128,7 @@ export class WeeklyReviewWorkspace {
                         requestAnimationFrame(() => {
                             if (addInput.isConnected) {
                                 addInput.focus();
+                                addInput.setSelectionRange(addInput.value.length, addInput.value.length);
                             }
                         });
                     }
@@ -1115,6 +1152,12 @@ export class WeeklyReviewWorkspace {
                         : 'No saved day themes or currently due open tasks for this anchored week.',
                 });
             }
+
+            if (scrollContainer) {
+                requestAnimationFrame(() => {
+                    scrollContainer.scrollTop = scrollTop;
+                });
+            }
         };
 
         targetModes.forEach(({ key, label }) => {
@@ -1136,6 +1179,7 @@ export class WeeklyReviewWorkspace {
             });
         });
 
+        this.refreshPlan = renderPlan;
         renderPlan();
     }
 
@@ -1161,6 +1205,7 @@ export class WeeklyReviewWorkspace {
             this.renderGlanceTasks(glanceBody, data.tasks);
             this.renderGlanceFinance(glanceBody, data.finance);
         };
+        this.refreshGlanceContent = render;
         render();
 
         toggleBtn.addEventListener('click', () => {

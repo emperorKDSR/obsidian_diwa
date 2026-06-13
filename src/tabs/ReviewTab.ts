@@ -58,6 +58,10 @@ export class ReviewTab extends BaseTab {
         this.workspace.render(container, this.beginRenderCycle());
     }
 
+    onTasksRefresh(): void {
+        this.workspace.onTasksRefresh();
+    }
+
     onunload(): void {
         super.onunload();
         this.reviewMarkdownHost.unload();
