@@ -4055,7 +4055,6 @@ body.diwa-task-edit-active .modal-bg { background: rgba(0,0,0,0.5) !important; }
 .diwa-weekplan-add-row {
   margin-top: auto;
   padding-top: 6px;
-  position: relative;
 }
 
 .diwa-weekplan-add-input {
@@ -4087,15 +4086,10 @@ body.diwa-task-edit-active .modal-bg { background: rgba(0,0,0,0.5) !important; }
   border: 1px solid var(--interactive-accent);
   border-radius: 12px;
   padding: 8px;
-  max-height: 240px;
+  max-height: 200px;
   overflow-y: auto;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  z-index: 10;
-  position: absolute;
-  top: 100%;
-  margin-top: 4px;
-  left: 0;
-  right: 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  margin-top: 6px;
 }
 
 .diwa-weekplan-picker__list {
