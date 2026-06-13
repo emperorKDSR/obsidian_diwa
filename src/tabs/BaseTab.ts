@@ -58,7 +58,7 @@ export class BaseTab {
             a.addEventListener('click', (e) => {
                 e.preventDefault(); e.stopPropagation();
                 const href = a.getAttribute('data-href') || a.getAttribute('href') || '';
-                if (href) this.view.plugin.app.workspace.openLinkText(href, sourcePath, Platform.isMobile ? 'tab' : 'window');
+                if (href) this.view.plugin.app.workspace.openLinkText(href, sourcePath, 'tab');
             });
         });
     }

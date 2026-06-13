@@ -370,7 +370,7 @@ export default class DiwaPlugin extends Plugin {
             workspace.revealLeaf(responsiveLeaf);
             return;
         }
-        const leaf = Platform.isDesktop ? workspace.getLeaf('window') : workspace.getLeaf(false);
+        const leaf = Platform.isDesktop ? workspace.getLeaf('tab') : workspace.getLeaf(false);
         if (leaf) {
             await leaf.setViewState({ type: VIEW_TYPE_DESKTOP_HUB, active: true });
             workspace.revealLeaf(leaf);
@@ -762,7 +762,7 @@ export default class DiwaPlugin extends Plugin {
         if (!targetLeaf && Platform.isMobile && leaves.length > 0) {
             targetLeaf = leaves[0];
         }
-        if (!targetLeaf) targetLeaf = Platform.isMobile ? workspace.getLeaf(false) : workspace.getLeaf('window');
+        if (!targetLeaf) targetLeaf = Platform.isMobile ? workspace.getLeaf(false) : workspace.getLeaf('tab');
         if (targetLeaf) {
             const currentState = targetLeaf.getViewState();
             const currentLeafState = currentState.state && typeof currentState.state === 'object'

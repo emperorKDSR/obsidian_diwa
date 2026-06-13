@@ -165,7 +165,7 @@ export class DuesTab extends BaseTab {
                     this.plugin.app.workspace.openLinkText(
                         entry.title,
                         entry.path,
-                        Platform.isMobile ? 'tab' : 'window',
+                        'tab',
                     );
                 };
                 body.addEventListener('click', openEntry);

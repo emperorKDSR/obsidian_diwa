@@ -9,6 +9,7 @@ import type {
 import type DiwaPlugin from '../main';
 import { getWorkspaceViewportSize, isTaskDone, isTablet } from '../utils';
 import { EditTaskModal } from '../modals/EditTaskModal';
+import { FastTaskCaptureModal, type FastTaskCapturePayload } from '../modals/FastTaskCaptureModal';
 import { NewDueModal } from '../modals/NewDueModal';
 import { PaymentModal } from '../modals/PaymentModal';
 import { renderResponsiveBulsa } from './BulsaResponsiveRenderer';
@@ -617,7 +618,16 @@ export class DiwaMobileShell {
             wrap,
             'Gawa',
             tasks.length === 0 ? 'All open loops are clear' : 'Open tasks across your workspace',
-            `${tasks.length}`
+            `${tasks.length}`,
+            (actionsParent) => {
+                this.createActionButton(
+                    actionsParent,
+                    'Capture task',
+                    'sparkles',
+                    () => this.openCreateTaskModal(),
+                    'diwa-mobile-header-action'
+                );
+            }
         );
         const list = wrap.createDiv('diwa-mobile-list diwa-gawa-list');
         if (tasks.length === 0) {
@@ -839,6 +849,49 @@ export class DiwaMobileShell {
         });
     }
 
+    private openCreateTaskModal(initialText: string = ''): void {
+        new FastTaskCaptureModal(
+            this.app,
+            this.plugin,
+            async (payload) => {
+                try {
+                    this.plugin.refreshCoordinator.suppressNotifyRefresh(600);
+                    const created = await this.plugin.vault.createTaskFile(
+                        payload.text,
+                        payload.contexts,
+                        payload.dueDate || undefined,
+                        {
+                            priority: payload.priority ?? undefined,
+                            status: payload.status,
+                        }
+                    );
+                    if (created instanceof TFile) {
+                        await this.plugin.refreshCoordinator.reindexFile(created);
+                        const indexedTask = this.plugin.index.taskIndex.get(created.path);
+                        if (indexedTask) {
+                            this.plugin.getTaskController().addTask(indexedTask);
+                            if (payload.focus) {
+                                await this.plugin.getTaskController().moveTaskToBucket(
+                                    indexedTask.taskId || indexedTask.id || indexedTask.filePath,
+                                    'active',
+                                    { focus: true }
+                                );
+                            }
+                        } else {
+                            this.plugin.getTaskController().syncFromIndex();
+                        }
+                    } else {
+                        this.plugin.getTaskController().syncFromIndex();
+                    }
+                    this.refreshTasks();
+                } catch (error) {
+                    console.error('[DIWA MOBILE] Failed to create task', error);
+                    new Notice('Failed to create task');
+                }
+            },
+            initialText,
+        ).open();
+    }
     private getShellItems(): ShellNavItem[] {
         const useCompactLabels = this.platform === 'mobile' && this.getViewportWidth() <= 390;
         return SHELL_ITEMS.map((item) => ({
@@ -931,7 +984,8 @@ export class DiwaMobileShell {
         container: HTMLElement,
         title: string,
         subtitle?: string,
-        count?: string
+        count?: string,
+        actions?: (parent: HTMLElement) => void
     ): HTMLElement {
         const head = container.createDiv('diwa-mobile-section-head');
         const copy = head.createDiv('diwa-mobile-section-copy');
@@ -941,6 +995,10 @@ export class DiwaMobileShell {
         }
         if (count) {
             head.createDiv({ cls: 'diwa-mobile-section-count', text: count });
+        }
+        if (actions) {
+            const actionsContainer = head.createDiv('diwa-mobile-section-actions');
+            actions(actionsContainer);
         }
         return head;
     }

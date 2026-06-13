@@ -196,7 +196,7 @@ export class WeeklyReviewWorkspace {
     }
 
     private openThoughtNote(filePath: string): void {
-        void this.host.app.workspace.openLinkText(filePath, '', Platform.isMobile ? 'tab' : 'window');
+        void this.host.app.workspace.openLinkText(filePath, '', 'tab');
     }
 
     private formatThoughtTime(thought: ThoughtEntry): string {
@@ -698,7 +698,7 @@ export class WeeklyReviewWorkspace {
                     text: 'Open in Vault →',
                 });
                 openBtn.addEventListener('click', () => {
-                    void this.host.app.workspace.openLinkText(preview.file.path, '', Platform.isMobile ? 'tab' : 'window');
+                    void this.host.app.workspace.openLinkText(preview.file.path, '', 'tab');
                 });
                 return;
             }
