@@ -4134,6 +4134,18 @@ body.diwa-task-edit-active .modal-bg { background: rgba(0,0,0,0.5) !important; }
   font-size: 0.9rem;
 }
 
+body.is-mobile .diwa-weekplan-add-input,
+body.is-tablet .diwa-weekplan-add-input {
+  padding: 8px 12px;
+  font-size: 0.85rem;
+}
+
+body.is-mobile .diwa-weekplan-picker__item,
+body.is-tablet .diwa-weekplan-picker__item {
+  padding: 10px 12px;
+  font-size: 0.85rem;
+}
+
 .diwa-weekplan-picker__title {
   flex: 1;
   white-space: nowrap;
