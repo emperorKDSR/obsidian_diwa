@@ -548,13 +548,7 @@ export class WeeklyReviewWorkspace {
 
         const body = wrap.createEl('div', { cls: 'diwa-review-body' });
 
-        const inlineRow = body.createEl('div', { cls: 'diwa-review-inline-sections' });
 
-        const { body: winsBody } = this.createSection(inlineRow, 'wins', '🏆', "THIS WEEK'S WINS");
-        this.createAutoResizeTextarea(winsBody, 'diwa-review-textarea', 'What went well this week…', wins, (value) => { wins = value; syncReviewDraft(); });
-
-        const { body: lessonsBody } = this.createSection(inlineRow, 'lessons', '📚', 'LESSONS LEARNED');
-        this.createAutoResizeTextarea(lessonsBody, 'diwa-review-textarea', 'What would you do differently…', lessons, (value) => { lessons = value; syncReviewDraft(); });
 
         const { body: focusBody } = this.createSection(body, 'focus', '🎯', "NEXT WEEK'S FOCUS");
         const focusList = focusBody.createEl('div', { cls: 'diwa-review-focus-list' });
