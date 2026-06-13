@@ -97,6 +97,7 @@ export class DiwaMobileShell {
     private lastChromeKey: string | null = null;
     private renderCycleToken = 0;
     private reviewMarkdownHost: Component | null = null;
+    private reviewWorkspace: WeeklyReviewWorkspace | null = null;
 
     constructor(
         private app: App,
@@ -204,6 +205,10 @@ export class DiwaMobileShell {
     public refreshTasks(): void {
         this.invalidateCaches('tasks');
         if (this.activeView === 'thoughts' || this.activeView === 'bulsa') return;
+        if (this.activeView === 'review' && this.reviewWorkspace) {
+            this.reviewWorkspace.onTasksRefresh();
+            return;
+        }
         this.refreshView();
     }
 
@@ -332,7 +337,7 @@ export class DiwaMobileShell {
         const renderToken = this.beginRenderCycle();
         this.reviewMarkdownHost = new Component();
         this.plugin.addChild(this.reviewMarkdownHost);
-        const workspace = new WeeklyReviewWorkspace({
+        this.reviewWorkspace = new WeeklyReviewWorkspace({
             app: this.app,
             component: this.reviewMarkdownHost,
             plugin: this.plugin,
@@ -367,12 +372,13 @@ export class DiwaMobileShell {
             rerender: () => this.refreshView(),
             isRenderActive: (token, target) => this.isRenderCycleActive(token, target),
         });
-        workspace.render(container, renderToken);
+        this.reviewWorkspace.render(container, renderToken);
     }
 
     private disposeReviewMarkdownHost(): void {
         this.reviewMarkdownHost?.unload();
         this.reviewMarkdownHost = null;
+        this.reviewWorkspace = null;
     }
 
     private renderBulsa(container: HTMLElement): void {
