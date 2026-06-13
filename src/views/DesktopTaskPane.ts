@@ -841,7 +841,7 @@ export class TaskPane implements TaskPanePort {
                 const today = moment().startOf('day');
                 const cutoff = today.clone().add(2, 'days').endOf('day');
                 const dueDate = moment(task.due, 'YYYY-MM-DD');
-                if (dueDate.isBefore(today, 'day') || !dueDate.isSameOrBefore(cutoff, 'day')) return false;
+                if (!dueDate.isSameOrBefore(cutoff, 'day')) return false;
             }
         }
 
