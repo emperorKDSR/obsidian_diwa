@@ -550,6 +550,8 @@ export class WeeklyReviewWorkspace {
 
 
 
+        this.renderWeekPlanSection(body, weekMeta, prevWeekMeta, nextWeekDayPlans, thisWeekDayPlans, markWeekPlanDirty, renderToken, container);
+
         const { body: focusBody } = this.createSection(body, 'focus', '🎯', "NEXT WEEK'S FOCUS");
         const focusList = focusBody.createEl('div', { cls: 'diwa-review-focus-list' });
         const renderFocusInputs = (focusIndex?: number, cursorPosition?: number) => {
@@ -602,8 +604,6 @@ export class WeeklyReviewWorkspace {
             });
         };
         renderFocusInputs();
-
-        this.renderWeekPlanSection(body, weekMeta, prevWeekMeta, nextWeekDayPlans, thisWeekDayPlans, markWeekPlanDirty, renderToken, container);
 
         const saveRow = wrap.createEl('div', { cls: 'diwa-review-save-row' });
         const hintStack = saveRow.createEl('div', { cls: 'diwa-review-save-hints' });
