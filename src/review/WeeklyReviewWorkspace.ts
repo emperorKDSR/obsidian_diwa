@@ -1011,7 +1011,7 @@ export class WeeklyReviewWorkspace {
                             selectedIndex = 0;
                         }
 
-                        picker = cardBody.createEl('div', { cls: 'diwa-weekplan-picker' });
+                        picker = addRow.createEl('div', { cls: 'diwa-weekplan-picker' });
                         picker.addEventListener('mousedown', (e) => e.preventDefault());
                         picker.addEventListener('touchstart', (e) => e.preventDefault());
 
