@@ -5125,6 +5125,12 @@ body.diwa-task-edit-active .modal-bg { background: rgba(0,0,0,0.5) !important; }
   transform: rotate(-90deg);
 }
 
+.diwa-weekplan-day.is-collapsed .diwa-weekplan-day__header {
+  border-bottom: none;
+  border-bottom-left-radius: 13px;
+  border-bottom-right-radius: 13px;
+}
+
 .diwa-weekplan-day__header:hover .diwa-weekplan-day__chevron {
   color: var(--interactive-accent);
 }
