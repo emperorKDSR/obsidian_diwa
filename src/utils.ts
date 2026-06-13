@@ -145,6 +145,7 @@ export function attachInlineTriggers(
                 textArea.value = cur.substring(0, curPos) + link + cur.substring(curPos);
                 textArea.setSelectionRange(curPos + link.length, curPos + link.length);
                 textArea.focus();
+                textArea.dispatchEvent(new Event('input', { bubbles: true }));
             }, peopleFolder, word).open();
             return;
         }
@@ -176,6 +177,7 @@ export function attachInlineTriggers(
                 textArea.value = cur.substring(0, curPos) + link + cur.substring(curPos);
                 textArea.setSelectionRange(curPos + link.length, curPos + link.length);
                 textArea.focus();
+                textArea.dispatchEvent(new Event('input', { bubbles: true }));
             }, peopleFolder).open();
             return;
         }
@@ -192,6 +194,7 @@ export function attachInlineTriggers(
                 textArea.value = cur.substring(0, curPos) + link + cur.substring(curPos);
                 textArea.setSelectionRange(curPos + link.length, curPos + link.length);
                 textArea.focus();
+                textArea.dispatchEvent(new Event('input', { bubbles: true }));
             }).open();
             return;
         }

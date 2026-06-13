@@ -5,6 +5,7 @@ import { IndexService } from '../services/IndexService';
 import { VaultService } from '../services/VaultService';
 import type { DiwaSettings, DueEntry, TaskEntry, ThoughtEntry } from '../types';
 import { enableImageZoom } from '../utils/imageZoom';
+import { attachInlineTriggers } from '../utils';
 import {
     getCurrentWeeklyReviewWeekId,
     getWeeklyReviewFocusEntries,
@@ -934,6 +935,15 @@ export class WeeklyReviewWorkspace {
                             value: this.dayInputValues.get(dateStr) || '',
                         },
                     }) as HTMLInputElement;
+
+                    attachInlineTriggers(
+                        this.host.app,
+                        addInput,
+                        () => {},
+                        undefined,
+                        undefined,
+                        this.host.settings.peopleFolder
+                    );
 
                     let picker: HTMLElement | null = null;
                     let suggestions: Array<{ type: 'new' | 'assign'; title: string; task?: TaskEntry; query?: string }> = [];
