@@ -806,8 +806,7 @@ export class WeeklyReviewWorkspace {
                     ? selectedWeekMeta.weekId
                     : shiftWeeklyReviewWeek(selectedWeekMeta.weekId, 1),
             );
-            const activeDayPlans = activeTarget === 'this' ? thisWeekDayPlans : nextWeekDayPlans;
-            const canEditDayPlans = canMutateTasks && activeTarget === 'next';
+
             const weekStart = anchorWeekMeta.startDate;
             const weekEnd = anchorWeekMeta.endDate;
             const taskSnapshot = getTaskSnapshot();
@@ -884,21 +883,7 @@ export class WeeklyReviewWorkspace {
                     setCollapsed(expanded);
                 });
 
-                const intentionInput = cardBody.createEl('input', {
-                    cls: `diwa-weekplan-day__intention${canEditDayPlans ? '' : ' is-readonly'}`,
-                    attr: {
-                        type: 'text',
-                        placeholder: canEditDayPlans ? 'Theme for this day…' : 'Saved day theme',
-                        value: activeDayPlans[dateStr] || '',
-                    },
-                }) as HTMLInputElement;
-                intentionInput.readOnly = !canEditDayPlans;
-                intentionInput.addEventListener('input', () => {
-                    if (!canEditDayPlans) return;
-                    nextWeekDayPlans[dateStr] = intentionInput.value;
-                    markDirty();
-                });
-                intentionInput.addEventListener('click', (event) => event.stopPropagation());
+
 
                 if (dayTasks.length > 0) {
                     const taskList = cardBody.createEl('div', { cls: 'diwa-weekplan-day__tasks' });
@@ -1135,21 +1120,16 @@ export class WeeklyReviewWorkspace {
                 }
             }
 
-            const totalIntentions = Object.entries(activeDayPlans)
-                .filter(([date, value]) => date >= weekStart && date <= weekEnd && value.trim())
-                .length;
             let totalAssigned = 0;
             for (const [dueDate, tasks] of taskSnapshot.openTasksByDue.entries()) {
                 if (dueDate >= weekStart && dueDate <= weekEnd) {
                     totalAssigned += tasks.length;
                 }
             }
-            if (totalIntentions === 0 && totalAssigned === 0) {
+            if (totalAssigned === 0) {
                 grid.createEl('div', {
                     cls: 'diwa-weekplan-empty',
-                    text: canEditDayPlans
-                        ? 'Start with a theme, then assign or create the 1–3 things that make each day a success.'
-                        : 'No saved day themes or currently due open tasks for this anchored week.',
+                    text: 'No tasks scheduled or due for this anchored week.',
                 });
             }
 
