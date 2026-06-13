@@ -67,6 +67,7 @@ const WEEK_PLAN_PRIORITY_ORDER: Record<string, number> = {
 
 export class WeeklyReviewWorkspace {
     private glanceCollapsed = false;
+    private lastFocusedDateStr: string | null = null;
 
     constructor(private readonly host: WeeklyReviewWorkspaceHost) {}
 
@@ -906,76 +907,174 @@ export class WeeklyReviewWorkspace {
                 }
 
                 if (canMutateTasks) {
-                    const actionsRow = cardBody.createEl('div', { cls: 'diwa-weekplan-actions' });
-                    const assignBtn = actionsRow.createEl('button', { cls: 'diwa-weekplan-assign-btn', text: '+ Assign Task' });
-                    assignBtn.addEventListener('click', (event) => {
-                        event.stopPropagation();
-                        this.openTaskPicker(
-                            cardBody,
-                            dateStr,
-                            () => {
+                    const addRow = cardBody.createEl('div', { cls: 'diwa-weekplan-add-row' });
+                    const addInput = addRow.createEl('input', {
+                        cls: 'diwa-weekplan-add-input',
+                        attr: {
+                            type: 'text',
+                            placeholder: '+ Add or assign task…',
+                        },
+                    }) as HTMLInputElement;
+
+                    let picker: HTMLElement | null = null;
+                    let suggestions: Array<{ type: 'new' | 'assign'; title: string; task?: TaskEntry; query?: string }> = [];
+                    let selectedIndex = 0;
+
+                    const closePicker = () => {
+                        if (picker) {
+                            picker.remove();
+                            picker = null;
+                        }
+                    };
+
+                    const executeSuggestion = async (sugg: { type: 'new' | 'assign'; title: string; task?: TaskEntry; query?: string }) => {
+                        const queryVal = addInput.value.trim();
+                        closePicker();
+                        addInput.value = '';
+                        addInput.disabled = true;
+
+                        try {
+                            if (sugg.type === 'new') {
+                                const title = sugg.query || queryVal;
+                                if (title) {
+                                    await this.host.vault.createTaskFile(title, [], dateStr);
+                                }
+                            } else if (sugg.type === 'assign' && sugg.task) {
+                                await this.host.vault.editTask(sugg.task.filePath, sugg.task.body, sugg.task.context, dateStr);
+                            }
+                            setTimeout(() => {
+                                if (!this.host.isRenderActive(renderToken, container)) return;
                                 invalidateTaskSnapshot();
                                 renderPlan();
-                            },
-                            taskSnapshot.unscheduledOpenTasks,
-                        );
-                    });
+                            }, 300);
+                        } catch {
+                            addInput.disabled = false;
+                        }
+                    };
 
-                    const newTaskBtn = actionsRow.createEl('button', { cls: 'diwa-weekplan-new-btn', text: '+ New Task' });
-                    newTaskBtn.addEventListener('click', (event) => {
-                        event.stopPropagation();
-                        const existingQuickAdd = cardBody.querySelector('.diwa-weekplan-quickadd');
-                        if (existingQuickAdd) {
-                            existingQuickAdd.remove();
-                            return;
+                    const renderPicker = () => {
+                        closePicker();
+
+                        const query = addInput.value.trim();
+                        suggestions = [];
+
+                        if (query) {
+                            suggestions.push({
+                                type: 'new',
+                                title: `Create task: "${query}"`,
+                                query: query,
+                            });
                         }
 
-                        const quickAdd = cardBody.createEl('div', { cls: 'diwa-weekplan-quickadd' });
-                        const quickInput = quickAdd.createEl('input', {
-                            cls: 'diwa-weekplan-quickadd__input',
-                            attr: { type: 'text', placeholder: 'What needs to happen this day?' },
-                        }) as HTMLInputElement;
-                        const submitBtn = quickAdd.createEl('button', { cls: 'diwa-weekplan-quickadd__submit', text: '↵' });
+                        const normalizedQuery = query.toLowerCase();
+                        const matches = normalizedQuery
+                            ? taskSnapshot.unscheduledOpenTasks.filter((t) =>
+                                  t.title.toLowerCase().includes(normalizedQuery) ||
+                                  t.body.toLowerCase().includes(normalizedQuery)
+                              )
+                            : taskSnapshot.unscheduledOpenTasks;
 
-                        const doCreate = async () => {
-                            const title = quickInput.value.trim();
-                            if (!title) return;
-                            quickInput.disabled = true;
-                            submitBtn.disabled = true;
-                            try {
-                                await this.host.vault.createTaskFile(title, [], dateStr);
-                                quickAdd.remove();
-                                setTimeout(() => {
-                                    if (!this.host.isRenderActive(renderToken, container)) return;
-                                    invalidateTaskSnapshot();
-                                    renderPlan();
-                                }, 300);
-                            } catch {
-                                quickInput.disabled = false;
-                                submitBtn.disabled = false;
-                            }
-                        };
+                        matches.slice(0, 8).forEach((task) => {
+                            suggestions.push({
+                                type: 'assign',
+                                title: task.title,
+                                task: task,
+                            });
+                        });
 
-                        quickInput.addEventListener('keydown', (event) => {
-                            if (event.key === 'Enter') {
-                                event.preventDefault();
-                                void doCreate();
+                        if (suggestions.length === 0) return;
+
+                        if (selectedIndex >= suggestions.length) {
+                            selectedIndex = suggestions.length - 1;
+                        }
+                        if (selectedIndex < 0) {
+                            selectedIndex = 0;
+                        }
+
+                        picker = cardBody.createEl('div', { cls: 'diwa-weekplan-picker' });
+                        picker.addEventListener('mousedown', (e) => e.preventDefault());
+                        picker.addEventListener('touchstart', (e) => e.preventDefault());
+
+                        const list = picker.createEl('div', { cls: 'diwa-weekplan-picker__list' });
+                        suggestions.forEach((sugg, idx) => {
+                            const item = list.createEl('div', {
+                                cls: `diwa-weekplan-picker__item${idx === selectedIndex ? ' is-selected' : ''}`,
+                            });
+
+                            if (sugg.type === 'new') {
+                                item.createEl('span', { cls: 'diwa-weekplan-picker__icon', text: '✨' });
+                                item.createEl('span', { cls: 'diwa-weekplan-picker__title', text: sugg.title });
+                            } else {
+                                item.createEl('span', { cls: 'diwa-weekplan-picker__title', text: sugg.title });
+                                if (sugg.task?.priority) {
+                                    const badge = sugg.task.priority === 'high' ? '↑H' : sugg.task.priority === 'medium' ? '~M' : '↓L';
+                                    item.createEl('span', {
+                                        cls: `diwa-weekplan-picker__priority diwa-weekplan-picker__priority--${sugg.task.priority}`,
+                                        text: badge,
+                                    });
+                                }
                             }
-                            if (event.key === 'Escape') {
-                                event.preventDefault();
-                                quickAdd.remove();
-                            }
+
+                            item.addEventListener('click', async () => {
+                                await executeSuggestion(sugg);
+                            });
                         });
-                        quickInput.addEventListener('click', (event) => event.stopPropagation());
-                        submitBtn.addEventListener('click', (event) => {
-                            event.stopPropagation();
-                            void doCreate();
-                        });
-                        requestAnimationFrame(() => {
-                            if (!this.host.isRenderActive(renderToken, container) || !quickInput.isConnected) return;
-                            quickInput.focus();
-                        });
+                    };
+
+                    addInput.addEventListener('focus', () => {
+                        this.lastFocusedDateStr = dateStr;
+                        renderPicker();
                     });
+
+                    addInput.addEventListener('blur', () => {
+                        closePicker();
+                        setTimeout(() => {
+                            if (document.activeElement !== addInput) {
+                                if (this.lastFocusedDateStr === dateStr) {
+                                    this.lastFocusedDateStr = null;
+                                }
+                            }
+                        }, 200);
+                    });
+
+                    addInput.addEventListener('input', () => {
+                        selectedIndex = 0;
+                        renderPicker();
+                    });
+
+                    addInput.addEventListener('keydown', async (event: KeyboardEvent) => {
+                        if (event.key === 'ArrowDown') {
+                            event.preventDefault();
+                            if (suggestions.length > 0) {
+                                selectedIndex = (selectedIndex + 1) % suggestions.length;
+                                renderPicker();
+                            }
+                        } else if (event.key === 'ArrowUp') {
+                            event.preventDefault();
+                            if (suggestions.length > 0) {
+                                selectedIndex = (selectedIndex - 1 + suggestions.length) % suggestions.length;
+                                renderPicker();
+                            }
+                        } else if (event.key === 'Enter') {
+                            event.preventDefault();
+                            if (suggestions.length > 0 && suggestions[selectedIndex]) {
+                                await executeSuggestion(suggestions[selectedIndex]);
+                            }
+                        } else if (event.key === 'Escape') {
+                            event.preventDefault();
+                            closePicker();
+                            addInput.blur();
+                        }
+                    });
+
+                    // Autofocus if this day's input was last focused
+                    if (this.lastFocusedDateStr === dateStr) {
+                        requestAnimationFrame(() => {
+                            if (addInput.isConnected) {
+                                addInput.focus();
+                            }
+                        });
+                    }
                 }
             }
 
@@ -1020,64 +1119,7 @@ export class WeeklyReviewWorkspace {
         renderPlan();
     }
 
-    private openTaskPicker(
-        container: HTMLElement,
-        targetDate: string,
-        onAssigned: () => void,
-        unscheduled: TaskEntry[],
-    ): void {
-        const existingPicker = container.querySelector('.diwa-weekplan-picker');
-        if (existingPicker) {
-            existingPicker.remove();
-            return;
-        }
 
-        const picker = container.createEl('div', { cls: 'diwa-weekplan-picker' });
-        const searchInput = picker.createEl('input', {
-            cls: 'diwa-weekplan-picker__search',
-            attr: { type: 'text', placeholder: 'Search tasks…' },
-        }) as HTMLInputElement;
-        const list = picker.createEl('div', { cls: 'diwa-weekplan-picker__list' });
-
-        const renderList = (query: string) => {
-            list.empty();
-            const normalizedQuery = query.toLowerCase().trim();
-            const filtered = normalizedQuery
-                ? unscheduled.filter((task) => task.title.toLowerCase().includes(normalizedQuery) || task.body.toLowerCase().includes(normalizedQuery))
-                : unscheduled;
-
-            if (filtered.length === 0) {
-                list.createEl('div', {
-                    cls: 'diwa-weekplan-picker__empty',
-                    text: normalizedQuery ? 'No matching tasks' : 'No unscheduled tasks',
-                });
-                return;
-            }
-
-            filtered.slice(0, 12).forEach((task) => {
-                const item = list.createEl('div', { cls: 'diwa-weekplan-picker__item' });
-                item.createEl('span', { cls: 'diwa-weekplan-picker__title', text: task.title });
-                if (task.priority) {
-                    const badge = task.priority === 'high' ? '↑H' : task.priority === 'medium' ? '~M' : '↓L';
-                    item.createEl('span', {
-                        cls: `diwa-weekplan-picker__priority diwa-weekplan-picker__priority--${task.priority}`,
-                        text: badge,
-                    });
-                }
-                item.addEventListener('click', async () => {
-                    picker.remove();
-                    await this.host.vault.editTask(task.filePath, task.body, task.context, targetDate);
-                    onAssigned();
-                });
-            });
-        };
-
-        searchInput.addEventListener('input', () => renderList(searchInput.value));
-        renderList('');
-        requestAnimationFrame(() => {
-            if (searchInput.isConnected) searchInput.focus();
-        });
-    }
 
     private renderGlancePanel(parent: HTMLElement, weekMeta: WeeklyReviewWeekMeta): void {
         const glance = parent.createEl('div', { cls: 'diwa-review-glance' });
