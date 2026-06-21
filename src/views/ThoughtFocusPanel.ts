@@ -5,6 +5,7 @@ import type { ThoughtController } from './ThoughtController';
 import type { ThoughtProcessor } from './ThoughtProcessor';
 import type DiwaPlugin from '../main';
 import { enableImageZoom } from '../utils/imageZoom';
+import { VIEW_TYPE_DIWA_MINDMAP } from '../constants';
 
 export class ThoughtFocusPanel {
     private hostEl: HTMLElement | null = null;
@@ -17,8 +18,11 @@ export class ThoughtFocusPanel {
     private recallEl: HTMLElement | null = null;
     private tasksEl: HTMLElement | null = null;
     private notesEl: HTMLElement | null = null;
+    private headerEl: HTMLElement | null = null;
+    private actionsDiv: HTMLElement | null = null;
     private backBtn: HTMLButtonElement | null = null;
     private forwardBtn: HTMLButtonElement | null = null;
+private canvasBtn: HTMLButtonElement | null = null;
     private mobileBackBtn: HTMLButtonElement | null = null;
 
     private history: string[] = [];
@@ -42,6 +46,7 @@ export class ThoughtFocusPanel {
         this.rootEl = hostEl.createEl('section', { cls: 'diwa-thought-focus-panel is-hidden' });
 
         const header = this.rootEl.createEl('div', { cls: 'diwa-thought-focus-header' });
+        this.headerEl = header;
         this.mobileBackBtn = header.createEl('button', {
             cls: 'diwa-thought-focus-mobile-back',
             text: '← Back',
@@ -51,6 +56,8 @@ export class ThoughtFocusPanel {
         setIcon(this.backBtn, 'arrow-left');
         this.forwardBtn = header.createEl('button', { cls: 'diwa-thought-focus-nav', attr: { type: 'button', title: 'Forward' } }) as HTMLButtonElement;
         setIcon(this.forwardBtn, 'arrow-right');
+        // Actions container for buttons
+        this.actionsDiv = header.createEl('div', { cls: 'diwa-thought-focus-actions' });
         this.titleEl = header.createEl('div', { cls: 'diwa-thought-focus-title', text: 'Thought Focus' });
 
         const body = this.rootEl.createEl('div', { cls: 'diwa-thought-focus-body' });
@@ -122,6 +129,28 @@ export class ThoughtFocusPanel {
         this.rootEl.removeClass('is-hidden');
         const title = (thought.title || thought.content || thought.body || thought.filePath).split('\n').find((line) => line.trim())?.trim() || 'Thought';
         this.titleEl.setText(title.length > 48 ? `${title.slice(0, 45)}...` : title);
+        // Ensure actions container exists (created in attach)
+        if (!this.actionsDiv) {
+            this.actionsDiv = this.headerEl?.createEl('div', { cls: 'diwa-thought-focus-actions' }) ?? null;
+        }
+        // Create Canvas button inside actionsDiv
+        this.canvasBtn = this.actionsDiv?.createEl('button', {
+            cls: 'diwa-thought-focus-canvas',
+            text: '🗺️',
+            attr: { type: 'button', title: 'Generate Canvas Mind Map' },
+        }) as HTMLButtonElement;
+        this.canvasBtn?.addEventListener('click', async () => {
+            if (thought.filePath) {
+                const leaf = this.app.workspace.getLeaf(true);
+                await leaf.setViewState({
+                    type: VIEW_TYPE_DIWA_MINDMAP,
+                    active: true,
+                    state: { file: thought.filePath }
+                });
+                this.app.workspace.revealLeaf(leaf);
+            }
+        });
+
 
         this.contentEl.empty();
         await MarkdownRenderer.render(this.app, thought.body || thought.content || thought.title || '', this.contentEl, thought.filePath, this.markdownHost);

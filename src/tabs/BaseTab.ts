@@ -8,6 +8,7 @@ import { ConvertToTaskModal } from '../modals/ConvertToTaskModal';
 import { CommentModal } from '../modals/CommentModal';
 import { ViewCommentsModal } from '../modals/ViewCommentsModal';
 import { isTablet, parseContextString } from '../utils';
+import { VIEW_TYPE_DIWA_MINDMAP } from '../constants';
 
 export class BaseTab {
     view: DiwaView;
@@ -249,6 +250,18 @@ export class BaseTab {
                 if (success) this.refreshCurrentList();
             }).open();
         });
+
+        // Canvas Mind Map button
+        const ICON_MAP = '<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="4" cy="6" r="2" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="20" cy="6" r="2" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="4" cy="18" r="2" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="20" cy="18" r="2" stroke="currentColor" stroke-width="2" fill="none"/><line x1="9.5" y1="10.5" x2="5.5" y2="7.5" stroke="currentColor" stroke-width="1.5"/><line x1="14.5" y1="10.5" x2="18.5" y2="7.5" stroke="currentColor" stroke-width="1.5"/><line x1="9.5" y1="13.5" x2="5.5" y2="16.5" stroke="currentColor" stroke-width="1.5"/><line x1="14.5" y1="13.5" x2="18.5" y2="16.5" stroke="currentColor" stroke-width="1.5"/>';
+        this.renderActionButton(actions, ICON_MAP, 'Canvas Mind Map', async () => {
+            const leaf = this.app.workspace.getLeaf(true);
+            await leaf.setViewState({
+                type: VIEW_TYPE_DIWA_MINDMAP,
+                active: true,
+                state: { file: entry.filePath }
+            });
+            this.app.workspace.revealLeaf(leaf);
+        }, 'var(--interactive-accent)');
 
         this.renderActionButton(actions, ICON_TRASH, 'Delete', () => {
             new ConfirmModal(this.app, 'Move thought to trash?', async () => { await this.vault.deleteFile(entry.filePath, 'thoughts'); this.refreshCurrentList(); }).open();

@@ -1,5 +1,5 @@
 import { Plugin, TFile, Notice, WorkspaceLeaf, Platform, moment, addIcon, setIcon, MarkdownRenderer, Menu } from 'obsidian';
-import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB } from './constants';
+import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB, VIEW_TYPE_DIWA_MINDMAP } from './constants';
 import type { BulsaLeafState, ResponsiveShellState } from './types';
 import { DiwaSettings, GawaLayoutPreferences, TaskEntry, ThoughtEntry } from './types';
 import { sanitizeGawaLayoutPreferences } from './gawaLayout';
@@ -8,6 +8,7 @@ import { DiwaView } from './view';
 import { DesktopHubView } from './views/DesktopHubView';
 import { MobileHubView } from './views/MobileHubView';
 import { TabletHubView } from './views/TabletHubView';
+import { MindMapView } from './views/MindMapView';
 import { DiwaSettingTab } from './settings';
 import { EditEntryModal } from './modals/EditEntryModal';
 import { EditThoughtModal } from './modals/EditThoughtModal';
@@ -181,6 +182,7 @@ export default class DiwaPlugin extends Plugin {
         this.registerView(VIEW_TYPE_DESKTOP_HUB, (leaf) => new DesktopHubView(leaf, this));
         this.registerView(VIEW_TYPE_MOBILE_HUB,  (leaf) => new MobileHubView(leaf, this));
         this.registerView(VIEW_TYPE_TABLET_HUB,  (leaf) => new TabletHubView(leaf, this));
+        this.registerView(VIEW_TYPE_DIWA_MINDMAP, (leaf) => new MindMapView(leaf, this));
 
 		addIcon(KATANA_ICON_ID, KATANA_ICON_SVG);
 		addIcon(JOURNAL_ICON_ID, JOURNAL_ICON_SVG);
@@ -199,6 +201,25 @@ export default class DiwaPlugin extends Plugin {
         this.addCommand({ id: 'diwa-open-journal-input', name: 'Open Journal', icon: JOURNAL_ICON_ID, callback: () => { void this.activateJournalInput(); } });
         this.addCommand({ id: 'diwa-open-gawa', name: 'Open Gawa', icon: 'check-square-2', callback: () => { void this.activateGawa(); } });
         this.addCommand({ id: 'diwa-open-bulsa', name: 'Open Bulsa', icon: PF_ICON_ID, callback: () => { void this.activateBulsa(); } });
+        this.addCommand({
+            id: 'diwa-open-mindmap',
+            name: 'Open Mind Map View',
+            icon: 'map',
+            callback: async () => {
+                const activeFile = this.app.workspace.getActiveFile();
+                if (activeFile && activeFile.extension === 'md') {
+                    const leaf = this.app.workspace.getLeaf(true);
+                    await leaf.setViewState({
+                        type: VIEW_TYPE_DIWA_MINDMAP,
+                        active: true,
+                        state: { file: activeFile.path }
+                    });
+                    this.app.workspace.revealLeaf(leaf);
+                } else {
+                    new Notice('Please open a markdown note to generate a mind map.');
+                }
+            }
+        });
 
 		this.addSettingTab(new DiwaSettingTab(this.app, this));
         this.scheduleLegacyMigration();
@@ -785,9 +806,25 @@ export default class DiwaPlugin extends Plugin {
     async scanForContexts(startupToken?: number) {
         const foundContexts = await this.index.scanForContexts();
         if (startupToken !== undefined && !this.isStartupRunActive(startupToken)) return;
-        let newCtx = false;
-        foundContexts.forEach(c => { if (c && typeof c === 'string' && !this.settings.contexts.includes(c)) { this.settings.contexts.push(c); newCtx = true; } });
-        if (newCtx && (startupToken === undefined || this.isStartupRunActive(startupToken))) await this.saveSettings();
+        
+        let changed = false;
+        
+        // Remove contexts no longer found in the vault to prevent pill accumulation
+        const originalLength = this.settings.contexts.length;
+        this.settings.contexts = this.settings.contexts.filter(c => foundContexts.includes(c));
+        if (this.settings.contexts.length !== originalLength) changed = true;
+
+        // Add any newly discovered contexts
+        foundContexts.forEach(c => { 
+            if (c && typeof c === 'string' && !this.settings.contexts.includes(c)) { 
+                this.settings.contexts.push(c); 
+                changed = true; 
+            } 
+        });
+
+        if (changed && (startupToken === undefined || this.isStartupRunActive(startupToken))) {
+            await this.saveSettings();
+        }
     }
 
 	async loadSettings() {
@@ -1366,6 +1403,20 @@ export default class DiwaPlugin extends Plugin {
                 .setTitle('Open Note')
                 .setIcon('link')
                 .onClick(() => { void this.openThoughtNote(thought); }),
+        );
+        menu.addItem((item) =>
+            item
+                .setTitle('Mind Map')
+                .setIcon('map')
+                .onClick(async () => {
+                    const leaf = this.app.workspace.getLeaf(false);
+                    await leaf.setViewState({
+                        type: VIEW_TYPE_DIWA_MINDMAP,
+                        active: true,
+                        state: { file: thought.filePath }
+                    });
+                    this.app.workspace.revealLeaf(leaf);
+                }),
         );
         menu.addItem((item) =>
             item

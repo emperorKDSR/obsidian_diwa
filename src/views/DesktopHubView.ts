@@ -11,6 +11,7 @@ import { DesktopTaskPaneView } from './DesktopTaskPane';
 import { TaskController } from './TaskController';
 import { ThoughtController } from './ThoughtController';
 import { enableImageZoom } from '../utils/imageZoom';
+import { VIEW_TYPE_DIWA_MINDMAP } from '../constants';
 
 interface FeedRowRef {
     rootEl: HTMLElement;
@@ -24,6 +25,7 @@ interface FeedRowRef {
     linkTaskBtn: HTMLButtonElement;
     linkThoughtBtn: HTMLButtonElement;
     archiveBtn: HTMLButtonElement;
+    canvasBtn: HTMLButtonElement;
     sig: string;
     renderToken: number;
 }
@@ -742,7 +744,7 @@ export class DesktopHubView extends ItemView {
                 const timeEl = metaEl.createEl('span', { cls: 'diwa-dh-thought-row-time' });
                 const bodyEl = rootEl.createEl('div', { cls: 'diwa-dh-thought-row-body' });
                 const contentEl = bodyEl.createEl('div', { cls: 'diwa-dh-thought-row-content' });
-                const textEl = contentEl.createEl('div', { cls: 'diwa-dh-thought-row-text' });
+                const textEl = contentEl.createEl('div', { cls: 'diwa-dh-thought-row-text markdown-rendered' });
                 const metaRailEl = bodyEl.createEl('div', { cls: 'diwa-dh-thought-row-meta-rail' });
                 const ctxEl = metaRailEl.createEl('div', { cls: 'diwa-dh-thought-row-ctx' });
                 const actionsEl = rootEl.createEl('div', { cls: 'diwa-dh-thought-row-actions' });
@@ -751,6 +753,7 @@ export class DesktopHubView extends ItemView {
                 const convertBtn = this.createThoughtActionButton(actionsEl, 'list-todo', 'Convert to task', 'diwa-dh-thought-row-action--convert');
                 const linkTaskBtn = this.createThoughtActionButton(actionsEl, 'link', 'Link to task', 'diwa-dh-thought-row-action--link-task');
                 const linkThoughtBtn = this.createThoughtActionButton(actionsEl, 'git-merge', 'Link to thought', 'diwa-dh-thought-row-action--link-thought');
+                const canvasBtn = this.createThoughtActionButton(actionsEl, 'map', 'Canvas Mind Map', 'diwa-dh-thought-row-action--canvas');
                 const archiveBtn = rootEl.createEl('button', {
                     cls: 'diwa-dh-thought-row-archive diwa-dh-thought-row-action diwa-dh-thought-row-action--archive',
                     attr: { type: 'button', title: 'Archive', 'aria-label': 'Archive' },
@@ -795,6 +798,20 @@ export class DesktopHubView extends ItemView {
                     const t = this._thoughtController.getThought(id);
                     if (t) await this._thoughtController.setArchived(id, true);
                 });
+                canvasBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const t = this._thoughtController.getThought(id);
+                    if (t) {
+                        const leaf = this.app.workspace.getLeaf(true);
+                        await leaf.setViewState({
+                            type: VIEW_TYPE_DIWA_MINDMAP,
+                            active: true,
+                            state: { file: t.filePath }
+                        });
+                        this.app.workspace.revealLeaf(leaf);
+                    }
+                });
                 row = {
                     rootEl,
                     textEl,
@@ -807,6 +824,7 @@ export class DesktopHubView extends ItemView {
                     linkTaskBtn,
                     linkThoughtBtn,
                     archiveBtn,
+                    canvasBtn,
                     sig: '',
                     renderToken: 0,
                 };
@@ -1141,6 +1159,9 @@ export class DesktopHubView extends ItemView {
             },
         }) as HTMLButtonElement;
         setIcon(button, icon);
+        if (!button.innerHTML) {
+            button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></svg>';
+        }
         return button;
     }
 
@@ -1501,7 +1522,50 @@ export class DesktopHubView extends ItemView {
             this._captureInputEl = textarea;
             this._captureHintEl = contextHint;
 
-            const autosize = () => this.syncCaptureTextareaHeight();
+            const previewEl = capture.createEl('div', { cls: 'diwa-dh-capture-preview markdown-rendered' });
+            previewEl.style.display = 'none';
+            previewEl.style.cursor = 'text';
+            previewEl.style.minHeight = '42px';
+
+            const autosize = () => {
+                this.syncCaptureTextareaHeight();
+            };
+
+            const showPreview = () => {
+                const raw = textarea.value.trim();
+                if (raw) {
+                    textarea.style.display = 'none';
+                    previewEl.empty();
+                    void MarkdownRenderer.render(this.app, raw, previewEl, this.plugin.settings.peopleFolder || '', this);
+                    previewEl.style.display = 'block';
+                } else {
+                    textarea.style.display = 'block';
+                    previewEl.style.display = 'none';
+                }
+            };
+
+            const showEditor = () => {
+                previewEl.style.display = 'none';
+                textarea.style.display = 'block';
+                autosize();
+            };
+
+            textarea.addEventListener('blur', () => {
+                setTimeout(() => {
+                    if (document.activeElement !== textarea) {
+                        showPreview();
+                    }
+                }, 100);
+            });
+
+            textarea.addEventListener('focus', showEditor);
+
+            previewEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showEditor();
+                textarea.focus();
+            });
+
             textarea.addEventListener('input', autosize);
             requestAnimationFrame(autosize);
             capture.addEventListener('click', (event) => {
@@ -1515,6 +1579,7 @@ export class DesktopHubView extends ItemView {
                     || target.closest('a')
                     || target.closest('[role="button"]')
                 ) return;
+                showEditor();
                 textarea.focus();
             });
             attachInlineTriggers(
@@ -1538,7 +1603,7 @@ export class DesktopHubView extends ItemView {
                     autosize();
                     return;
                 }
-                if (event.key !== 'Enter' || event.shiftKey) return;
+                if (event.key !== 'Enter' || !event.shiftKey) return;
                 event.preventDefault();
                 const raw = textarea.value;
                 if (!raw.trim()) return;
@@ -1789,7 +1854,7 @@ export class DesktopHubView extends ItemView {
 
             if (markdown.trim()) {
                 const contentEl = row.createEl('div', {
-                    cls: 'diwa-dh-pinned-note-content diwa-dh-thought-row-text',
+                    cls: 'diwa-dh-pinned-note-content diwa-dh-thought-row-text markdown-rendered',
                     text: markdown,
                 });
                 const stagedEl = document.createElement('div');

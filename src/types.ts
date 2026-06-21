@@ -88,6 +88,15 @@ export interface DiwaSettings {
     peopleFolder: string;
     contextOrder: string[];
     gawaLayoutPreferences: GawaLayoutPreferences;
+    canvasDefaultDepth: number; // default BFS depth for mind map generation
+    canvasDefaultDirection: 'lr' | 'rl' | 'tb' | 'bt' | 'radial'; // default layout direction
+    canvasNodeWidth: number; // default canvas node width (px)
+    canvasNodeHeight: number; // default canvas node height (px)
+    canvasSpacingX: number; // horizontal spacing between nodes (px)
+    canvasSpacingY: number; // vertical spacing between nodes (px)
+    canvasOutputFolder: string; // folder to place generated canvas files (empty = same folder as source)
+    mindMapNodeSizes: Record<string, {width: number, height: number, x?: number, y?: number}>;
+    mindMapFloatingNodes: Record<string, string[]>;
 }
 
 export interface CustomMode {

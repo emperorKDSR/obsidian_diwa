@@ -121,6 +121,74 @@ export class DiwaSettingTab extends PluginSettingTab {
                     });
             });
 
+// Canvas Mind Map Settings
+        containerEl.createEl('h3', { text: 'Canvas Mind Map Settings' });
+        new Setting(containerEl).setName('Default Depth')
+            .setDesc('BFS depth for mind map generation')
+            .addText(text => text
+                .setPlaceholder('2')
+                .setValue(this.plugin.settings.canvasDefaultDepth?.toString() ?? '2')
+                .onChange(async (value) => {
+                    const num = parseInt(value);
+                    await this.plugin.updateSetting('canvasDefaultDepth', isNaN(num) ? 2 : num);
+                }));
+        new Setting(containerEl).setName('Default Layout')
+            .setDesc('Layout direction for mind map')
+            .addDropdown(drop => drop
+                .addOption('lr', 'Left-to-Right')
+                .addOption('rl', 'Right-to-Left')
+                .addOption('tb', 'Top-to-Bottom')
+                .addOption('bt', 'Bottom-to-Top')
+                .addOption('radial', 'Radial')
+                .setValue(this.plugin.settings.canvasDefaultDirection ?? 'lr')
+                .onChange(async (value) => {
+                    await this.plugin.updateSetting('canvasDefaultDirection', value as 'lr'|'rl'|'tb'|'bt'|'radial');
+                }));
+        new Setting(containerEl).setName('Node Width')
+            .setDesc('Default canvas node width in pixels')
+            .addText(text => text
+                .setPlaceholder('400')
+                .setValue(this.plugin.settings.canvasNodeWidth?.toString() ?? '400')
+                .onChange(async (value) => {
+                    const num = parseInt(value);
+                    await this.plugin.updateSetting('canvasNodeWidth', isNaN(num) ? 400 : num);
+                }));
+        new Setting(containerEl).setName('Node Height')
+            .setDesc('Default canvas node height in pixels')
+            .addText(text => text
+                .setPlaceholder('300')
+                .setValue(this.plugin.settings.canvasNodeHeight?.toString() ?? '300')
+                .onChange(async (value) => {
+                    const num = parseInt(value);
+                    await this.plugin.updateSetting('canvasNodeHeight', isNaN(num) ? 300 : num);
+                }));
+        new Setting(containerEl).setName('Horizontal Spacing')
+            .setDesc('Spacing between nodes horizontally')
+            .addText(text => text
+                .setPlaceholder('100')
+                .setValue(this.plugin.settings.canvasSpacingX?.toString() ?? '100')
+                .onChange(async (value) => {
+                    const num = parseInt(value);
+                    await this.plugin.updateSetting('canvasSpacingX', isNaN(num) ? 100 : num);
+                }));
+        new Setting(containerEl).setName('Vertical Spacing')
+            .setDesc('Spacing between nodes vertically')
+            .addText(text => text
+                .setPlaceholder('50')
+                .setValue(this.plugin.settings.canvasSpacingY?.toString() ?? '50')
+                .onChange(async (value) => {
+                    const num = parseInt(value);
+                    await this.plugin.updateSetting('canvasSpacingY', isNaN(num) ? 50 : num);
+                }));
+        new Setting(containerEl).setName('Canvas Output Folder')
+            .setDesc('Folder to save generated canvas files (empty = same folder as source)')
+            .addText(text => text
+                .setPlaceholder('')
+                .setValue(this.plugin.settings.canvasOutputFolder ?? '')
+                .onChange(async (value) => {
+                    await this.plugin.updateSetting('canvasOutputFolder', value.trim());
+                }));
+        // Bulsa heading restored
         containerEl.createEl('h3', { text: 'Bulsa' });
         new Setting(containerEl).setName('Monthly Income').setDesc('Used for the cashflow overview in Bulsa Insights.').addText(text => text.setPlaceholder('0').setValue(this.plugin.settings.monthlyIncome.toString()).onChange(async (value) => { await this.plugin.updateSetting('monthlyIncome', parseFloat(value) || 0); }));
 

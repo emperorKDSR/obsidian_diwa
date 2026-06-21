@@ -19468,3 +19468,98 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
   font-size: 11px;
   color: var(--text-faint);
 }
+
+/* Fix HTML formatting being rendered as space */
+.diwa-dh-thought-row-text.markdown-rendered {
+  white-space: normal !important;
+}
+
+/* Compact styling for capture preview */
+.diwa-dh-capture-preview.markdown-rendered {
+  padding: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-normal);
+}
+
+.diwa-dh-capture-preview.markdown-rendered p,
+.diwa-dh-capture-preview.markdown-rendered h1,
+.diwa-dh-capture-preview.markdown-rendered h2,
+.diwa-dh-capture-preview.markdown-rendered h3,
+.diwa-dh-capture-preview.markdown-rendered h4,
+.diwa-dh-capture-preview.markdown-rendered h5,
+.diwa-dh-capture-preview.markdown-rendered h6,
+.diwa-dh-capture-preview.markdown-rendered blockquote {
+  margin-block-start: 0.2em;
+  margin-block-end: 0.2em;
+}
+
+.diwa-dh-capture-preview.markdown-rendered p:first-child,
+.diwa-dh-capture-preview.markdown-rendered h1:first-child,
+.diwa-dh-capture-preview.markdown-rendered h2:first-child,
+.diwa-dh-capture-preview.markdown-rendered h3:first-child,
+.diwa-dh-capture-preview.markdown-rendered h4:first-child,
+.diwa-dh-capture-preview.markdown-rendered h5:first-child,
+.diwa-dh-capture-preview.markdown-rendered h6:first-child,
+.diwa-dh-capture-preview.markdown-rendered blockquote:first-child {
+  margin-block-start: 0;
+}
+
+.diwa-dh-capture-preview.markdown-rendered p:last-child,
+.diwa-dh-capture-preview.markdown-rendered h1:last-child,
+.diwa-dh-capture-preview.markdown-rendered h2:last-child,
+.diwa-dh-capture-preview.markdown-rendered h3:last-child,
+.diwa-dh-capture-preview.markdown-rendered h4:last-child,
+.diwa-dh-capture-preview.markdown-rendered h5:last-child,
+.diwa-dh-capture-preview.markdown-rendered h6:last-child,
+.diwa-dh-capture-preview.markdown-rendered blockquote:last-child {
+  margin-block-end: 0;
+}
+
+/* Compact bullet points */
+.diwa-dh-capture-preview.markdown-rendered li,
+.diwa-dh-thought-row-text li {
+  margin-block-start: 0 !important;
+  margin-block-end: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-block-start: 0 !important;
+  padding-block-end: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 1.3 !important;
+}
+
+.diwa-dh-capture-preview.markdown-rendered li *,
+.diwa-dh-thought-row-text li * {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.diwa-dh-capture-preview.markdown-rendered ul, 
+.diwa-dh-capture-preview.markdown-rendered ol,
+.diwa-dh-thought-row-text ul,
+.diwa-dh-thought-row-text ol {
+  padding-inline-start: 1.25em !important;
+  margin-block-start: 0.1em !important;
+  margin-block-end: 0.1em !important;
+  margin-top: 0.1em !important;
+  margin-bottom: 0.1em !important;
+  gap: 0 !important;
+}
+
+.diwa-dh-capture-preview.markdown-rendered li > p,
+.diwa-dh-capture-preview.markdown-rendered li > div,
+.diwa-dh-thought-row-text li > p,
+.diwa-dh-thought-row-text li > div {
+  margin-block-start: 0 !important;
+  margin-block-end: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-block-start: 0 !important;
+  padding-block-end: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}

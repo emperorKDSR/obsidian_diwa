@@ -35,7 +35,14 @@ export class IndexService {
      *  Handles: string scalar, string[], missing/null, and '#'-prefixed values. */
     static normalizeContext(raw: unknown): string[] {
         if (!raw) return [];
-        const arr = Array.isArray(raw) ? raw : [raw];
+        let arr: any[];
+        if (Array.isArray(raw)) {
+            arr = raw;
+        } else if (typeof raw === 'string') {
+            arr = raw.split(',');
+        } else {
+            arr = [raw];
+        }
         return arr.map(v => String(v).replace(/^#+/, '').trim()).filter(Boolean);
     }
 

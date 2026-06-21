@@ -5,6 +5,7 @@ export const VIEW_TYPE_DIWA = "diwa-view";
 export const VIEW_TYPE_DESKTOP_HUB = "diwa-desktop-hub";
 export const VIEW_TYPE_MOBILE_HUB  = "diwa-mobile-hub";
 export const VIEW_TYPE_TABLET_HUB  = "diwa-tablet-hub";
+export const VIEW_TYPE_DIWA_MINDMAP = "diwa-mindmap";
 
 // Desktop Hub ribbon icon — three-pane cockpit layout
 export const DESKTOP_HUB_ICON_ID = "diwa-desktop-hub-icon";
@@ -71,17 +72,20 @@ export const PF_ICON_SVG = `<g transform="translate(10,10) scale(3.5)">
     <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>`;
 
-
 export const SETTINGS_ICON_ID = "diwa-settings-icon";
 export const SETTINGS_ICON_SVG = `<g transform="translate(10,10) scale(3.5)">
     <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V11a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>`;
 
-
-
 export const REVIEW_ICON_ID = "diwa-review-icon";
-export const REVIEW_ICON_SVG = `<g transform="translate(10,10) scale(3.5)"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><line x1="16" y1="2" x2="16" y2="6" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="2" x2="8" y2="6" fill="none" stroke="currentColor" stroke-width="2"/><line x1="3" y1="10" x2="21" y2="10" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="9 16 11 18 15 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+export const REVIEW_ICON_SVG = `<g transform="translate(10,10) scale(3.5)">
+    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/>
+    <line x1="16" y1="2" x2="16" y2="6" fill="none" stroke="currentColor" stroke-width="2"/>
+    <line x1="8" y1="2" x2="8" y2="6" fill="none" stroke="currentColor" stroke-width="2"/>
+    <line x1="3" y1="10" x2="21" y2="10" fill="none" stroke="currentColor" stroke-width="2"/>
+    <polyline points="9 16 11 18 15 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>`;
 
 // Action Icons (Simple paths for 16x16 viewbox)
 export const ICON_PIN = '<path d="M12 2v8m0 0l4 4m-4-4l-4 4M4 14h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
@@ -98,19 +102,19 @@ export const ICON_CHECKLIST = '<polyline points="9 11 12 14 22 4" stroke="curren
 
 export const DEFAULT_SETTINGS: DiwaSettings = {
     captureFolder: '000 Bin',
-	captureFilePath: 'diwa.md',
+    captureFilePath: 'diwa.md',
     tasksFilePath: 'diwa_tasks.md',
     thoughtsFolder: '000 Bin/DIWA',
     tasksFolder: '000 Bin/DIWA Gawa',
     pfFolder: '000 Bin/DIWA PF',
-	dateFormat: 'YYYY-MM-DD',
-	timeFormat: 'HH:mm',
-	contexts: [],
-	hiddenContexts: [],
-	selectedContexts: [],
-	contextOrder: [],
-	newNoteFolder: '000 Bin',
-	dailySectionStates: {},
+    dateFormat: 'YYYY-MM-DD',
+    timeFormat: 'HH:mm',
+    contexts: [],
+    hiddenContexts: [],
+    selectedContexts: [],
+    contextOrder: [],
+    newNoteFolder: '000 Bin',
+    dailySectionStates: {},
     showDailySections: true,
     showDailyChecklist: true,
     showDailyTasks: true,
@@ -137,4 +141,14 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
     peopleFolder: '000 Bin/DIWA People',
     legacyMigrated: false,
     gawaLayoutPreferences: createDefaultGawaLayoutPreferences(),
+    // Canvas defaults
+    canvasDefaultDepth: 2,
+    canvasDefaultDirection: 'lr',
+    canvasNodeWidth: 400,
+    canvasNodeHeight: 300,
+    canvasSpacingX: 100,
+    canvasSpacingY: 50,
+    canvasOutputFolder: '',
+    mindMapNodeSizes: {},
+    mindMapFloatingNodes: {},
 };

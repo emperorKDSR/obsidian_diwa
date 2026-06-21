@@ -25,6 +25,11 @@
     "typescript": "6.0.3"
   },
   "dependencies": {
-    "chrono-node": "^2.9.0"
+    "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/language": "^6.12.3",
+    "@codemirror/state": "^6.6.0",
+    "@codemirror/view": "^6.43.1",
+    "chrono-node": "^2.9.0",
+    "vis-network": "^10.1.0"
   }
 }

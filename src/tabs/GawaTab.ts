@@ -1,4 +1,8 @@
 import { Notice, Platform, TFile, moment, setIcon } from 'obsidian';
+import { EditorView, keymap, placeholder as cmPlaceholder } from '@codemirror/view';
+import { EditorState } from '@codemirror/state';
+import { defaultKeymap } from '@codemirror/commands';
+import { markdown } from '@codemirror/lang-markdown';
 import type { DiwaView } from '../view';
 import { BaseTab } from './BaseTab';
 import type { GawaDesktopBucketId, GawaLayoutBucketPreference, GawaPaneId, GawaTabletBucketId, TaskBucketStatus, TaskEntry } from '../types';
@@ -14,7 +18,7 @@ import {
 } from '../views/DesktopTaskPane';
 import { FastTaskCaptureModal, type FastTaskCapturePayload } from '../modals/FastTaskCaptureModal';
 import { GawaLayoutCustomizeModal } from '../modals/GawaLayoutCustomizeModal';
-
+import { EditTaskModal } from '../modals/EditTaskModal';
 interface PaneConfig {
     paneId: string;
     title: string;
@@ -60,6 +64,9 @@ export class GawaTab extends BaseTab {
     private _doneTodayStatEl: HTMLElement | null = null;
     private _focusStatEl: HTMLElement | null = null;
     private _overdueStatEl: HTMLElement | null = null;
+    private _viewMode: 'grid' | 'table' = 'table';
+    private _showDoneInTable = false;
+    private _captureEditors: EditorView[] = [];
     private _taskPending = 0;
     private _taskFilter: 'upcoming' | 'all' = 'all';
     private _taskIndexRecoveryInFlight = false;
@@ -137,6 +144,18 @@ export class GawaTab extends BaseTab {
 
     /** Incremental refresh — called when only task data changes (avoids full DOM rebuild). */
     onTasksRefresh(): void {
+        if (this._viewMode === 'table') {
+            this.updateWorkspaceStats();
+            if (this._rootEl) {
+                const oldTable = this._rootEl.querySelector('.diwa-gawa-table-view');
+                if (oldTable) {
+                    oldTable.remove();
+                    this.renderTableView(this._rootEl);
+                }
+            }
+            return;
+        }
+
         if (this._paneMap.size === 0) {
             // Panes not yet mounted — fall back to full render is handled by caller
             console.log('[DIWA GAWA] onTasksRefresh skipped: no panes mounted');
@@ -232,6 +251,25 @@ export class GawaTab extends BaseTab {
             this._taskController.syncFromIndex();
             this.updateWorkspaceStats();
         });
+        const doneToggleBtn = actions.createEl('button', { cls: 'diwa-gawa-header-btn' });
+        setIcon(doneToggleBtn, this._showDoneInTable ? 'check-square' : 'square');
+        doneToggleBtn.createEl('span', { text: this._showDoneInTable ? 'Hide Done' : 'Show Done' });
+        doneToggleBtn.addEventListener('click', () => {
+            this._showDoneInTable = !this._showDoneInTable;
+            if (this._container) {
+                this.render(this._container);
+            }
+        });
+
+        const viewToggleBtn = actions.createEl('button', { cls: 'diwa-gawa-header-btn diwa-gawa-view-toggle-btn' });
+        setIcon(viewToggleBtn, this._viewMode === 'grid' ? 'table' : 'layout-grid');
+        viewToggleBtn.createEl('span', { text: this._viewMode === 'grid' ? 'Table View' : 'Grid View' });
+        viewToggleBtn.addEventListener('click', () => {
+            this._viewMode = this._viewMode === 'grid' ? 'table' : 'grid';
+            if (this._container) {
+                this.render(this._container);
+            }
+        });
 
         this.updateWorkspaceStats();
     }
@@ -281,23 +319,85 @@ export class GawaTab extends BaseTab {
         this._overdueStatEl?.setText(String(overdueCount));
     }
 
+    private createEditorCapture(
+        container: HTMLElement,
+        placeholderText: string,
+        onSubmit: (text: string, editor: EditorView, container: HTMLElement) => Promise<void>,
+        onModEnter: (text: string) => void,
+        onShiftEnter?: (text: string, editor: EditorView, container: HTMLElement) => Promise<void>
+    ): EditorView {
+        const editorContainer = container.createEl('div', { cls: 'diwa-gawa-capture-editor' });
+        
+        editorContainer.style.width = '100%';
+        editorContainer.style.flex = '1';
+        editorContainer.style.display = 'flex';
+        editorContainer.style.alignItems = 'center';
+
+        let editorView: EditorView;
+
+        const customKeymap = keymap.of([
+            {
+                key: 'Enter',
+                run: (view) => {
+                    const text = view.state.doc.toString().trim();
+                    if (!text) return false;
+                    void onSubmit(text, view, editorContainer);
+                    return true;
+                },
+                shift: (view) => {
+                    if (!onShiftEnter) return false;
+                    const text = view.state.doc.toString().trim();
+                    if (!text) return false;
+                    void onShiftEnter(text, view, editorContainer);
+                    return true;
+                }
+            },
+            {
+                key: 'Mod-Enter',
+                run: (view) => {
+                    const text = view.state.doc.toString().trim();
+                    onModEnter(text);
+                    return true;
+                }
+            }
+        ]);
+
+        const startState = EditorState.create({
+            doc: '',
+            extensions: [
+                markdown(),
+                cmPlaceholder(placeholderText),
+                customKeymap,
+                keymap.of(defaultKeymap),
+                EditorView.lineWrapping,
+                EditorView.theme({
+                    "&": { backgroundColor: "transparent", color: "var(--text-normal)", fontSize: "13px", fontWeight: "500" },
+                    ".cm-content": { 
+                        fontFamily: "var(--font-interface)",
+                        padding: "8px 0"
+                    },
+                    "&.cm-focused": { outline: "none" },
+                    ".cm-scroller": { overflow: "hidden" }
+                })
+            ]
+        });
+
+        editorView = new EditorView({
+            state: startState,
+            parent: editorContainer
+        });
+
+        this._captureEditors.push(editorView);
+        return editorView;
+    }
+
     private renderFastCapture(parent: HTMLElement): void {
         const capture = parent.createEl('div', { cls: 'diwa-gawa-capture' });
         const icon = capture.createEl('span', { cls: 'diwa-gawa-capture-icon' });
         setIcon(icon, 'plus');
-        const input = capture.createEl('input', {
-            cls: 'diwa-gawa-capture-input',
-            attr: {
-                type: 'text',
-                placeholder: 'Quick add to inbox…',
-                'aria-label': 'Fast capture task',
-            },
-        }) as HTMLInputElement;
 
-        const quickCreate = async () => {
-            const title = input.value.trim();
-            if (!title) return;
-            input.disabled = true;
+        const quickCreate = async (title: string, editorView: EditorView, container: HTMLElement) => {
+            container.style.opacity = '0.5';
             try {
                 this.plugin.refreshCoordinator.suppressNotifyRefresh(600);
                 const created = await this.vault.createTaskFile(title, []);
@@ -312,24 +412,20 @@ export class GawaTab extends BaseTab {
                 } else {
                     this._taskController.syncFromIndex();
                 }
-                input.value = '';
+                editorView.dispatch({
+                    changes: { from: 0, to: editorView.state.doc.length, insert: '' }
+                });
                 this.updateWorkspaceStats();
             } catch (error) {
                 console.error('[DIWA GAWA] Failed fast capture task', error);
             } finally {
-                input.disabled = false;
-                input.focus();
+                container.style.opacity = '1';
+                editorView.focus();
             }
         };
 
-        input.addEventListener('keydown', (event: KeyboardEvent) => {
-            if (event.key !== 'Enter') return;
-            event.preventDefault();
-            if (event.metaKey || event.ctrlKey) {
-                this.openCreateTaskModal(input.value.trim());
-                return;
-            }
-            void quickCreate();
+        this.createEditorCapture(capture, 'Quick add to inbox…', quickCreate, (title) => {
+            this.openCreateTaskModal(title);
         });
     }
 
@@ -507,23 +603,18 @@ export class GawaTab extends BaseTab {
     private renderInboxInlineCapture(parent: HTMLElement): void {
         const capture = parent.createEl('div', { cls: 'diwa-gawa-inbox-capture' });
         const captureMain = capture.createEl('div', { cls: 'diwa-gawa-inbox-capture-main' });
-        const input = captureMain.createEl('input', {
-            cls: 'diwa-gawa-inbox-capture-input',
-            attr: {
-                type: 'text',
-                placeholder: '+ Add task...',
-                'aria-label': 'Add task to inbox',
-            },
-        }) as HTMLInputElement;
+        
+        let currentTarget: InboxCaptureTarget = 'backlog';
+        let editorView: EditorView | null = null;
 
-        const submit = async (target: InboxCaptureTarget): Promise<void> => {
-            if (input.disabled) return;
-            const parsed = this.parseInboxCaptureInput(input.value);
+        const submit = async (text: string, view: EditorView, container: HTMLElement): Promise<void> => {
+            const parsed = this.parseInboxCaptureInput(text);
             if (!parsed.text) return;
 
+            const target = currentTarget;
             const status: TaskEntry['status'] = target === 'backlog' ? 'open' : 'waiting';
             const shouldFocus = target === 'focus';
-            input.disabled = true;
+            container.style.opacity = '0.5';
             try {
                 this.plugin.refreshCoordinator.suppressNotifyRefresh(700);
                 const created = await this.vault.createTaskFile(
@@ -537,7 +628,7 @@ export class GawaTab extends BaseTab {
                 );
                 const optimisticTask = await this.buildOptimisticTask(created, parsed, status, shouldFocus);
                 this._taskController.addTask(optimisticTask);
-                input.value = '';
+                view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '' } });
                 await this.plugin.refreshCoordinator.reindexFile(created);
                 await this._taskController.reconcileTask(created.path, status, optimisticTask);
                 if (shouldFocus) {
@@ -547,28 +638,18 @@ export class GawaTab extends BaseTab {
             } catch (error) {
                 console.error('[DIWA GAWA] Failed inbox inline capture', error);
             } finally {
-                input.disabled = false;
-                input.focus();
+                container.style.opacity = '1';
+                view.focus();
+                currentTarget = 'backlog'; // reset
             }
         };
 
-        input.addEventListener('keydown', (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                event.preventDefault();
-                input.value = '';
-                return;
-            }
-            if (event.key !== 'Enter') return;
-            event.preventDefault();
-            if (event.metaKey || event.ctrlKey) {
-                void submit('focus');
-                return;
-            }
-            if (event.shiftKey) {
-                void submit('active');
-                return;
-            }
-            void submit('backlog');
+        editorView = this.createEditorCapture(captureMain, '+ Add task...', submit, (text) => {
+            currentTarget = 'focus';
+            if (editorView) void submit(text, editorView, captureMain);
+        }, async (text, view, container) => {
+            currentTarget = 'active';
+            void submit(text, view, container);
         });
 
         if (!this.isTabletLayout()) return;
@@ -586,7 +667,11 @@ export class GawaTab extends BaseTab {
                 attr: { type: 'button' },
             });
             button.addEventListener('click', () => {
-                void submit(target.id);
+                currentTarget = target.id;
+                if (editorView) {
+                    const text = editorView.state.doc.toString().trim();
+                    if (text) void submit(text, editorView, captureMain);
+                }
             });
         }
     }
@@ -941,5 +1026,92 @@ export class GawaTab extends BaseTab {
 
     private getTaskIdentity(task: TaskEntry): string {
         return task.taskId?.trim() || task.id || task.filePath;
+    }
+
+    private renderTableView(parent: HTMLElement): void {
+        const tableContainer = parent.createEl('div', { cls: 'diwa-gawa-table-view' });
+        
+        const table = tableContainer.createEl('table', { cls: 'diwa-gawa-modern-table' });
+        const thead = table.createEl('thead');
+        const headerRow = thead.createEl('tr');
+        headerRow.createEl('th', { text: 'Status' });
+        headerRow.createEl('th', { text: 'Title' });
+        headerRow.createEl('th', { text: 'Priority' });
+        headerRow.createEl('th', { text: 'Due Date' });
+
+        const tbody = table.createEl('tbody');
+        
+        let tasks = Array.from(this.plugin.index.taskIndex.values());
+        if (!this._showDoneInTable) {
+            tasks = tasks.filter(t => t.status !== 'done');
+        }
+        
+        tasks.sort((a, b) => {
+            if (a.status === 'done' && b.status !== 'done') return 1;
+            if (a.status !== 'done' && b.status === 'done') return -1;
+            return (b.modified || '').localeCompare(a.modified || '');
+        });
+
+        if (tasks.length === 0) {
+            const emptyRow = tbody.createEl('tr');
+            emptyRow.createEl('td', {
+                attr: { colspan: '4' },
+                cls: 'diwa-gawa-table-empty',
+                text: 'No tasks found. Create one to get started.'
+            });
+            return;
+        }
+
+        for (const task of tasks) {
+            const tr = tbody.createEl('tr');
+            
+            const statusCell = tr.createEl('td', { cls: 'diwa-gawa-table-cell-status' });
+            const statusIcon = statusCell.createEl('span', { cls: `diwa-task-status-icon is-${task.status}` });
+            setIcon(statusIcon, task.status === 'done' ? 'check-circle' : 'circle');
+            
+            statusCell.addEventListener('click', (e) => {
+                e.stopPropagation();
+                void this._taskController.toggleTask(this.getTaskIdentity(task));
+            });
+
+            const titleCell = tr.createEl('td', { cls: 'diwa-gawa-table-cell-title' });
+            titleCell.createEl('span', { text: task.title, cls: 'diwa-gawa-table-title-text' });
+            if (task.context && task.context.length > 0) {
+                const tagsSpan = titleCell.createEl('span', { cls: 'diwa-gawa-table-tags' });
+                task.context.forEach((tag: string) => {
+                    tagsSpan.createEl('span', { cls: 'diwa-gawa-table-tag', text: `#${tag}` });
+                });
+            }
+
+            const priorityCell = tr.createEl('td', { cls: 'diwa-gawa-table-cell-priority' });
+            if (task.priority) {
+                const pSpan = priorityCell.createEl('span', { cls: `diwa-priority-badge is-${task.priority}` });
+                pSpan.setText(task.priority.toUpperCase());
+            } else {
+                priorityCell.setText('-');
+                priorityCell.addClass('is-empty');
+            }
+
+            const dueCell = tr.createEl('td', { cls: 'diwa-gawa-table-cell-due' });
+            if (task.due) {
+                dueCell.setText(task.due);
+            } else {
+                dueCell.setText('-');
+                dueCell.addClass('is-empty');
+            }
+            
+            tr.addEventListener('click', () => {
+                new EditTaskModal(
+                    this.app,
+                    task,
+                    this.vault,
+                    this.plugin.index,
+                    () => {
+                        this._taskController.syncFromIndex();
+                        this.updateWorkspaceStats();
+                    }
+                ).open();
+            });
+        }
     }
 }

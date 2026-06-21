@@ -20,6 +20,7 @@ export class EditTaskModal extends Modal {
     private _energy:   'high' | 'medium' | 'low' | null;
     private _status:   'open' | 'waiting' | 'someday';
     private _contexts: string[];
+    private _body:     string;
 
     private _isMobileSheet = false;
     private _viewportCleanup: (() => void) | null = null;
@@ -46,6 +47,7 @@ export class EditTaskModal extends Modal {
         this._status     = (task.status === 'waiting' || task.status === 'someday')
                            ? task.status : 'open';
         this._contexts   = [...(task.context ?? [])];
+        this._body       = task.body || '';
 
     }
 
@@ -87,6 +89,7 @@ export class EditTaskModal extends Modal {
             energy:     this._energy,
             status:     this._status ?? 'open',
             contexts:   this._contexts,
+            bodyText:   this._body,
         });
         if (ok) {
             this.onSaved();
@@ -334,6 +337,8 @@ export class EditTaskModal extends Modal {
             chipsRow, 'diwa-etm-chips-inner',
             'diwa-etm-chip', 'diwa-etm-chip-add-btn'
         )();
+
+        this._buildCommentsArea(body);
 
         // Footer
         const footer = contentEl.createDiv({ cls: 'diwa-etm-footer' });
@@ -879,95 +884,57 @@ export class EditTaskModal extends Modal {
         dotCls:        string,
         twoRow =       false
     ): void {
+        toolbar.style.display = 'flex';
+        toolbar.style.gap = '8px';
+        toolbar.style.alignItems = 'center';
+
         this._buildDateChip(toolbar, popoverAnchor, chipCls);
-        this._buildRecurChip(toolbar, popoverAnchor, chipCls);
 
-        if (twoRow) {
-            // Force properties row to start on a new line
-            toolbar.createDiv({ cls: 'diwa-etm-toolbar-row-break' });
-        } else {
-            toolbar.createSpan({ cls: dotCls, text: '·' });
-        }
+        const priSelect = toolbar.createEl('select', { cls: 'diwa-etm-priority-select' });
+        priSelect.style.background = 'var(--background-primary)';
+        priSelect.style.color = 'var(--text-normal)';
+        priSelect.style.border = 'var(--input-border-width) solid var(--background-modifier-border)';
+        priSelect.style.borderRadius = 'var(--input-radius)';
+        priSelect.style.padding = '4px 8px';
+        priSelect.style.fontSize = '14px';
 
-        // Priority
-        const PRI: { val: 'low' | 'medium' | 'high'; label: string }[] = [
-            { val: 'low',    label: '!'   },
-            { val: 'medium', label: '!!'  },
-            { val: 'high',   label: '!!!' },
-        ];
-        const priChips: HTMLButtonElement[] = [];
-        PRI.forEach(({ val, label }) => {
-            const c = toolbar.createEl('button', {
-                cls:  `${chipCls} ${chipCls}--pri-${val}`,
-                text: label,
-                attr: { type: 'button', 'aria-label': `Priority ${val}`, 'aria-pressed': 'false' }
-            }) as HTMLButtonElement;
-            priChips.push(c);
-            c.addEventListener('click', () => {
-                this._priority = this._priority === val ? null : val;
-                syncPri();
-                this._vibrate(toolbar);
-            });
+        [
+            { val: 'none', label: 'No Priority' },
+            { val: 'low', label: 'Low Priority (!)' },
+            { val: 'medium', label: 'Medium Priority (!!)' },
+            { val: 'high', label: 'High Priority (!!!)' }
+        ].forEach(opt => {
+             const o = priSelect.createEl('option', { value: opt.val, text: opt.label });
+             if ((this._priority || 'none') === opt.val) o.selected = true;
         });
-        const syncPri = () => PRI.forEach(({ val }, i) => {
-            priChips[i].toggleClass('is-active', this._priority === val);
-            priChips[i].setAttribute('aria-pressed', String(this._priority === val));
-        });
-        syncPri();
 
-        // Energy
-        const NRG: { val: 'low' | 'medium' | 'high'; label: string }[] = [
-            { val: 'low',    label: '🌙' },
-            { val: 'medium', label: '〰' },
-            { val: 'high',   label: '⚡' },
-        ];
-        const nrgChips: HTMLButtonElement[] = [];
-        NRG.forEach(({ val, label }) => {
-            const c = toolbar.createEl('button', {
-                cls:  `${chipCls} ${chipCls}--nrg-${val}`,
-                text: label,
-                attr: { type: 'button', 'aria-label': `Energy ${val}`, 'aria-pressed': 'false' }
-            }) as HTMLButtonElement;
-            nrgChips.push(c);
-            c.addEventListener('click', () => {
-                this._energy = this._energy === val ? null : val;
-                syncNrg();
-                this._vibrate(toolbar);
-            });
+        priSelect.addEventListener('change', () => {
+             this._priority = priSelect.value === 'none' ? null : (priSelect.value as any);
         });
-        const syncNrg = () => NRG.forEach(({ val }, i) => {
-            nrgChips[i].toggleClass('is-active', this._energy === val);
-            nrgChips[i].setAttribute('aria-pressed', String(this._energy === val));
-        });
-        syncNrg();
+    }
 
-        toolbar.createSpan({ cls: dotCls, text: '·' });
+    private _buildCommentsArea(container: HTMLElement): void {
+        const wrap = container.createDiv({ cls: 'diwa-etm-body-wrap' });
+        wrap.style.marginTop = '16px';
+        wrap.style.width = '100%';
+        const label = wrap.createEl('label', { text: 'Comments', cls: 'diwa-etm-body-label' });
+        label.style.fontSize = '13px';
+        label.style.fontWeight = '600';
+        label.style.color = 'var(--text-muted)';
+        label.style.display = 'block';
+        label.style.marginBottom = '6px';
 
-        // Status
-        const STATUS: { val: 'waiting' | 'someday'; label: string }[] = [
-            { val: 'waiting', label: 'WAIT' },
-            { val: 'someday', label: 'SMDY' },
-        ];
-        const statusChips: HTMLButtonElement[] = [];
-        STATUS.forEach(({ val, label }) => {
-            const c = toolbar.createEl('button', {
-                cls:  chipCls,
-                text: label,
-                attr: { type: 'button', 'aria-label': `Status: ${val}`,
-                        'aria-pressed': 'false', 'data-status': val }
-            }) as HTMLButtonElement;
-            statusChips.push(c);
-            c.addEventListener('click', () => {
-                this._status = this._status === val ? 'open' : val;
-                syncStatus();
-                this._vibrate(toolbar);
-            });
+        const textarea = wrap.createEl('textarea', {
+            cls: 'diwa-etm-textarea',
+            attr: { placeholder: 'Add comments or notes...', rows: '4' }
+        }) as HTMLTextAreaElement;
+        textarea.style.minHeight = '80px';
+        textarea.style.width = '100%';
+        textarea.style.resize = 'vertical';
+        textarea.value = this._body;
+        textarea.addEventListener('input', () => {
+            this._body = textarea.value;
         });
-        const syncStatus = () => STATUS.forEach(({ val }, i) => {
-            statusChips[i].toggleClass('is-active', this._status === val);
-            statusChips[i].setAttribute('aria-pressed', String(this._status === val));
-        });
-        syncStatus();
     }
 
     private _buildChipsRow(
