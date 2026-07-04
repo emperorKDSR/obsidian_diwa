@@ -174,6 +174,16 @@ export default class DiwaPlugin extends Plugin {
         this.app.workspace.onLayoutReady(async () => {
             const startupToken = ++this.startupRunToken;
             this.registerReactiveRuntimeEvents();
+            
+            // Migrate legacy tablet/mobile leaves to desktop hub
+            const oldLeaves = [
+                ...this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB),
+                ...this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB)
+            ];
+            for (const leaf of oldLeaves) {
+                await this.setLeafViewType(leaf, VIEW_TYPE_DESKTOP_HUB, false);
+            }
+
             this.scheduleResponsiveHubReconciliation(0);
             await this.runStartupIndexBuild(startupToken);
         });
@@ -355,26 +365,10 @@ export default class DiwaPlugin extends Plugin {
     }
 
     async activateWorkspace() {
-        if (Platform.isMobile && !isTablet(this.app)) {
-            await this.activateMobileHub();
-            return;
-        }
-        if (isTablet(this.app)) {
-            await this.activateTabletHub();
-            return;
-        }
         await this.activateDesktopHub();
     }
 
     async activateDesktopHub() {
-        if (Platform.isMobile) {
-            if (isTablet(this.app)) {
-                await this.activateTabletHub();
-                return;
-            }
-            await this.activateMobileHub();
-            return;
-        }
         const { workspace } = this.app;
         // Reuse an existing Desktop Hub leaf if already open
         const existing = workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB);
@@ -399,17 +393,13 @@ export default class DiwaPlugin extends Plugin {
     }
 
     async activateMobileHub() {
-        if (!Platform.isMobile || isTablet(this.app)) {
-            return;
-        }
-        await this.activateResponsiveHubLeaf();
+        // Redirect legacy mobile leaves to desktop hub
+        await this.activateDesktopHub();
     }
 
     async activateTabletHub() {
-        if (!isTablet(this.app)) {
-            return;
-        }
-        await this.activateResponsiveHubLeaf();
+        // Redirect legacy tablet leaves to desktop hub
+        await this.activateDesktopHub();
     }
 
     private async runStartupIndexBuild(startupToken: number): Promise<void> {
@@ -617,8 +607,7 @@ export default class DiwaPlugin extends Plugin {
     }
 
     private getResponsiveHubTargetViewType(): string {
-        if (!this.isMobile()) return VIEW_TYPE_DESKTOP_HUB;
-        return isTablet(this.app) ? VIEW_TYPE_TABLET_HUB : VIEW_TYPE_MOBILE_HUB;
+        return VIEW_TYPE_DESKTOP_HUB;
     }
 
     private sanitizeResponsiveShellState(state: Record<string, unknown>): ResponsiveShellState {

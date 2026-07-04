@@ -13,7 +13,7 @@
   "author": "K",
   "license": "MIT",
   "devDependencies": {
-    "@esbuild/win32-x64": "^0.28.0",
+
     "@types/node": "^25.6.0",
     "@typescript-eslint/eslint-plugin": "8.58.2",
     "@typescript-eslint/parser": "8.58.2",

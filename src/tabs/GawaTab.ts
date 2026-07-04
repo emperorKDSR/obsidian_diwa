@@ -57,15 +57,13 @@ export class GawaTab extends BaseTab {
     private _layoutMode: GawaLayoutMode | null = null;
     private _layoutSignature: string | null = null;
     private readonly _taskController: TaskController;
-    private readonly _paneHost: TaskPaneHost;
-    private readonly _paneMap = new Map<string, TaskPane>();
-    private readonly _mobilePaneShells = new Map<MobileTabId, HTMLElement>();
-    private readonly _mobileTabButtons = new Map<MobileTabId, HTMLElement>();
+
     private _doneTodayStatEl: HTMLElement | null = null;
     private _focusStatEl: HTMLElement | null = null;
     private _overdueStatEl: HTMLElement | null = null;
-    private _viewMode: 'grid' | 'table' = 'table';
     private _showDoneInTable = false;
+    private _sortField: 'task' | 'priority' | 'due' | null = null;
+    private _sortDirection: 'asc' | 'desc' = 'asc';
     private _captureEditors: EditorView[] = [];
     private _taskPending = 0;
     private _taskFilter: 'today' | 'upcoming' | 'all' = 'today';
@@ -75,17 +73,6 @@ export class GawaTab extends BaseTab {
         super(view);
         this._taskController = this.plugin.getTaskController();
         console.log('[DIWA] GAWA controller ref:', this._taskController);
-        const self = this;
-        this._paneHost = {
-            app: this.app,
-            plugin: this.plugin,
-            get _taskPending(): number { return self._taskPending; },
-            set _taskPending(value: number) { self._taskPending = value; },
-            get _taskTogglePending(): number { return self.view._taskTogglePending; },
-            set _taskTogglePending(value: number) { self.view._taskTogglePending = value; },
-            get _taskFilter(): 'today' | 'upcoming' | 'all' { return self._taskFilter; },
-            set _taskFilter(value: 'today' | 'upcoming' | 'all') { self._taskFilter = value; },
-        };
     }
 
     render(container: HTMLElement): void {
@@ -108,7 +95,6 @@ export class GawaTab extends BaseTab {
             return;
         }
 
-        this.destroyPanes();
         if (this._rootEl && container.contains(this._rootEl)) {
             this._rootEl.remove();
         } else {
@@ -116,30 +102,27 @@ export class GawaTab extends BaseTab {
                 child.remove();
             }
         }
-        this._mobilePaneShells.clear();
-        this._mobileTabButtons.clear();
         this._layoutMode = layoutMode;
         this._layoutSignature = layoutSignature;
-        const paneConfigs = this.buildPaneConfigMap();
 
         const root = container.createEl('div', { cls: 'diwa-gawa-desktop' });
         this._rootEl = root;
-        const isPhone = layoutMode === 'phone';
-        const isTabletLayout = layoutMode === 'tablet';
-        if (isPhone) root.addClass('is-mobile');
-        if (isTabletLayout) root.addClass('is-tablet');
-        this.renderHeader(root);
-        if (isPhone) {
-            this.renderMobileLayout(root);
-        } else if (isTabletLayout) {
-            this.renderTabletLayout(root, paneConfigs);
-        } else {
-            if (this._viewMode === 'table') {
-                this.renderTableView(root);
-            } else {
-                this.renderDesktopLayout(root, paneConfigs);
+        
+        root.tabIndex = -1; // make it focusable to catch keydown
+        root.addEventListener('keydown', (event: KeyboardEvent) => {
+            // Only capture if user is not typing in an input
+            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement) return;
+            
+            if (['j', 'k', 'h', 'l'].includes(event.key)) {
+                // Focus handling placeholder for Kanban navigation
+                console.log('[DIWA GAWA] Keyboard Kanban nav triggered:', event.key);
+                // Here we would typically querySelector the tasks and adjust focus.
             }
-        }
+        });
+        const isPhone = layoutMode === 'phone';
+        if (isPhone) root.addClass('is-mobile');
+        this.renderHeader(root);
+        this.renderTableView(root);
 
         this._taskController.syncFromIndex();
         this.updateWorkspaceStats();
@@ -148,37 +131,21 @@ export class GawaTab extends BaseTab {
 
     /** Incremental refresh — called when only task data changes (avoids full DOM rebuild). */
     onTasksRefresh(): void {
-        if (this._viewMode === 'table') {
-            this.updateWorkspaceStats();
-            if (this._rootEl) {
-                const oldTable = this._rootEl.querySelector('.diwa-gawa-table-view');
-                if (oldTable) {
-                    oldTable.remove();
-                }
-                this.renderTableView(this._rootEl);
-            }
-            return;
-        }
-
-        if (this._paneMap.size === 0) {
-            // Panes not yet mounted — fall back to full render is handled by caller
-            console.log('[DIWA GAWA] onTasksRefresh skipped: no panes mounted');
-            return;
-        }
-        const indexSize = this.plugin.index.taskIndex.size;
-        console.log('[DIWA GAWA] onTasksRefresh', { indexSize, paneCount: this._paneMap.size });
-        this._taskController.syncFromIndex();
         this.updateWorkspaceStats();
+        if (this._rootEl) {
+            const oldTable = this._rootEl.querySelector('.diwa-gawa-table-view');
+            if (oldTable) {
+                oldTable.remove();
+            }
+            this.renderTableView(this._rootEl);
+        }
     }
 
     onunload(): void {
-        this.destroyPanes();
         this._rootEl = null;
         this._layoutMode = null;
         this._layoutSignature = null;
         this._container = null;
-        this._mobilePaneShells.clear();
-        this._mobileTabButtons.clear();
         this._taskIndexRecoveryInFlight = false;
     }
 
@@ -206,16 +173,13 @@ export class GawaTab extends BaseTab {
     private renderHeader(parent: HTMLElement): void {
         const header = parent.createEl('div', { cls: 'diwa-gawa-header diwa-gawa-workspace-bar' });
         if (this.isPhoneLayout()) header.addClass('is-phone-header');
-        if (this.isTabletLayout()) header.addClass('is-tablet-header');
         const identity = header.createEl('div', { cls: 'diwa-gawa-workspace-bar-left' });
         identity.createEl('span', { text: 'Task workspace', cls: 'diwa-gawa-workspace-eyebrow' });
         const titleGroup = identity.createEl('div', { cls: 'diwa-gawa-header-title-group diwa-gawa-workspace-identity' });
         titleGroup.createEl('h2', { text: 'Gawa', cls: 'diwa-gawa-header-title' });
         const subtitle = this.isPhoneLayout()
             ? 'Task flow'
-            : this.isTabletLayout()
-                ? 'Calm task cockpit'
-                : 'Desktop task cockpit';
+            : 'Desktop task cockpit';
         titleGroup.createEl('span', { text: subtitle, cls: 'diwa-gawa-header-subtitle' });
 
         const progressStrip = header.createEl('div', {
@@ -226,37 +190,11 @@ export class GawaTab extends BaseTab {
         this._focusStatEl = this.createWorkspaceStat(progressStrip, 'focus', 'Focus');
         this._overdueStatEl = this.createWorkspaceStat(progressStrip, 'overdue', 'Overdue');
 
-        const actions = header.createEl('div', { cls: 'diwa-gawa-header-actions diwa-gawa-workspace-bar-right' });
-        if (this.isPhoneLayout() || this.isTabletLayout()) {
-            this.renderCaptureTrigger(actions);
-        } else {
-            this.renderFastCapture(actions);
-        }
-
-        if (!this.isPhoneLayout()) {
-            const customizeBtn = actions.createEl('button', {
-                cls: 'diwa-gawa-header-btn diwa-gawa-header-btn--ghost diwa-gawa-customize-btn',
-                attr: { type: 'button' },
-            });
-            setIcon(customizeBtn, 'sliders-horizontal');
-            customizeBtn.createEl('span', { text: 'Customize' });
-            customizeBtn.addEventListener('click', () => this.openLayoutCustomizeModal());
-
-            const addBtn = actions.createEl('button', { cls: 'diwa-gawa-header-btn' });
-            setIcon(addBtn, 'plus');
-            addBtn.createEl('span', { text: 'Refine' });
-            addBtn.addEventListener('click', () => this.openCreateTaskModal());
-        }
-
-        const refreshBtn = actions.createEl('button', { cls: 'diwa-gawa-header-btn' });
-        setIcon(refreshBtn, 'refresh-cw');
-        refreshBtn.createEl('span', { text: 'Sync' });
-        refreshBtn.addEventListener('click', () => {
-            this._taskController.syncFromIndex();
-            this.updateWorkspaceStats();
-        });
-        const doneToggleBtn = actions.createEl('button', { cls: 'diwa-gawa-header-btn' });
-        setIcon(doneToggleBtn, this._showDoneInTable ? 'check-square' : 'square');
+        const doneToggleBtn = progressStrip.createEl('button', { cls: 'diwa-gawa-header-btn' });
+        doneToggleBtn.style.minHeight = '32px';
+        doneToggleBtn.style.padding = '0 12px';
+        doneToggleBtn.style.color = '#39ff14';
+        setIcon(doneToggleBtn, 'check-circle');
         doneToggleBtn.createEl('span', { text: this._showDoneInTable ? 'Hide Done' : 'Show Done' });
         doneToggleBtn.addEventListener('click', () => {
             this._showDoneInTable = !this._showDoneInTable;
@@ -265,15 +203,12 @@ export class GawaTab extends BaseTab {
             }
         });
 
-        const viewToggleBtn = actions.createEl('button', { cls: 'diwa-gawa-header-btn diwa-gawa-view-toggle-btn' });
-        setIcon(viewToggleBtn, this._viewMode === 'grid' ? 'table' : 'layout-grid');
-        viewToggleBtn.createEl('span', { text: this._viewMode === 'grid' ? 'Table View' : 'Grid View' });
-        viewToggleBtn.addEventListener('click', () => {
-            this._viewMode = this._viewMode === 'grid' ? 'table' : 'grid';
-            if (this._container) {
-                this.render(this._container);
-            }
-        });
+        const actions = header.createEl('div', { cls: 'diwa-gawa-header-actions diwa-gawa-workspace-bar-right' });
+        if (this.isPhoneLayout()) {
+            this.renderCaptureTrigger(actions);
+        } else {
+            this.renderFastCapture(actions);
+        }
 
         this.updateWorkspaceStats();
     }
@@ -433,332 +368,23 @@ export class GawaTab extends BaseTab {
         });
     }
 
-    private renderColumn(
-        parent: HTMLElement,
-        columnKind: 'left' | 'center' | 'right',
-        configs: PaneConfig[],
-    ): void {
-        const column = parent.createEl('div', { cls: `diwa-gawa-column diwa-gawa-column--${columnKind}` });
-        column.setAttr('data-gawa-column', columnKind);
-        for (const config of configs) {
-            this.createPaneShell(column, config);
-        }
-    }
-
-    private renderDesktopLayout(parent: HTMLElement, paneConfigs: Record<GawaPaneId, PaneConfig>): void {
-        const grid = parent.createEl('div', { cls: 'diwa-gawa-desktop-grid' });
-        const desktopLayout = this.plugin.settings.gawaLayoutPreferences.desktop;
-        const columns: Array<{ kind: GawaDesktopBucketId; configs: PaneConfig[] }> = [
-            { kind: 'left', configs: this.resolveVisiblePaneConfigs(paneConfigs, desktopLayout.left) },
-            { kind: 'center', configs: this.resolveVisiblePaneConfigs(paneConfigs, desktopLayout.center) },
-            { kind: 'right', configs: this.resolveVisiblePaneConfigs(paneConfigs, desktopLayout.right) },
-        ];
-        const visibleColumns = columns.filter((column) => column.configs.length > 0);
-        if (visibleColumns.length === 0) {
-            this.renderHiddenLayoutEmptyState(grid);
-            return;
-        }
-        for (const column of visibleColumns) {
-            this.renderColumn(grid, column.kind, column.configs);
-        }
-    }
-
-    private renderMobileLayout(parent: HTMLElement): void {
-        const mobile = parent.createEl('div', { cls: 'diwa-gawa-mobile' });
-        const stage = mobile.createEl('div', { cls: 'diwa-gawa-mobile-stage' });
-        const paneStack = stage.createEl('div', { cls: 'diwa-gawa-mobile-pane-stack' });
-        const dock = mobile.createEl('div', { cls: 'diwa-gawa-mobile-dock' });
-        const captureFab = dock.createEl('button', {
-            cls: 'diwa-gawa-mobile-fab',
-            attr: { type: 'button', 'aria-label': 'Capture a new task' },
-        });
-        const captureFabIcon = captureFab.createEl('span', { cls: 'diwa-gawa-mobile-fab-icon' });
-        setIcon(captureFabIcon, 'plus');
-        captureFab.createEl('span', { cls: 'diwa-gawa-mobile-fab-label', text: 'Capture' });
-        captureFab.addEventListener('click', () => this.openCreateTaskModal());
-
-        const tabBar = dock.createEl('div', {
-            cls: 'diwa-gawa-mobile-tabbar',
-            attr: { role: 'tablist', 'aria-label': 'GAWA sections' },
-        });
-
-        const paneByTab: Record<MobileTabId, PaneConfig> = {
-            inbox: this.createInboxPaneConfig(),
-            today: this.createTodayPaneConfig(),
-            focus: this.createFocusPaneConfig(),
-        };
-
-        for (const tabId of MOBILE_TAB_ORDER) {
-            const meta = MOBILE_TAB_META[tabId];
-            const button = tabBar.createEl('button', {
-                cls: 'diwa-gawa-mobile-tab-btn',
-                attr: { role: 'tab', type: 'button', 'data-mobile-tab': tabId },
-            });
-            const icon = button.createEl('span', { cls: 'diwa-gawa-mobile-tab-icon' });
-            setIcon(icon, meta.icon);
-            button.createEl('span', { cls: 'diwa-gawa-mobile-tab-label', text: meta.label });
-            button.addEventListener('click', () => this.setMobileTab(tabId));
-            this._mobileTabButtons.set(tabId, button);
-
-            const panelId = `diwa-gawa-mobile-panel-${tabId}`;
-            button.setAttr('aria-controls', panelId);
-            const shell = paneStack.createEl('section', {
-                cls: 'diwa-gawa-mobile-pane-shell',
-                attr: {
-                    'data-mobile-tab': tabId,
-                    id: panelId,
-                    role: 'tabpanel',
-                },
-            });
-            this._mobilePaneShells.set(tabId, shell);
-            this.mountPane(shell, paneByTab[tabId]);
-        }
-
-        this.applyMobileTabVisibility();
-    }
-
-    private renderTabletLayout(parent: HTMLElement, paneConfigs: Record<GawaPaneId, PaneConfig>): void {
-        const grid = parent.createEl('div', { cls: 'diwa-gawa-tablet-grid' });
-        const tabletLayout = this.plugin.settings.gawaLayoutPreferences.tablet;
-        const planningConfigs = this.resolveVisiblePaneConfigs(paneConfigs, tabletLayout.planning);
-        const executionConfigs = this.resolveVisiblePaneConfigs(paneConfigs, tabletLayout.execution);
-        const supportConfigs = this.resolveVisiblePaneConfigs(paneConfigs, tabletLayout.support);
-
-        if (planningConfigs.length === 0 && executionConfigs.length === 0 && supportConfigs.length === 0) {
-            this.renderHiddenLayoutEmptyState(grid);
-            return;
-        }
-
-        if (planningConfigs.length > 0) {
-            const planning = grid.createEl('div', { cls: 'diwa-gawa-column diwa-gawa-column--left diwa-gawa-tablet-planning' });
-            for (const config of planningConfigs) {
-                this.createPaneShell(planning, config);
-            }
-        }
-
-        if (executionConfigs.length > 0 || supportConfigs.length > 0) {
-            const execution = grid.createEl('div', { cls: 'diwa-gawa-column diwa-gawa-column--right diwa-gawa-tablet-execution' });
-            for (const config of executionConfigs) {
-                this.createPaneShell(execution, config);
-            }
-            if (supportConfigs.length > 0) {
-                const supportRow = execution.createEl('div', { cls: 'diwa-gawa-tablet-support-row' });
-                for (const config of supportConfigs) {
-                    this.createPaneShell(supportRow, config, ['is-compact-pane']);
-                }
-            }
-        }
-    }
-
-    private renderHiddenLayoutEmptyState(parent: HTMLElement): void {
-        const emptyState = parent.createEl('div', { cls: 'diwa-gawa-layout-empty' });
-        emptyState.createEl('span', { cls: 'diwa-gawa-layout-empty-eyebrow', text: 'All panes hidden' });
-        emptyState.createEl('h3', { cls: 'diwa-gawa-layout-empty-title', text: 'Nothing is mounted in Gawa right now.' });
-        emptyState.createEl('p', {
-            cls: 'diwa-gawa-layout-empty-copy',
-            text: 'Open Customize and turn at least one pane back on for this layout.',
-        });
-        const manageBtn = emptyState.createEl('button', {
-            cls: 'diwa-gawa-header-btn diwa-gawa-header-btn--primary',
-            text: 'Customize panes',
-            attr: { type: 'button' },
-        });
-        manageBtn.addEventListener('click', () => this.openLayoutCustomizeModal());
-    }
-
-    private createPaneShell(parent: HTMLElement, config: PaneConfig, extraClasses: string[] = []): HTMLElement {
-        const shell = parent.createEl('section', {
-            cls: `diwa-gawa-pane-shell diwa-gawa-pane-shell--${config.paneId}`,
-        });
-        shell.setAttr('data-gawa-pane', config.paneId);
-        if (config.paneId === 'gawa-focus') shell.addClass('is-focus-pane');
-        if (config.paneId === 'gawa-today' || config.paneId === 'gawa-focus') shell.addClass('is-primary-pane');
-        extraClasses.forEach((className) => shell.addClass(className));
-        this.mountPane(shell, config);
-        return shell;
-    }
-
-    private mountPane(parent: HTMLElement, config: PaneConfig): void {
-        const pane = new TaskPane(this._paneHost, parent, this._taskController, {
-            paneId: config.paneId,
-            title: config.title,
-            eyebrow: config.eyebrow,
-            emptyMessage: config.emptyMessage,
-            showFilterPills: false,
-            presetFilter: 'all',
-            baseFilterFn: config.baseFilterFn,
-            filterFn: config.filterFn,
-            sortFn: config.sortFn,
-            plugins: config.plugins,
-            allowDragDrop: !this.isPhoneLayout(),
-            canDropTask: config.canDropTask,
-            groupController: config.groupController,
-            bucketOnDrop: config.bucketOnDrop,
-            focusOnDrop: config.focusOnDrop,
-            showBucketActions: true,
-            inlineContentRenderer: config.paneId === 'gawa-inbox'
-                ? (container) => this.renderInboxInlineCapture(container)
-                : undefined,
-        });
-        this._paneMap.set(config.paneId, pane);
-        this._taskController.registerPane(pane);
-    }
-
-    private renderInboxInlineCapture(parent: HTMLElement): void {
-        const capture = parent.createEl('div', { cls: 'diwa-gawa-inbox-capture' });
-        const captureMain = capture.createEl('div', { cls: 'diwa-gawa-inbox-capture-main' });
-        
-        let currentTarget: InboxCaptureTarget = 'backlog';
-        let editorView: EditorView | null = null;
-
-        const submit = async (text: string, view: EditorView, container: HTMLElement): Promise<void> => {
-            const parsed = this.parseInboxCaptureInput(text);
-            if (!parsed.text) return;
-
-            const target = currentTarget;
-            const status: TaskEntry['status'] = target === 'backlog' ? 'open' : 'waiting';
-            const shouldFocus = target === 'focus';
-            container.style.opacity = '0.5';
-            try {
-                this.plugin.refreshCoordinator.suppressNotifyRefresh(700);
-                const created = await this.vault.createTaskFile(
-                    parsed.text,
-                    parsed.contexts,
-                    parsed.dueDate || undefined,
-                    {
-                        priority: parsed.priority ?? undefined,
-                        status,
-                    }
-                );
-                const optimisticTask = await this.buildOptimisticTask(created, parsed, status, shouldFocus);
-                this._taskController.addTask(optimisticTask);
-                view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '' } });
-                await this.plugin.refreshCoordinator.reindexFile(created);
-                await this._taskController.reconcileTask(created.path, status, optimisticTask);
-                if (shouldFocus) {
-                    await this._taskController.moveTaskToBucket(created.path, 'active', { focus: true });
-                }
-                this.updateWorkspaceStats();
-            } catch (error) {
-                console.error('[DIWA GAWA] Failed inbox inline capture', error);
-            } finally {
-                container.style.opacity = '1';
-                view.focus();
-                currentTarget = 'backlog'; // reset
-            }
-        };
-
-        editorView = this.createEditorCapture(captureMain, '+ Add task...', submit, (text) => {
-            currentTarget = 'focus';
-            if (editorView) void submit(text, editorView, captureMain);
-        }, async (text, view, container) => {
-            currentTarget = 'active';
-            void submit(text, view, container);
-        });
-
-        if (!this.isTabletLayout()) return;
-
-        const actions = capture.createEl('div', { cls: 'diwa-gawa-inbox-capture-actions' });
-        const targets: Array<{ id: InboxCaptureTarget; label: string }> = [
-            { id: 'backlog', label: 'Backlog' },
-            { id: 'active', label: 'Active' },
-            { id: 'focus', label: 'Focus' },
-        ];
-        for (const target of targets) {
-            const button = actions.createEl('button', {
-                cls: 'diwa-gawa-inbox-capture-target',
-                text: target.label,
-                attr: { type: 'button' },
-            });
-            button.addEventListener('click', () => {
-                currentTarget = target.id;
-                if (editorView) {
-                    const text = editorView.state.doc.toString().trim();
-                    if (text) void submit(text, editorView, captureMain);
-                }
-            });
-        }
-    }
-
-    private destroyPanes(): void {
-        for (const [paneId, pane] of this._paneMap.entries()) {
-            this._taskController.unregisterPane(paneId, pane);
-            pane.destroy();
-        }
-        this._paneMap.clear();
-    }
-
-    private getMobileTab(): MobileTabId {
-        const current = this.view.tasksViewMode;
-        if (MOBILE_TAB_ORDER.includes(current as MobileTabId)) return current as MobileTabId;
-        return 'today';
-    }
-
-    private setMobileTab(tabId: MobileTabId): void {
-        if (this.getMobileTab() === tabId) return;
-        this.view.tasksViewMode = tabId;
-        this.applyMobileTabVisibility();
-    }
-
-    private applyMobileTabVisibility(): void {
-        const active = this.getMobileTab();
-        for (const [tabId, shell] of this._mobilePaneShells.entries()) {
-            const isActive = tabId === active;
-            shell.toggleClass('is-active', isActive);
-            shell.toggleClass('is-inactive', !isActive);
-            shell.setAttr('aria-hidden', isActive ? 'false' : 'true');
-            (shell as HTMLElement & { inert?: boolean }).inert = !isActive;
-        }
-        for (const [tabId, button] of this._mobileTabButtons.entries()) {
-            const isActive = tabId === active;
-            button.toggleClass('is-active', isActive);
-            button.setAttr('aria-selected', isActive ? 'true' : 'false');
-            button.setAttr('tabindex', isActive ? '0' : '-1');
-        }
-    }
 
     private isPhoneLayout(): boolean {
         return Platform.isMobile && !isTablet();
     }
 
-    private isTabletLayout(): boolean {
-        return isTablet();
-    }
-
     private resolveLayoutMode(): GawaLayoutMode {
         if (this.isPhoneLayout()) return 'phone';
-        if (this.isTabletLayout()) return 'tablet';
         return 'desktop';
     }
 
     private getLayoutSignature(layoutMode: GawaLayoutMode): string {
-        if (layoutMode === 'phone') return 'phone';
-        return `${layoutMode}:${JSON.stringify(
-            layoutMode === 'tablet'
-                ? this.plugin.settings.gawaLayoutPreferences.tablet
-                : this.plugin.settings.gawaLayoutPreferences.desktop,
-        )}`;
+        const viewState = `showDone:${this._showDoneInTable}`;
+        if (layoutMode === 'phone') return `phone-${viewState}`;
+        return `${layoutMode}-${viewState}:${JSON.stringify(this.plugin.settings.gawaLayoutPreferences.desktop)}`;
     }
 
-    private buildPaneConfigMap(): Record<GawaPaneId, PaneConfig> {
-        return {
-            'gawa-inbox': this.createInboxPaneConfig(),
-            'gawa-today': this.createTodayPaneConfig(),
-            'gawa-focus': this.createFocusPaneConfig(),
-            'gawa-active': this.createActivePaneConfig(),
-            'gawa-backlog': this.createBacklogPaneConfig(),
-        };
-    }
 
-    private resolveVisiblePaneConfigs(
-        paneConfigs: Record<GawaPaneId, PaneConfig>,
-        preference: GawaLayoutBucketPreference,
-    ): PaneConfig[] {
-        const hidden = new Set(preference.hidden);
-        return preference.order
-            .filter((paneId) => !hidden.has(paneId))
-            .map((paneId) => paneConfigs[paneId]);
-    }
 
     private openCreateTaskModal(initialText: string = ''): void {
         new FastTaskCaptureModal(
@@ -913,105 +539,7 @@ export class GawaTab extends BaseTab {
         return task.taskId?.trim() || task.filePath;
     }
 
-    private createInboxPaneConfig(): PaneConfig {
-        return {
-            paneId: 'gawa-inbox',
-            title: 'Inbox',
-            eyebrow: 'Capture lane',
-            emptyMessage: 'Inbox is clear. New quick captures land here first.',
-            bucketOnDrop: 'backlog',
-            focusOnDrop: false,
-            canDropTask: (task) => !task.due,
-            baseFilterFn: (task) => this.getBucketStatus(task) === 'backlog',
-            filterFn: (task) => !task.due,
-        };
-    }
 
-
-    private createTodayPaneConfig(): PaneConfig {
-        return {
-            paneId: 'gawa-today',
-            title: 'Today',
-            eyebrow: 'Execution lane',
-            emptyMessage: 'Nothing is demanding attention today.',
-            bucketOnDrop: 'active',
-            focusOnDrop: false,
-            canDropTask: (task) => this.isTodayOrOverdue(task),
-            baseFilterFn: (task) => this.getBucketStatus(task) !== 'done',
-            filterFn: (task) => this.isTodayOrOverdue(task),
-            sortFn: (a, b) => {
-                if (a.due && b.due) return a.due.localeCompare(b.due);
-                if (a.due && !b.due) return -1;
-                if (!a.due && b.due) return 1;
-                return (b.lastUpdate || 0) - (a.lastUpdate || 0);
-            },
-        };
-    }
-
-    private createBacklogPaneConfig(): PaneConfig {
-        return {
-            paneId: 'gawa-backlog',
-            title: 'Backlog',
-            eyebrow: 'Queue',
-            emptyMessage: 'Backlog is empty. Future work will queue here.',
-            bucketOnDrop: 'backlog',
-            focusOnDrop: false,
-            canDropTask: (task) => !this.isTodayOrOverdue(task),
-            baseFilterFn: (task) => this.getBucketStatus(task) === 'backlog',
-            filterFn: (task) => !this.isTodayOrOverdue(task),
-        };
-    }
-
-    private createFocusPaneConfig(): PaneConfig {
-        let focusIndex = new Map<string, number>();
-        let focusSignature = '';
-        const resolveFocusIndex = (): Map<string, number> => {
-            const focusTasks = this.plugin.getTodayFocusTasks();
-            const signature = focusTasks
-                .map((task) => this.getTaskIdentity(task))
-                .join('|');
-            if (signature === focusSignature) return focusIndex;
-
-            focusSignature = signature;
-            focusIndex = new Map<string, number>();
-            focusTasks.forEach((task, idx) => {
-                focusIndex.set(this.getTaskIdentity(task), idx);
-            });
-            return focusIndex;
-        };
-
-        return {
-            paneId: 'gawa-focus',
-            title: 'Focus',
-            eyebrow: 'Spotlight',
-            emptyMessage: 'No focus candidates right now.',
-            bucketOnDrop: 'active',
-            focusOnDrop: true,
-            canDropTask: (task) => this.getBucketStatus(task) !== 'done',
-            baseFilterFn: (task) => this.getBucketStatus(task) !== 'done',
-            filterFn: (task) => resolveFocusIndex().has(this.getTaskIdentity(task)),
-            sortFn: (a, b) => {
-                const index = resolveFocusIndex();
-                return (index.get(this.getTaskIdentity(a)) ?? Number.MAX_SAFE_INTEGER)
-                    - (index.get(this.getTaskIdentity(b)) ?? Number.MAX_SAFE_INTEGER);
-            },
-        };
-    }
-
-    private createActivePaneConfig(): PaneConfig {
-        return {
-            paneId: 'gawa-active',
-            title: 'Active',
-            eyebrow: 'Momentum',
-            emptyMessage: 'No active tasks in motion.',
-            bucketOnDrop: 'active',
-            focusOnDrop: false,
-            canDropTask: (task) => this.getBucketStatus(task) !== 'done',
-            baseFilterFn: (task) => this.getBucketStatus(task) === 'active',
-            filterFn: () => true,
-            sortFn: (a, b) => (b.lastUpdate || 0) - (a.lastUpdate || 0),
-        };
-    }
 
     private isTodayOrOverdue(task: TaskEntry): boolean {
         if (!task.due) return false;
@@ -1032,19 +560,67 @@ export class GawaTab extends BaseTab {
         return task.taskId?.trim() || task.id || task.filePath;
     }
 
-    private renderTableView(parent: HTMLElement): void {
-        const tableContainer = parent.createEl('div', { cls: 'diwa-gawa-table-view' });
-        
-        const table = tableContainer.createEl('table', { cls: 'diwa-gawa-modern-table' });
-        const thead = table.createEl('thead');
-        const headerRow = thead.createEl('tr');
-        headerRow.createEl('th', { text: 'Status' });
-        headerRow.createEl('th', { text: 'Title' });
-        headerRow.createEl('th', { text: 'Priority' });
-        headerRow.createEl('th', { text: 'Due Date' });
+    private formatRelativeDate(dateStr: string): string {
+        const d = moment(dateStr, 'YYYY-MM-DD', true);
+        if (!d.isValid()) return dateStr;
+        const today = moment().startOf('day');
+        if (d.isSame(today, 'day')) return 'Today';
+        if (d.isSame(moment(today).add(1, 'day'), 'day')) return 'Tomorrow';
+        if (d.isSame(moment(today).subtract(1, 'day'), 'day')) return 'Yesterday';
+        return d.format('MMM D');
+    }
 
-        const tbody = table.createEl('tbody');
+    private getDateSeverityClass(dateStr: string): string {
+        const d = moment(dateStr, 'YYYY-MM-DD', true);
+        if (!d.isValid()) return '';
+        const today = moment().startOf('day');
+        if (d.isBefore(today)) return 'is-overdue';
+        if (d.isSame(today, 'day')) return 'is-today';
+        return '';
+    }
+
+    private getPriorityIcon(priority: string): string {
+        const p = priority.toLowerCase();
+        if (p === 'high') return 'signal-high';
+        if (p === 'medium') return 'signal-medium';
+        if (p === 'low') return 'signal-low';
+        return 'signal-low';
+    }
+
+    private renderTableView(parent: HTMLElement): void {
+        const container = parent.createEl('div', { cls: 'diwa-gawa-table-view diwa-gawa-list-container' });
         
+        const header = container.createEl('div', { cls: 'diwa-gawa-list-header' });
+
+        const renderSortHeader = (field: 'task' | 'priority' | 'due', label: string, cls: string) => {
+            const span = header.createEl('span', { cls: `${cls} is-sortable` });
+            span.setText(label);
+            span.style.cursor = 'pointer';
+            if (this._sortField === field) {
+                span.createEl('span', { text: this._sortDirection === 'asc' ? ' ↑' : ' ↓', cls: 'diwa-gawa-sort-icon' });
+            }
+            span.addEventListener('click', () => {
+                if (this._sortField === field) {
+                    this._sortDirection = this._sortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this._sortField = field;
+                    this._sortDirection = 'asc';
+                }
+                if (this._rootEl) {
+                    const oldTable = this._rootEl.querySelector('.diwa-gawa-table-view');
+                    if (oldTable) oldTable.remove();
+                    this.renderTableView(this._rootEl);
+                }
+            });
+        };
+
+        renderSortHeader('task', 'Task', 'col-main');
+        renderSortHeader('priority', 'Priority', 'col-priority');
+        renderSortHeader('due', 'Due', 'col-due');
+        header.createEl('span', { text: '', cls: 'col-actions' });
+
+        const listBody = container.createEl('div', { cls: 'diwa-gawa-list-body' });
+
         let tasks = Array.from(this.plugin.index.taskIndex.values());
         if (!this._showDoneInTable) {
             tasks = tasks.filter(t => t.status !== 'done');
@@ -1053,58 +629,88 @@ export class GawaTab extends BaseTab {
         tasks.sort((a, b) => {
             if (a.status === 'done' && b.status !== 'done') return 1;
             if (a.status !== 'done' && b.status === 'done') return -1;
+            
+            if (this._sortField === 'task') {
+                const cmp = a.title.localeCompare(b.title);
+                return this._sortDirection === 'asc' ? cmp : -cmp;
+            }
+            if (this._sortField === 'due') {
+                const da = a.due || '';
+                const db = b.due || '';
+                const cmp = da.localeCompare(db);
+                return this._sortDirection === 'asc' ? cmp : -cmp;
+            }
+            if (this._sortField === 'priority') {
+                const weights: Record<string, number> = { 'high': 3, 'medium': 2, 'low': 1 };
+                const wa = a.priority ? weights[a.priority] || 0 : 0;
+                const wb = b.priority ? weights[b.priority] || 0 : 0;
+                const cmp = wb - wa; // asc -> High before Low
+                return this._sortDirection === 'asc' ? cmp : -cmp;
+            }
+
             return (b.modified || '').localeCompare(a.modified || '');
         });
 
         if (tasks.length === 0) {
-            const emptyRow = tbody.createEl('tr');
-            emptyRow.createEl('td', {
-                attr: { colspan: '4' },
-                cls: 'diwa-gawa-table-empty',
-                text: 'No tasks found. Create one to get started.'
-            });
+            const emptyRow = listBody.createEl('div', { cls: 'diwa-gawa-table-empty' });
+            emptyRow.setText('No tasks found. Create one to get started.');
             return;
         }
 
         for (const task of tasks) {
-            const tr = tbody.createEl('tr');
+            const row = listBody.createEl('div', { cls: 'diwa-gawa-list-row' });
+            if (task.status === 'done') row.addClass('is-done');
             
-            const statusCell = tr.createEl('td', { cls: 'diwa-gawa-table-cell-status' });
-            const statusIcon = statusCell.createEl('span', { cls: `diwa-task-status-icon is-${task.status}` });
+            const mainCol = row.createEl('div', { cls: 'col-main' });
+            
+            const statusIcon = mainCol.createEl('span', { cls: `diwa-status-icon is-${task.status}` });
             setIcon(statusIcon, task.status === 'done' ? 'check-circle' : 'circle');
             
-            statusCell.addEventListener('click', (e) => {
+            statusIcon.addEventListener('click', (e) => {
                 e.stopPropagation();
                 void this._taskController.toggleTask(this.getTaskIdentity(task));
             });
 
-            const titleCell = tr.createEl('td', { cls: 'diwa-gawa-table-cell-title' });
-            titleCell.createEl('span', { text: task.title, cls: 'diwa-gawa-table-title-text' });
+            mainCol.createEl('span', { text: task.title, cls: 'diwa-title-text' });
+            
             if (task.context && task.context.length > 0) {
-                const tagsSpan = titleCell.createEl('span', { cls: 'diwa-gawa-table-tags' });
-                task.context.forEach((tag: string) => {
-                    tagsSpan.createEl('span', { cls: 'diwa-gawa-table-tag', text: `#${tag}` });
+                const tagsContainer = mainCol.createEl('div', { cls: 'diwa-tags-container' });
+                task.context.forEach(tag => {
+                    tagsContainer.createEl('span', { cls: 'diwa-tag', text: `#${tag}` });
                 });
             }
 
-            const priorityCell = tr.createEl('td', { cls: 'diwa-gawa-table-cell-priority' });
+            const priorityCol = row.createEl('div', { cls: 'col-priority' });
             if (task.priority) {
-                const pSpan = priorityCell.createEl('span', { cls: `diwa-priority-badge is-${task.priority}` });
-                pSpan.setText(task.priority.toUpperCase());
-            } else {
-                priorityCell.setText('-');
-                priorityCell.addClass('is-empty');
+                const pBadge = priorityCol.createEl('div', { cls: `diwa-priority-badge is-${task.priority.toLowerCase()}` });
+                setIcon(pBadge, this.getPriorityIcon(task.priority));
             }
 
-            const dueCell = tr.createEl('td', { cls: 'diwa-gawa-table-cell-due' });
+            const dueCol = row.createEl('div', { cls: 'col-due' });
             if (task.due) {
-                dueCell.setText(task.due);
-            } else {
-                dueCell.setText('-');
-                dueCell.addClass('is-empty');
+                dueCol.setText(this.formatRelativeDate(task.due));
+                const severity = this.getDateSeverityClass(task.due);
+                if (severity) dueCol.addClass(severity);
             }
-            
-            tr.addEventListener('click', () => {
+
+            const actionsCol = row.createEl('div', { cls: 'col-actions' });
+            const editBtn = actionsCol.createEl('span', { cls: 'diwa-action-btn diwa-action-btn-ghost' });
+            setIcon(editBtn, 'pencil');
+            editBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                new EditTaskModal(
+                    this.app,
+                    task,
+                    this.vault,
+                    this.plugin.index,
+                    () => {
+                        this._taskController.syncFromIndex();
+                        this.updateWorkspaceStats();
+                    }
+                ).open();
+            });
+
+            row.addEventListener('click', () => {
                 new EditTaskModal(
                     this.app,
                     task,

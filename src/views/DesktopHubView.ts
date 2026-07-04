@@ -299,21 +299,14 @@ export class DesktopHubView extends ItemView {
     }
 
     private applyMobileLayout(root: HTMLElement): void {
-        if (!this._wrapEl || !root.contains(this._wrapEl)) {
-            this.buildStableLayout(root);
-        }
-        this.teardownRightPaneResize();
-        this._wrapEl?.addClass('is-mobile-layout');
-        this._wrapEl?.removeClass('is-focus-mode');
-
-        if (this._topBarEl) {
-            this._topBarEl.empty();
-            this.renderTopBar(this._topBarEl);
-        }
-        if (this._centerEl) {
-            this.renderCenter(this._centerEl);
-            this.syncCaptureTextareaHeight();
-        }
+        this.resetLayoutRefs();
+        root.empty();
+        
+        const constructionContainer = root.createEl('div', { 
+            attr: { style: 'display: flex; height: 100%; width: 100%; align-items: center; justify-content: center; text-align: center; color: var(--text-muted); font-size: 1.2em; font-weight: bold; flex-direction: column; gap: 12px;' } 
+        });
+        constructionContainer.createEl('span', { text: '🚧', attr: { style: 'font-size: 2em;' } });
+        constructionContainer.createEl('div', { text: 'Under construction' });
     }
 
     updateTaskPaneFromIndex(): void {
