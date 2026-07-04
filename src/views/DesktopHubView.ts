@@ -12,6 +12,7 @@ import { TaskController } from './TaskController';
 import { ThoughtController } from './ThoughtController';
 import { enableImageZoom } from '../utils/imageZoom';
 import { VIEW_TYPE_DIWA_MINDMAP } from '../constants';
+import { FastTaskCaptureModal, type FastTaskCapturePayload } from '../modals/FastTaskCaptureModal';
 
 interface FeedRowRef {
     rootEl: HTMLElement;
@@ -191,6 +192,10 @@ export class DesktopHubView extends ItemView {
         // Hide Obsidian's leaf header
         const header = this.containerEl.children[0] as HTMLElement;
         if (header) header.style.display = 'none';
+
+        // Immersive mobile mode: programmatically hide Obsidian chrome
+        this.setMobileImmersive(true);
+
         this._thoughtUnsubscribe = this._thoughtController.subscribe(() => {
             this.invalidateFeedProjection();
             this.scheduleFeedRefresh();
@@ -219,6 +224,45 @@ export class DesktopHubView extends ItemView {
         this._scrollObserver = null;
         this.closeFeedPopover();
         this.resetLayoutRefs();
+
+        // Restore Obsidian mobile chrome
+        this.setMobileImmersive(false);
+    }
+
+    /**
+     * Toggle Obsidian's mobile chrome (navbar, header, tab strip) on/off.
+     * Uses direct DOM manipulation as a bulletproof fallback for all WebViews.
+     */
+    private setMobileImmersive(immersive: boolean): void {
+        // Always toggle the body class for CSS-based hiding
+        document.body.classList.toggle('is-diwa-v2-active', immersive);
+
+        // Only manipulate DOM on actual mobile
+        if (!(this.app as any).isMobile) return;
+
+        const selectors = [
+            '.mobile-navbar',
+            '.mobile-toolbar',
+            '.view-header',
+            '.workspace-tab-header-container',
+            '.titlebar',
+        ];
+
+        for (const sel of selectors) {
+            const els = document.querySelectorAll<HTMLElement>(sel);
+            els.forEach(el => {
+                el.style.display = immersive ? 'none' : '';
+            });
+        }
+
+        // Zero out app-container padding (safe-area-inset-top)
+        const appContainer = document.querySelector<HTMLElement>('.app-container');
+        if (appContainer) {
+            appContainer.style.paddingTop = immersive ? '0px' : '';
+        }
+
+        // Zero out body padding
+        document.body.style.paddingTop = immersive ? '0px' : '';
     }
 
     renderView() {
@@ -302,11 +346,102 @@ export class DesktopHubView extends ItemView {
         this.resetLayoutRefs();
         root.empty();
         
-        const constructionContainer = root.createEl('div', { 
-            attr: { style: 'display: flex; height: 100%; width: 100%; align-items: center; justify-content: center; text-align: center; color: var(--text-muted); font-size: 1.2em; font-weight: bold; flex-direction: column; gap: 12px;' } 
+        const hub = root.createEl('div', { cls: 'diwa-mobile-hub-premium' });
+
+        // Ambient Background Glows
+        hub.createEl('div', { cls: 'diwa-bg-glow glow-1' });
+        hub.createEl('div', { cls: 'diwa-bg-glow glow-2' });
+
+        // Header
+        const header = hub.createEl('header', { cls: 'diwa-header' });
+        const greetingWrap = header.createEl('div', { cls: 'diwa-greeting-container' });
+        
+        const now = new Date();
+        const hour = now.getHours();
+        let greeting = 'Good evening';
+        if (hour < 12) greeting = 'Good morning';
+        else if (hour < 17) greeting = 'Good afternoon';
+        
+        greetingWrap.createEl('h1', { cls: 'diwa-greeting', text: greeting });
+        
+        const tasks = Array.from(this.plugin.index.taskIndex.values()).filter(t => t.status !== 'done');
+        greetingWrap.createEl('span', { cls: 'diwa-date-meta', text: `${tasks.length} tasks open` });
+        
+        const progressRing = header.createEl('div', { cls: 'diwa-progress-ring-container' });
+        progressRing.innerHTML = `
+            <svg class="progress-svg" viewBox="0 0 36 36">
+                <circle class="ring-bg" cx="18" cy="18" r="16" />
+                <circle class="ring-progress" cx="18" cy="18" r="16" stroke-dasharray="100" stroke-dashoffset="40" />
+            </svg>
+        `;
+
+        // Bento Grid
+        const nav = hub.createEl('nav', { cls: 'diwa-bento-grid' });
+        
+        // Today Card
+        const todayCard = nav.createEl('button', { cls: 'diwa-bento-card card-primary glass-panel' });
+        const todayIconWrap = todayCard.createEl('div', { cls: 'card-icon-wrapper' });
+        const todayIcon = todayIconWrap.createEl('div', { cls: 'card-icon' });
+        setIcon(todayIcon, 'sun');
+        const todayContent = todayCard.createEl('div', { cls: 'card-content' });
+        todayContent.createEl('span', { cls: 'card-title', text: 'Today' });
+        todayContent.createEl('span', { cls: 'card-subtitle', text: 'Focus on priorities' });
+        todayCard.addEventListener('click', () => {
+            new Notice('Today view coming soon!');
         });
-        constructionContainer.createEl('span', { text: '🚧', attr: { style: 'font-size: 2em;' } });
-        constructionContainer.createEl('div', { text: 'Under construction' });
+        
+        // Inbox Card
+        const inboxCard = nav.createEl('button', { cls: 'diwa-bento-card glass-panel' });
+        const inboxIconWrap = inboxCard.createEl('div', { cls: 'card-icon-wrapper' });
+        const inboxIcon = inboxIconWrap.createEl('div', { cls: 'card-icon' });
+        setIcon(inboxIcon, 'inbox');
+        inboxCard.createEl('span', { cls: 'card-title', text: 'Inbox' });
+        const inboxCount = Array.from(this.plugin.index.thoughtIndex.values()).length;
+        if (inboxCount > 0) {
+            inboxCard.createEl('span', { cls: 'card-badge', text: `${inboxCount}` });
+        }
+        
+        // Projects Card
+        const projectsCard = nav.createEl('button', { cls: 'diwa-bento-card glass-panel' });
+        const projectsIconWrap = projectsCard.createEl('div', { cls: 'card-icon-wrapper' });
+        const projectsIcon = projectsIconWrap.createEl('div', { cls: 'card-icon' });
+        setIcon(projectsIcon, 'folder');
+        projectsCard.createEl('span', { cls: 'card-title', text: 'Projects' });
+
+        // FAB
+        const fabContainer = hub.createEl('div', { cls: 'diwa-fab-container' });
+        const fabTrigger = fabContainer.createEl('button', { cls: 'diwa-fab-trigger glass-fab', attr: { 'aria-label': 'Quick Capture' } });
+        const fabIcon = fabTrigger.createEl('div', { cls: 'icon-plus' });
+        setIcon(fabIcon, 'plus');
+        
+        fabTrigger.addEventListener('click', () => {
+            new FastTaskCaptureModal(
+                this.app,
+                this.plugin,
+                async (payload: FastTaskCapturePayload) => {
+                    try {
+                        this.plugin.refreshCoordinator.suppressNotifyRefresh(800);
+                        const created = await this.plugin.vault.createTaskFile(
+                            payload.text,
+                            payload.contexts,
+                            payload.dueDate || undefined,
+                            {
+                                priority: payload.priority ?? undefined,
+                                status: payload.status,
+                            }
+                        );
+                        if (created) {
+                            new Notice('Task created');
+                            void this.plugin.index.buildIndices();
+                            this.updateTaskPaneFromIndex();
+                        }
+                    } catch (e) {
+                        new Notice('Failed to create task');
+                        console.error(e);
+                    }
+                }
+            ).open();
+        });
     }
 
     updateTaskPaneFromIndex(): void {

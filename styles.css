@@ -20725,4 +20725,336 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
 }
 
 
+
 .diwa-gawa-sort-icon { font-size: 0.8em; margin-left: 4px; color: var(--text-muted); }
+
+/* Container & Background */
+.diwa-mobile-hub-premium {
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  
+  /* BRUTE FORCE TOP MAXIMIZATION: Break out of Obsidian's container entirely */
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  height: 100vh !important;
+  width: 100vw !important;
+  margin: 0 !important;
+  z-index: 50;
+  
+  /* Push content safely below the physical notch (brought down ~3 rows) */
+  padding-top: calc(65px + var(--safe-area-inset-top, env(safe-area-inset-top, 48px))) !important;
+  padding-left: 20px;
+  padding-right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  padding-bottom: 120px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Background Ambient Glows (Crucial for Glassmorphism) */
+.diwa-bg-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: -1;
+  opacity: 0.12;
+  pointer-events: none;
+}
+.glow-1 {
+  top: -5%;
+  left: -15%;
+  width: 250px;
+  height: 250px;
+  background: var(--interactive-accent);
+}
+.glow-2 {
+  bottom: 20%;
+  right: -10%;
+  width: 200px;
+  height: 200px;
+  background: var(--text-accent, #a855f7);
+}
+
+/* Header Typography */
+.diwa-header { 
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+}
+.diwa-greeting-container { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 4px;
+}
+.diwa-greeting { 
+  font-size: 2.2em; 
+  font-weight: 800; 
+  letter-spacing: -0.04em; 
+  margin: 0; 
+  line-height: 1.1;
+  background: linear-gradient(135deg, var(--text-normal) 0%, var(--text-muted) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.diwa-date-meta { 
+  font-size: 0.95em; 
+  font-weight: 500;
+  color: var(--text-muted); 
+  letter-spacing: 0.01em;
+}
+
+/* Refined Progress Ring */
+.diwa-progress-ring-container { 
+  flex-shrink: 0; 
+  position: relative;
+  width: 48px; 
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.progress-svg {
+  width: 34px;
+  height: 34px;
+  transform: rotate(-90deg);
+}
+.ring-bg {
+  fill: none;
+  stroke: var(--background-modifier-border);
+  stroke-width: 2.5;
+}
+.ring-progress {
+  fill: none;
+  stroke: var(--interactive-accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 0 4px var(--interactive-accent));
+}
+
+/* Bento Grid */
+.diwa-bento-grid { 
+  display: grid; 
+  grid-template-columns: repeat(2, 1fr); 
+  gap: 16px; 
+}
+
+/* Glass Panels */
+.glass-panel {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-radius: 24px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Light mode specific glass adjustments */
+.theme-light .glass-panel {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.3) 100%);
+  box-shadow: 0 8px 32px -4px rgba(31, 38, 135, 0.08), inset 0 1px 0 rgba(255, 255, 255, 1);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+.theme-light .diwa-progress-ring-container {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.diwa-bento-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 140px;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  cursor: pointer;
+  color: var(--text-normal);
+  text-align: left;
+}
+.diwa-bento-card:active { 
+  transform: scale(0.94); 
+}
+.diwa-bento-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at top left, rgba(255,255,255,0.06), transparent 50%);
+  pointer-events: none;
+}
+
+.card-primary { 
+  grid-column: span 2; 
+  min-height: 160px; 
+}
+
+/* Icons */
+.card-icon-wrapper {
+  background: var(--background-modifier-hover);
+  padding: 10px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: auto;
+  border: 1px solid var(--glass-border);
+}
+.card-primary .card-icon-wrapper {
+  background: rgba(var(--interactive-accent-rgb, 147, 51, 234), 0.15);
+  border: 1px solid rgba(var(--interactive-accent-rgb, 147, 51, 234), 0.3);
+}
+.card-icon { 
+  color: var(--text-normal); 
+  width: 22px; 
+  height: 22px; 
+}
+.card-primary .card-icon {
+  color: var(--interactive-accent);
+}
+
+/* Card Typography */
+.card-content { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 2px;
+}
+.card-title { 
+  font-weight: 700; 
+  font-size: 1.15em; 
+  letter-spacing: -0.02em;
+}
+.card-subtitle { 
+  font-size: 0.85em; 
+  color: var(--text-muted); 
+  font-weight: 500;
+}
+.card-badge { 
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: var(--interactive-accent); 
+  color: var(--text-on-accent); 
+  font-size: 0.75em; 
+  font-weight: 800; 
+  padding: 4px 10px; 
+  border-radius: 12px; 
+  box-shadow: 0 4px 12px rgba(var(--interactive-accent-rgb, 147, 51, 234), 0.4);
+}
+
+/* Floating Action Button */
+.diwa-fab-container { 
+  position: absolute; 
+  bottom: 32px; 
+  right: 24px; 
+  z-index: 100; 
+}
+.glass-fab { 
+  width: 64px; 
+  height: 64px; 
+  border-radius: 32px; 
+  background: linear-gradient(135deg, var(--interactive-accent), var(--interactive-accent-hover, #7e22ce));
+  color: var(--text-on-accent); 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  border: 1px solid rgba(255,255,255,0.2);
+  box-shadow: 0 12px 32px rgba(var(--interactive-accent-rgb, 147, 51, 234), 0.5),
+              inset 0 2px 0 rgba(255, 255, 255, 0.2);
+  cursor: pointer; 
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+}
+.glass-fab:active { 
+  transform: scale(0.9); 
+  box-shadow: 0 6px 16px rgba(var(--interactive-accent-rgb, 147, 51, 234), 0.4),
+              inset 0 2px 0 rgba(255, 255, 255, 0.1);
+}
+.icon-plus {
+  width: 28px;
+  height: 28px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+
+/* --- Immersive Mobile View Overrides --- */
+/* Zero out layout space reserved by Obsidian */
+body.is-diwa-v2-active {
+    --mobile-navbar-height: 0px !important;
+    --header-height: 0px !important;
+    --tab-header-height: 0px !important;
+    --titlebar-height: 0px !important;
+    padding-top: 0px !important;
+}
+
+/* ── CRITICAL FIX: Zero out safe-area ONLY for the workspace ── */
+/* This maximizes the space for the plugin UI but leaves the global variable */
+/* intact so that the pull-down drawer still respects the iOS notch. */
+body.is-diwa-v2-active .workspace {
+    --safe-area-inset-top: 0px !important;
+}
+
+/* Zero out app-container safe-area padding */
+body.is-diwa-v2-active .app-container {
+    padding-top: 0px !important;
+}
+
+/* Hide ALL chrome UI elements */
+body.is-diwa-v2-active .mobile-navbar,
+body.is-diwa-v2-active .mobile-toolbar,
+body.is-diwa-v2-active .view-header,
+body.is-diwa-v2-active .workspace-leaf-header,
+body.is-diwa-v2-active .workspace-tab-header-container,
+body.is-diwa-v2-active .titlebar {
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+}
+
+/* Collapse inner containers that hold padding for hidden elements */
+body.is-diwa-v2-active .workspace-tab-header-container-inner {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+    height: 0 !important;
+}
+
+/* Remove padding from content areas that account for hidden headers */
+body.is-diwa-v2-active .view-content {
+    padding-top: 0 !important;
+}
+body.is-diwa-v2-active .workspace-leaf-content {
+    padding-top: 0 !important;
+}
+
+/* Remove top padding from workspace split/tabs containers */
+body.is-diwa-v2-active .workspace-split.mod-root {
+    padding-top: 0 !important;
+}
+body.is-diwa-v2-active .workspace-tabs {
+    padding-top: 0 !important;
+}
+
+/* Handle mod-top-left-space if present */
+body.is-diwa-v2-active .mod-top-left-space {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+}

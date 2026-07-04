@@ -528,6 +528,14 @@ export default class DiwaPlugin extends Plugin {
             this.notifyRefresh(scope);
         }));
 
+        this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => {
+            if (leaf?.view?.getViewType() === VIEW_TYPE_DESKTOP_HUB) {
+                document.body.classList.add('is-diwa-v2-active');
+            } else {
+                document.body.classList.remove('is-diwa-v2-active');
+            }
+        }));
+
         this.registerEvent(this.app.workspace.on('layout-change', () => {
             this.scheduleResponsiveHubReconciliation();
         }));
