@@ -15488,7 +15488,7 @@ body.is-mobile .diwa-mobile-post-body{padding-bottom:max(env(safe-area-inset-bot
   width: min(560px, calc(100vw - 32px)) !important;
   border-radius: var(--diwa-workspace-popup-radius) !important;
   border: 1px solid var(--diwa-workspace-popup-border) !important;
-  background: var(--diwa-workspace-popup-surface) !important;
+  background: var(--background-primary) !important;
   box-shadow: var(--diwa-workspace-popup-shadow) !important;
 }
 
@@ -19562,4 +19562,971 @@ body.is-mobile:not(.is-tablet) .diwa-review-week-focus-row {
   padding-block-end: 0 !important;
   padding-top: 0 !important;
   padding-bottom: 0 !important;
+}
+
+/* DIWA Mobile Skin Enhancement Overrides */
+.is-mobile .diwa-mobile-shell {
+  /* Spacing Grid (8px Base) */
+  --diwa-space-xs: 4px;
+  --diwa-space-sm: 8px;
+  --diwa-space-md: 16px;
+  --diwa-space-lg: 24px;
+  --diwa-space-xl: 32px;
+
+  /* Typography Scale (Fluid Clamp) */
+  --diwa-font-display: clamp(20px, 5.5vw, 26px);
+  --diwa-font-headline: clamp(16px, 4.5vw, 20px);
+  --diwa-font-body: clamp(13px, 3.8vw, 15px);
+  --diwa-font-caption: clamp(11px, 3vw, 12px);
+  --diwa-font-eyebrow: clamp(10px, 2.5vw, 11px);
+
+  /* Motion & Animations */
+  --diwa-motion-fast: 150ms;
+  --diwa-motion-normal: 250ms;
+  --diwa-motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --diwa-motion-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Glassmorphism 2.0 Material Rules */
+  --diwa-glass-bg: color-mix(in srgb, var(--background-primary) 88%, transparent);
+  --diwa-glass-border: rgba(255, 255, 255, 0.08);
+  --diwa-glass-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.12);
+  --diwa-glass-blur: blur(16px);
+}
+
+/* 1. Bottom Nav Bar overrides */
+.is-mobile .diwa-mobile-nav {
+  position: fixed;
+  left: max(16px, env(safe-area-inset-left));
+  right: max(16px, env(safe-area-inset-right));
+  bottom: calc(var(--diwa-host-bottombar) + env(safe-area-inset-bottom) + var(--diwa-space-sm));
+  height: 64px;
+  min-height: 64px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: var(--diwa-space-xs) var(--diwa-space-sm) !important;
+  background: var(--diwa-glass-bg) !important;
+  backdrop-filter: var(--diwa-glass-blur) !important;
+  border: 1px solid var(--diwa-glass-border) !important;
+  border-radius: 20px !important;
+  box-shadow: var(--diwa-glass-shadow) !important;
+  transition: transform var(--diwa-motion-normal) var(--diwa-motion-ease-out);
+  z-index: 999;
+}
+
+.is-mobile .diwa-mobile-nav.diwa-nav-hidden {
+  transform: translateY(120px);
+}
+
+.is-mobile .diwa-mobile-nav-btn {
+  position: relative;
+  flex: 1;
+  height: 48px;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.is-mobile .diwa-mobile-nav-icon {
+  width: 22px !important;
+  height: 22px !important;
+  background: none !important;
+  box-shadow: none !important;
+  color: currentColor;
+  transform: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.is-mobile .diwa-mobile-nav-label {
+  font-size: var(--diwa-font-caption) !important;
+  font-weight: 600;
+}
+
+.is-mobile .diwa-mobile-nav-btn.is-active {
+  color: var(--interactive-accent) !important;
+  background: transparent !important;
+}
+
+.is-mobile .diwa-mobile-nav-btn.is-active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--interactive-accent);
+  animation: navPop var(--diwa-motion-fast) var(--diwa-motion-spring);
+}
+
+@keyframes navPop {
+  0% { transform: scale(0); }
+  100% { transform: scale(1); }
+}
+
+/* 2. Global Floating Action Button (FAB) */
+.is-mobile .diwa-fab {
+  position: fixed;
+  right: max(20px, env(safe-area-inset-right));
+  bottom: calc(var(--diwa-host-bottombar) + env(safe-area-inset-bottom) + 84px);
+  width: 54px;
+  height: 54px;
+  border-radius: 27px;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  border: none;
+  z-index: 998;
+  transition: transform var(--diwa-motion-fast) var(--diwa-motion-spring);
+}
+
+.is-mobile .diwa-fab:active {
+  transform: scale(0.9);
+}
+
+.is-mobile .diwa-fab svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* 3. Bento Grid Dashboard */
+.is-mobile .diwa-mobile-home {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--diwa-space-md);
+  padding: var(--diwa-space-md) var(--diwa-space-md) calc(var(--diwa-space-xl) * 2);
+}
+
+.is-mobile .diwa-home-bento-hero {
+  grid-column: span 2;
+  background: var(--background-secondary);
+  border: 1px solid var(--diwa-glass-border);
+  border-radius: 24px;
+  padding: var(--diwa-space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--diwa-space-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.is-mobile .diwa-home-bento-hero::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--interactive-accent), transparent);
+}
+
+.is-mobile .diwa-home-bento-focus {
+  grid-column: span 2;
+  background: var(--background-secondary-alt);
+  border: 1px solid var(--diwa-glass-border);
+  border-radius: 24px;
+  padding: var(--diwa-space-md);
+}
+
+.is-mobile .diwa-home-bento-stat {
+  grid-column: span 1;
+  background: var(--background-secondary-alt);
+  border: 1px solid var(--diwa-glass-border);
+  border-radius: 20px;
+  padding: var(--diwa-space-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--diwa-space-xs);
+  text-align: center;
+}
+
+/* SVG Progress Ring widget style */
+.is-mobile .diwa-progress-ring-wrap {
+  position: relative;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.is-mobile .diwa-progress-ring {
+  transform: rotate(-90deg);
+}
+
+.is-mobile .diwa-progress-ring-bg {
+  stroke: color-mix(in srgb, var(--background-modifier-border) 40%, transparent);
+}
+
+.is-mobile .diwa-progress-text {
+  position: absolute;
+  font-size: var(--diwa-font-caption);
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+/* 4. Task Checkbox Custom Drawing */
+.is-mobile .diwa-task-row--mobile .diwa-task-cb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  max-width: 24px !important;
+  max-height: 24px !important;
+  border: 2px solid var(--background-modifier-border) !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: transparent !important;
+  position: relative;
+  outline: none;
+  cursor: pointer;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  transition: border-color var(--diwa-motion-fast), background-color var(--diwa-motion-fast);
+}
+
+.is-mobile .diwa-task-row--mobile.is-done .diwa-task-cb,
+.is-mobile .diwa-task-row--mobile .diwa-task-cb.is-checked {
+  background-color: var(--interactive-accent) !important;
+  border-color: var(--interactive-accent) !important;
+  color: var(--text-on-accent) !important;
+  animation: checkboxPop var(--diwa-motion-fast) var(--diwa-motion-spring);
+}
+
+.is-mobile .diwa-task-row--mobile.is-done .diwa-task-cb::after,
+.is-mobile .diwa-task-row--mobile .diwa-task-cb.is-checked::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 3px;
+  width: 6px;
+  height: 11px;
+  border: solid var(--text-on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+@keyframes checkboxPop {
+  0% { transform: scale(0.9); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+/* 5. Bulsa Ledger Layout overrides */
+.is-mobile .diwa-bulsa-summary {
+  display: flex;
+  flex-direction: column;
+  padding: var(--diwa-space-lg) var(--diwa-space-md);
+  align-items: center;
+  text-align: center;
+}
+
+.is-mobile .diwa-bulsa-amount {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-normal);
+  letter-spacing: -0.04em;
+  margin-top: var(--diwa-space-xs);
+}
+
+.is-mobile .diwa-bills-card {
+  background: var(--background-secondary-alt) !important;
+  border-radius: 16px !important;
+  padding: var(--diwa-space-md) !important;
+  margin-bottom: var(--diwa-space-sm) !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  border: 1px solid var(--diwa-glass-border) !important;
+  box-shadow: none !important;
+}
+
+.is-mobile .diwa-bills-badge {
+  padding: 4px 8px !important;
+  border-radius: 12px !important;
+  font-size: var(--diwa-font-caption) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+.is-mobile .diwa-bills-badge--overdue {
+  background: color-mix(in srgb, var(--color-red) 15%, transparent) !important;
+  color: var(--color-red) !important;
+}
+
+.is-mobile .diwa-bills-badge--paid {
+  background: color-mix(in srgb, var(--color-green) 15%, transparent) !important;
+  color: var(--color-green) !important;
+}
+
+.is-mobile .diwa-bills-badge--today {
+  background: color-mix(in srgb, var(--interactive-accent) 15%, transparent) !important;
+  color: var(--interactive-accent) !important;
+}
+
+.is-mobile .diwa-bills-badge--upcoming {
+  background: color-mix(in srgb, var(--text-muted) 15%, transparent) !important;
+  color: var(--text-muted) !important;
+}
+
+/* 6. Review Stepper styling */
+.is-mobile .diwa-review-stepper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--diwa-space-md);
+  background: var(--background-secondary-alt);
+  border-radius: 16px;
+  margin-bottom: var(--diwa-space-md);
+  border: 1px solid var(--diwa-glass-border);
+}
+
+.is-mobile .diwa-step-dots {
+  display: flex;
+  gap: var(--diwa-space-sm);
+}
+
+.is-mobile .diwa-step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--background-modifier-border);
+  transition: background-color var(--diwa-motion-fast), transform var(--diwa-motion-fast);
+}
+
+.is-mobile .diwa-step-dot.active {
+  background: var(--interactive-accent);
+  transform: scale(1.2);
+}
+
+/* 7. Context Chips Scroll Fade overrides */
+.is-mobile .diwa-context-bar {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: var(--diwa-space-sm);
+  padding: var(--diwa-space-sm) 0;
+  -webkit-overflow-scrolling: touch;
+  mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+}
+
+.is-mobile .diwa-context-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.is-mobile .diwa-chip {
+  flex: 0 0 auto;
+  height: 34px !important;
+  padding: 0 var(--diwa-space-md) !important;
+  border-radius: 17px !important;
+  background: var(--background-secondary) !important;
+  border: 1px solid var(--diwa-glass-border) !important;
+  color: var(--text-muted) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--diwa-font-body) !important;
+  font-weight: 600 !important;
+}
+
+.is-mobile .diwa-chip.is-active {
+  background: var(--interactive-accent) !important;
+  color: var(--text-on-accent) !important;
+  border-color: var(--interactive-accent) !important;
+}
+
+/* 8. Modern Empty States override */
+.is-mobile .diwa-mobile-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--diwa-space-xl) var(--diwa-space-md);
+  gap: var(--diwa-space-md);
+}
+
+.is-mobile .diwa-mobile-empty-icon {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+}
+
+.is-mobile .diwa-mobile-empty-title {
+  font-size: var(--diwa-font-headline);
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+.is-mobile .diwa-mobile-empty-sub {
+  font-size: var(--diwa-font-body);
+  color: var(--text-muted);
+  max-width: 260px;
+  line-height: 1.5;
+}
+
+/* DIWA Tablet Skin UI/UX Enhancement Overrides */
+
+/* Left Sidebar Rail Layout */
+.is-mobile .diwa-tablet-shell {
+  display: flex !important;
+  flex-direction: row !important;
+  height: 100vh !important;
+  width: 100vw !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: var(--background-primary) !important;
+}
+
+.is-mobile .diwa-tablet-tabs {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 240px !important;
+  min-width: 240px !important;
+  height: 100% !important;
+  padding: var(--diwa-space-lg) var(--diwa-space-md) !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-right: 1px solid var(--background-modifier-border-faint) !important;
+  background: var(--background-secondary) !important;
+  position: static !important;
+  box-sizing: border-box !important;
+  gap: var(--diwa-space-sm) !important;
+}
+
+/* Nav Item styling for Sidebar */
+.is-mobile .diwa-tablet-tabs .diwa-tab {
+  width: 100% !important;
+  min-height: 48px !important;
+  height: 48px !important;
+  padding: 0 var(--diwa-space-md) !important;
+  border-radius: 12px !important;
+  border: none !important;
+  background: transparent !important;
+  color: var(--text-muted) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 12px !important;
+  cursor: pointer !important;
+  font-size: var(--diwa-font-body) !important;
+  font-weight: 600 !important;
+  box-sizing: border-box !important;
+  transition: all var(--diwa-motion-fast) var(--diwa-motion-ease-out) !important;
+  box-shadow: none !important;
+}
+
+.is-mobile .diwa-tablet-tabs .diwa-tab:hover {
+  background: color-mix(in srgb, var(--background-modifier-border-faint) 45%, transparent) !important;
+  color: var(--text-normal) !important;
+}
+
+.is-mobile .diwa-tablet-tabs .diwa-tab.is-active {
+  background: var(--interactive-accent) !important;
+  color: var(--text-on-accent) !important;
+  box-shadow: var(--diwa-glass-shadow) !important;
+}
+
+.is-mobile .diwa-tablet-tabs .diwa-tab-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 20px !important;
+  height: 20px !important;
+}
+
+.is-mobile .diwa-tablet-tabs .diwa-tab-label {
+  display: inline-block !important;
+}
+
+/* Bento Grid Dashboard (3-Column Layout) */
+@media (min-width: 960px) {
+  .is-mobile .diwa-tablet-home {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: var(--diwa-space-md) !important;
+    padding: var(--diwa-space-lg) !important;
+    box-sizing: border-box !important;
+  }
+
+  .is-mobile .diwa-tablet-home-hero {
+    grid-column: span 2 !important;
+  }
+
+  .is-mobile .diwa-tablet-home-metrics {
+    grid-column: span 1 !important;
+    background: var(--background-secondary-alt) !important;
+    border: 1px solid var(--diwa-glass-border) !important;
+    border-radius: 24px !important;
+    padding: var(--diwa-space-lg) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    gap: var(--diwa-space-md) !important;
+    box-shadow: var(--diwa-glass-shadow) !important;
+    box-sizing: border-box !important;
+  }
+
+  .is-mobile .diwa-tablet-home-focus-card {
+    grid-column: span 2 !important;
+  }
+
+  .is-mobile .diwa-tablet-home-thoughts-card {
+    grid-column: span 1 !important;
+  }
+}
+
+/* Landscape/Tablet splits readability and sizing */
+.is-mobile .diwa-tablet-split {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: var(--diwa-space-lg) !important;
+  height: 100% !important;
+  box-sizing: border-box !important;
+  padding: var(--diwa-space-md) !important;
+}
+
+.is-mobile .diwa-tablet-left {
+  flex: 35 !important;
+  border-right: 1px solid var(--background-modifier-border-faint) !important;
+  padding-right: var(--diwa-space-md) !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-right: 1px solid var(--background-modifier-border-faint) !important;
+  box-shadow: none !important;
+}
+
+.is-mobile .diwa-tablet-right {
+  flex: 65 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding-left: var(--diwa-space-md) !important;
+}
+
+/* Constraint reader margins for tablet editing/viewing */
+.is-mobile .diwa-tablet-thought-detail-body {
+  max-width: 68ch !important;
+  margin: 0 auto !important;
+  line-height: clamp(1.45, 0.1vw + 1.45, 1.6) !important;
+}
+
+.is-mobile .diwa-tablet-left .diwa-thought-card.is-selected {
+  border: 1px solid var(--interactive-accent) !important;
+  background: var(--background-secondary) !important;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--interactive-accent) 8%, transparent) !important;
+  position: relative !important;
+}
+
+.is-mobile .diwa-tablet-left .diwa-thought-card.is-selected::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 4px;
+  background: var(--interactive-accent);
+  border-radius: 0 2px 2px 0;
+}
+
+/* Task Row Active Selection Overrides for Long-Press */
+.is-mobile .diwa-task-row--mobile {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  touch-action: pan-y !important;
+  transition: transform var(--diwa-motion-fast) var(--diwa-motion-ease-out), background-color var(--diwa-motion-fast) !important;
+}
+
+.is-mobile .diwa-task-row--mobile:active {
+  transform: scale(0.98) !important;
+  background: color-mix(in srgb, var(--background-secondary-alt) 94%, var(--interactive-accent) 6%) !important;
+}
+
+/* Compatibility feedback tweaks: Absolute alignment & Container queries */
+.is-mobile .diwa-mobile-shell {
+  position: relative !important;
+  container-type: inline-size !important;
+}
+
+.is-mobile .diwa-mobile-nav {
+  position: absolute !important;
+}
+
+.is-mobile .diwa-fab {
+  position: absolute !important;
+}
+
+/* Container-based responsive reflow for Bento and Sidebar layouts */
+@container (min-width: 768px) {
+  .is-mobile .diwa-tablet-shell {
+    display: flex !important;
+    flex-direction: row !important;
+    height: 100% !important;
+    width: 100% !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+  }
+  
+  .is-mobile .diwa-tablet-tabs {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 240px !important;
+    min-width: 240px !important;
+    height: 100% !important;
+    padding: var(--diwa-space-lg) var(--diwa-space-md) !important;
+    background: var(--background-secondary) !important;
+    border: none !important;
+    border-right: 1px solid var(--background-modifier-border-faint) !important;
+    position: static !important;
+    box-sizing: border-box !important;
+    gap: var(--diwa-space-sm) !important;
+  }
+}
+
+@container (min-width: 900px) {
+  .is-mobile .diwa-tablet-home {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: var(--diwa-space-md) !important;
+    padding: var(--diwa-space-lg) !important;
+    box-sizing: border-box !important;
+  }
+
+  .is-mobile .diwa-tablet-home-hero {
+    grid-column: span 2 !important;
+  }
+
+  .is-mobile .diwa-tablet-home-metrics {
+    grid-column: span 1 !important;
+    background: var(--background-secondary-alt) !important;
+    border: 1px solid var(--diwa-glass-border) !important;
+    border-radius: 24px !important;
+    padding: var(--diwa-space-lg) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    gap: var(--diwa-space-md) !important;
+    box-shadow: var(--diwa-glass-shadow) !important;
+    box-sizing: border-box !important;
+  }
+
+  .is-mobile .diwa-tablet-home-focus-card {
+    grid-column: span 2 !important;
+  }
+
+  .is-mobile .diwa-tablet-home-thoughts-card {
+    grid-column: span 1 !important;
+  }
+}
+
+/* --- DIWA X-FEED/TWITTER OVERRIDES --- */
+.is-mobile .diwa-composer-wrap {
+  display: flex;
+  flex-direction: row;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--background-modifier-border-faint);
+  background-color: var(--background-primary);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.is-mobile .diwa-composer-avatar {
+  flex: 0 0 40px;
+  margin-right: 12px;
+}
+
+.is-mobile .diwa-composer-editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.is-mobile .diwa-composer-placeholder {
+  height: 40px;
+  border-radius: 20px;
+  background: var(--background-secondary-alt);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: var(--diwa-font-body);
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.is-mobile .diwa-composer-form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.is-mobile .diwa-composer-textarea {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  resize: none !important;
+  width: 100% !important;
+  font-size: 17px !important;
+  line-height: 1.4 !important;
+  color: var(--text-normal) !important;
+  padding: var(--diwa-space-xs) 0 !important;
+  margin: 0 !important;
+  min-height: 50px;
+  max-height: 200px;
+  overflow-y: auto;
+  outline: none !important;
+}
+
+.is-mobile .diwa-composer-toolbar {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.is-mobile .diwa-composer-tools-left {
+  display: flex;
+  align-items: center;
+  gap: var(--diwa-space-sm);
+}
+
+.is-mobile .diwa-composer-tools-right {
+  display: flex;
+  align-items: center;
+  gap: var(--diwa-space-md);
+}
+
+.is-mobile .diwa-composer-cancel {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: var(--diwa-font-body);
+  cursor: pointer;
+  padding: 6px 12px;
+}
+
+.is-mobile .diwa-composer-post {
+  background: var(--interactive-accent) !important;
+  color: var(--text-on-accent) !important;
+  border: none !important;
+  padding: 6px 18px !important;
+  border-radius: 20px !important;
+  font-weight: 700 !important;
+  font-size: var(--diwa-font-body) !important;
+  cursor: pointer !important;
+  height: 36px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.is-mobile .diwa-composer-post:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+.is-mobile .diwa-composer-hidden {
+  display: none !important;
+}
+
+.is-mobile .diwa-char-ring {
+  transform: rotate(-90deg);
+}
+
+/* X-Feed Card styles */
+.is-mobile .diwa-thought-card {
+  display: flex !important;
+  flex-direction: row !important;
+  padding: 14px 16px !important;
+  border-bottom: 1px solid var(--background-modifier-border-faint) !important;
+  background-color: var(--background-primary) !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+
+.is-mobile .diwa-avatar-col {
+  flex: 0 0 40px !important;
+  margin-right: 12px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+.is-mobile .diwa-user-avatar {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50% !important;
+  background-color: var(--interactive-accent) !important;
+  color: var(--text-on-accent) !important;
+  font-weight: 700 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 15px !important;
+}
+
+.is-mobile .diwa-thread-line {
+  width: 2px !important;
+  background-color: var(--background-modifier-border-faint) !important;
+  flex-grow: 1 !important;
+  margin-top: 4px !important;
+}
+
+.is-mobile .diwa-content-col {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-width: 0 !important;
+}
+
+.is-mobile .diwa-thought-header {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  margin-bottom: 4px !important;
+  width: 100% !important;
+}
+
+.is-mobile .diwa-thought-header .user-name {
+  font-weight: 700 !important;
+  font-size: 15px !important;
+  color: var(--text-normal) !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.is-mobile .diwa-thought-header .verification-badge {
+  display: inline-flex !important;
+  margin-left: 4px !important;
+  flex-shrink: 0 !important;
+}
+
+.is-mobile .diwa-thought-header .user-handle {
+  font-size: 14px !important;
+  color: var(--text-muted) !important;
+  margin-left: 6px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.is-mobile .diwa-thought-header .meta-dot {
+  color: var(--text-muted) !important;
+  margin: 0 6px !important;
+}
+
+.is-mobile .diwa-thought-header .timestamp {
+  font-size: 14px !important;
+  color: var(--text-muted) !important;
+  white-space: nowrap !important;
+}
+
+.is-mobile .diwa-thought-header .btn-more-options {
+  margin-left: auto !important;
+  background: none !important;
+  border: none !important;
+  color: var(--text-muted) !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  padding: 0 !important;
+}
+
+.is-mobile .diwa-thought-body {
+  font-size: 15px !important;
+  line-height: 1.45 !important;
+  color: var(--text-normal) !important;
+  word-wrap: break-word !important;
+  white-space: pre-wrap !important;
+  margin-top: 2px !important;
+  margin-bottom: 8px !important;
+}
+
+.is-mobile .diwa-thought-actions {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  max-width: 425px !important;
+  width: 100% !important;
+  margin-top: 6px !important;
+}
+
+.is-mobile .diwa-thought-actions .action-btn {
+  display: flex !important;
+  align-items: center !important;
+  background: none !important;
+  border: none !important;
+  color: var(--text-muted) !important;
+  cursor: pointer !important;
+  padding: 4px !important;
+}
+
+.is-mobile .diwa-thought-actions .icon-wrap {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  transition: background-color 0.15s, color 0.15s !important;
+}
+
+.is-mobile .diwa-thought-actions .action-btn.reply:active .icon-wrap {
+  background-color: rgba(29, 155, 240, 0.1) !important;
+  color: var(--interactive-accent) !important;
+}
+
+.is-mobile .diwa-thought-actions .action-btn.repost:active .icon-wrap {
+  background-color: rgba(0, 186, 124, 0.1) !important;
+  color: #00ba7c !important;
+}
+
+.is-mobile .diwa-thought-actions .action-btn.like:active .icon-wrap {
+  background-color: rgba(249, 24, 128, 0.1) !important;
+  color: var(--text-error) !important;
+}
+
+.is-mobile .diwa-thought-actions .action-btn.share:active .icon-wrap {
+  background-color: rgba(29, 155, 240, 0.1) !important;
+  color: var(--interactive-accent) !important;
 }

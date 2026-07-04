@@ -68,7 +68,7 @@ export class GawaTab extends BaseTab {
     private _showDoneInTable = false;
     private _captureEditors: EditorView[] = [];
     private _taskPending = 0;
-    private _taskFilter: 'upcoming' | 'all' = 'all';
+    private _taskFilter: 'today' | 'upcoming' | 'all' = 'today';
     private _taskIndexRecoveryInFlight = false;
 
     constructor(view: DiwaView) {
@@ -83,8 +83,8 @@ export class GawaTab extends BaseTab {
             set _taskPending(value: number) { self._taskPending = value; },
             get _taskTogglePending(): number { return self.view._taskTogglePending; },
             set _taskTogglePending(value: number) { self.view._taskTogglePending = value; },
-            get _taskFilter(): 'upcoming' | 'all' { return self._taskFilter; },
-            set _taskFilter(value: 'upcoming' | 'all') { self._taskFilter = value; },
+            get _taskFilter(): 'today' | 'upcoming' | 'all' { return self._taskFilter; },
+            set _taskFilter(value: 'today' | 'upcoming' | 'all') { self._taskFilter = value; },
         };
     }
 
@@ -134,7 +134,11 @@ export class GawaTab extends BaseTab {
         } else if (isTabletLayout) {
             this.renderTabletLayout(root, paneConfigs);
         } else {
-            this.renderDesktopLayout(root, paneConfigs);
+            if (this._viewMode === 'table') {
+                this.renderTableView(root);
+            } else {
+                this.renderDesktopLayout(root, paneConfigs);
+            }
         }
 
         this._taskController.syncFromIndex();
@@ -150,8 +154,8 @@ export class GawaTab extends BaseTab {
                 const oldTable = this._rootEl.querySelector('.diwa-gawa-table-view');
                 if (oldTable) {
                     oldTable.remove();
-                    this.renderTableView(this._rootEl);
                 }
+                this.renderTableView(this._rootEl);
             }
             return;
         }

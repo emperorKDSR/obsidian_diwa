@@ -81,7 +81,7 @@ export class DesktopHubView extends ItemView {
     _taskTogglePending: number = 0;
 
     // Task panel filter: 'upcoming' = next 2 days + undated; 'all' = everything
-    _taskFilter: 'upcoming' | 'all' = 'upcoming';
+    _taskFilter: 'today' | 'upcoming' | 'all' = 'today';
 
     // Guard against DOM updates after view is closed
     private _closed: boolean = false;
@@ -1092,8 +1092,8 @@ export class DesktopHubView extends ItemView {
         const selectedContext = this.getSelectedCaptureContexts()[0];
         this._captureHintEl.setText(
             selectedContext
-                ? `Saving to #${selectedContext}  •  Enter → save  •  Shift+Enter → multiline`
-                : 'Enter → save  •  Shift+Enter → multiline',
+                ? `Saving to #${selectedContext}  •  Shift+Enter → save  •  Enter → multiline`
+                : 'Shift+Enter → save  •  Enter → multiline',
         );
     }
 
@@ -1615,6 +1615,7 @@ export class DesktopHubView extends ItemView {
                         context: this.getSelectedCaptureContexts(),
                     });
                     if (!created) {
+                        textarea.focus();
                         return;
                     }
                     textarea.value = '';
@@ -1622,6 +1623,7 @@ export class DesktopHubView extends ItemView {
                 } finally {
                     this._capturePending = Math.max(0, this._capturePending - 1);
                     textarea.disabled = false;
+                    textarea.focus();
                 }
             });
         }

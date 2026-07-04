@@ -1256,12 +1256,14 @@ export default class DiwaPlugin extends Plugin {
             const nextDone = !row.hasClass('is-done');
             row.toggleClass('is-done', nextDone);
             renderCheckboxState(nextDone);
-            const ok = await this.getTaskController().toggleTask(taskId);
-            if (!ok) {
-                row.toggleClass('is-done', done);
-                renderCheckboxState(done);
-            }
-            this.notifyRefresh('tasks');
+            setTimeout(async () => {
+                const ok = await this.getTaskController().toggleTask(taskId);
+                if (!ok) {
+                    row.toggleClass('is-done', done);
+                    renderCheckboxState(done);
+                }
+                this.notifyRefresh('tasks');
+            }, 250);
         });
 
         const main = row.createDiv('diwa-task-body');
@@ -1290,6 +1292,54 @@ export default class DiwaPlugin extends Plugin {
             }
         });
 
+        // Long-Press gesture for touch devices (safe from swipe conflicts)
+        let pressTimer: number | null = null;
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let isMoving = false;
+
+        row.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 1) return;
+            isMoving = false;
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            
+            pressTimer = window.setTimeout(() => {
+                if (!isMoving) {
+                    if (navigator.vibrate) {
+                        navigator.vibrate(12);
+                    }
+                    new EditTaskModal(this.app, task, this.vault, this.index, () => this.notifyRefresh('tasks')).open();
+                }
+            }, 500);
+        }, { passive: true });
+
+        row.addEventListener('touchmove', (e) => {
+            const diffX = Math.abs(e.touches[0].clientX - touchStartX);
+            const diffY = Math.abs(e.touches[0].clientY - touchStartY);
+            if (diffX > 8 || diffY > 8) {
+                isMoving = true;
+                if (pressTimer) {
+                    clearTimeout(pressTimer);
+                    pressTimer = null;
+                }
+            }
+        }, { passive: true });
+
+        row.addEventListener('touchend', () => {
+            if (pressTimer) {
+                clearTimeout(pressTimer);
+                pressTimer = null;
+            }
+        });
+
+        row.addEventListener('touchcancel', () => {
+            if (pressTimer) {
+                clearTimeout(pressTimer);
+                pressTimer = null;
+            }
+        });
+
         return row;
     }
 
@@ -1299,11 +1349,100 @@ export default class DiwaPlugin extends Plugin {
         options: { mobile?: boolean } = {},
     ): HTMLElement {
         const card = parent.createDiv('diwa-thought-card');
-        const contentEl = card.createDiv('diwa-thought-content');
-        const content = (thought.body || thought.content || thought.title || '').trim();
-        this.scheduleThoughtContentRender(contentEl, content, thought, this.getThoughtRenderCacheKey(thought, content));
-        this.attachThoughtLongPress(card, thought);
         if (options.mobile) card.addClass('is-mobile');
+
+        // Content Column (starts directly from the left edge)
+        const contentCol = card.createDiv('diwa-content-col');
+        
+        // Header Row
+        const header = contentCol.createDiv('diwa-thought-header');
+        header.createSpan({ cls: 'user-name', text: thought.title || 'Thought' });
+        
+        const verified = header.createSpan({ cls: 'verification-badge' });
+        verified.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="var(--interactive-accent)"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
+        
+        const handle = (thought.context && thought.context.length > 0) ? `@${thought.context[0]}` : '@diwa';
+        header.createSpan({ cls: 'user-handle', text: handle });
+        header.createSpan({ cls: 'meta-dot', text: '·' });
+        
+        const relativeTime = window.moment(thought.created || thought.modified).fromNow(true);
+        header.createSpan({ cls: 'timestamp', text: relativeTime });
+        
+        const moreBtn = header.createEl('button', { cls: 'btn-more-options', attr: { 'aria-label': 'More options' } });
+        moreBtn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 12c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm9 2c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm7 0c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>`;
+        moreBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const file = this.app.vault.getAbstractFileByPath(thought.filePath);
+            if (file instanceof TFile) {
+                this.attachThoughtLongPress(card, thought);
+                card.dispatchEvent(new MouseEvent('contextmenu'));
+            }
+        });
+
+        // Body Text
+        const bodyEl = contentCol.createDiv('diwa-thought-body');
+        const content = (thought.body || thought.content || '').trim();
+        this.scheduleThoughtContentRender(bodyEl, content, thought, this.getThoughtRenderCacheKey(thought, content));
+
+        // Action Toolbar
+        const footer = contentCol.createDiv('diwa-thought-actions');
+        
+        // Reply / Open Note
+        const replyBtn = footer.createEl('button', { cls: 'action-btn reply', attr: { 'aria-label': 'Open Note' } });
+        replyBtn.innerHTML = `<span class="icon-wrap"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 2.22.73 4.27 1.97 5.93L3 22l4.25-1.12C8.79 21.46 10.34 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.46 0-2.83-.41-4.01-1.13l-.29-.17-2.5.66.67-2.43-.19-.31C4.94 15.39 4.5 13.74 4.5 12c0-4.14 3.36-7.5 7.5-7.5s7.5 3.36 7.5 7.5-3.36 7.5-7.5 7.5z"/></svg></span>`;
+        replyBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const file = this.app.vault.getAbstractFileByPath(thought.filePath);
+            if (file instanceof TFile) {
+                await this.app.workspace.getLeaf(false).openFile(file);
+            }
+        });
+
+        // Promote to Gawa Task
+        const promoteBtn = footer.createEl('button', { cls: 'action-btn repost', attr: { 'aria-label': 'Promote to Task' } });
+        promoteBtn.innerHTML = `<span class="icon-wrap"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.43 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM6 12c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46C15.03 4.46 13.57 4 12 4c-4.42 0-8 3.58-8 8H1l4 4 4-4H6z"/></svg></span>`;
+        promoteBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const taskContent = (thought.body || thought.content || thought.title || '').trim();
+            const file = await this.vault.createTaskFile(taskContent, [...(thought.context || [])]);
+            if (file) {
+                new Notice('Thought promoted to Task successfully!');
+                if (navigator.vibrate) {
+                    navigator.vibrate(15);
+                }
+                this.notifyRefresh('tasks');
+            }
+        });
+
+        // Like / Toggle Pinned
+        const likeBtn = footer.createEl('button', { cls: 'action-btn like', attr: { 'aria-label': 'Pin Thought' } });
+        const liked = thought.pinned ? 'var(--text-error)' : 'currentColor';
+        likeBtn.innerHTML = `<span class="icon-wrap" style="color: ${liked}"><svg viewBox="0 0 24 24" width="18" height="18" fill="${thought.pinned ? 'var(--text-error)' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></span>`;
+        likeBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const file = this.app.vault.getAbstractFileByPath(thought.filePath);
+            if (file instanceof TFile) {
+                await this.app.fileManager.processFrontMatter(file, (fm) => {
+                    fm.pinned = !fm.pinned;
+                });
+                if (navigator.vibrate) {
+                    navigator.vibrate(10);
+                }
+                this.notifyRefresh('thoughts');
+            }
+        });
+
+        // Share Link Note
+        const shareBtn = footer.createEl('button', { cls: 'action-btn share', attr: { 'aria-label': 'Copy URL' } });
+        shareBtn.innerHTML = `<span class="icon-wrap"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/></svg></span>`;
+        shareBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const obsUrl = `obsidian://open?vault=${encodeURIComponent(this.app.vault.getName())}&file=${encodeURIComponent(thought.filePath)}`;
+            navigator.clipboard.writeText(obsUrl);
+            new Notice('Copied Obsidian URL to clipboard!');
+        });
+
+        this.attachThoughtLongPress(card, thought);
         return card;
     }
 

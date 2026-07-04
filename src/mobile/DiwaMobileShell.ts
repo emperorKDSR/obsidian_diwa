@@ -249,6 +249,45 @@ export class DiwaMobileShell {
         this.navEl = null;
         this.tabsEl = null;
         this.lastChromeKey = null;
+        this.attachScrollHandlers();
+    }
+
+    private attachScrollHandlers(): void {
+        if (!this.contentEl) return;
+        let lastScrollTop = 0;
+        this.contentEl.addEventListener('scroll', () => {
+            if (!this.navEl || this.platform !== 'mobile') return;
+            const scrollTop = this.contentEl?.scrollTop ?? 0;
+            const fab = this.shellEl?.querySelector('.diwa-fab') as HTMLElement | null;
+            
+            if (scrollTop > lastScrollTop && scrollTop > 100) {
+                this.navEl.addClass('diwa-nav-hidden');
+                if (fab) {
+                    fab.style.transform = 'translateY(120px) scale(0)';
+                }
+            } else {
+                this.navEl.removeClass('diwa-nav-hidden');
+                if (fab) {
+                    fab.style.transform = 'translateY(0) scale(1)';
+                }
+            }
+            lastScrollTop = scrollTop;
+        }, { passive: true });
+    }
+
+    private createGlobalFab(): void {
+        if (!this.shellEl) return;
+        this.shellEl.querySelector('.diwa-fab')?.remove();
+        if (this.platform !== 'mobile') return;
+
+        const fab = this.shellEl.createEl('button', {
+            cls: 'diwa-fab',
+            attr: { type: 'button', 'aria-label': 'Capture' }
+        });
+        this.applyIcon(fab, 'plus');
+        fab.addEventListener('click', () => {
+            this.plugin.openCaptureModal();
+        });
     }
 
     private syncShellStructure(): void {
@@ -272,6 +311,7 @@ export class DiwaMobileShell {
             }
             this.navEl?.remove();
             this.navEl = null;
+            this.shellEl.querySelector('.diwa-fab')?.remove();
             return;
         }
 
@@ -282,6 +322,7 @@ export class DiwaMobileShell {
             this.navEl = this.shellEl.createDiv('diwa-mobile-nav');
             this.lastChromeKey = null;
         }
+        this.createGlobalFab();
     }
 
     private refreshView(options: { forceChrome?: boolean } = {}): void {
@@ -466,46 +507,58 @@ export class DiwaMobileShell {
         this.renderMobileHome(container);
     }
 
+    private getGreeting(): string {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good morning';
+        if (hour < 18) return 'Good afternoon';
+        return 'Good evening';
+    }
+
+    private renderProgressRing(parent: HTMLElement, completed: number, total: number): void {
+        const percentage = total > 0 ? (completed / total) * 100 : 0;
+        const radius = 16;
+        const circumference = 2 * Math.PI * radius;
+        const offset = circumference - (percentage / 100) * circumference;
+
+        const ringWrap = parent.createDiv('diwa-progress-ring-wrap');
+        ringWrap.innerHTML = `
+            <svg class="diwa-progress-ring" width="40" height="40">
+                <circle class="diwa-progress-ring-bg" cx="20" cy="20" r="${radius}" stroke="var(--background-modifier-border)" stroke-width="3" fill="transparent" />
+                <circle class="diwa-progress-ring-fg" cx="20" cy="20" r="${radius}" stroke="var(--interactive-accent)" stroke-width="3" fill="transparent" 
+                        stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round" />
+            </svg>
+            <div class="diwa-progress-text">${completed}/${total}</div>
+        `;
+    }
+
     private renderMobileHome(container: HTMLElement): void {
         const wrap = container.createDiv('diwa-mobile-home');
         const focusTasks = this.getFocusTasks();
         const recentThoughts = this.getRecentThoughts(2);
         const openTasks = this.getOpenTaskCount();
+        const completedFocus = focusTasks.filter(task => isTaskDone(task)).length;
 
-        const hero = wrap.createDiv('diwa-mobile-hero');
-        hero.createDiv({ cls: 'diwa-mobile-hero-eyebrow', text: 'Capture first' });
-        hero.createDiv({ cls: 'diwa-mobile-hero-title', text: 'Keep your next move clear.' });
+        // Bento 1: Hero Greeting Tile
+        const hero = wrap.createDiv('diwa-home-bento-hero');
+        hero.createDiv({ cls: 'diwa-mobile-hero-eyebrow', text: 'Personal OS' });
+        hero.createDiv({ cls: 'diwa-mobile-hero-title', text: `${this.getGreeting()}, K.` });
         hero.createDiv({
             cls: 'diwa-mobile-hero-subtitle',
-            text: 'Drop a thought or task, then move straight into focus without friction.',
+            text: focusTasks.length === 0 
+                ? 'Your focus runway is clear. Capture a task to begin.'
+                : `You have ${focusTasks.length - completedFocus} active focus tasks for today.`,
         });
 
-        const capture = this.createActionButton(
-            hero,
-            'Capture a thought or task',
-            'plus',
-            () => this.plugin.openCaptureModal(),
-            'diwa-mobile-capture-entry'
-        );
-        capture.addClass('is-primary');
-        const captureText = capture.createDiv('diwa-mobile-capture-copy');
-        captureText.createDiv({ cls: 'diwa-mobile-capture-title', text: 'Capture a thought or task' });
-        captureText.createDiv({
-            cls: 'diwa-mobile-capture-subtitle',
-            text: 'Start with one line and let DIWA shape the flow.',
-        });
-
-        const metrics = hero.createDiv('diwa-mobile-hero-stats');
-        this.renderMetricChip(metrics, 'Focus', focusTasks.length);
-        this.renderMetricChip(metrics, 'Open', openTasks);
-        this.renderMetricChip(metrics, 'Thoughts', this.getThoughts().length);
-
-        const focus = wrap.createDiv('diwa-mobile-focus diwa-mobile-surface');
+        // Bento 2: Today Focus Card (Progress Ring)
+        const focus = wrap.createDiv('diwa-home-bento-focus');
         this.renderSectionHeader(
             focus,
             'Today focus',
-            focusTasks.length === 0 ? 'Nothing urgent yet' : 'Your priority queue for today',
-            `${focusTasks.length}`
+            undefined,
+            undefined,
+            (actionsParent) => {
+                this.renderProgressRing(actionsParent, completedFocus, focusTasks.length);
+            }
         );
         const focusList = focus.createDiv('diwa-mobile-focus-list');
         if (focusTasks.length === 0) {
@@ -513,7 +566,7 @@ export class DiwaMobileShell {
                 focusList,
                 'sparkles',
                 'A calm runway',
-                'Capture a task or promote one in Gawa when you are ready to move.'
+                'Promote a task in Gawa to target your energy today.'
             );
         } else {
             focusTasks.slice(0, 4).forEach((task) => {
@@ -521,7 +574,21 @@ export class DiwaMobileShell {
             });
         }
 
+        // Bento 3: Open Tasks Stat Card
+        const openStat = wrap.createDiv('diwa-home-bento-stat');
+        openStat.createDiv({ cls: 'diwa-mobile-hero-stat-value', text: String(openTasks) });
+        openStat.createDiv({ cls: 'diwa-mobile-hero-stat-label', text: 'Open Tasks' });
+        openStat.addEventListener('click', () => this.switchView('tasks'));
+
+        // Bento 4: Thoughts Stat Card
+        const thoughtsStat = wrap.createDiv('diwa-home-bento-stat');
+        thoughtsStat.createDiv({ cls: 'diwa-mobile-hero-stat-value', text: String(this.getThoughts().length) });
+        thoughtsStat.createDiv({ cls: 'diwa-mobile-hero-stat-label', text: 'Thoughts' });
+        thoughtsStat.addEventListener('click', () => this.switchView('thoughts'));
+
+        // Bento 5: Recent Thoughts Section
         const thoughts = wrap.createDiv('diwa-mobile-home-section diwa-mobile-surface');
+        thoughts.style.gridColumn = 'span 2';
         this.renderSectionHeader(
             thoughts,
             'Recent thoughts',
@@ -534,7 +601,7 @@ export class DiwaMobileShell {
                 thoughtList,
                 'pen-square',
                 'Nothing captured yet',
-                'When a thought lands, it will show up here for a quick return.'
+                'Tap the plus button below to capture your first thought.'
             );
         } else {
             recentThoughts.forEach((thought) => {
@@ -548,13 +615,15 @@ export class DiwaMobileShell {
         const focusTasks = this.getFocusTasks();
         const recentThoughts = this.getRecentThoughts(3);
         const openTasks = this.getOpenTaskCount();
+        const completedFocus = focusTasks.filter(task => isTaskDone(task)).length;
 
+        // Bento 1: Hero Greeting Tile (Spans 2 columns)
         const hero = wrap.createDiv('diwa-tablet-home-hero diwa-mobile-surface');
         hero.createDiv({ cls: 'diwa-mobile-hero-eyebrow', text: 'Diwa workspace' });
-        hero.createDiv({ cls: 'diwa-mobile-hero-title', text: 'A calm control center for capture and follow-through.' });
+        hero.createDiv({ cls: 'diwa-mobile-hero-title', text: `${this.getGreeting()}, K.` });
         hero.createDiv({
             cls: 'diwa-mobile-hero-subtitle',
-            text: 'Capture fast, check today’s focus, and jump into Gawa or thoughts without losing context.',
+            text: 'Your control center for capture, weekly review, and daily focus.',
         });
 
         const heroActions = hero.createDiv('diwa-tablet-home-actions');
@@ -569,17 +638,24 @@ export class DiwaMobileShell {
         this.createActionButton(heroActions, 'Open Gawa', 'check-square-2', () => this.switchView('tasks'), 'diwa-mobile-quick-action');
         this.createActionButton(heroActions, 'Review Diwa', 'pen-square', () => this.switchView('thoughts'), 'diwa-mobile-quick-action');
 
-        const metrics = hero.createDiv('diwa-mobile-hero-stats');
+        // Bento 2: Metrics overview widget card (Spans 1 column)
+        const metricsCard = wrap.createDiv('diwa-tablet-home-metrics');
+        metricsCard.createDiv({ cls: 'diwa-mobile-section-title', text: 'Activity Overview' });
+        const metrics = metricsCard.createDiv('diwa-mobile-hero-stats');
         this.renderMetricChip(metrics, 'Focus', focusTasks.length);
         this.renderMetricChip(metrics, 'Open tasks', openTasks);
         this.renderMetricChip(metrics, 'Thoughts', this.getThoughts().length);
 
+        // Bento 3: Today's Focus Card (Spans 2 columns)
         const focus = wrap.createDiv('diwa-tablet-home-focus-card diwa-mobile-surface');
         this.renderSectionHeader(
             focus,
             'Today focus',
             focusTasks.length === 0 ? 'Nothing urgent yet' : 'Priority tasks that deserve attention now',
-            `${focusTasks.length}`
+            undefined,
+            (actionsParent) => {
+                this.renderProgressRing(actionsParent, completedFocus, focusTasks.length);
+            }
         );
         const focusList = focus.createDiv('diwa-mobile-focus-list');
         if (focusTasks.length === 0) {
@@ -595,6 +671,7 @@ export class DiwaMobileShell {
             });
         }
 
+        // Bento 4: Recent Thoughts Card (Spans 1 column)
         const thoughts = wrap.createDiv('diwa-tablet-home-thoughts-card diwa-mobile-surface');
         this.renderSectionHeader(
             thoughts,
@@ -662,6 +739,9 @@ export class DiwaMobileShell {
         const contexts = this.plugin.getContexts();
         this.renderContextBar(wrap, contexts);
 
+        // Render Twitter-style Inline Composer at the top of the feed
+        this.renderInlineComposer(wrap);
+
         if (this.platform === 'tablet') {
             this.renderTabletThoughtsLayout(wrap, thoughts);
             return;
@@ -669,6 +749,122 @@ export class DiwaMobileShell {
 
         const list = wrap.createDiv('diwa-thought-list');
         this.renderThoughtList(list, thoughts, false);
+    }
+
+    private renderInlineComposer(container: HTMLElement): void {
+        const composerWrap = container.createDiv('diwa-composer-wrap');
+        
+        const editorContainer = composerWrap.createDiv('diwa-composer-editor');
+        
+        // Collapsed Placeholder
+        const placeholder = editorContainer.createDiv('diwa-composer-placeholder');
+        placeholder.createSpan({ text: "What's happening?" });
+        
+        // Expanded form
+        const form = editorContainer.createEl('form', { cls: 'diwa-composer-form diwa-composer-hidden' });
+        
+        // Textarea
+        const textarea = form.createEl('textarea', {
+            cls: 'diwa-composer-textarea',
+            attr: { placeholder: "What's happening?", rows: '2' }
+        });
+        
+        // Action row (toolbar + submit button)
+        const toolbar = form.createDiv('diwa-composer-toolbar');
+        
+        // Left icons side (attachment icons or char count ring)
+        const toolsLeft = toolbar.createDiv('diwa-composer-tools-left');
+        
+        // SVG progress ring helper for character counts
+        const ring = toolsLeft.createSvg('svg', { cls: 'diwa-char-ring', attr: { width: '24', height: '24' } });
+        const radius = 9;
+        const circ = 2 * Math.PI * radius;
+        ring.createSvg('circle', {
+            attr: { cx: '12', cy: '12', r: String(radius), stroke: 'var(--background-modifier-border)', 'stroke-width': '2', fill: 'none' }
+        });
+        const ringFg = ring.createSvg('circle', {
+            attr: { 
+                cx: '12', cy: '12', r: String(radius), 
+                stroke: 'var(--interactive-accent)', 'stroke-width': '2', fill: 'none',
+                'stroke-dasharray': String(circ), 'stroke-dashoffset': String(circ)
+            }
+        });
+        
+        // Right submit/cancel side
+        const toolsRight = toolbar.createDiv('diwa-composer-tools-right');
+        const cancelBtn = toolsRight.createEl('button', {
+            cls: 'diwa-composer-cancel',
+            text: 'Cancel',
+            attr: { type: 'button' }
+        });
+        const postBtn = toolsRight.createEl('button', {
+            cls: 'diwa-composer-post diwa-btn-primary',
+            text: 'Post',
+            attr: { type: 'submit', disabled: 'true' }
+        });
+        
+        // Textarea auto-resize and character limit check
+        textarea.addEventListener('input', () => {
+            textarea.style.height = 'auto';
+            textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+            
+            const len = textarea.value.length;
+            const pct = Math.min(len / 280, 1);
+            const offset = circ - (pct * circ);
+            ringFg.setAttribute('stroke-dashoffset', String(offset));
+            
+            // Limit checks
+            if (len >= 280) {
+                ringFg.setAttribute('stroke', 'var(--text-error)');
+                postBtn.setAttribute('disabled', 'true');
+            } else if (len >= 260) {
+                ringFg.setAttribute('stroke', 'var(--text-warning)');
+                postBtn.removeAttribute('disabled');
+            } else {
+                ringFg.setAttribute('stroke', 'var(--interactive-accent)');
+                if (len > 0) {
+                    postBtn.removeAttribute('disabled');
+                } else {
+                    postBtn.setAttribute('disabled', 'true');
+                }
+            }
+        });
+        
+        // Toggle Expanded / Collapsed
+        const expand = () => {
+            placeholder.addClass('diwa-composer-hidden');
+            form.removeClass('diwa-composer-hidden');
+            textarea.focus();
+        };
+        const collapse = () => {
+            placeholder.removeClass('diwa-composer-hidden');
+            form.addClass('diwa-composer-hidden');
+            textarea.value = '';
+            textarea.style.height = 'auto';
+            ringFg.setAttribute('stroke-dashoffset', String(circ));
+            postBtn.setAttribute('disabled', 'true');
+        };
+        
+        placeholder.addEventListener('click', expand);
+        cancelBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            collapse();
+        });
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = textarea.value.trim();
+            if (!text) return;
+            
+            const contexts = Array.from(this.activeContexts);
+            await this.plugin.vault.createThoughtFile(text, contexts);
+            if (navigator.vibrate) {
+                navigator.vibrate(10);
+            }
+            collapse();
+            this.refreshView();
+        });
     }
 
     private filterThoughts(thoughts: ThoughtEntry[], activeContexts: Set<string>): ThoughtEntry[] {

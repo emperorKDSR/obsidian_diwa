@@ -41,7 +41,7 @@ export interface TaskPaneOptions {
     filterFn?: TaskFilterFn | null;
     baseFilterFn?: TaskFilterFn;
     sortFn?: TaskSortFn | null;
-    presetFilter?: 'upcoming' | 'all';
+    presetFilter?: 'today' | 'upcoming' | 'all';
     title?: string;
     showFilterPills?: boolean;
     emptyMessage?: string;
@@ -61,7 +61,7 @@ export interface TaskPaneHost {
     plugin: any;
     _taskPending: number;
     _taskTogglePending?: number;
-    _taskFilter: 'upcoming' | 'all';
+    _taskFilter: 'today' | 'upcoming' | 'all';
 }
 
 interface InlinePopoverOptions {
@@ -473,6 +473,7 @@ export class DesktopTaskPaneView implements TaskPanePort {
 
 export class TaskPane implements TaskPanePort {
     rootEl: HTMLElement;
+    private pillTodayEl: HTMLElement | null = null;
     private pillUpcomingEl: HTMLElement | null = null;
     private pillAllEl: HTMLElement | null = null;
     private countEl: HTMLElement;
@@ -485,7 +486,7 @@ export class TaskPane implements TaskPanePort {
     private customFilter: TaskFilterFn | null;
     private baseFilter: TaskFilterFn;
     private sortComparator: TaskSortFn | null;
-    private presetFilter: 'upcoming' | 'all';
+    private presetFilter: 'today' | 'upcoming' | 'all';
     private readonly title: string;
     private readonly emptyMessage?: string;
     private readonly showFilterPills: boolean;
@@ -537,7 +538,7 @@ export class TaskPane implements TaskPanePort {
             || task.state === 'active'
         );
         this.sortComparator = options.sortFn ?? null;
-        this.presetFilter = options.presetFilter ?? this.view._taskFilter ?? 'upcoming';
+        this.presetFilter = options.presetFilter ?? this.view._taskFilter ?? 'today';
         for (const plugin of options.plugins ?? []) this.pluginMap.set(plugin.id, plugin);
         this.rootEl = parent.createEl(this.layoutVariant === 'workspace-right' ? 'section' : 'div', {
             cls: 'diwa-dh-task-list-section',
@@ -599,6 +600,10 @@ export class TaskPane implements TaskPanePort {
 
         if (this.showFilterPills) {
             const filterGroup = filterParent.createEl('div', { cls: 'diwa-dh-task-filter' });
+            this.pillTodayEl = filterGroup.createEl('button', {
+                text: 'TODAY',
+                cls: 'diwa-dh-task-filter-pill',
+            });
             this.pillUpcomingEl = filterGroup.createEl('button', {
                 text: '2 DAYS',
                 cls: 'diwa-dh-task-filter-pill',
@@ -608,6 +613,7 @@ export class TaskPane implements TaskPanePort {
                 cls: 'diwa-dh-task-filter-pill',
             });
 
+            this.pillTodayEl.addEventListener('click', () => this.setPresetFilter('today'));
             this.pillUpcomingEl.addEventListener('click', () => this.setPresetFilter('upcoming'));
             this.pillAllEl.addEventListener('click', () => this.setPresetFilter('all'));
         }
@@ -791,7 +797,7 @@ export class TaskPane implements TaskPanePort {
         this.groupHeaderMap.clear();
     }
 
-    private setPresetFilter(filter: 'upcoming' | 'all'): void {
+    private setPresetFilter(filter: 'today' | 'upcoming' | 'all'): void {
         if (!this.showFilterPills) return;
         if (this.presetFilter === filter) return;
         this.presetFilter = filter;
@@ -801,6 +807,7 @@ export class TaskPane implements TaskPanePort {
     }
 
     private updateFilterButtons(): void {
+        this.pillTodayEl?.toggleClass('is-active', this.presetFilter === 'today');
         this.pillUpcomingEl?.toggleClass('is-active', this.presetFilter === 'upcoming');
         this.pillAllEl?.toggleClass('is-active', this.presetFilter === 'all');
         this.rootEl.setAttr('data-task-filter', this.presetFilter);
@@ -836,7 +843,14 @@ export class TaskPane implements TaskPanePort {
         if (!task.status && !task.state && !task.bucketStatus && !task.lifecycleStatus) return true;
         if (!this.baseFilter(task)) return false;
 
-        if (this.presetFilter === 'upcoming') {
+        if (this.presetFilter === 'today') {
+            if (task.due) {
+                const today = moment().startOf('day');
+                const cutoff = today.clone().endOf('day');
+                const dueDate = moment(task.due, 'YYYY-MM-DD');
+                if (!dueDate.isSameOrBefore(cutoff, 'day')) return false;
+            }
+        } else if (this.presetFilter === 'upcoming') {
             if (task.due) {
                 const today = moment().startOf('day');
                 const cutoff = today.clone().add(2, 'days').endOf('day');
@@ -1078,9 +1092,11 @@ export class TaskPane implements TaskPanePort {
         if (this.emptyMessage) {
             this.emptyEl.setText(this.emptyMessage);
         } else {
-            this.emptyEl.setText(this.presetFilter === 'upcoming'
-                ? 'No tasks in the next 2 days.'
-                : 'All clear — no open gawa.');
+            this.emptyEl.setText(this.presetFilter === 'today'
+                ? 'No tasks for today.'
+                : this.presetFilter === 'upcoming'
+                    ? 'No tasks in the next 2 days.'
+                    : 'All clear — no open gawa.');
         }
         this.emptyEl.style.display = '';
         this.listEl.style.display = 'none';
@@ -1110,6 +1126,11 @@ export class TaskPane implements TaskPanePort {
                     : 'Promoted tasks stay visible here';
             default:
                 break;
+        }
+        if (this.presetFilter === 'today') {
+            return count > 0
+                ? `${count} task${count === 1 ? '' : 's'} due today`
+                : 'Only tasks due today appear here';
         }
         if (this.presetFilter === 'upcoming') {
             return count > 0
@@ -1801,6 +1822,7 @@ export class TaskItemView {
             return;
         }
         this.triggerRecall();
+        this.openStructuredEditor();
         this.hooks.onClick?.(this.currentTask);
     }
 
