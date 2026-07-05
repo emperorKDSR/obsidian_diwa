@@ -13,6 +13,7 @@ import { ThoughtController } from './ThoughtController';
 import { enableImageZoom } from '../utils/imageZoom';
 import { VIEW_TYPE_DIWA_MINDMAP } from '../constants';
 import { FastTaskCaptureModal, type FastTaskCapturePayload } from '../modals/FastTaskCaptureModal';
+import { MobilePostComposerModal } from '../modals/MobilePostComposerModal';
 
 interface FeedRowRef {
     rootEl: HTMLElement;
@@ -147,6 +148,8 @@ export class DesktopHubView extends ItemView {
     private _rightResizeStopHandler: ((event: PointerEvent) => void) | null = null;
     private _rightResizeWindow: Window | null = null;
 
+    private _mobileViewMode: 'hub' | 'feed' = 'hub';
+    
     // Topbar guard: only rebuild when focus mode changes or topbar is new
     private _topBarFocusMode: boolean | null = null;
     private _focusBtnEl: HTMLButtonElement | null = null;
@@ -346,6 +349,117 @@ export class DesktopHubView extends ItemView {
         this.resetLayoutRefs();
         root.empty();
         
+        if (this._mobileViewMode === 'feed') {
+            const feedPage = root.createEl('div', { cls: 'diwa-mobile-feed-page' });
+            
+            // ── Sticky Header ──
+            const header = feedPage.createEl('header', { cls: 'diwa-mobile-feed-header' });
+            
+            const headerLeft = header.createEl('div', { cls: 'diwa-mobile-feed-header-left' });
+            const backBtn = headerLeft.createEl('button', { cls: 'diwa-mobile-feed-back', attr: { 'aria-label': 'Back to Hub' } });
+            setIcon(backBtn, 'chevron-left');
+            backBtn.addEventListener('click', () => {
+                this._mobileViewMode = 'hub';
+                this.renderView();
+            });
+            
+            headerLeft.createEl('h2', { text: 'Thoughts', cls: 'diwa-mobile-feed-title' });
+            
+            const allThoughts = Array.from(this.plugin.index.thoughtIndex.values())
+                .filter(t => !t.journalType);
+            const headerCount = header.createEl('span', { cls: 'diwa-mobile-feed-count', text: `${allThoughts.length}` });
+            
+            // ── Search Bar ──
+            const searchWrap = feedPage.createEl('div', { cls: 'diwa-mobile-feed-search-wrap' });
+            const searchInput = searchWrap.createEl('input', {
+                cls: 'diwa-mobile-feed-search',
+                attr: { type: 'text', placeholder: 'Search thoughts…' },
+            }) as HTMLInputElement;
+            
+            // ── Feed List ──
+            const feedList = feedPage.createEl('div', { cls: 'diwa-mobile-feed-list' });
+            
+            const renderList = (query: string) => {
+                feedList.empty();
+                let filtered = allThoughts
+                    .sort((a, b) => {
+                        const ta = a.modified || a.created || '';
+                        const tb = b.modified || b.created || '';
+                        return tb.localeCompare(ta);
+                    });
+                
+                if (query) {
+                    const q = query.toLowerCase();
+                    filtered = filtered.filter(t =>
+                        (t.title || '').toLowerCase().includes(q) ||
+                        (t.body || '').toLowerCase().includes(q) ||
+                        (t.context || []).some(c => c.toLowerCase().includes(q))
+                    );
+                }
+                
+                headerCount.textContent = `${filtered.length}`;
+                
+                if (filtered.length === 0) {
+                    const emptyEl = feedList.createEl('div', { cls: 'diwa-mobile-feed-empty' });
+                    const emptyIcon = emptyEl.createEl('span', { cls: 'diwa-mobile-feed-empty-icon' });
+                    setIcon(emptyIcon, query ? 'search-x' : 'lightbulb');
+                    emptyEl.createEl('p', { text: query ? 'No thoughts match your search.' : 'No thoughts yet. Capture your first one!' });
+                    return;
+                }
+                
+                for (const thought of filtered.slice(0, this._visibleCount)) {
+                    const card = feedList.createEl('div', { cls: 'diwa-mobile-feed-card' });
+                    
+                    // Title row
+                    const titleRow = card.createEl('div', { cls: 'diwa-mobile-feed-card-title-row' });
+                    const title = thought.title || 'Untitled thought';
+                    titleRow.createEl('span', { cls: 'diwa-mobile-feed-card-title', text: title });
+                    
+                    // Timestamp
+                    const ts = thought.modified || thought.created || '';
+                    if (ts) {
+                        const m = (window as any).moment?.(ts, ['YYYY-MM-DD HH:mm:ss', 'YYYY-MM-DDTHH:mm:ss']);
+                        const timeText = m?.isValid() ? m.fromNow() : ts;
+                        titleRow.createEl('span', { cls: 'diwa-mobile-feed-card-time', text: timeText });
+                    }
+                    
+                    // Body preview (rendered markdown)
+                    const bodyText = (thought.body || '').trim();
+                    if (bodyText) {
+                        const bodyEl = card.createEl('div', { cls: 'diwa-mobile-feed-card-body' });
+                        void MarkdownRenderer.render(
+                            this.app,
+                            bodyText,
+                            bodyEl,
+                            thought.filePath || '',
+                            this,
+                        );
+                    }
+                    
+                    // Context tags
+                    const contexts = (thought.context || []).filter(Boolean);
+                    if (contexts.length > 0) {
+                        const tagsRow = card.createEl('div', { cls: 'diwa-mobile-feed-card-tags' });
+                        for (const ctx of contexts.slice(0, 4)) {
+                            tagsRow.createEl('span', { cls: 'diwa-mobile-feed-card-tag', text: `#${ctx}` });
+                        }
+                    }
+                    
+                    card.addEventListener('click', () => {
+                        this.openThoughtSheet(thought);
+                    });
+                }
+            };
+            
+            renderList('');
+            
+            searchInput.addEventListener('input', () => {
+                renderList(searchInput.value.trim());
+            });
+            
+            return;
+        }
+        
         const hub = root.createEl('div', { cls: 'diwa-mobile-hub-premium' });
 
         // Ambient Background Glows
@@ -364,8 +478,9 @@ export class DesktopHubView extends ItemView {
         
         greetingWrap.createEl('h1', { cls: 'diwa-greeting', text: greeting });
         
-        const tasks = Array.from(this.plugin.index.taskIndex.values()).filter(t => t.status !== 'done');
-        greetingWrap.createEl('span', { cls: 'diwa-date-meta', text: `${tasks.length} tasks open` });
+        const dateOptions: Intl.DateTimeFormatOptions = { weekday: 'long', month: 'short', day: 'numeric' };
+        const dateString = now.toLocaleDateString('en-US', dateOptions);
+        greetingWrap.createEl('span', { cls: 'diwa-date-meta', text: dateString });
         
         const progressRing = header.createEl('div', { cls: 'diwa-progress-ring-container' });
         progressRing.innerHTML = `
@@ -378,69 +493,184 @@ export class DesktopHubView extends ItemView {
         // Bento Grid
         const nav = hub.createEl('nav', { cls: 'diwa-bento-grid' });
         
+        // Stats Calculation for Today
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        
+        const notesCreatedToday = Array.from(this.plugin.index.thoughtIndex.values())
+            .filter(t => t.day === todayStr).length;
+            
+        const tasks = Array.from(this.plugin.index.taskIndex.values());
+        const openTasksCount = tasks.filter(t => t.status !== 'done').length;
+        const tasksDueToday = tasks.filter(t => t.due === todayStr && t.status !== 'done').length;
+
         // Today Card
         const todayCard = nav.createEl('button', { cls: 'diwa-bento-card card-primary glass-panel' });
-        const todayIconWrap = todayCard.createEl('div', { cls: 'card-icon-wrapper' });
+        
+        // Top section: Icon on left, Tasks on right
+        const todayTopSection = todayCard.createEl('div');
+        todayTopSection.setAttribute('style', 'display: flex; flex-direction: row; gap: 16px; width: 100%; align-items: stretch;');
+        
+        const todayIconWrap = todayTopSection.createEl('div', { cls: 'card-icon-wrapper' });
+        todayIconWrap.style.flexDirection = 'column';
+        todayIconWrap.style.gap = '4px';
+        todayIconWrap.style.margin = '0'; // Override margin-bottom: auto so it doesn't break row layout
+        
         const todayIcon = todayIconWrap.createEl('div', { cls: 'card-icon' });
-        setIcon(todayIcon, 'sun');
+        setIcon(todayIcon, 'loader');
+        
+        const todayTitle = todayIconWrap.createEl('span', { cls: 'card-title', text: 'Today' });
+        todayTitle.style.fontSize = '13px';
+        todayTitle.style.fontWeight = '600';
+        todayTitle.style.marginTop = '4px';
+        
+        // Top 3 tasks list beside the icon
+        const todayTasksList = todayTopSection.createEl('div');
+        todayTasksList.setAttribute('style', 'display: flex; flex-direction: column; gap: 6px; flex: 1; text-align: left; justify-content: center; overflow: hidden; padding-top: 4px;');
+        
+        const openTasksList = tasks.filter(t => t.status !== 'done');
+        // Sort by due date (closest first)
+        const topTasks = openTasksList.sort((a, b) => {
+            if (a.due && b.due) return a.due.localeCompare(b.due);
+            if (a.due) return -1;
+            if (b.due) return 1;
+            return 0;
+        }).slice(0, 3);
+        
+        for (const task of topTasks) {
+            const taskRow = todayTasksList.createEl('div');
+            taskRow.setAttribute('style', 'display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-normal); overflow: hidden;');
+            taskRow.innerHTML = `<span style="display: inline-block; min-width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--interactive-accent);"></span><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${task.title}</span>`;
+        }
+        
+        if (topTasks.length === 0) {
+            const emptyMsg = todayTasksList.createEl('span', { text: 'All caught up!' });
+            emptyMsg.setAttribute('style', 'font-size: 13px; color: var(--text-muted); font-style: italic;');
+        }
+        
         const todayContent = todayCard.createEl('div', { cls: 'card-content' });
-        todayContent.createEl('span', { cls: 'card-title', text: 'Today' });
-        todayContent.createEl('span', { cls: 'card-subtitle', text: 'Focus on priorities' });
+        todayContent.setAttribute('style', 'margin-top: auto;');
+        todayContent.createEl('span', { cls: 'card-subtitle', text: `${notesCreatedToday} notes • ${tasksDueToday} due • ${openTasksCount} open` });
         todayCard.addEventListener('click', () => {
             new Notice('Today view coming soon!');
         });
-        
-        // Inbox Card
-        const inboxCard = nav.createEl('button', { cls: 'diwa-bento-card glass-panel' });
-        const inboxIconWrap = inboxCard.createEl('div', { cls: 'card-icon-wrapper' });
-        const inboxIcon = inboxIconWrap.createEl('div', { cls: 'card-icon' });
-        setIcon(inboxIcon, 'inbox');
-        inboxCard.createEl('span', { cls: 'card-title', text: 'Inbox' });
-        const inboxCount = Array.from(this.plugin.index.thoughtIndex.values()).length;
-        if (inboxCount > 0) {
-            inboxCard.createEl('span', { cls: 'card-badge', text: `${inboxCount}` });
-        }
-        
-        // Projects Card
-        const projectsCard = nav.createEl('button', { cls: 'diwa-bento-card glass-panel' });
-        const projectsIconWrap = projectsCard.createEl('div', { cls: 'card-icon-wrapper' });
-        const projectsIcon = projectsIconWrap.createEl('div', { cls: 'card-icon' });
-        setIcon(projectsIcon, 'folder');
-        projectsCard.createEl('span', { cls: 'card-title', text: 'Projects' });
 
-        // FAB
-        const fabContainer = hub.createEl('div', { cls: 'diwa-fab-container' });
-        const fabTrigger = fabContainer.createEl('button', { cls: 'diwa-fab-trigger glass-fab', attr: { 'aria-label': 'Quick Capture' } });
-        const fabIcon = fabTrigger.createEl('div', { cls: 'icon-plus' });
-        setIcon(fabIcon, 'plus');
+        // Dynamic Weather Icon
+        const fetchWeather = async () => {
+            if (!navigator.onLine) {
+                setIcon(todayIcon, 'wifi-off');
+                return;
+            }
+            try {
+                const ipRes = await fetch('https://ipapi.co/json/');
+                if (!ipRes.ok) throw new Error();
+                const ipData = await ipRes.json();
+                
+                const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${ipData.latitude}&longitude=${ipData.longitude}&current_weather=true`);
+                if (!weatherRes.ok) throw new Error();
+                const weatherData = await weatherRes.json();
+                
+                const code = weatherData.current_weather.weathercode;
+                const isDay = weatherData.current_weather.is_day;
+                
+                let iconName = 'sun';
+                if (code === 0) iconName = isDay ? 'sun' : 'moon';
+                else if (code >= 1 && code <= 3) iconName = isDay ? 'cloud-sun' : 'cloud-moon';
+                else if (code >= 45 && code <= 48) iconName = 'cloud-fog';
+                else if (code >= 51 && code <= 67) iconName = 'cloud-rain';
+                else if (code >= 71 && code <= 77) iconName = 'snowflake';
+                else if (code >= 80 && code <= 82) iconName = 'cloud-rain';
+                else if (code >= 95) iconName = 'cloud-lightning';
+                else iconName = 'cloud';
+                
+                setIcon(todayIcon, iconName);
+            } catch (e) {
+                setIcon(todayIcon, 'cloud-off');
+            }
+        };
+        fetchWeather();
         
-        fabTrigger.addEventListener('click', () => {
-            new FastTaskCaptureModal(
-                this.app,
-                this.plugin,
-                async (payload: FastTaskCapturePayload) => {
-                    try {
-                        this.plugin.refreshCoordinator.suppressNotifyRefresh(800);
-                        const created = await this.plugin.vault.createTaskFile(
-                            payload.text,
-                            payload.contexts,
-                            payload.dueDate || undefined,
-                            {
-                                priority: payload.priority ?? undefined,
-                                status: payload.status,
-                            }
-                        );
-                        if (created) {
-                            new Notice('Task created');
-                            void this.plugin.index.buildIndices();
-                            this.updateTaskPaneFromIndex();
-                        }
-                    } catch (e) {
-                        new Notice('Failed to create task');
-                        console.error(e);
-                    }
-                }
-            ).open();
+        // Diwa Card
+        const diwaCard = nav.createEl('button', { cls: 'diwa-bento-card glass-panel' });
+        const diwaTopRow = diwaCard.createEl('div');
+        diwaTopRow.setAttribute('style', 'display: flex; flex-direction: row; align-items: center; justify-content: space-between; width: 100%;');
+        
+        const diwaIconWrap = diwaTopRow.createEl('div', { cls: 'card-icon-wrapper' });
+        diwaIconWrap.setAttribute('style', 'margin-bottom: 0;');
+        const diwaIcon = diwaIconWrap.createEl('div', { cls: 'card-icon' });
+        setIcon(diwaIcon, 'inbox');
+        
+        const allThoughts = Array.from(this.plugin.index.thoughtIndex.values());
+        const diwaCount = allThoughts.filter(t => !t.journalType).length; 
+        const diwaStat = diwaTopRow.createEl('span', { text: `${diwaCount}` });
+        diwaStat.setAttribute('style', 'font-size: 24px; font-weight: 700; line-height: 1;');
+        
+        const diwaTitle = diwaCard.createEl('span', { cls: 'card-title', text: 'Diwa' });
+        diwaTitle.setAttribute('style', 'margin-top: auto;');
+        
+        diwaCard.addEventListener('click', () => {
+            new MobilePostComposerModal(this.app, this.plugin).open();
+        });
+        
+        // Gawa Card
+        const gawaCard = nav.createEl('button', { cls: 'diwa-bento-card glass-panel' });
+        const gawaTopRow = gawaCard.createEl('div');
+        gawaTopRow.setAttribute('style', 'display: flex; flex-direction: row; align-items: center; justify-content: space-between; width: 100%;');
+        
+        const gawaIconWrap = gawaTopRow.createEl('div', { cls: 'card-icon-wrapper' });
+        gawaIconWrap.setAttribute('style', 'margin-bottom: 0;');
+        const gawaIcon = gawaIconWrap.createEl('div', { cls: 'card-icon' });
+        setIcon(gawaIcon, 'list-todo');
+        
+        const gawaStat = gawaTopRow.createEl('span', { text: `${openTasksCount}` });
+        gawaStat.setAttribute('style', 'font-size: 24px; font-weight: 700; line-height: 1;');
+        
+        const gawaTitle = gawaCard.createEl('span', { cls: 'card-title', text: 'Gawa' });
+        gawaTitle.setAttribute('style', 'margin-top: auto;');
+        
+        gawaCard.addEventListener('click', () => {
+            void this.plugin.activateView('review-gawa');
+        });
+
+        // Journal Card
+        const journalCard = nav.createEl('button', { cls: 'diwa-bento-card glass-panel' });
+        const journalTopRow = journalCard.createEl('div');
+        journalTopRow.setAttribute('style', 'display: flex; flex-direction: row; align-items: center; justify-content: space-between; width: 100%;');
+        
+        const journalIconWrap = journalTopRow.createEl('div', { cls: 'card-icon-wrapper' });
+        journalIconWrap.setAttribute('style', 'margin-bottom: 0;');
+        const journalIcon = journalIconWrap.createEl('div', { cls: 'card-icon' });
+        setIcon(journalIcon, 'book-open');
+        
+        const journalCount = allThoughts.filter(t => !!t.journalType).length;
+        const journalStat = journalTopRow.createEl('span', { text: `${journalCount}` });
+        journalStat.setAttribute('style', 'font-size: 24px; font-weight: 700; line-height: 1;');
+        
+        const journalTitle = journalCard.createEl('span', { cls: 'card-title', text: 'Journal' });
+        journalTitle.setAttribute('style', 'margin-top: auto;');
+        
+        journalCard.addEventListener('click', () => {
+            void this.plugin.activateView('journal');
+        });
+
+        // Thoughts Feed Card
+        const feedCard = nav.createEl('button', { cls: 'diwa-bento-card glass-panel' });
+        const feedTopRow = feedCard.createEl('div');
+        feedTopRow.setAttribute('style', 'display: flex; flex-direction: row; align-items: center; justify-content: space-between; width: 100%;');
+        
+        const feedIconWrap = feedTopRow.createEl('div', { cls: 'card-icon-wrapper' });
+        feedIconWrap.setAttribute('style', 'margin-bottom: 0;');
+        const feedIcon = feedIconWrap.createEl('div', { cls: 'card-icon' });
+        setIcon(feedIcon, 'rss');
+        
+        const feedStat = feedTopRow.createEl('span', { text: `${allThoughts.length}` });
+        feedStat.setAttribute('style', 'font-size: 24px; font-weight: 700; line-height: 1;');
+        
+        const feedTitle = feedCard.createEl('span', { cls: 'card-title', text: 'Thoughts' });
+        feedTitle.setAttribute('style', 'margin-top: auto;');
+        
+        feedCard.addEventListener('click', () => {
+            this._mobileViewMode = 'feed';
+            this.renderView();
         });
     }
 
@@ -2143,5 +2373,78 @@ export class DesktopHubView extends ItemView {
             requestSaveLayout?: () => void;
         };
         workspaceWithSave.requestSaveLayout?.();
+    }
+
+    // ── Thought Detail Sheet ──────────────────────────────────────────────
+    private openThoughtSheet(thought: ThoughtEntry): void {
+        // Overlay backdrop
+        const overlay = document.body.createEl('div', { cls: 'diwa-thought-sheet-overlay' });
+        
+        const sheet = overlay.createEl('div', { cls: 'diwa-thought-sheet' });
+        
+        // Header
+        const header = sheet.createEl('header', { cls: 'diwa-thought-sheet-header' });
+        
+        const closeBtn = header.createEl('button', { cls: 'diwa-thought-sheet-close', attr: { 'aria-label': 'Close' } });
+        setIcon(closeBtn, 'chevron-left');
+        
+        const headerCopy = header.createEl('div', { cls: 'diwa-thought-sheet-header-copy' });
+        headerCopy.createEl('h2', { cls: 'diwa-thought-sheet-title', text: thought.title || 'Untitled thought' });
+        
+        // Meta row
+        const ts = thought.modified || thought.created || '';
+        const m = (window as any).moment?.(ts, ['YYYY-MM-DD HH:mm:ss', 'YYYY-MM-DDTHH:mm:ss']);
+        const timeText = m?.isValid() ? m.format('ddd, MMM D · h:mm A') : ts;
+        headerCopy.createEl('span', { cls: 'diwa-thought-sheet-meta', text: timeText });
+        
+        const openFileBtn = header.createEl('button', { cls: 'diwa-thought-sheet-open', attr: { 'aria-label': 'Open file' } });
+        setIcon(openFileBtn, 'external-link');
+        openFileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const file = this.app.vault.getAbstractFileByPath(thought.filePath);
+            if (file instanceof TFile) {
+                void this.app.workspace.getLeaf(false).openFile(file);
+            }
+            overlay.remove();
+        });
+        
+        // Scrollable body
+        const body = sheet.createEl('div', { cls: 'diwa-thought-sheet-body' });
+        
+        // Context tags at top
+        const contexts = (thought.context || []).filter(Boolean);
+        if (contexts.length > 0) {
+            const tagsRow = body.createEl('div', { cls: 'diwa-thought-sheet-tags' });
+            for (const ctx of contexts) {
+                tagsRow.createEl('span', { cls: 'diwa-mobile-feed-card-tag', text: `#${ctx}` });
+            }
+        }
+        
+        // Full markdown content
+        const contentEl = body.createEl('div', { cls: 'diwa-thought-sheet-content markdown-rendered' });
+        const fullContent = thought.content || thought.body || '';
+        void MarkdownRenderer.render(
+            this.app,
+            fullContent,
+            contentEl,
+            thought.filePath || '',
+            this,
+        ).then(() => {
+            enableImageZoom(this.app, contentEl);
+        });
+        
+        // Close handlers
+        const close = () => {
+            overlay.addClass('is-closing');
+            setTimeout(() => overlay.remove(), 220);
+        };
+        
+        closeBtn.addEventListener('click', close);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) close();
+        });
+        
+        // Animate in
+        requestAnimationFrame(() => overlay.addClass('is-open'));
     }
 }

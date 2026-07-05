@@ -92,13 +92,17 @@ export function renderJournalComposer(options: JournalComposerOptions): JournalC
         header.addClass('diwa-journal-composer__header--mobile');
         if (onCancel) {
             const dismissBtn = header.createEl('button', {
-                cls: 'diwa-journal-composer__mobile-dismiss',
-                text: mode === 'new' ? 'Cancel' : 'Close',
+                cls: 'diwa-journal-composer__mobile-dismiss diwa-action-btn-ghost',
                 attr: {
                     type: 'button',
                     'aria-label': mode === 'new' ? 'Cancel journal composer' : 'Close journal editor',
                 },
             });
+            dismissBtn.style.padding = '8px';
+            dismissBtn.style.minWidth = 'unset';
+            dismissBtn.style.border = 'none';
+            dismissBtn.style.background = 'transparent';
+            setIcon(dismissBtn, 'chevron-left');
             dismissBtn.addEventListener('click', () => onCancel());
         } else {
             header.createDiv('diwa-journal-composer__mobile-dismiss-spacer');

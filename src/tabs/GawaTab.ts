@@ -173,7 +173,21 @@ export class GawaTab extends BaseTab {
     private renderHeader(parent: HTMLElement): void {
         const header = parent.createEl('div', { cls: 'diwa-gawa-header diwa-gawa-workspace-bar' });
         if (this.isPhoneLayout()) header.addClass('is-phone-header');
-        const identity = header.createEl('div', { cls: 'diwa-gawa-workspace-bar-left' });
+        
+        const identityRow = header.createEl('div');
+        identityRow.setAttribute('style', 'display: flex; align-items: center; gap: 8px;');
+        
+        if (this.isPhoneLayout()) {
+            const backBtn = identityRow.createEl('button', { cls: 'diwa-gawa-header-btn diwa-action-btn-ghost', attr: { 'aria-label': 'Back to Hub' } });
+            backBtn.style.padding = '8px';
+            backBtn.style.marginRight = '4px';
+            setIcon(backBtn, 'chevron-left');
+            backBtn.addEventListener('click', () => {
+                void this.plugin.activateDesktopHub();
+            });
+        }
+        
+        const identity = identityRow.createEl('div', { cls: 'diwa-gawa-workspace-bar-left' });
         identity.createEl('span', { text: 'Task workspace', cls: 'diwa-gawa-workspace-eyebrow' });
         const titleGroup = identity.createEl('div', { cls: 'diwa-gawa-header-title-group diwa-gawa-workspace-identity' });
         titleGroup.createEl('h2', { text: 'Gawa', cls: 'diwa-gawa-header-title' });

@@ -233,8 +233,7 @@ export class JournalTab extends BaseTab {
                 };
             },
             onCancel: () => {
-                this.startNewEntry(false);
-                this.view.renderView();
+                void this.plugin.activateDesktopHub();
             },
             onSave: async (value) => {
                 const saved = await this.saveEntry(value);
