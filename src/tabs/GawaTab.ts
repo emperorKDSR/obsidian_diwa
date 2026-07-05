@@ -603,35 +603,71 @@ export class GawaTab extends BaseTab {
 
     private renderTableView(parent: HTMLElement): void {
         const container = parent.createEl('div', { cls: 'diwa-gawa-table-view diwa-gawa-list-container' });
+        const isMobile = this.isPhoneLayout();
         
-        const header = container.createEl('div', { cls: 'diwa-gawa-list-header' });
-
-        const renderSortHeader = (field: 'task' | 'priority' | 'due', label: string, cls: string) => {
-            const span = header.createEl('span', { cls: `${cls} is-sortable` });
-            span.setText(label);
-            span.style.cursor = 'pointer';
-            if (this._sortField === field) {
-                span.createEl('span', { text: this._sortDirection === 'asc' ? ' ↑' : ' ↓', cls: 'diwa-gawa-sort-icon' });
-            }
-            span.addEventListener('click', () => {
+        if (isMobile) {
+            // Render mobile-friendly sorting options bar
+            const sortBar = container.createEl('div', { cls: 'diwa-gawa-mobile-sort-bar' });
+            sortBar.createEl('span', { text: 'Sort:', cls: 'sort-label' });
+            
+            const renderSortPill = (field: 'task' | 'priority' | 'due', label: string) => {
+                const pill = sortBar.createEl('button', { 
+                    cls: `diwa-gawa-mobile-sort-pill ${this._sortField === field ? 'is-active' : ''}`,
+                    attr: { type: 'button' }
+                });
+                pill.setText(label);
                 if (this._sortField === field) {
-                    this._sortDirection = this._sortDirection === 'asc' ? 'desc' : 'asc';
-                } else {
-                    this._sortField = field;
-                    this._sortDirection = 'asc';
+                    const arrow = this._sortDirection === 'asc' ? ' ↑' : ' ↓';
+                    pill.setText(label + arrow);
                 }
-                if (this._rootEl) {
-                    const oldTable = this._rootEl.querySelector('.diwa-gawa-table-view');
-                    if (oldTable) oldTable.remove();
-                    this.renderTableView(this._rootEl);
-                }
-            });
-        };
+                pill.addEventListener('click', () => {
+                    if (this._sortField === field) {
+                        this._sortDirection = this._sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this._sortField = field;
+                        this._sortDirection = 'asc';
+                    }
+                    if (this._rootEl) {
+                        const oldTable = this._rootEl.querySelector('.diwa-gawa-table-view');
+                        if (oldTable) oldTable.remove();
+                        this.renderTableView(this._rootEl);
+                    }
+                });
+            };
+            
+            renderSortPill('task', 'Task');
+            renderSortPill('priority', 'Priority');
+            renderSortPill('due', 'Deadline');
+        } else {
+            const header = container.createEl('div', { cls: 'diwa-gawa-list-header' });
 
-        renderSortHeader('task', 'Task', 'col-main');
-        renderSortHeader('priority', 'Priority', 'col-priority');
-        renderSortHeader('due', 'Due', 'col-due');
-        header.createEl('span', { text: '', cls: 'col-actions' });
+            const renderSortHeader = (field: 'task' | 'priority' | 'due', label: string, cls: string) => {
+                const span = header.createEl('span', { cls: `${cls} is-sortable` });
+                span.setText(label);
+                span.style.cursor = 'pointer';
+                if (this._sortField === field) {
+                    span.createEl('span', { text: this._sortDirection === 'asc' ? ' ↑' : ' ↓', cls: 'diwa-gawa-sort-icon' });
+                }
+                span.addEventListener('click', () => {
+                    if (this._sortField === field) {
+                        this._sortDirection = this._sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this._sortField = field;
+                        this._sortDirection = 'asc';
+                    }
+                    if (this._rootEl) {
+                        const oldTable = this._rootEl.querySelector('.diwa-gawa-table-view');
+                        if (oldTable) oldTable.remove();
+                        this.renderTableView(this._rootEl);
+                    }
+                });
+            };
+
+            renderSortHeader('task', 'Task', 'col-main');
+            renderSortHeader('priority', 'Priority', 'col-priority');
+            renderSortHeader('due', 'Due', 'col-due');
+            header.createEl('span', { text: '', cls: 'col-actions' });
+        }
 
         const listBody = container.createEl('div', { cls: 'diwa-gawa-list-body' });
 
@@ -675,54 +711,91 @@ export class GawaTab extends BaseTab {
             const row = listBody.createEl('div', { cls: 'diwa-gawa-list-row' });
             if (task.status === 'done') row.addClass('is-done');
             
-            const mainCol = row.createEl('div', { cls: 'col-main' });
-            
-            const statusIcon = mainCol.createEl('span', { cls: `diwa-status-icon is-${task.status}` });
-            setIcon(statusIcon, task.status === 'done' ? 'check-circle' : 'circle');
-            
-            statusIcon.addEventListener('click', (e) => {
-                e.stopPropagation();
-                void this._taskController.toggleTask(this.getTaskIdentity(task));
-            });
+            if (isMobile) {
+                const statusIcon = row.createEl('span', { cls: `diwa-status-icon is-${task.status}` });
+                setIcon(statusIcon, task.status === 'done' ? 'check-circle' : 'circle');
+                
+                statusIcon.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    void this._taskController.toggleTask(this.getTaskIdentity(task));
+                });
 
-            mainCol.createEl('span', { text: task.title, cls: 'diwa-title-text' });
-            
-            if (task.context && task.context.length > 0) {
-                const tagsContainer = mainCol.createEl('div', { cls: 'diwa-tags-container' });
-                task.context.forEach(tag => {
-                    tagsContainer.createEl('span', { cls: 'diwa-tag', text: `#${tag}` });
+                const contentCol = row.createEl('div', { cls: 'diwa-gawa-mobile-content-col' });
+                contentCol.createEl('span', { text: task.title, cls: 'diwa-title-text' });
+                
+                // Metadata row: priority, due date, context tags
+                const metaRow = contentCol.createEl('div', { cls: 'diwa-gawa-mobile-meta-row' });
+                
+                // Priority Badge
+                if (task.priority) {
+                    const pBadge = metaRow.createEl('div', { cls: `diwa-priority-badge is-${task.priority.toLowerCase()}` });
+                    setIcon(pBadge, this.getPriorityIcon(task.priority));
+                }
+                
+                // Due Date / Deadline
+                if (task.due) {
+                    const dueChip = metaRow.createEl('span', { cls: 'diwa-gawa-mobile-due-chip' });
+                    dueChip.setText(this.formatRelativeDate(task.due));
+                    const severity = this.getDateSeverityClass(task.due);
+                    if (severity) dueChip.addClass(severity);
+                }
+                
+                // Context Tags
+                if (task.context && task.context.length > 0) {
+                    task.context.forEach(tag => {
+                        metaRow.createEl('span', { cls: 'diwa-tag', text: `#${tag}` });
+                    });
+                }
+            } else {
+                const mainCol = row.createEl('div', { cls: 'col-main' });
+                
+                const statusIcon = mainCol.createEl('span', { cls: `diwa-status-icon is-${task.status}` });
+                setIcon(statusIcon, task.status === 'done' ? 'check-circle' : 'circle');
+                
+                statusIcon.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    void this._taskController.toggleTask(this.getTaskIdentity(task));
+                });
+
+                mainCol.createEl('span', { text: task.title, cls: 'diwa-title-text' });
+                
+                if (task.context && task.context.length > 0) {
+                    const tagsContainer = mainCol.createEl('div', { cls: 'diwa-tags-container' });
+                    task.context.forEach(tag => {
+                        tagsContainer.createEl('span', { cls: 'diwa-tag', text: `#${tag}` });
+                    });
+                }
+
+                const priorityCol = row.createEl('div', { cls: 'col-priority' });
+                if (task.priority) {
+                    const pBadge = priorityCol.createEl('div', { cls: `diwa-priority-badge is-${task.priority.toLowerCase()}` });
+                    setIcon(pBadge, this.getPriorityIcon(task.priority));
+                }
+
+                const dueCol = row.createEl('div', { cls: 'col-due' });
+                if (task.due) {
+                    dueCol.setText(this.formatRelativeDate(task.due));
+                    const severity = this.getDateSeverityClass(task.due);
+                    if (severity) dueCol.addClass(severity);
+                }
+
+                const actionsCol = row.createEl('div', { cls: 'col-actions' });
+                const editBtn = actionsCol.createEl('span', { cls: 'diwa-action-btn diwa-action-btn-ghost' });
+                setIcon(editBtn, 'pencil');
+                editBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    new EditTaskModal(
+                        this.app,
+                        task,
+                        this.vault,
+                        this.plugin.index,
+                        () => {
+                            this._taskController.syncFromIndex();
+                            this.updateWorkspaceStats();
+                        }
+                    ).open();
                 });
             }
-
-            const priorityCol = row.createEl('div', { cls: 'col-priority' });
-            if (task.priority) {
-                const pBadge = priorityCol.createEl('div', { cls: `diwa-priority-badge is-${task.priority.toLowerCase()}` });
-                setIcon(pBadge, this.getPriorityIcon(task.priority));
-            }
-
-            const dueCol = row.createEl('div', { cls: 'col-due' });
-            if (task.due) {
-                dueCol.setText(this.formatRelativeDate(task.due));
-                const severity = this.getDateSeverityClass(task.due);
-                if (severity) dueCol.addClass(severity);
-            }
-
-            const actionsCol = row.createEl('div', { cls: 'col-actions' });
-            const editBtn = actionsCol.createEl('span', { cls: 'diwa-action-btn diwa-action-btn-ghost' });
-            setIcon(editBtn, 'pencil');
-            editBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                new EditTaskModal(
-                    this.app,
-                    task,
-                    this.vault,
-                    this.plugin.index,
-                    () => {
-                        this._taskController.syncFromIndex();
-                        this.updateWorkspaceStats();
-                    }
-                ).open();
-            });
 
             row.addEventListener('click', () => {
                 new EditTaskModal(

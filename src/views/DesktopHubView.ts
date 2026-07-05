@@ -75,7 +75,13 @@ function clampDesktopRightPaneWidth(width: number): number {
 
 export class DesktopHubView extends ItemView {
     plugin: DiwaPlugin;
-    isFocusMode: boolean = true;
+    isFocusMode: boolean = false;
+    _showCaptureArea: boolean = true;
+    _showWorkspaceFeed: boolean = true;
+    private _workspaceViewMode: 'normal' | 'focus' | 'capture' | 'feed' = 'normal';
+    private _activeCaptureFile: TFile | null = null;
+    private _captureControlsEl: HTMLElement | null = null;
+    private _isSavingCapture: boolean = false;
 
     // Suppress re-renders while user is mid-capture (thought or task)
     _capturePending: number = 0;
@@ -168,6 +174,7 @@ export class DesktopHubView extends ItemView {
     getState(): Record<string, unknown> {
         return {
             isFocusMode: this.isFocusMode,
+            workspaceViewMode: this._workspaceViewMode,
             activeContext: this._activeContext,
             rightPaneWidth: this._rightPaneWidth,
             rightPaneMode: this._rightPaneMode,
@@ -175,7 +182,13 @@ export class DesktopHubView extends ItemView {
     }
 
     async setState(state: any, result: ViewStateResult): Promise<void> {
-        if (state?.isFocusMode !== undefined) this.isFocusMode = !!state.isFocusMode;
+        if (state?.workspaceViewMode !== undefined) {
+            this._workspaceViewMode = state.workspaceViewMode;
+        } else if (state?.isFocusMode !== undefined) {
+            this._workspaceViewMode = state.isFocusMode ? 'focus' : 'normal';
+        }
+        this.syncModeProperties();
+
         if (typeof state?.activeContext === 'string' && state.activeContext.trim()) {
             this._activeContext = state.activeContext.trim();
         } else {
@@ -188,6 +201,51 @@ export class DesktopHubView extends ItemView {
         this._rightPaneMode = this.normalizeRightPaneMode(state?.rightPaneMode);
         await super.setState(state, result);
         this.renderView();
+    }
+
+    private syncModeProperties(): void {
+        const mode = this._workspaceViewMode;
+        if (mode === 'normal') {
+            this.isFocusMode = false;
+            this._showCaptureArea = true;
+            this._showWorkspaceFeed = true;
+        } else if (mode === 'focus') {
+            this.isFocusMode = true;
+            this._showCaptureArea = true;
+            this._showWorkspaceFeed = true;
+        } else if (mode === 'capture') {
+            this.isFocusMode = false;
+            this._showCaptureArea = true;
+            this._showWorkspaceFeed = false;
+        } else if (mode === 'feed') {
+            this.isFocusMode = false;
+            this._showCaptureArea = false;
+            this._showWorkspaceFeed = true;
+        }
+        this._topBarFocusMode = this.isFocusMode;
+    }
+
+    private setWorkspaceViewMode(mode: 'normal' | 'focus' | 'capture' | 'feed'): void {
+        this._workspaceViewMode = mode;
+        this.syncModeProperties();
+
+        // Apply changes to layout wrapper
+        this._wrapEl?.toggleClass('is-focus-mode', this.isFocusMode);
+        
+        // Rebuild topbar
+        if (this._topBarEl) {
+            this._topBarEl.empty();
+            this._focusBtnEl = null;
+            this.renderTopBar(this._topBarEl);
+        }
+        
+        // Re-render center
+        if (this._centerEl) {
+            this.renderCenter(this._centerEl);
+        }
+
+        // Save view state
+        this.app.workspace.requestSaveLayout();
     }
 
     async onOpen() {
@@ -237,11 +295,13 @@ export class DesktopHubView extends ItemView {
      * Uses direct DOM manipulation as a bulletproof fallback for all WebViews.
      */
     private setMobileImmersive(immersive: boolean): void {
-        // Always toggle the body class for CSS-based hiding
-        document.body.classList.toggle('is-diwa-v2-active', immersive);
+        const isMobileDevice = (this.app as any).isMobile;
+        
+        // Only toggle the body class if we are actually on a mobile device
+        document.body.classList.toggle('is-diwa-v2-active', immersive && isMobileDevice);
 
         // Only manipulate DOM on actual mobile
-        if (!(this.app as any).isMobile) return;
+        if (!isMobileDevice) return;
 
         const selectors = [
             '.mobile-navbar',
@@ -728,6 +788,8 @@ export class DesktopHubView extends ItemView {
         this._captureSectionEl = null;
         this._captureInputEl = null;
         this._captureHintEl = null;
+        this._captureControlsEl = null;
+        this._activeCaptureFile = null;
         this._feedSectionEl = null;
         this._contextFilterSectionEl = null;
         this._feedSearchSectionEl = null;
@@ -775,16 +837,44 @@ export class DesktopHubView extends ItemView {
 
         const right = bar.createEl('div', { cls: 'diwa-dh-topbar-right' });
 
+        if (!this.isMobile()) {
+            // Toggle Capture Area Button
+            const captureToggleBtn = right.createEl('button', {
+                cls: `diwa-dh-focus-btn${this._workspaceViewMode === 'capture' ? ' is-active' : ''}`,
+                attr: { title: this._workspaceViewMode === 'capture' ? 'Exit Capture Mode' : 'Enter Capture Mode' }
+            }) as HTMLButtonElement;
+            const captureToggleIcon = captureToggleBtn.createDiv({ cls: 'diwa-dh-focus-btn-icon' });
+            setIcon(captureToggleIcon, 'edit-3');
+            captureToggleBtn.createSpan({ text: 'CAPTURE' });
+            captureToggleBtn.addEventListener('click', () => {
+                const nextMode = this._workspaceViewMode === 'capture' ? 'normal' : 'capture';
+                this.setWorkspaceViewMode(nextMode);
+            });
+
+            // Toggle Workspace Feed Button
+            const feedToggleBtn = right.createEl('button', {
+                cls: `diwa-dh-focus-btn${this._workspaceViewMode === 'feed' ? ' is-active' : ''}`,
+                attr: { title: this._workspaceViewMode === 'feed' ? 'Exit Feed Mode' : 'Enter Feed Mode' }
+            }) as HTMLButtonElement;
+            const feedToggleIcon = feedToggleBtn.createDiv({ cls: 'diwa-dh-focus-btn-icon' });
+            setIcon(feedToggleIcon, 'layout-list');
+            feedToggleBtn.createSpan({ text: 'FEED' });
+            feedToggleBtn.addEventListener('click', () => {
+                const nextMode = this._workspaceViewMode === 'feed' ? 'normal' : 'feed';
+                this.setWorkspaceViewMode(nextMode);
+            });
+        }
+
         const focusBtn = right.createEl('button', {
-            cls: `diwa-dh-focus-btn${this.isFocusMode ? ' is-active' : ''}`,
-            attr: { title: this.isFocusMode ? 'Exit Focus Mode' : 'Enter Focus Mode' }
+            cls: `diwa-dh-focus-btn${this._workspaceViewMode === 'focus' ? ' is-active' : ''}`,
+            attr: { title: this._workspaceViewMode === 'focus' ? 'Exit Focus Mode' : 'Enter Focus Mode' }
         }) as HTMLButtonElement;
         const focusIcon = focusBtn.createDiv({ cls: 'diwa-dh-focus-btn-icon' });
         setIcon(focusIcon, 'lucide-target');
-        focusBtn.createSpan({ text: this.isFocusMode ? 'EXIT FOCUS' : 'FOCUS MODE' });
+        focusBtn.createSpan({ text: this._workspaceViewMode === 'focus' ? 'EXIT FOCUS' : 'FOCUS MODE' });
         focusBtn.addEventListener('click', () => {
-            this.isFocusMode = !this.isFocusMode;
-            this.renderView();
+            const nextMode = this._workspaceViewMode === 'focus' ? 'normal' : 'focus';
+            this.setWorkspaceViewMode(nextMode);
         });
         this._focusBtnEl = focusBtn;
     }
@@ -896,9 +986,22 @@ export class DesktopHubView extends ItemView {
 
         this.ensureFeedSection(parent);
 
-        for (const section of [this._captureSectionEl, this._feedSectionEl]) {
-            if (!section || !parent.contains(section) || parent.lastElementChild === section) continue;
-            parent.appendChild(section);
+        // Toggle visibility classes based on settings/options
+        this._captureSectionEl.toggleClass('diwa-dh-hidden', !this._showCaptureArea);
+        if (this._feedSectionEl) {
+            this._feedSectionEl.toggleClass('diwa-dh-hidden', !this._showWorkspaceFeed);
+        }
+
+        const onlyCapture = this._showCaptureArea && !this._showWorkspaceFeed;
+        this._captureSectionEl.toggleClass('is-only-capture', onlyCapture);
+        this.syncCaptureTextareaHeight();
+
+        // Only append if they are not already children of parent, or if they are in wrong order
+        if (this._captureSectionEl.parentElement !== parent) {
+            parent.appendChild(this._captureSectionEl);
+        }
+        if (this._feedSectionEl && this._feedSectionEl.parentElement !== parent) {
+            parent.appendChild(this._feedSectionEl);
         }
     }
 
@@ -1455,6 +1558,44 @@ export class DesktopHubView extends ItemView {
         );
     }
 
+    private updateCaptureStatusUI(): void {
+        const parent = this._captureControlsEl;
+        if (!parent) return;
+        parent.empty();
+        
+        if (this._activeCaptureFile) {
+            const statusLabel = parent.createEl('span', { cls: 'diwa-dh-capture-status-label' });
+            setIcon(statusLabel.createSpan({ cls: 'status-icon' }), 'check');
+            statusLabel.createSpan({ text: 'Saved & Auto-Syncing' });
+            
+            const newBtn = parent.createEl('button', {
+                cls: 'diwa-dh-capture-new-btn',
+                attr: { title: 'Start a new capture (Clear)', type: 'button' }
+            });
+            setIcon(newBtn, 'plus');
+            newBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.clearActiveCapture();
+            });
+        }
+    }
+
+    private clearActiveCapture(): void {
+        this._activeCaptureFile = null;
+        if (this._captureInputEl) {
+            this._captureInputEl.value = '';
+            this.syncCaptureTextareaHeight();
+            this._captureInputEl.focus();
+            
+            const previewEl = this._captureInputEl.parentElement?.querySelector('.diwa-dh-capture-preview') as HTMLElement | null;
+            if (previewEl) {
+                previewEl.style.display = 'none';
+                this._captureInputEl.style.display = 'block';
+            }
+        }
+        this.updateCaptureStatusUI();
+    }
+
     private matchesThoughtSearch(thought: ThoughtEntry, query: string): boolean {
         const searchText = [thought.title, thought.body, thought.content]
             .filter((value): value is string => typeof value === 'string' && value.length > 0)
@@ -1854,7 +1995,12 @@ export class DesktopHubView extends ItemView {
                 attr: { 'aria-label': 'Capture a thought' },
             });
             const panelHeader = panel.createEl('div', { cls: 'diwa-dh-capture-panel-header' });
-            panelHeader.createEl('span', { cls: 'diwa-dh-capture-eyebrow', text: 'Capture' });
+            const eyebrowRow = panelHeader.createEl('div', { cls: 'diwa-dh-capture-eyebrow-row' });
+            eyebrowRow.createEl('span', { cls: 'diwa-dh-capture-eyebrow', text: 'Capture' });
+            
+            const controlsContainer = eyebrowRow.createEl('div', { cls: 'diwa-dh-capture-controls' });
+            this._captureControlsEl = controlsContainer;
+
             const panelCopy = panelHeader.createEl('div', { cls: 'diwa-dh-capture-heading' });
             panelCopy.createEl('div', { cls: 'diwa-dh-capture-title', text: 'Drop the next thought' });
             panelCopy.createEl('div', {
@@ -1924,7 +2070,15 @@ export class DesktopHubView extends ItemView {
                 textarea.focus();
             });
 
-            textarea.addEventListener('input', autosize);
+            textarea.addEventListener('input', () => {
+                autosize();
+                if (!textarea.value.trim()) {
+                    if (this._activeCaptureFile !== null) {
+                        this._activeCaptureFile = null;
+                        this.updateCaptureStatusUI();
+                    }
+                }
+            });
             requestAnimationFrame(autosize);
             capture.addEventListener('click', (event) => {
                 const target = event.target as HTMLElement | null;
@@ -1957,46 +2111,65 @@ export class DesktopHubView extends ItemView {
             textarea.addEventListener('keydown', async (event: KeyboardEvent) => {
                 if (event.key === 'Escape') {
                     event.preventDefault();
-                    textarea.value = '';
-                    autosize();
+                    this.clearActiveCapture();
                     return;
                 }
                 if (event.key !== 'Enter' || !event.shiftKey) return;
                 event.preventDefault();
+                if (this._isSavingCapture) return;
+
                 const raw = textarea.value;
                 if (!raw.trim()) return;
+                
+                this._isSavingCapture = true;
                 this._capturePending++;
-                textarea.disabled = true;
                 try {
-                    const created = await this._thoughtController.addThought({
-                        content: raw,
-                        context: this.getSelectedCaptureContexts(),
-                    });
-                    if (!created) {
-                        textarea.focus();
-                        return;
+                    if (this._activeCaptureFile) {
+                        const contexts = this.getSelectedCaptureContexts();
+                        await this._thoughtController.updateThought({
+                            filePath: this._activeCaptureFile.path,
+                            content: raw,
+                            context: contexts,
+                        });
+                        new Notice('Thought updated');
+                    } else {
+                        const created = await this._thoughtController.addThought({
+                            content: raw,
+                            context: this.getSelectedCaptureContexts(),
+                        });
+                        if (!created) {
+                            return;
+                        }
+                        const tfile = this.app.vault.getAbstractFileByPath(created.filePath);
+                        if (tfile instanceof TFile) {
+                            this._activeCaptureFile = tfile;
+                        }
+                        new Notice('Thought saved');
                     }
-                    textarea.value = '';
-                    autosize();
+                    this.updateCaptureStatusUI();
                 } finally {
                     this._capturePending = Math.max(0, this._capturePending - 1);
-                    textarea.disabled = false;
-                    textarea.focus();
+                    this._isSavingCapture = false;
                 }
             });
         }
+        this.updateCaptureStatusUI();
         this.updateCaptureHint();
     }
 
     private syncCaptureTextareaHeight(): void {
         const textarea = this._captureInputEl;
         if (!textarea) return;
+
+        const onlyCapture = this._showCaptureArea && !this._showWorkspaceFeed;
+        const minHeight = onlyCapture ? 256 : 42;
+
         if (this.isFocusMode && !this.isMobile()) {
             textarea.style.removeProperty('height');
             return;
         }
         textarea.style.height = 'auto';
-        textarea.style.height = `${Math.max(42, textarea.scrollHeight)}px`;
+        textarea.style.height = `${Math.max(minHeight, textarea.scrollHeight)}px`;
     }
 
     private renderFeedSearch(parent: HTMLElement): void {
