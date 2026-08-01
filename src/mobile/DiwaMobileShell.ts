@@ -574,17 +574,27 @@ export class DiwaMobileShell {
             });
         }
 
+        // Stats Grid Container (spans both columns)
+        const statsGrid = wrap.createDiv('diwa-home-stats-grid');
+
         // Bento 3: Open Tasks Stat Card
-        const openStat = wrap.createDiv('diwa-home-bento-stat');
+        const openStat = statsGrid.createDiv('diwa-home-bento-stat');
         openStat.createDiv({ cls: 'diwa-mobile-hero-stat-value', text: String(openTasks) });
         openStat.createDiv({ cls: 'diwa-mobile-hero-stat-label', text: 'Open Tasks' });
         openStat.addEventListener('click', () => this.switchView('tasks'));
 
         // Bento 4: Thoughts Stat Card
-        const thoughtsStat = wrap.createDiv('diwa-home-bento-stat');
+        const thoughtsStat = statsGrid.createDiv('diwa-home-bento-stat');
         thoughtsStat.createDiv({ cls: 'diwa-mobile-hero-stat-value', text: String(this.getThoughts().length) });
         thoughtsStat.createDiv({ cls: 'diwa-mobile-hero-stat-label', text: 'Thoughts' });
         thoughtsStat.addEventListener('click', () => this.switchView('thoughts'));
+
+        // Bento 4b: Bulsa Stat Card
+        const bulsaStat = statsGrid.createDiv('diwa-home-bento-stat');
+        const activeDuesCount = Array.from(this.plugin.index.dueIndex.values()).filter(d => d.isActive).length;
+        bulsaStat.createDiv({ cls: 'diwa-mobile-hero-stat-value', text: String(activeDuesCount) });
+        bulsaStat.createDiv({ cls: 'diwa-mobile-hero-stat-label', text: 'Dues' });
+        bulsaStat.addEventListener('click', () => this.switchView('bulsa'));
 
         // Bento 5: Recent Thoughts Section
         const thoughts = wrap.createDiv('diwa-mobile-home-section diwa-mobile-surface');
@@ -642,9 +652,13 @@ export class DiwaMobileShell {
         const metricsCard = wrap.createDiv('diwa-tablet-home-metrics');
         metricsCard.createDiv({ cls: 'diwa-mobile-section-title', text: 'Activity Overview' });
         const metrics = metricsCard.createDiv('diwa-mobile-hero-stats');
+        // Let's set 4 columns inline or via CSS
+        metrics.style.gridTemplateColumns = 'repeat(4, minmax(0, 1fr))';
         this.renderMetricChip(metrics, 'Focus', focusTasks.length);
         this.renderMetricChip(metrics, 'Open tasks', openTasks);
         this.renderMetricChip(metrics, 'Thoughts', this.getThoughts().length);
+        const activeDuesCount = Array.from(this.plugin.index.dueIndex.values()).filter(d => d.isActive).length;
+        this.renderMetricChip(metrics, 'Dues', activeDuesCount);
 
         // Bento 3: Today's Focus Card (Spans 2 columns)
         const focus = wrap.createDiv('diwa-tablet-home-focus-card diwa-mobile-surface');

@@ -732,6 +732,57 @@ export class DesktopHubView extends ItemView {
             this._mobileViewMode = 'feed';
             this.renderView();
         });
+
+        // Bulsa Card
+        const bulsaCard = nav.createEl('button', { cls: 'diwa-bento-card card-primary glass-panel' });
+        const bulsaTopRow = bulsaCard.createEl('div');
+        bulsaTopRow.setAttribute('style', 'display: flex; flex-direction: row; gap: 16px; width: 100%; align-items: stretch;');
+        
+        const bulsaIconWrap = bulsaTopRow.createEl('div', { cls: 'card-icon-wrapper' });
+        bulsaIconWrap.style.flexDirection = 'column';
+        bulsaIconWrap.style.gap = '4px';
+        bulsaIconWrap.style.margin = '0';
+        
+        const bulsaIcon = bulsaIconWrap.createEl('div', { cls: 'card-icon' });
+        setIcon(bulsaIcon, 'wallet');
+        
+        const bulsaTitle = bulsaIconWrap.createEl('span', { cls: 'card-title', text: 'Bulsa' });
+        bulsaTitle.style.fontSize = '13px';
+        bulsaTitle.style.fontWeight = '600';
+        bulsaTitle.style.marginTop = '4px';
+        
+        const bulsaUpcomingList = bulsaTopRow.createEl('div');
+        bulsaUpcomingList.setAttribute('style', 'display: flex; flex-direction: column; gap: 6px; flex: 1; text-align: left; justify-content: center; overflow: hidden; padding-top: 4px;');
+        
+        const activeDues = Array.from(this.plugin.index.dueIndex.values()).filter(d => d.isActive);
+        const sortedDues = activeDues.sort((a, b) => {
+            if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+            if (a.dueDate) return -1;
+            if (b.dueDate) return 1;
+            return 0;
+        });
+        
+        const topDues = sortedDues.slice(0, 2);
+        for (const due of topDues) {
+            const dueRow = bulsaUpcomingList.createEl('div');
+            dueRow.setAttribute('style', 'display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-normal); overflow: hidden;');
+            const dueAmountStr = due.amount ? ` (₱${due.amount.toLocaleString()})` : '';
+            dueRow.innerHTML = `<span style="display: inline-block; min-width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--interactive-accent);"></span><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${due.title}${dueAmountStr}</span>`;
+        }
+        
+        if (topDues.length === 0) {
+            const emptyMsg = bulsaUpcomingList.createEl('span', { text: 'No active dues' });
+            emptyMsg.setAttribute('style', 'font-size: 13px; color: var(--text-muted); font-style: italic;');
+        }
+        
+        const totalUnpaid = activeDues.reduce((sum, d) => sum + (d.amount ?? 0), 0);
+        const bulsaContent = bulsaCard.createEl('div', { cls: 'card-content' });
+        bulsaContent.setAttribute('style', 'margin-top: auto;');
+        bulsaContent.createEl('span', { cls: 'card-subtitle', text: `${activeDues.length} active dues • Total: ₱${totalUnpaid.toLocaleString()}` });
+        
+        bulsaCard.addEventListener('click', () => {
+            void this.plugin.activateView('dues');
+        });
     }
 
     updateTaskPaneFromIndex(): void {
