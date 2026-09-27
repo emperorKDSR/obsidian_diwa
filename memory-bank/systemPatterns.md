@@ -83,7 +83,7 @@ The **Continuous Scratchpad** is the primary interactive hub:
 ---
 
 ## 4. Mobile Viewport & Search Architecture
-*   **Visual Viewport Listener**: `attachMobileSheetViewportBehavior` dynamically tracks `window.visualViewport` to compute keyboard height `--diwa-kb-h` and toggle `.has-mobile-keyboard` on `DesktopHubView.contentEl`.
+*   **Visual Viewport Listener**: `attachMobileSheetViewportBehavior` dynamically tracks `window.visualViewport` to compute `--diwa-kb-h` as the uncompensated keyboard overlap (parent bottom − visual viewport bottom; 0 when Obsidian already resized its container) and toggle `.has-mobile-keyboard` on `DesktopHubView.contentEl`.
 *   **Keyboard Offset Containment**: `.diwa-workspace-root.has-mobile-keyboard` constrains height to `calc(100% - var(--diwa-kb-h, 0px))` so content remains accessible while keyboard is open.
 *   **Search Stream Precedence**: Keyword search in `getFilteredCaptures()` takes global precedence across all notes, bypassing category/life-area filters. Opening mobile search auto-resets filter to `'all'` and triggers immediate re-render.
 *   **Progressive Dynamic Height**: Uses `@supports (height: 100dvh)` fallback for dynamic viewport scaling on modern iOS.

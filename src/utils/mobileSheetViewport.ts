@@ -52,16 +52,22 @@ export function attachMobileSheetViewportBehavior({
 
     const syncKeyboardOffset = () => {
         let keyboardHeight = 0;
+        let overlap = 0;
         if (viewport) {
-            keyboardHeight = Math.max(
-                0,
-                Math.round(win.innerHeight - (viewport.height + viewport.offsetTop)),
-            );
+            const visibleBottom = viewport.height + viewport.offsetTop;
+            keyboardHeight = Math.max(0, Math.round(win.innerHeight - visibleBottom));
+            // Obsidian iOS often already shrinks its container above the keyboard.
+            // Only compensate for the part of our (unconstrained) parent still hidden,
+            // otherwise the keyboard is subtracted twice and leaves a blank band.
+            const referenceEl = sheetEl.parentElement ?? sheetEl;
+            const referenceBottom = referenceEl.getBoundingClientRect().bottom;
+            overlap = Math.max(0, Math.round(referenceBottom - visibleBottom));
         }
-        if (keyboardHeight < keyboardThreshold) keyboardHeight = 0;
-        sheetEl.style.setProperty(keyboardVarName, `${keyboardHeight}px`);
-        sheetEl.toggleClass('has-mobile-keyboard', keyboardHeight > 0);
-        if (keyboardHeight > 0) scheduleScrollIntoView();
+        const keyboardOpen = keyboardHeight >= keyboardThreshold || overlap >= keyboardThreshold;
+        if (!keyboardOpen || overlap < keyboardThreshold) overlap = 0;
+        sheetEl.style.setProperty(keyboardVarName, `${overlap}px`);
+        sheetEl.toggleClass('has-mobile-keyboard', keyboardOpen);
+        if (keyboardOpen) scheduleScrollIntoView();
     };
 
     const handleFocusIn = (event: FocusEvent) => {

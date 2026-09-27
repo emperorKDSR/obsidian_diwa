@@ -157,7 +157,7 @@ Discussed priority deliverables for the marketing campaign.
 
 ### 7.1 Visual Viewport & Keyboard Height Management
 * **`attachMobileSheetViewportBehavior`**: On mobile, `DesktopHubView` attaches a visual viewport observer (`window.visualViewport`) on `onOpen()` and tears it down on `onClose()`.
-* **Dynamic Keyboard Variable**: Detects keyboard appearance threshold ($>72\text{px}$) and sets `--diwa-kb-h` with exact pixel height, simultaneously toggling `.has-mobile-keyboard` on the root container.
+* **Dynamic Keyboard Variable**: Detects keyboard appearance threshold ($>72\text{px}$) and sets `--diwa-kb-h` to the keyboard overlap still hiding the parent container (parent bottom − visual viewport bottom, so it is 0 when Obsidian already resized its container), simultaneously toggling `.has-mobile-keyboard` on the root container.
 * **Layout Containment**:
   ```css
   .diwa-workspace-root.has-mobile-keyboard {

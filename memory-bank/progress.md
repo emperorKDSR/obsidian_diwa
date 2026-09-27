@@ -50,6 +50,7 @@
 
 ### 1. Mobile Search & Viewport UX
 *   [x] **VisualViewport Virtual Keyboard Sizing** — Wired `attachMobileSheetViewportBehavior` into `DesktopHubView` on mobile; automatically measures iOS keyboard via `window.visualViewport` and injects `--diwa-kb-h` / `.has-mobile-keyboard`.
+*   [x] **iOS Keyboard Double-Compensation Fix** — `--diwa-kb-h` now measures only the remaining overlap with the visual viewport, eliminating the black band above the iPhone keyboard.
 *   [x] **Keyboard-Open Height Constraint** — Applied `.diwa-workspace-root.has-mobile-keyboard { height: calc(100% - var(--diwa-kb-h, 0px)) !important; }` so the scroll container ends right above the virtual keyboard.
 *   [x] **Flex Height Fill** — Set `flex: 1; min-height: 0;` on `.pos-scratchpad-container` and `flex: 1 1 auto; min-height: 0;` on `.pos-document-stream`.
 *   [x] **Top-Aligned Search Empty State** — Applied `justify-content: flex-start` to prevent empty state from centering into off-screen space.
