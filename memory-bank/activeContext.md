@@ -19,3 +19,12 @@
 - **Deployment**:
   - Clean TypeScript compilation and bundling with `npm run build` (0 errors).
   - Deployed `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000/.obsidian/plugins/Obsidian_diwa`.
+
+## Current Focus: Multi-Selection Filtering Architecture (Option 1 Deployed)
+- **Pinned Modifier + Facet Carousel**:
+  - Decoupled `_filterTasksOnly: boolean` from `_activeFilter: ScratchpadFilterMode` in `DesktopHubView.ts`.
+  - Pinned `[ ☑️ Open Tasks ]` as an independent toggle chip at the start of the filter carousel, separated by `.pos-filter-divider`.
+  - Allows simultaneous multi-dimensional queries: Open Tasks + Today, Open Tasks + Upcoming, Open Tasks + Grundfos (or any life area/tag), or All Open Tasks.
+  - Toggling `Open Tasks` dynamically recalibrates all badge counters across the carousel (`IndexService.getAreaCounts(tasksOnly)`, `getTodayCapturesCount(tasksOnly)`, `getUpcomingCapturesCount(tasksOnly)`).
+  - Orthogonal stream filtering in `getFilteredCaptures()` and context-aware empty state messaging.
+  - Full bundle compiled and deployed to test vault.

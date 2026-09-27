@@ -870,6 +870,11 @@ export class IndexService {
         return Array.from(this.captureIndex.values()).sort((a, b) => b.createdAtMs - a.createdAtMs);
     }
 
+    hasOpenTasks(entry: CaptureEntry | null | undefined): boolean {
+        if (!entry || !entry.hasTasks || !Array.isArray(entry.tasks)) return false;
+        return entry.tasks.some(t => t && !t.completed);
+    }
+
     getOpenTaskCount(): number {
         let count = 0;
         for (const entry of this.captureIndex.values()) {
@@ -881,10 +886,19 @@ export class IndexService {
         return count;
     }
 
-    getUntaggedCount(): number {
+    getOpenTaskNoteCount(): number {
+        let count = 0;
+        for (const entry of this.captureIndex.values()) {
+            if (this.hasOpenTasks(entry)) count++;
+        }
+        return count;
+    }
+
+    getUntaggedCount(tasksOnly: boolean = false): number {
         let count = 0;
         for (const entry of this.captureIndex.values()) {
             if (!entry) continue;
+            if (tasksOnly && !this.hasOpenTasks(entry)) continue;
             const area = String(entry.area || '').trim();
             const tags = Array.isArray(entry.tags) ? entry.tags : [];
             if (!area && tags.length === 0) {
@@ -894,10 +908,11 @@ export class IndexService {
         return count;
     }
 
-    getAreaCounts(): Record<string, number> {
+    getAreaCounts(tasksOnly: boolean = false): Record<string, number> {
         const counts: Record<string, number> = {};
         for (const entry of this.captureIndex.values()) {
             if (!entry) continue;
+            if (tasksOnly && !this.hasOpenTasks(entry)) continue;
             const area = String(entry.area || '').toLowerCase().trim();
             if (area) {
                 counts[area] = (counts[area] || 0) + 1;
@@ -936,10 +951,11 @@ export class IndexService {
         return target.isAfter(moment().endOf('day'));
     }
 
-    getTodayCapturesCount(): number {
+    getTodayCapturesCount(tasksOnly: boolean = false): number {
         const todayStr = this.getTodayDateStr();
         let count = 0;
         for (const entry of this.captureIndex.values()) {
+            if (tasksOnly && !this.hasOpenTasks(entry)) continue;
             const dates = Array.isArray(entry?.allDates) ? entry.allDates : [];
             if (dates.includes(todayStr)) {
                 count++;
@@ -948,9 +964,10 @@ export class IndexService {
         return count;
     }
 
-    getUpcomingCapturesCount(): number {
+    getUpcomingCapturesCount(tasksOnly: boolean = false): number {
         let count = 0;
         for (const entry of this.captureIndex.values()) {
+            if (tasksOnly && !this.hasOpenTasks(entry)) continue;
             const dates = Array.isArray(entry?.allDates) ? entry.allDates : [];
             if (dates.some(d => this.isDateFuture(d))) {
                 count++;

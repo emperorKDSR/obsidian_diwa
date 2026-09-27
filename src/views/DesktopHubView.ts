@@ -17,6 +17,7 @@ export class DesktopHubView extends ItemView {
     private _selectionBarEl: HTMLElement | null = null;
 
     private _activeFilter: ScratchpadFilterMode = 'all';
+    private _filterTasksOnly: boolean = false;
     private _searchQuery: string = '';
     private _searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private _selectedAreaForNewNote: string = '';
@@ -225,6 +226,7 @@ export class DesktopHubView extends ItemView {
                 this._mobileSearchOpen = !this._mobileSearchOpen;
                 if (this._mobileSearchOpen) {
                     this._activeFilter = 'all';
+                    this._filterTasksOnly = false;
                 } else {
                     this._searchQuery = '';
                 }
@@ -379,17 +381,44 @@ export class DesktopHubView extends ItemView {
             parent.empty();
             const scrollable = parent.createDiv({ cls: 'pos-filter-carousel' });
 
-            const allCaptures = this.plugin.index?.getAllCaptures?.() || [];
-            const totalCount = allCaptures.length;
-            const openTaskCount = this.plugin.index?.getOpenTaskCount?.() || 0;
-            const areaCounts = this.plugin.index?.getAreaCounts?.() || {};
+            if (this._activeFilter === 'tasks_only') {
+                this._filterTasksOnly = true;
+                this._activeFilter = 'all';
+            }
 
-            // 1. All chip
+            const isTasksOnly = this._filterTasksOnly;
+            const openTaskCount = this.plugin.index?.getOpenTaskCount?.() || 0;
+            const openTaskNoteCount = this.plugin.index?.getOpenTaskNoteCount?.() || 0;
+            const allCaptures = this.plugin.index?.getAllCaptures?.() || [];
+            const totalCount = isTasksOnly ? openTaskNoteCount : allCaptures.length;
+            const todayCount = this.plugin.index?.getTodayCapturesCount?.(isTasksOnly) || 0;
+            const upcomingCount = this.plugin.index?.getUpcomingCapturesCount?.(isTasksOnly) || 0;
+            const areaCounts = this.plugin.index?.getAreaCounts?.(isTasksOnly) || {};
+
+            // 1. Pinned Open Tasks modifier chip
+            const tasksChip = scrollable.createDiv({
+                cls: `pos-filter-chip pos-chip-tasks ${isTasksOnly ? 'is-active' : ''}`,
+            });
+            tasksChip.dataset.filter = 'tasks_only';
+            tasksChip.createSpan({ cls: 'pos-chip-icon', text: '☑️' });
+            tasksChip.createSpan({ cls: 'pos-chip-label', text: 'Open Tasks' });
+            tasksChip.createSpan({ cls: 'pos-chip-badge', text: `${openTaskCount}` });
+            tasksChip.onclick = () => {
+                this._filterTasksOnly = !this._filterTasksOnly;
+                this._renderedCount = BATCH_SIZE;
+                this.renderFilterBar(parent);
+                this.updateStreamOnly();
+            };
+
+            // Divider separating modifier from facet carousel
+            scrollable.createDiv({ cls: 'pos-filter-divider' });
+
+            // 2. All chip
             const allChip = scrollable.createDiv({
                 cls: `pos-filter-chip ${this._activeFilter === 'all' ? 'is-active' : ''}`,
             });
             allChip.dataset.filter = 'all';
-            allChip.createSpan({ cls: 'pos-chip-label', text: 'All Notes' });
+            allChip.createSpan({ cls: 'pos-chip-label', text: isTasksOnly ? 'All Tasks' : 'All Notes' });
             allChip.createSpan({ cls: 'pos-chip-badge', text: `${totalCount}` });
             allChip.onclick = () => {
                 this._activeFilter = 'all';
@@ -398,23 +427,7 @@ export class DesktopHubView extends ItemView {
                 this.updateStreamOnly();
             };
 
-            // 2. Open Tasks chip
-            const tasksChip = scrollable.createDiv({
-                cls: `pos-filter-chip pos-chip-tasks ${this._activeFilter === 'tasks_only' ? 'is-active' : ''}`,
-            });
-            tasksChip.dataset.filter = 'tasks_only';
-            tasksChip.createSpan({ cls: 'pos-chip-icon', text: '☑️' });
-            tasksChip.createSpan({ cls: 'pos-chip-label', text: 'Open Tasks' });
-            tasksChip.createSpan({ cls: 'pos-chip-badge', text: `${openTaskCount}` });
-            tasksChip.onclick = () => {
-                this._activeFilter = 'tasks_only';
-                this._renderedCount = BATCH_SIZE;
-                this.updateFilterActiveStates();
-                this.updateStreamOnly();
-            };
-
             // 3. Today / Resurface chip
-            const todayCount = this.plugin.index?.getTodayCapturesCount?.() || 0;
             const todayChip = scrollable.createDiv({
                 cls: `pos-filter-chip pos-chip-today ${this._activeFilter === 'today' ? 'is-active' : ''} ${todayCount > 0 ? 'has-items' : ''}`,
             });
@@ -430,7 +443,6 @@ export class DesktopHubView extends ItemView {
             };
 
             // 4. Upcoming chip
-            const upcomingCount = this.plugin.index?.getUpcomingCapturesCount?.() || 0;
             const upcomingChip = scrollable.createDiv({
                 cls: `pos-filter-chip pos-chip-upcoming ${this._activeFilter === 'upcoming' ? 'is-active' : ''} ${upcomingCount > 0 ? 'has-items' : ''}`,
             });
@@ -480,7 +492,11 @@ export class DesktopHubView extends ItemView {
         const chips = this._filterBarEl.querySelectorAll<HTMLElement>('.pos-filter-chip');
         chips.forEach(chip => {
             const filter = chip.dataset.filter;
-            chip.toggleClass('is-active', filter === this._activeFilter);
+            if (filter === 'tasks_only') {
+                chip.toggleClass('is-active', this._filterTasksOnly);
+            } else {
+                chip.toggleClass('is-active', filter === this._activeFilter);
+            }
         });
     }
 
@@ -864,10 +880,13 @@ export class DesktopHubView extends ItemView {
             });
         }
 
-        // 2. Mode / Life Area filter (active when not searching)
-        if (this._activeFilter === 'tasks_only') {
+        // 2. Task modifier filter (active when tasksOnly toggle is ON)
+        if (this._filterTasksOnly || this._activeFilter === 'tasks_only') {
             entries = entries.filter(e => e && e.hasTasks && Array.isArray(e.tasks) && e.tasks.some(t => t && !t.completed));
-        } else if (this._activeFilter === 'today') {
+        }
+
+        // 3. Mode / Life Area facet filter (active when not searching)
+        if (this._activeFilter === 'today') {
             const todayStr = this.plugin.index?.getTodayDateStr?.() || moment().format('YYYY-MM-DD');
             entries = entries.filter(e => e && Array.isArray(e.allDates) && e.allDates.includes(todayStr));
         } else if (this._activeFilter === 'upcoming') {
@@ -880,7 +899,7 @@ export class DesktopHubView extends ItemView {
             });
         } else if (this._activeFilter === 'untagged') {
             entries = entries.filter(e => e && !e.area && (!Array.isArray(e.tags) || e.tags.length === 0));
-        } else if (this._activeFilter !== 'all') {
+        } else if (this._activeFilter !== 'all' && this._activeFilter !== 'tasks_only') {
             const areaId = this._activeFilter.toLowerCase().trim();
             entries = entries.filter(e => {
                 if (!e) return false;
@@ -919,19 +938,35 @@ export class DesktopHubView extends ItemView {
             const emptyEl = container.createDiv({
                 cls: `pos-empty-state ${trimmedQuery ? 'pos-search-empty-state' : ''}`
             });
-            emptyEl.createDiv({ cls: 'pos-empty-icon', text: trimmedQuery ? '🔍' : '📝' });
-            emptyEl.createDiv({
-                cls: 'pos-empty-title',
-                text: trimmedQuery
-                    ? `No notes matching "${trimmedQuery}"`
-                    : (this._activeFilter === 'upcoming' ? 'No upcoming notes scheduled' : 'Your workspace is clean and ready')
-            });
-            emptyEl.createDiv({
-                cls: 'pos-empty-subtitle',
-                text: trimmedQuery
-                    ? 'Check spelling or try a different keyword.'
-                    : (this._activeFilter === 'upcoming' ? 'Use @tomorrow or [[YYYY-MM-DD]] to schedule thoughts or tasks.' : 'Type above to capture thoughts, ideas, or to-dos instantly.')
-            });
+            emptyEl.createDiv({ cls: 'pos-empty-icon', text: trimmedQuery ? '🔍' : (this._filterTasksOnly ? '☑️' : '📝') });
+
+            let emptyTitle = 'Your workspace is clean and ready';
+            let emptySubtitle = 'Type above to capture thoughts, ideas, or to-dos instantly.';
+
+            if (trimmedQuery) {
+                emptyTitle = `No notes matching "${trimmedQuery}"`;
+                emptySubtitle = 'Check spelling or try a different keyword.';
+            } else if (this._filterTasksOnly) {
+                if (this._activeFilter === 'today') {
+                    emptyTitle = 'No open tasks scheduled for today';
+                    emptySubtitle = 'Add a task or schedule one for today using @today.';
+                } else if (this._activeFilter === 'upcoming') {
+                    emptyTitle = 'No upcoming open tasks scheduled';
+                    emptySubtitle = 'Use @tomorrow or [[YYYY-MM-DD]] to schedule tasks.';
+                } else if (this._activeFilter !== 'all') {
+                    emptyTitle = 'No open tasks in this context';
+                    emptySubtitle = 'Assign tasks to this area or tag to see them here.';
+                } else {
+                    emptyTitle = 'No open tasks in workspace';
+                    emptySubtitle = 'Create a task above using ++ or the task button.';
+                }
+            } else if (this._activeFilter === 'upcoming') {
+                emptyTitle = 'No upcoming notes scheduled';
+                emptySubtitle = 'Use @tomorrow or [[YYYY-MM-DD]] to schedule thoughts or tasks.';
+            }
+
+            emptyEl.createDiv({ cls: 'pos-empty-title', text: emptyTitle });
+            emptyEl.createDiv({ cls: 'pos-empty-subtitle', text: emptySubtitle });
             return;
         }
 

@@ -283,6 +283,19 @@
     border-color: var(--interactive-accent);
 }
 
+.pos-chip-tasks.is-active .pos-chip-badge {
+    background: var(--background-primary);
+    color: var(--text-normal);
+}
+
+.pos-filter-divider {
+    width: 1px;
+    height: 18px;
+    background: var(--background-modifier-border);
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+
 .pos-chip-today.is-active {
     background: var(--interactive-accent);
     color: var(--text-on-accent);

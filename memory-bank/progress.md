@@ -1,12 +1,20 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Production-Grade Hardening Phase 1 & 2 Completed & Deployed
+## Current Phase: Multi-Selection Filtering Architecture (Option 1) Deployed
 
 ---
 
 ## Completed Roadmap Checklist
 
-### 0. Production-Grade Hardening (Phases 1 & 2)
+### 0. Multi-Selection Filtering Architecture (Option 1)
+*   [x] **Independent Task Lens Modifier** — Decoupled task mode (`_filterTasksOnly: boolean`) from facet state (`_activeFilter: ScratchpadFilterMode`), allowing compound multi-select queries (e.g. Open Tasks + Today, Open Tasks + Upcoming, Open Tasks + Grundfos).
+*   [x] **Pinned Modifier Pill & Divider** — Positioned `[ ☑️ Open Tasks ]` as a sticky toggle pill at the front of the carousel, separated by `.pos-filter-divider`.
+*   [x] **Context-Aware Dynamic Badges** — `IndexService` methods (`getAreaCounts`, `getTodayCapturesCount`, `getUpcomingCapturesCount`) accept optional `tasksOnly?: boolean` parameter to reflect exact open task counts across each facet when the modifier is active.
+*   [x] **Orthogonal Stream Intersection** — Hardened `getFilteredCaptures()` to cleanly intersect the task modifier with all facet dimensions (today, upcoming, untagged, and life areas/tags).
+*   [x] **Adaptive Empty States** — Formatted tailored empty state titles and subtitles for active multi-selection queries.
+*   [x] **Zero Build Errors & Deployed** — `npm run build` compiled clean; bundle deployed to test vault.
+
+### 0.1. Production-Grade Hardening (Phases 1 & 2)
 *   [x] **Atomic File Mutations (`app.vault.process`)** — Migrated `toggleTaskInFile`, `updateNoteContent`, and `mergeNotes` in `CaptureService` and `editThought`, `editTask`, and `updateTaskEntry` in `VaultService` to atomic transaction updates.
 *   [x] **CRLF Resilience** — Replaced fragile `indexOf('\n---\n')` line splits with robust regex frontmatter matching `/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/`, preventing file truncation on Windows.
 *   [x] **Isolated Snooze Replacement** — Enforced date wikilink replacement strictly within note body to prevent accidental frontmatter date corruption.
