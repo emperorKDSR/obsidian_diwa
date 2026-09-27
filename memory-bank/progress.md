@@ -1,12 +1,20 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Wikilink System Interaction (Mobile Peek Sheet & Desktop Split Navigation) Deployed
+## Current Phase: Mobile Note Editing Hardening & Touch Gestures Deployed
 
 ---
 
 ## Completed Roadmap Checklist
 
-### 0. Wikilink System Interaction (Mobile Peek Sheet & Desktop Split Navigation)
+### 0. Mobile Note Editing Hardening & Touch Gestures (Option A)
+*   [x] **Mobile Sticky Composer Collision Elimination** — `updateComposerVisibility()` dynamically hides `.pos-mobile-sticky-composer` when `_editingEntryId` is active, preventing the floating capture bar from obstructing the Save and Cancel buttons.
+*   [x] **Smooth Auto-Scroll & iOS Zoom Prevention** — Enforced `font-size: 16px !important;` on `.pos-inline-textarea` on mobile to prevent iOS Safari/WebKit auto-zoom, and added smooth `scrollIntoView({ behavior: 'smooth', block: 'center' })` on editor focus.
+*   [x] **Card Double-Click / Double-Tap to Edit** — Double-tapping or double-clicking any note card triggers inline edit mode directly without requiring tiny button clicks.
+*   [x] **Note Action Menu (`⋯`) & Open in Obsidian** — Added note action menu with 1-tap options: ✏️ Edit Note, 📖 Open in Native Obsidian Editor, 📋 Copy Content, and 🗑️ Delete Note.
+*   [x] **Touch Target Sizing & Guaranteed Visibility** — Expanded action icons to 32px–44px tap targets and enforced opacity across mobile and tablet touchscreens.
+*   [x] **Build & Vault Deployment** — Clean compile with `npm run build` (0 errors) and deployed to test vault.
+
+### 0.1. Wikilink System Interaction (Mobile Peek Sheet & Desktop Split Navigation)
 *   [x] **Mobile Slide-Up Bottom Sheet (`WikilinkPeekModal`)** — Tapping a wikilink in the stream opens a thumb-friendly 68vh bottom sheet with backdrop blur and touch swipe-down dismiss gestures.
 *   [x] **Live In-Modal Markdown Rendering & Interactive Tasks** — Note body rendered via `MarkdownRenderer` with clean `Component` lifecycle; interactive `- [ ]` checkboxes toggle directly in the referenced note using atomic `app.vault.process()`.
 *   [x] **1-Tap Quick Append Bar** — Input capsule at the bottom of the modal allows instantly appending thoughts or tasks to the linked note without opening the full editor.

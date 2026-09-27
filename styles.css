@@ -865,15 +865,36 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
     opacity: 1;
 }
 
+/* Touch & Mobile action icon visibility */
+body.is-mobile .pos-note-actions,
+body.is-phone .pos-note-actions,
+body.is-tablet .pos-note-actions {
+    opacity: 0.9 !important;
+}
+
 .pos-action-icon {
     cursor: pointer;
-    padding: 2px 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 6px;
+    min-width: 28px;
+    min-height: 28px;
     border-radius: var(--diwa-radius-sm);
     font-size: 0.9em;
     transition: var(--diwa-transition);
+    user-select: none;
+    -webkit-user-select: none;
 }
 
-.pos-action-icon:hover {
+.pos-action-icon.pos-action-more {
+    font-size: 1.1em;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.pos-action-icon:hover,
+.pos-action-icon:active {
     background: var(--background-modifier-hover);
 }
 
@@ -932,10 +953,11 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
 
 .pos-inline-textarea {
     width: 100%;
+    box-sizing: border-box;
     border-radius: var(--diwa-radius-sm);
     border: 1px solid var(--interactive-accent);
     background: var(--background-secondary);
-    padding: 10px;
+    padding: 10px 12px;
     font-family: var(--font-text);
     font-size: 0.95em;
     line-height: 1.5;
@@ -943,10 +965,20 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
     resize: vertical;
 }
 
+/* Enforce 16px on mobile to completely prevent iOS Safari/WebKit auto-zoom */
+body.is-mobile .pos-inline-textarea,
+body.is-phone .pos-inline-textarea,
+@media (max-width: 768px) {
+    .pos-inline-textarea {
+        font-size: 16px !important;
+    }
+}
+
 .pos-inline-actions {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
+    align-items: center;
 }
 
 .pos-inline-btn {
@@ -954,13 +986,22 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
     border: 1px solid var(--background-modifier-border);
     border-radius: var(--button-radius, 4px);
     color: var(--text-normal);
-    padding: 4px 12px;
+    padding: 6px 14px;
     font-size: var(--font-ui-small);
+    min-height: 34px;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .pos-inline-btn:hover {
     background: var(--background-modifier-hover);
+}
+
+.pos-inline-actions .mod-cta {
+    min-height: 34px;
+    padding: 6px 18px;
 }
 
 /* Empty State */
@@ -1202,12 +1243,14 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
 
     /* On mobile touch screens, keep action icons accessible */
     .pos-note-actions {
-        opacity: 0.85;
+        opacity: 0.95 !important;
     }
 
     .pos-action-icon {
-        padding: 4px 6px;
+        padding: 4px 8px;
         font-size: 1.05em;
+        min-width: 32px;
+        min-height: 32px;
     }
 
     /* Generous checkbox touch target */
@@ -1225,7 +1268,13 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
     }
 
     .pos-note-actions {
-        opacity: 0.6;
+        opacity: 0.85;
+    }
+
+    .pos-action-icon {
+        padding: 4px 8px;
+        min-width: 30px;
+        min-height: 30px;
     }
 }
 

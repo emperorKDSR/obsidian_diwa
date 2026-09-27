@@ -193,8 +193,10 @@ export class DesktopHubView extends ItemView {
         const isMobile = Platform.isMobile && !isTablet(this.app);
         if (!isMobile) return;
         const isSearching = this._mobileSearchOpen || Boolean(this._searchQuery.trim());
+        const isEditing = Boolean(this._editingEntryId);
+        const shouldHide = isSearching || isEditing;
         if (this._composerEl) {
-            this._composerEl.toggleClass('is-hidden', isSearching);
+            this._composerEl.toggleClass('is-hidden', shouldHide);
         }
         if (this._filterBarEl) {
             this._filterBarEl.toggleClass('is-hidden', isSearching);
@@ -1094,6 +1096,17 @@ export class DesktopHubView extends ItemView {
                 this.updateSelectionBar();
                 this.updateStreamOnly();
             };
+        } else {
+            // Double-click to edit note inline
+            item.ondblclick = (e) => {
+                const target = e.target as HTMLElement;
+                if (target.closest('.pos-interactive-checkbox') || target.closest('.pos-note-actions') || target.closest('a') || target.closest('.pos-area-badge') || target.closest('.pos-date-badge')) {
+                    return;
+                }
+                this._editingEntryId = entry.id;
+                this.updateStreamOnly();
+                this.updateComposerVisibility();
+            };
         }
 
         // If in inline editing mode
@@ -1233,6 +1246,17 @@ export class DesktopHubView extends ItemView {
             e.stopPropagation();
             this._editingEntryId = entry.id;
             this.updateStreamOnly();
+            this.updateComposerVisibility();
+        };
+
+        const moreBtn = metaRight.createSpan({
+            cls: 'pos-action-icon pos-action-more',
+            text: '⋯',
+            attr: { 'aria-label': 'More note options' }
+        });
+        moreBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.openNoteActionMenu(e, entry);
         };
 
         const trashBtn = metaRight.createSpan({
@@ -1351,6 +1375,55 @@ export class DesktopHubView extends ItemView {
                 .setIcon('document')
                 .onClick(async () => {
                     await this.app.workspace.openLinkText(dateStr, entry.filePath, false);
+                });
+        });
+
+        menu.showAtMouseEvent(e);
+    }
+
+    private openNoteActionMenu(e: MouseEvent, entry: CaptureEntry): void {
+        const menu = new Menu();
+
+        menu.addItem((item) => {
+            item.setTitle('✏️ Edit Note (Inline)')
+                .setIcon('edit')
+                .onClick(() => {
+                    this._editingEntryId = entry.id;
+                    this.updateStreamOnly();
+                    this.updateComposerVisibility();
+                });
+        });
+
+        menu.addItem((item) => {
+            item.setTitle('📖 Open in Obsidian Editor')
+                .setIcon('document')
+                .onClick(async () => {
+                    await this.app.workspace.openLinkText(entry.filePath, '', false);
+                });
+        });
+
+        menu.addItem((item) => {
+            item.setTitle('📋 Copy Note Content')
+                .setIcon('copy')
+                .onClick(async () => {
+                    await navigator.clipboard.writeText(entry.body);
+                    new Notice('Note content copied to clipboard');
+                });
+        });
+
+        menu.addSeparator();
+
+        menu.addItem((item) => {
+            item.setTitle('🗑️ Delete Note')
+                .setIcon('trash')
+                .onClick(async () => {
+                    if (confirm('Move this note to trash?')) {
+                        await this.plugin.capture.deleteNote(entry.filePath);
+                        this._selectedEntryIds.delete(entry.id);
+                        this.invalidateRenderCacheForFile(entry.filePath);
+                        this.updateStreamOnly();
+                        this.updateFilterCounts();
+                    }
                 });
         });
 
@@ -1628,7 +1701,10 @@ export class DesktopHubView extends ItemView {
         setTimeout(() => {
             autoResize();
             textarea.focus();
-        }, 0);
+            try {
+                textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } catch {}
+        }, 60);
 
         // Smart triggers in inline editor ([[ for links, # for tags/areas, @ for NLP dates, / for people, ++ for tasks)
         attachInlineTriggers(
@@ -1668,6 +1744,7 @@ export class DesktopHubView extends ItemView {
         cancelBtn.onclick = () => {
             this._editingEntryId = null;
             this.updateStreamOnly();
+            this.updateComposerVisibility();
         };
 
         const saveBtn = actions.createEl('button', {
@@ -1684,6 +1761,7 @@ export class DesktopHubView extends ItemView {
                 new Notice('Note updated');
                 this.updateStreamOnly();
                 this.updateFilterCounts();
+                this.updateComposerVisibility();
             } catch (err) {
                 console.error('[DIWA DesktopHubView] inline edit save error', err);
                 new Notice('Failed to save edits');
@@ -1699,6 +1777,7 @@ export class DesktopHubView extends ItemView {
                 e.preventDefault();
                 this._editingEntryId = null;
                 this.updateStreamOnly();
+                this.updateComposerVisibility();
             }
         };
     }
