@@ -3,6 +3,7 @@
 ## Latest Fix: iOS Keyboard Black Overlay
 - `attachMobileSheetViewportBehavior` now sets `--diwa-kb-h` to the real overlap between the sheet's parent bottom and the visual viewport bottom instead of `innerHeight − visualViewport.height`. Obsidian iOS already shrinks its container above the keyboard, so the old logic subtracted the keyboard twice, leaving a black band over the screen.
 - `.has-mobile-keyboard` still toggles on keyboard presence (compact styles), independent of the offset.
+- Follow-up hardening: the helper now also exposes `--diwa-visible-h` from the DIWA root top to `window.visualViewport` bottom, and skips `scrollIntoView()` when the focused field is already inside the visible viewport. This targets iOS/WKWebView keyboard panning that produced a large black blank region below mobile search.
 
 ## Current State: Mobile Note Editing Hardening & Touch Gestures Deployed
 - **Mobile Sticky Composer Auto-Hide & Collision Elimination**:

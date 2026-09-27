@@ -1111,8 +1111,8 @@ body.is-phone .pos-inline-textarea,
 
     /* When iOS keyboard is open, constrain workspace to visual viewport */
     .diwa-workspace-root.has-mobile-keyboard {
-        height: calc(100% - var(--diwa-kb-h, 0px)) !important;
-        max-height: calc(100% - var(--diwa-kb-h, 0px)) !important;
+        height: var(--diwa-visible-h, calc(100% - var(--diwa-kb-h, 0px))) !important;
+        max-height: var(--diwa-visible-h, calc(100% - var(--diwa-kb-h, 0px))) !important;
         overflow-y: auto !important;
     }
 
@@ -1562,4 +1562,3 @@ body.is-phone .pos-inline-textarea,
     background: var(--background-modifier-border);
     opacity: 0.8;
 }
-

@@ -157,12 +157,12 @@ Discussed priority deliverables for the marketing campaign.
 
 ### 7.1 Visual Viewport & Keyboard Height Management
 * **`attachMobileSheetViewportBehavior`**: On mobile, `DesktopHubView` attaches a visual viewport observer (`window.visualViewport`) on `onOpen()` and tears it down on `onClose()`.
-* **Dynamic Keyboard Variable**: Detects keyboard appearance threshold ($>72\text{px}$) and sets `--diwa-kb-h` to the keyboard overlap still hiding the parent container (parent bottom − visual viewport bottom, so it is 0 when Obsidian already resized its container), simultaneously toggling `.has-mobile-keyboard` on the root container.
+* **Dynamic Keyboard Variables**: Detects keyboard appearance threshold ($>72\text{px}$), sets `--diwa-visible-h` to the measured visible height from the DIWA root top to `window.visualViewport` bottom, and sets `--diwa-kb-h` to any remaining keyboard overlap still hiding the parent container. This avoids both layout-viewport `100%` sizing bugs and double keyboard compensation when Obsidian already resized its container.
 * **Layout Containment**:
   ```css
   .diwa-workspace-root.has-mobile-keyboard {
-      height: calc(100% - var(--diwa-kb-h, 0px)) !important;
-      max-height: calc(100% - var(--diwa-kb-h, 0px)) !important;
+      height: var(--diwa-visible-h, calc(100% - var(--diwa-kb-h, 0px))) !important;
+      max-height: var(--diwa-visible-h, calc(100% - var(--diwa-kb-h, 0px))) !important;
       overflow-y: auto !important;
   }
   ```
@@ -255,6 +255,5 @@ flowchart TD
   - 🗂️ *Open in New Tab*
   - 📋 *Copy Wikilink*
 - **Search Pivot**: Triggering *Filter Stream* (or the search icon in the sheet header) pivots the DIWA search input to that entity name, immediately collapsing the continuous scratchpad to display all related inbox captures.
-
 
 

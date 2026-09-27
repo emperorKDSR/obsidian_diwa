@@ -2,6 +2,7 @@ interface MobileSheetViewportOptions {
     sheetEl: HTMLElement;
     scrollEl?: HTMLElement | null;
     keyboardVarName?: string;
+    visibleHeightVarName?: string;
     keyboardThreshold?: number;
 }
 
@@ -11,6 +12,7 @@ export function attachMobileSheetViewportBehavior({
     sheetEl,
     scrollEl = sheetEl,
     keyboardVarName = '--diwa-kb-h',
+    visibleHeightVarName = '--diwa-visible-h',
     keyboardThreshold = 72,
 }: MobileSheetViewportOptions): () => void {
     const win = sheetEl.ownerDocument.defaultView;
@@ -37,6 +39,11 @@ export function attachMobileSheetViewportBehavior({
     const scrollTargetIntoView = (target?: EventTarget | null) => {
         const element = target instanceof win.HTMLElement ? target : null;
         if (!element || !sheetEl.contains(element) || !shouldScrollTarget(element)) return;
+        const rect = element.getBoundingClientRect();
+        const visibleTop = viewport?.offsetTop ?? 0;
+        const visibleBottom = viewport ? viewport.offsetTop + viewport.height : win.innerHeight;
+        const margin = 16;
+        if (rect.top >= visibleTop + margin && rect.bottom <= visibleBottom - margin) return;
         element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     };
 
@@ -53,7 +60,9 @@ export function attachMobileSheetViewportBehavior({
     const syncKeyboardOffset = () => {
         let keyboardHeight = 0;
         let overlap = 0;
+        let visibleHeight = 0;
         if (viewport) {
+            const visibleTop = viewport.offsetTop;
             const visibleBottom = viewport.height + viewport.offsetTop;
             keyboardHeight = Math.max(0, Math.round(win.innerHeight - visibleBottom));
             // Obsidian iOS often already shrinks its container above the keyboard.
@@ -61,11 +70,15 @@ export function attachMobileSheetViewportBehavior({
             // otherwise the keyboard is subtracted twice and leaves a blank band.
             const referenceEl = sheetEl.parentElement ?? sheetEl;
             const referenceBottom = referenceEl.getBoundingClientRect().bottom;
+            const sheetTop = sheetEl.getBoundingClientRect().top;
+            visibleHeight = Math.max(0, Math.round(visibleBottom - Math.max(sheetTop, visibleTop)));
             overlap = Math.max(0, Math.round(referenceBottom - visibleBottom));
         }
         const keyboardOpen = keyboardHeight >= keyboardThreshold || overlap >= keyboardThreshold;
         if (!keyboardOpen || overlap < keyboardThreshold) overlap = 0;
+        if (!keyboardOpen || visibleHeight < keyboardThreshold) visibleHeight = 0;
         sheetEl.style.setProperty(keyboardVarName, `${overlap}px`);
+        sheetEl.style.setProperty(visibleHeightVarName, visibleHeight ? `${visibleHeight}px` : '100%');
         sheetEl.toggleClass('has-mobile-keyboard', keyboardOpen);
         if (keyboardOpen) scheduleScrollIntoView();
     };
@@ -92,6 +105,7 @@ export function attachMobileSheetViewportBehavior({
         viewport?.removeEventListener('resize', handleViewportChange);
         viewport?.removeEventListener('scroll', handleViewportChange);
         sheetEl.style.removeProperty(keyboardVarName);
+        sheetEl.style.removeProperty(visibleHeightVarName);
         sheetEl.removeClass('has-mobile-keyboard');
     };
 }
