@@ -15,11 +15,12 @@
     - 📋 **Copy Note Content**
     - 🗑️ **Delete Note**
   - Expanded action icon touch targets to 32px–44px and guaranteed `.pos-note-actions` visibility on touch and mobile devices (`body.is-mobile`, `body.is-tablet`, `@media (pointer: coarse)`).
-- **Deployment**:
+- **Deployment & Housekeeping**:
   - Clean TypeScript compilation with `npm run build` (0 errors).
-  - Deployed `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000/.obsidian/plugins/Obsidian_diwa`.
+  - Cleaned up unused legacy `is-diwa-v2-active` DOM class references in `src/main.ts`.
+  - Updated release action name in `.github/workflows/release.yml` from `MINA V2` to `DIWA`.
 
-## Previous Focus: Wikilink System Interaction (Mobile Peek Sheet & Desktop Split Navigation) Deployed
+## Previous Focus: Mobile Note Editing Hardening & Touch Gestures Deployed
 - **Mobile Slide-Up Bottom Sheet (`WikilinkPeekModal`)**:
   - Tapping a non-date wikilink (`[[...]]`) in the stream smoothly slides up a 68vh bottom sheet over the stream with backdrop blur (`backdrop-filter: blur(8px)`), swipe-down dismissal gestures, and drag handle.
   - Renders markdown live with `MarkdownRenderer` and a dedicated `Component` lifecycle.

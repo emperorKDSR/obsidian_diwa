@@ -12,7 +12,8 @@
 *   [x] **Card Double-Click / Double-Tap to Edit** — Double-tapping or double-clicking any note card triggers inline edit mode directly without requiring tiny button clicks.
 *   [x] **Note Action Menu (`⋯`) & Open in Obsidian** — Added note action menu with 1-tap options: ✏️ Edit Note, 📖 Open in Native Obsidian Editor, 📋 Copy Content, and 🗑️ Delete Note.
 *   [x] **Touch Target Sizing & Guaranteed Visibility** — Expanded action icons to 32px–44px tap targets and enforced opacity across mobile and tablet touchscreens.
-*   [x] **Build & Vault Deployment** — Clean compile with `npm run build` (0 errors) and deployed to test vault.
+*   [x] **Legacy V2 Cleanup** — Removed dead `is-diwa-v2-active` body class toggles from `src/main.ts` and updated `.github/workflows/release.yml` release name to `DIWA`.
+*   [x] **Build & Verification** — Clean compile with `npm run build` (0 errors).
 
 ### 0.1. Wikilink System Interaction (Mobile Peek Sheet & Desktop Split Navigation)
 *   [x] **Mobile Slide-Up Bottom Sheet (`WikilinkPeekModal`)** — Tapping a wikilink in the stream opens a thumb-friendly 68vh bottom sheet with backdrop blur and touch swipe-down dismiss gestures.

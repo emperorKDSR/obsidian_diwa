@@ -270,7 +270,6 @@ export default class DiwaPlugin extends Plugin {
         }
         document.body.toggleClass('is-tablet', this.initialBodyHadTabletClass);
         document.body.toggleClass('is-desktop', this.initialBodyHadDesktopClass);
-        document.body.classList.remove('is-diwa-v2-active');
         document.body.classList.remove('diwa-hide-mobile-navbar');
     }
 
@@ -490,12 +489,10 @@ export default class DiwaPlugin extends Plugin {
         this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => {
             const isDiwaView = leaf?.view?.getViewType() === VIEW_TYPE_DESKTOP_HUB;
             if (isDiwaView) {
-                document.body.classList.add('is-diwa-v2-active');
                 if (this.isMobile() && !isTablet(this.app)) {
                     document.body.classList.add('diwa-hide-mobile-navbar');
                 }
             } else {
-                document.body.classList.remove('is-diwa-v2-active');
                 document.body.classList.remove('diwa-hide-mobile-navbar');
             }
         }));
