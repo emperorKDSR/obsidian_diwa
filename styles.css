@@ -936,6 +936,20 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
     gap: 8px;
 }
 
+.pos-inline-btn {
+    background: var(--background-modifier-form-field);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--button-radius, 4px);
+    color: var(--text-normal);
+    padding: 4px 12px;
+    font-size: var(--font-ui-small);
+    cursor: pointer;
+}
+
+.pos-inline-btn:hover {
+    background: var(--background-modifier-hover);
+}
+
 /* Empty State */
 .pos-empty-state {
     display: flex;

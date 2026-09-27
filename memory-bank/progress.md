@@ -1,10 +1,25 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Mobile Search Stream Space Optimization & Filter Carousel Auto-Hide Deployed
+## Current Phase: Production-Grade Hardening Phase 1 & 2 Completed & Deployed
 
 ---
 
 ## Completed Roadmap Checklist
+
+### 0. Production-Grade Hardening (Phases 1 & 2)
+*   [x] **Atomic File Mutations (`app.vault.process`)** — Migrated `toggleTaskInFile`, `updateNoteContent`, and `mergeNotes` in `CaptureService` and `editThought`, `editTask`, and `updateTaskEntry` in `VaultService` to atomic transaction updates.
+*   [x] **CRLF Resilience** — Replaced fragile `indexOf('\n---\n')` line splits with robust regex frontmatter matching `/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/`, preventing file truncation on Windows.
+*   [x] **Isolated Snooze Replacement** — Enforced date wikilink replacement strictly within note body to prevent accidental frontmatter date corruption.
+*   [x] **User Context Protection** — Removed destructive settings filter from `scanForContexts()`, preserving user-configured context categories.
+*   [x] **Native Trash Standard** — Standardized all file deletions on `app.vault.trash(file, true)` across services.
+*   [x] **Vault-Scoped Draft Storage** — Scoped `localStorage` draft key with `this.app.appId` (`diwa-scratchpad-draft-<appId>`).
+*   [x] **Bounded LRU Card Cache & Key Mismatch Fix** — Implemented prefix-based cache invalidation (`invalidateRenderCacheForFile`) and capped render cache to 100 entries.
+*   [x] **MarkdownRenderer Component Lifecycle** — Render stream markdown via a dedicated `_streamComponent` child that unloads cleanly on every stream refresh.
+*   [x] **Dynamic Mobile Navbar Scoping** — Bound `diwa-hide-mobile-navbar` dynamically to `workspace.on('active-leaf-change')` so switching to normal notes restores the bottom bar.
+*   [x] **Theme-Compliant Task Checkboxes** — Added `data-task="x"` attribute management for compatibility with Minimal and AnuPpuccin themes, with state rollback on write errors.
+*   [x] **Textarea Layout Reflow Elimination** — Throttled all composer and inline editor auto-resizing via `requestAnimationFrame`.
+*   [x] **Obsidian Review Compliance** — Replaced `innerHTML` in `CommentModal.ts` with Obsidian's native `setIcon(..., 'paperclip')`.
+*   [x] **Cross-Platform Script Fix** — Replaced PowerShell `clean` script in `package.json` with cross-platform node script and pruned unused `vis-network`.
 
 ### 1. Mobile Search & Viewport UX
 *   [x] **VisualViewport Virtual Keyboard Sizing** — Wired `attachMobileSheetViewportBehavior` into `DesktopHubView` on mobile; automatically measures iOS keyboard via `window.visualViewport` and injects `--diwa-kb-h` / `.has-mobile-keyboard`.

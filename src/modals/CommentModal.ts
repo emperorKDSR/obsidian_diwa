@@ -1,4 +1,4 @@
-import { App, Modal, Platform, Notice, moment, MarkdownRenderer } from 'obsidian';
+import { App, Modal, Platform, Notice, moment, MarkdownRenderer, setIcon } from 'obsidian';
 import DiwaPlugin from '../main';
 import { parseNaturalDate, isTablet, insertFilesAtCursor } from '../utils';
 import { FileSuggestModal } from './FileSuggestModal';
@@ -120,7 +120,8 @@ export class CommentModal extends Modal {
         const attachBtn = actionRow.createEl('button', { 
             attr: { style: 'background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: 8px; color: var(--text-muted); padding: 6px 12px; cursor: pointer; font-size: 0.8em; display: flex; align-items: center; gap: 6px;' } 
         });
-        attachBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg> Attach';
+        setIcon(attachBtn, 'paperclip');
+        attachBtn.createSpan({ text: ' Attach' });
         
         const fileInput = body.createEl('input', { attr: { type: 'file', multiple: '', style: 'display:none;', accept: 'image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,*' } }) as HTMLInputElement;
         fileInput.addEventListener('change', async () => {

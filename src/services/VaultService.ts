@@ -475,14 +475,15 @@ export class VaultService {
 
             // Step 2: update body text, preserving comment/reply section
             const content = await this.app.vault.read(file);
-            const fmEnd = content.indexOf('\n---\n', 3);
-            if (fmEnd === -1) return;
-            const afterFm = content.slice(fmEnd + 5);
+            const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+            const bodyStart = fmMatch ? fmMatch[0].length : 0;
+            const afterFm = content.slice(bodyStart);
             const { replySuffix } = this.splitBodyAndReplySuffix(afterFm);
-            const newContent = content.slice(0, fmEnd + 5) + this.composeBodyWithReplySuffix(newText, replySuffix);
+            const newContent = content.slice(0, bodyStart) + this.composeBodyWithReplySuffix(newText, replySuffix);
             await this.app.vault.modify(file, newContent);
         } catch (e) {
             console.error('[DIWA VaultService]', e);
+            throw e;
         }
     }
 
@@ -508,6 +509,7 @@ export class VaultService {
             });
         } catch (e) {
             console.error('[DIWA VaultService]', e);
+            throw e;
         }
     }
 
@@ -521,7 +523,8 @@ export class VaultService {
             const nowStr = this.formatDateTime(now);
             const dayStr = this.formatDate(now);
             const title = this.extractTitle(newText);
-            const safeContexts = contexts.map(c => this.sanitizeContext(c));            // Step 1: update FM fields safely via Obsidian API — preserves status and created
+            const safeContexts = contexts.map(c => this.sanitizeContext(c));
+            // Step 1: update FM fields safely via Obsidian API — preserves status and created
             await this.app.fileManager.processFrontMatter(file, (fm) => {
                 fm['title'] = this.sanitizeYamlString(title);
                 fm['modified'] = nowStr;
@@ -536,13 +539,14 @@ export class VaultService {
 
             // Step 2: update body text while preserving replies
             const content = await this.app.vault.read(file);
-            const fmEnd = content.indexOf('\n---\n', 3);
-            if (fmEnd === -1) return;
-            const afterFm = content.slice(fmEnd + 5);
+            const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+            const bodyStart = fmMatch ? fmMatch[0].length : 0;
+            const afterFm = content.slice(bodyStart);
             const { replySuffix } = this.splitBodyAndReplySuffix(afterFm);
-            await this.app.vault.modify(file, content.slice(0, fmEnd + 5) + this.composeBodyWithReplySuffix(newText, replySuffix));
+            await this.app.vault.modify(file, content.slice(0, bodyStart) + this.composeBodyWithReplySuffix(newText, replySuffix));
         } catch (e) {
             console.error('[DIWA VaultService]', e);
+            throw e;
         }
     }
 
@@ -629,9 +633,8 @@ export class VaultService {
 
             // Update body text — preserve any reply sections
             const content = await this.app.vault.read(file);
-            const fmEnd   = content.indexOf('\n---\n', 3);
-            if (fmEnd === -1) return true;
-            const bodyStart    = fmEnd + 5;
+            const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+            const bodyStart = fmMatch ? fmMatch[0].length : 0;
             const existing     = content.slice(bodyStart);
             const { replySuffix } = this.splitBodyAndReplySuffix(existing);
             const bodyText = (updates.bodyText ?? updates.title).trim();
@@ -646,29 +649,18 @@ export class VaultService {
     async deleteFile(filePath: string, type: 'thoughts' | 'tasks'): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) return;
-        
-        const folder = type === 'thoughts'
-            ? this.resolveConfiguredFolder(this.settings.thoughtsFolder, '000 Bin/DIWA')
-            : this.resolveConfiguredFolder(this.settings.tasksFolder, '000 Bin/DIWA Gawa');
-        const trashFolder = `${folder}/trash`;
-        await this.ensureFolder(trashFolder);
-        
         try {
-            const trashPath = `${trashFolder}/${file.basename}_${Date.now()}.md`;
-            await this.app.vault.rename(file, trashPath);
+            await this.app.vault.trash(file, true);
         } catch (e) {
-            console.error('[DIWA VaultService]', e);
+            console.error('[DIWA VaultService] Failed to trash file', e);
+            throw e;
         }
     }
 
     private async _trashFile(filePath: string): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) return;
-        const folder = this.resolveConfiguredFolder(this.settings.thoughtsFolder, '000 Bin/DIWA');
-        const trashFolder = `${folder}/trash`;
-        await this.ensureFolder(trashFolder);
-        const trashPath = `${trashFolder}/${file.basename}_${Date.now()}.md`;
-        await this.app.vault.rename(file, trashPath);
+        await this.app.vault.trash(file, true);
     }
 
     async mergeThoughts(filePaths: string[], mergedText: string, contexts: string[]): Promise<TFile> {
@@ -683,6 +675,8 @@ export class VaultService {
             catch { failed.push(fp); }
         }
         if (failed.length > 0) {
+            console.warn('[DIWA VaultService] Could not trash some source files after merge:', failed);
+            new Notice(`Warning: Could not trash ${failed.length} source file(s)`);
         }
         return newFile;
     }

@@ -37,12 +37,12 @@ export class RefreshCoordinator {
         this._reindexCooldown.set(filePath, Date.now());
     }
 
-    async reindexFile(file: TFile): Promise<void> {
-        // CRIT-01: Deduplicate concurrent calls from vault 'modify' + metadataCache 'changed'.
-        // Both events fire on every local save; a 300ms cooldown window collapses them into one.
+    async reindexFile(file: TFile, isMetadataChange = false): Promise<void> {
+        // Deduplicate rapid repeat calls; raw vault 'modify' events within 300ms are coalesced,
+        // while metadataCache 'changed' updates with parsed frontmatter are always accepted.
         const now = Date.now();
         const last = this._reindexCooldown.get(file.path) ?? 0;
-        if (now - last < 300) return;
+        if (!isMetadataChange && (now - last < 300)) return;
         this._reindexCooldown.set(file.path, now);
 
         const capPath = getCanonicalCapturePath(this.settings);

@@ -44,7 +44,7 @@ export class CaptureService {
             ...inlineTags.map(t => t.toLowerCase().replace(/^#/, ''))
         ]));
 
-        // Format frontmatter
+        // Format frontmatter safely
         const frontmatterLines: string[] = [
             '---',
             `created: ${isoTimestamp}`,
@@ -52,13 +52,13 @@ export class CaptureService {
         ];
 
         if (area) {
-            frontmatterLines.push(`area: ${area.toLowerCase()}`);
+            frontmatterLines.push(`area: ${JSON.stringify(area.toLowerCase())}`);
         }
 
         if (combinedTags.length > 0) {
             frontmatterLines.push('tags:');
             for (const tag of combinedTags) {
-                frontmatterLines.push(`  - ${tag}`);
+                frontmatterLines.push(`  - ${JSON.stringify(tag)}`);
             }
         }
 
@@ -81,53 +81,57 @@ export class CaptureService {
     }
 
     /**
-     * Toggles an inline checkbox inside a capture file without full page reloads.
+     * Toggles an inline checkbox inside a capture file atomically without full page reloads.
      */
     async toggleTaskInFile(filePath: string, lineIndex: number, completed: boolean, taskTitleFallback?: string): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) {
-            console.error(`[CaptureService] File not found for path: ${filePath}`);
-            return;
+            throw new Error(`[CaptureService] File not found for path: ${filePath}`);
         }
 
-        const content = await this.app.vault.read(file);
-        const lines = content.split('\n');
+        let toggleSucceeded = false;
+        await this.app.vault.process(file, (content) => {
+            const isCrlf = content.includes('\r\n');
+            const newline = isCrlf ? '\r\n' : '\n';
+            const lines = content.split(/\r?\n/);
 
-        let targetLineIdx = -1;
+            let targetLineIdx = -1;
+            const taskRegex = /^(\s*-\s*\[)([ xX])(\]\s+.*)$/;
+            if (lineIndex >= 0 && lineIndex < lines.length && taskRegex.test(lines[lineIndex])) {
+                targetLineIdx = lineIndex;
+            } else if (taskTitleFallback) {
+                for (let i = 0; i < lines.length; i++) {
+                    if (taskRegex.test(lines[i]) && lines[i].includes(taskTitleFallback)) {
+                        targetLineIdx = i;
+                        break;
+                    }
+                }
+            }
 
-        // Check if specified lineIndex is indeed a task checkbox
-        const taskRegex = /^(\s*-\s*\[)([ xX])(\]\s+.*)$/;
-        if (lineIndex >= 0 && lineIndex < lines.length && taskRegex.test(lines[lineIndex])) {
-            targetLineIdx = lineIndex;
-        } else if (taskTitleFallback) {
-            // Fallback search by title
-            for (let i = 0; i < lines.length; i++) {
-                if (taskRegex.test(lines[i]) && lines[i].includes(taskTitleFallback)) {
-                    targetLineIdx = i;
+            if (targetLineIdx === -1) {
+                return content;
+            }
+
+            const currentLine = lines[targetLineIdx];
+            const newCheck = completed ? 'x' : ' ';
+            lines[targetLineIdx] = currentLine.replace(/^(\s*-\s*\[)[ xX](\]\s+.*)$/, `$1${newCheck}$2`);
+
+            // Update modified timestamp in frontmatter (first 30 lines)
+            const nowIso = moment().format('YYYY-MM-DDTHH:mm:ss');
+            for (let i = 0; i < Math.min(lines.length, 30); i++) {
+                if (/^modified\s*:/i.test(lines[i])) {
+                    lines[i] = `modified: ${nowIso}`;
                     break;
                 }
             }
+
+            toggleSucceeded = true;
+            return lines.join(newline);
+        });
+
+        if (!toggleSucceeded) {
+            throw new Error(`[CaptureService] Could not locate task line in ${filePath}`);
         }
-
-        if (targetLineIdx === -1) {
-            console.warn(`[CaptureService] Could not locate task line in ${filePath}`);
-            return;
-        }
-
-        const currentLine = lines[targetLineIdx];
-        const newCheck = completed ? 'x' : ' ';
-        lines[targetLineIdx] = currentLine.replace(/^(\s*-\s*\[)[ xX](\]\s+.*)$/, `$1${newCheck}$2`);
-
-        // Update modified timestamp in frontmatter
-        const nowIso = moment().format('YYYY-MM-DDTHH:mm:ss');
-        for (let i = 0; i < Math.min(lines.length, 10); i++) {
-            if (lines[i].startsWith('modified:')) {
-                lines[i] = `modified: ${nowIso}`;
-                break;
-            }
-        }
-
-        await this.app.vault.modify(file, lines.join('\n'));
     }
 
     async updateNoteContent(filePath: string, newBody: string, area?: string, tags?: string[]): Promise<void> {
@@ -136,61 +140,61 @@ export class CaptureService {
             throw new Error(`File not found: ${filePath}`);
         }
 
-        const existingContent = await this.app.vault.read(file);
         const nowIso = moment().format('YYYY-MM-DDTHH:mm:ss');
         const hasTasks = /(^|\n)\s*-\s*\[[ xX]\]\s+/.test(newBody);
 
-        // Check for YAML frontmatter block
-        const match = existingContent.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
-        if (match) {
-            let fmBlock = match[1];
-            // Update modified timestamp in frontmatter text
-            if (/^modified\s*:/m.test(fmBlock)) {
-                fmBlock = fmBlock.replace(/^modified\s*:.*$/m, `modified: ${nowIso}`);
-            } else {
-                fmBlock += `\nmodified: ${nowIso}`;
-            }
+        await this.app.vault.process(file, (existingContent) => {
+            const isCrlf = existingContent.includes('\r\n');
+            const newline = isCrlf ? '\r\n' : '\n';
+            const match = existingContent.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
 
-            // Update hasTasks in frontmatter text
-            if (/^hasTasks\s*:/m.test(fmBlock)) {
-                fmBlock = fmBlock.replace(/^hasTasks\s*:.*$/m, `hasTasks: ${hasTasks}`);
-            } else {
-                fmBlock += `\nhasTasks: ${hasTasks}`;
-            }
-
-            if (area !== undefined) {
-                if (/^area\s*:/m.test(fmBlock)) {
-                    if (area.trim()) {
-                        fmBlock = fmBlock.replace(/^area\s*:.*$/m, `area: ${area.toLowerCase().trim()}`);
-                    } else {
-                        fmBlock = fmBlock.split('\n').filter(line => !/^area\s*:/m.test(line)).join('\n');
-                    }
-                } else if (area.trim()) {
-                    fmBlock += `\narea: ${area.toLowerCase().trim()}`;
+            if (match) {
+                let fmBlock = match[1];
+                if (/^modified\s*:/m.test(fmBlock)) {
+                    fmBlock = fmBlock.replace(/^modified\s*:.*$/m, `modified: ${nowIso}`);
+                } else {
+                    fmBlock += `\nmodified: ${nowIso}`;
                 }
-            }
 
-            const updatedContent = `---\n${fmBlock.trim()}\n---\n\n${newBody.trim()}\n`;
-            await this.app.vault.modify(file, updatedContent);
-        } else {
-            const frontmatterLines: string[] = [
-                '---',
-                `created: ${nowIso}`,
-                `modified: ${nowIso}`,
-                `hasTasks: ${hasTasks}`,
-            ];
-            if (area) frontmatterLines.push(`area: ${area.toLowerCase()}`);
-            if (tags && tags.length > 0) {
-                frontmatterLines.push('tags:');
-                for (const t of tags) frontmatterLines.push(`  - ${t.toLowerCase().replace(/^#/, '')}`);
-            }
-            frontmatterLines.push('---');
-            frontmatterLines.push('');
-            frontmatterLines.push(newBody.trim());
-            frontmatterLines.push('');
+                if (/^hasTasks\s*:/m.test(fmBlock)) {
+                    fmBlock = fmBlock.replace(/^hasTasks\s*:.*$/m, `hasTasks: ${hasTasks}`);
+                } else {
+                    fmBlock += `\nhasTasks: ${hasTasks}`;
+                }
 
-            await this.app.vault.modify(file, frontmatterLines.join('\n'));
-        }
+                if (area !== undefined) {
+                    if (/^area\s*:/m.test(fmBlock)) {
+                        if (area.trim()) {
+                            fmBlock = fmBlock.replace(/^area\s*:.*$/m, `area: ${JSON.stringify(area.toLowerCase().trim())}`);
+                        } else {
+                            fmBlock = fmBlock.split(/\r?\n/).filter(line => !/^area\s*:/m.test(line)).join('\n');
+                        }
+                    } else if (area.trim()) {
+                        fmBlock += `\narea: ${JSON.stringify(area.toLowerCase().trim())}`;
+                    }
+                }
+
+                return `---${newline}${fmBlock.trim()}${newline}---${newline}${newline}${newBody.trim()}${newline}`;
+            } else {
+                const frontmatterLines: string[] = [
+                    '---',
+                    `created: ${nowIso}`,
+                    `modified: ${nowIso}`,
+                    `hasTasks: ${hasTasks}`,
+                ];
+                if (area) frontmatterLines.push(`area: ${JSON.stringify(area.toLowerCase())}`);
+                if (tags && tags.length > 0) {
+                    frontmatterLines.push('tags:');
+                    for (const t of tags) frontmatterLines.push(`  - ${JSON.stringify(t.toLowerCase().replace(/^#/, ''))}`);
+                }
+                frontmatterLines.push('---');
+                frontmatterLines.push('');
+                frontmatterLines.push(newBody.trim());
+                frontmatterLines.push('');
+
+                return frontmatterLines.join(newline);
+            }
+        });
     }
 
     /**
@@ -220,8 +224,8 @@ export class CaptureService {
             if (file instanceof TFile) {
                 sourceFiles.push(file);
                 const raw = await this.app.vault.read(file);
-                // Strip frontmatter
-                const body = raw.replace(/^---[\s\S]*?---\n*/, '').trim();
+                // Strip frontmatter safely handling both CRLF and LF
+                const body = raw.replace(/^---[\s\S]*?---\r?\n*/, '').trim();
                 if (body) {
                     contents.push(body);
                 }
@@ -234,8 +238,11 @@ export class CaptureService {
         if (targetFilePath) {
             const targetFile = this.app.vault.getAbstractFileByPath(targetFilePath);
             if (targetFile instanceof TFile) {
-                const existing = await this.app.vault.read(targetFile);
-                await this.app.vault.modify(targetFile, `${existing.trim()}\n\n---\n\n${mergedBody}\n`);
+                await this.app.vault.process(targetFile, (existing) => {
+                    const isCrlf = existing.includes('\r\n');
+                    const newline = isCrlf ? '\r\n' : '\n';
+                    return `${existing.trim()}${newline}${newline}---${newline}${newline}${mergedBody}${newline}`;
+                });
                 destinationFile = targetFile;
             } else {
                 throw new Error(`Target file not found: ${targetFilePath}`);
@@ -249,10 +256,18 @@ export class CaptureService {
         }
 
         if (trashSourceFiles) {
+            const failedTrashes: string[] = [];
             for (const file of sourceFiles) {
                 if (file.path !== destinationFile.path) {
-                    await this.app.vault.trash(file, true);
+                    try {
+                        await this.app.vault.trash(file, true);
+                    } catch (e) {
+                        failedTrashes.push(file.path);
+                    }
                 }
+            }
+            if (failedTrashes.length > 0) {
+                console.warn('[CaptureService] Some source files could not be trashed after merge:', failedTrashes);
             }
         }
 
@@ -260,7 +275,7 @@ export class CaptureService {
     }
 
     /**
-     * Replaces a date link [[oldDateStr]] with [[newDateStr]] in a capture note.
+     * Replaces a date link [[oldDateStr]] with [[newDateStr]] strictly inside the note body.
      */
     async snoozeDateLink(filePath: string, oldDateStr: string, newDateStr: string): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(filePath);
@@ -268,25 +283,34 @@ export class CaptureService {
             throw new Error(`File not found: ${filePath}`);
         }
 
-        const raw = await this.app.vault.read(file);
-        let newContent: string;
+        await this.app.vault.process(file, (raw) => {
+            const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+            const frontmatterFull = match ? match[0] : '';
+            const body = match ? raw.slice(frontmatterFull.length) : raw;
 
-        if (oldDateStr && raw.includes(`[[${oldDateStr}]]`)) {
-            newContent = raw.replace(`[[${oldDateStr}]]`, `[[${newDateStr}]]`);
-        } else {
-            // Replace first date wikilink found
-            newContent = raw.replace(/\[\[\d{4}-\d{2}-\d{2}\]\]/, `[[${newDateStr}]]`);
-        }
+            let newBody: string;
+            if (oldDateStr && body.includes(`[[${oldDateStr}]]`)) {
+                newBody = body.replace(`[[${oldDateStr}]]`, `[[${newDateStr}]]`);
+            } else {
+                newBody = body.replace(/\[\[\d{4}-\d{2}-\d{2}\]\]/, `[[${newDateStr}]]`);
+            }
 
-        if (newContent !== raw) {
-            // Strip frontmatter to pass body to updateNoteContent
-            const body = newContent.replace(/^---[\s\S]*?---\r?\n*/, '').trim();
-            await this.updateNoteContent(filePath, body);
-        }
+            if (newBody === body) {
+                return raw;
+            }
+
+            const nowIso = moment().format('YYYY-MM-DDTHH:mm:ss');
+            let newFrontmatter = frontmatterFull;
+            if (newFrontmatter && /^modified\s*:/m.test(newFrontmatter)) {
+                newFrontmatter = newFrontmatter.replace(/^modified\s*:.*$/m, `modified: ${nowIso}`);
+            }
+
+            return `${newFrontmatter}${newBody}`;
+        });
     }
 
     /**
-     * Removes a date link [[dateStr]] from a capture note.
+     * Removes a date link [[dateStr]] strictly from the note body.
      */
     async removeDateLink(filePath: string, dateStr: string): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(filePath);
@@ -294,19 +318,30 @@ export class CaptureService {
             throw new Error(`File not found: ${filePath}`);
         }
 
-        const raw = await this.app.vault.read(file);
-        let newContent: string;
+        await this.app.vault.process(file, (raw) => {
+            const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+            const frontmatterFull = match ? match[0] : '';
+            const body = match ? raw.slice(frontmatterFull.length) : raw;
 
-        if (dateStr && raw.includes(`[[${dateStr}]]`)) {
-            newContent = raw.replace(new RegExp(`\\s*\\[\\[${dateStr}\\]\\]`, 'g'), '');
-        } else {
-            newContent = raw.replace(/\s*\[\[\d{4}-\d{2}-\d{2}\]\]/g, '');
-        }
+            let newBody: string;
+            if (dateStr && body.includes(`[[${dateStr}]]`)) {
+                newBody = body.replace(new RegExp(`\\s*\\[\\[${dateStr}\\]\\]`, 'g'), '');
+            } else {
+                newBody = body.replace(/\s*\[\[\d{4}-\d{2}-\d{2}\]\]/g, '');
+            }
 
-        if (newContent !== raw) {
-            const body = newContent.replace(/^---[\s\S]*?---\r?\n*/, '').trim();
-            await this.updateNoteContent(filePath, body);
-        }
+            if (newBody === body) {
+                return raw;
+            }
+
+            const nowIso = moment().format('YYYY-MM-DDTHH:mm:ss');
+            let newFrontmatter = frontmatterFull;
+            if (newFrontmatter && /^modified\s*:/m.test(newFrontmatter)) {
+                newFrontmatter = newFrontmatter.replace(/^modified\s*:.*$/m, `modified: ${nowIso}`);
+            }
+
+            return `${newFrontmatter}${newBody}`;
+        });
     }
 
     /**
@@ -318,17 +353,24 @@ export class CaptureService {
             throw new Error(`File not found: ${filePath}`);
         }
 
-        const content = await this.app.vault.read(file);
-        const lines = content.split('\n');
+        await this.app.vault.process(file, (content) => {
+            const isCrlf = content.includes('\r\n');
+            const newline = isCrlf ? '\r\n' : '\n';
+            const lines = content.split(/\r?\n/);
 
-        if (lineIndex >= 0 && lineIndex < lines.length) {
-            const line = lines[lineIndex];
-            if (!/^\s*-\s*\[[ xX]\]/.test(line)) {
-                lines[lineIndex] = `- [ ] ${line.trim()}`;
-                const body = lines.join('\n').replace(/^---[\s\S]*?---\r?\n*/, '').trim();
-                await this.updateNoteContent(filePath, body);
+            if (lineIndex >= 0 && lineIndex < lines.length) {
+                const line = lines[lineIndex];
+                if (!/^\s*-\s*\[[ xX]\]/.test(line)) {
+                    lines[lineIndex] = `- [ ] ${line.trim()}`;
+                }
             }
-        }
+            return lines.join(newline);
+        });
+    }
+
+    private getDraftKey(): string {
+        const appId = (this.app as any).appId ?? 'default';
+        return `diwa-scratchpad-draft-${appId}`;
     }
 
     /**
@@ -336,10 +378,11 @@ export class CaptureService {
      */
     saveDraft(text: string): void {
         try {
+            const key = this.getDraftKey();
             if (!text || !text.trim()) {
-                localStorage.removeItem(CaptureService.DRAFT_KEY);
+                localStorage.removeItem(key);
             } else {
-                localStorage.setItem(CaptureService.DRAFT_KEY, text);
+                localStorage.setItem(key, text);
             }
         } catch (e) {
             console.warn('[CaptureService] Could not save draft to localStorage', e);
@@ -348,7 +391,8 @@ export class CaptureService {
 
     getDraft(): string {
         try {
-            return localStorage.getItem(CaptureService.DRAFT_KEY) || '';
+            const key = this.getDraftKey();
+            return localStorage.getItem(key) || localStorage.getItem(CaptureService.DRAFT_KEY) || '';
         } catch (e) {
             return '';
         }
@@ -356,6 +400,7 @@ export class CaptureService {
 
     clearDraft(): void {
         try {
+            localStorage.removeItem(this.getDraftKey());
             localStorage.removeItem(CaptureService.DRAFT_KEY);
         } catch (e) {}
     }

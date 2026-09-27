@@ -169,6 +169,7 @@ export default class DiwaPlugin extends Plugin {
         };
 
         this.app.workspace.onLayoutReady(async () => {
+            if (this.unloading) return;
             const startupToken = ++this.startupRunToken;
             this.registerReactiveRuntimeEvents();
             await this.runStartupIndexBuild(startupToken);
@@ -269,14 +270,19 @@ export default class DiwaPlugin extends Plugin {
         }
         document.body.toggleClass('is-tablet', this.initialBodyHadTabletClass);
         document.body.toggleClass('is-desktop', this.initialBodyHadDesktopClass);
+        document.body.classList.remove('is-diwa-v2-active');
+        document.body.classList.remove('diwa-hide-mobile-navbar');
     }
 
     private detachRegisteredLeaves(): void {
-        for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB)) {
-            try {
-                leaf.detach();
-            } catch (error) {
-                console.warn('[DIWA] failed to detach leaf during unload', error);
+        const viewTypes = [VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB];
+        for (const vt of viewTypes) {
+            for (const leaf of this.app.workspace.getLeavesOfType(vt)) {
+                try {
+                    leaf.detach();
+                } catch (error) {
+                    console.warn('[DIWA] failed to detach leaf during unload', error);
+                }
             }
         }
     }
@@ -474,7 +480,7 @@ export default class DiwaPlugin extends Plugin {
         this.registerEvent(this.app.metadataCache.on('changed', async (file) => {
             const scope = this.getRefreshScopeForPath(file.path);
             if (!scope) return;
-            await this.refreshCoordinator.reindexFile(file);
+            await this.refreshCoordinator.reindexFile(file, true);
             if (this.index.isThoughtFile(file.path) && !this.getThoughtController().isUpdatingThoughtPath(file.path)) {
                 this.getThoughtController().syncIndexedThought(file.path);
             }
@@ -482,10 +488,15 @@ export default class DiwaPlugin extends Plugin {
         }));
 
         this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => {
-            if (leaf?.view?.getViewType() === VIEW_TYPE_DESKTOP_HUB) {
+            const isDiwaView = leaf?.view?.getViewType() === VIEW_TYPE_DESKTOP_HUB;
+            if (isDiwaView) {
                 document.body.classList.add('is-diwa-v2-active');
+                if (this.isMobile() && !isTablet(this.app)) {
+                    document.body.classList.add('diwa-hide-mobile-navbar');
+                }
             } else {
                 document.body.classList.remove('is-diwa-v2-active');
+                document.body.classList.remove('diwa-hide-mobile-navbar');
             }
         }));
 
@@ -537,12 +548,7 @@ export default class DiwaPlugin extends Plugin {
         
         let changed = false;
         
-        // Remove contexts no longer found in the vault to prevent pill accumulation
-        const originalLength = this.settings.contexts.length;
-        this.settings.contexts = this.settings.contexts.filter(c => foundContexts.includes(c));
-        if (this.settings.contexts.length !== originalLength) changed = true;
-
-        // Add any newly discovered contexts
+        // Add any newly discovered contexts without deleting user-configured settings
         foundContexts.forEach(c => { 
             if (c && typeof c === 'string' && !this.settings.contexts.includes(c)) { 
                 this.settings.contexts.push(c); 

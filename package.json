@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-    "clean": "Remove-Item -Recurse -Force main.js -ErrorAction SilentlyContinue",
+    "clean": "node -e \"const fs=require('fs'); ['main.js'].forEach(f => fs.rmSync(f, {force:true, recursive:true}))\"",
     "version": "node -p \"require('./manifest.json').version\""
   },
   "keywords": [],
@@ -30,7 +30,6 @@
     "@codemirror/language": "^6.12.3",
     "@codemirror/state": "^6.6.0",
     "@codemirror/view": "^6.43.1",
-    "chrono-node": "^2.9.0",
-    "vis-network": "^10.1.0"
+    "chrono-node": "^2.9.0"
   }
 }

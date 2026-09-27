@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, TFile, MarkdownRenderer, moment, Notice, Platform, Menu } from 'obsidian';
+import { ItemView, WorkspaceLeaf, TFile, MarkdownRenderer, moment, Notice, Platform, Menu, Component } from 'obsidian';
 import type DiwaPlugin from '../main';
 import { VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID } from '../constants';
 import { CaptureEntry, ScratchpadFilterMode } from '../types';
@@ -28,12 +28,13 @@ export class DesktopHubView extends ItemView {
     private _mobileSearchOpen: boolean = false;
     private _viewportCleanup: (() => void) | null = null;
 
-    // Progressive rendering & caching
+    // Progressive rendering, component lifecycle & LRU caching
     private _renderedCount: number = BATCH_SIZE;
     private _scrollSentinelEl: HTMLElement | null = null;
     private _intersectionObserver: IntersectionObserver | null = null;
     private _isLoadingMore: boolean = false;
     private _renderedMarkdownCache: Map<string, HTMLElement> = new Map();
+    private _streamComponent: Component | null = null;
 
     // Concurrency / refresh guards
     _capturePending: number = 0;
@@ -56,13 +57,40 @@ export class DesktopHubView extends ItemView {
         return DESKTOP_HUB_ICON_ID;
     }
 
+    private getCachedRenderedBody(cacheKey: string): HTMLElement | undefined {
+        const cached = this._renderedMarkdownCache.get(cacheKey);
+        if (cached) {
+            // Move to most recent for LRU policy
+            this._renderedMarkdownCache.delete(cacheKey);
+            this._renderedMarkdownCache.set(cacheKey, cached);
+            return cached;
+        }
+        return undefined;
+    }
+
+    private setCachedRenderedBody(cacheKey: string, el: HTMLElement): void {
+        if (this._renderedMarkdownCache.size >= 100) {
+            const oldestKey = this._renderedMarkdownCache.keys().next().value;
+            if (oldestKey) this._renderedMarkdownCache.delete(oldestKey);
+        }
+        this._renderedMarkdownCache.set(cacheKey, el);
+    }
+
+    private invalidateRenderCacheForFile(filePath: string): void {
+        const prefix = `${filePath}_`;
+        for (const key of Array.from(this._renderedMarkdownCache.keys())) {
+            if (key.startsWith(prefix) || key === filePath) {
+                this._renderedMarkdownCache.delete(key);
+            }
+        }
+    }
+
     async onOpen(): Promise<void> {
         this.contentEl.empty();
         this.contentEl.addClass('diwa-workspace-root');
         this.contentEl.addClass('pos-scratchpad-view');
 
         if (Platform.isMobile && !isTablet(this.app)) {
-            document.body.addClass('diwa-hide-mobile-navbar');
             this._viewportCleanup = attachMobileSheetViewportBehavior({
                 sheetEl: this.contentEl,
                 scrollEl: this.contentEl,
@@ -80,6 +108,12 @@ export class DesktopHubView extends ItemView {
         }
 
         document.body.removeClass('diwa-hide-mobile-navbar');
+
+        if (this._streamComponent) {
+            this._streamComponent.unload();
+            this.removeChild(this._streamComponent);
+            this._streamComponent = null;
+        }
 
         if (this._intersectionObserver) {
             this._intersectionObserver.disconnect();
@@ -567,10 +601,16 @@ export class DesktopHubView extends ItemView {
                 textarea.value = draft;
             }
 
-            // Auto-expand textarea
+            // Auto-expand textarea without forced reflow
+            let resizePending = false;
             const autoResize = () => {
-                textarea.style.height = 'auto';
-                textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
+                if (resizePending) return;
+                resizePending = true;
+                requestAnimationFrame(() => {
+                    textarea.style.height = 'auto';
+                    textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
+                    resizePending = false;
+                });
             };
             textarea.oninput = () => {
                 autoResize();
@@ -666,10 +706,16 @@ export class DesktopHubView extends ItemView {
                 textarea.value = draft;
             }
 
-            // Auto-expand textarea
+            // Auto-expand textarea without forced reflow
+            let resizePending = false;
             const autoResize = () => {
-                textarea.style.height = 'auto';
-                textarea.style.height = `${Math.min(textarea.scrollHeight, 260)}px`;
+                if (resizePending) return;
+                resizePending = true;
+                requestAnimationFrame(() => {
+                    textarea.style.height = 'auto';
+                    textarea.style.height = `${Math.min(textarea.scrollHeight, 260)}px`;
+                    resizePending = false;
+                });
             };
             textarea.oninput = () => {
                 autoResize();
@@ -856,6 +902,13 @@ export class DesktopHubView extends ItemView {
         if (this._intersectionObserver) {
             this._intersectionObserver.disconnect();
         }
+
+        if (this._streamComponent) {
+            this._streamComponent.unload();
+            this.removeChild(this._streamComponent);
+            this._streamComponent = null;
+        }
+        this._streamComponent = this.addChild(new Component());
 
         container.empty();
 
@@ -1156,7 +1209,7 @@ export class DesktopHubView extends ItemView {
             if (confirm('Move this note to trash?')) {
                 await this.plugin.capture.deleteNote(entry.filePath);
                 this._selectedEntryIds.delete(entry.id);
-                this._renderedMarkdownCache.delete(entry.filePath);
+                this.invalidateRenderCacheForFile(entry.filePath);
                 this.updateStreamOnly();
                 this.updateFilterCounts();
             }
@@ -1165,7 +1218,7 @@ export class DesktopHubView extends ItemView {
         // Note Body rendered via Obsidian MarkdownRenderer with cache
         const bodyEl = item.createDiv({ cls: 'pos-note-body markdown-rendered' });
         const cacheKey = `${entry.filePath}_${entry.modified}`;
-        const cached = this._renderedMarkdownCache.get(cacheKey);
+        const cached = this.getCachedRenderedBody(cacheKey);
 
         if (cached) {
             // Clone cached node and attach listeners
@@ -1177,11 +1230,11 @@ export class DesktopHubView extends ItemView {
                 entry.body,
                 bodyEl,
                 entry.filePath,
-                this
+                this._streamComponent ?? this
             ).then(() => {
                 // Cache rendered DOM content
                 const clone = bodyEl.cloneNode(true) as HTMLElement;
-                this._renderedMarkdownCache.set(cacheKey, clone);
+                this.setCachedRenderedBody(cacheKey, clone);
                 this.attachInteractiveElements(bodyEl, entry);
             });
         }
@@ -1196,7 +1249,7 @@ export class DesktopHubView extends ItemView {
                 .onClick(async () => {
                     const tomorrow = moment().add(1, 'day').format('YYYY-MM-DD');
                     await this.plugin.capture.snoozeDateLink(entry.filePath, dateStr, tomorrow);
-                    this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
+                    this.invalidateRenderCacheForFile(entry.filePath);
                     new Notice(`Snoozed to tomorrow (${tomorrow})`);
                     this.updateStreamOnly();
                     this.updateFilterCounts();
@@ -1209,7 +1262,7 @@ export class DesktopHubView extends ItemView {
                 .onClick(async () => {
                     const in3Days = moment().add(3, 'days').format('YYYY-MM-DD');
                     await this.plugin.capture.snoozeDateLink(entry.filePath, dateStr, in3Days);
-                    this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
+                    this.invalidateRenderCacheForFile(entry.filePath);
                     new Notice(`Snoozed to ${in3Days}`);
                     this.updateStreamOnly();
                     this.updateFilterCounts();
@@ -1222,7 +1275,7 @@ export class DesktopHubView extends ItemView {
                 .onClick(async () => {
                     const in1Week = moment().add(7, 'days').format('YYYY-MM-DD');
                     await this.plugin.capture.snoozeDateLink(entry.filePath, dateStr, in1Week);
-                    this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
+                    this.invalidateRenderCacheForFile(entry.filePath);
                     new Notice(`Snoozed to next week (${in1Week})`);
                     this.updateStreamOnly();
                     this.updateFilterCounts();
@@ -1235,7 +1288,7 @@ export class DesktopHubView extends ItemView {
                 .onClick(() => {
                     new DatePickerModal(this.app, dateStr, async (chosenDate) => {
                         await this.plugin.capture.snoozeDateLink(entry.filePath, dateStr, chosenDate);
-                        this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
+                        this.invalidateRenderCacheForFile(entry.filePath);
                         new Notice(`Rescheduled to ${chosenDate}`);
                         this.updateStreamOnly();
                         this.updateFilterCounts();
@@ -1250,7 +1303,7 @@ export class DesktopHubView extends ItemView {
                 .setIcon('cross')
                 .onClick(async () => {
                     await this.plugin.capture.removeDateLink(entry.filePath, dateStr);
-                    this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
+                    this.invalidateRenderCacheForFile(entry.filePath);
                     new Notice('Reminder date removed');
                     this.updateStreamOnly();
                     this.updateFilterCounts();
@@ -1281,10 +1334,11 @@ export class DesktopHubView extends ItemView {
                 e.stopPropagation();
                 const isChecked = cb.checked;
                 
-                // Optimistic visual strike-through update
+                // Optimistic visual strike-through update with theme data-task support
                 const listItem = cb.closest('li');
                 if (listItem) {
                     listItem.toggleClass('is-checked', isChecked);
+                    listItem.setAttribute('data-task', isChecked ? 'x' : ' ');
                 }
 
                 if (taskItem) {
@@ -1292,7 +1346,7 @@ export class DesktopHubView extends ItemView {
                 }
 
                 // Invalidate render cache for this entry
-                this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
+                this.invalidateRenderCacheForFile(entry.filePath);
 
                 // Update file directly in background
                 try {
@@ -1307,7 +1361,14 @@ export class DesktopHubView extends ItemView {
                 } catch (err) {
                     console.error('[DIWA DesktopHubView] Failed to toggle task checkbox', err);
                     cb.checked = !isChecked; // revert on failure
-                    new Notice('Failed to update task state');
+                    if (listItem) {
+                        listItem.toggleClass('is-checked', !isChecked);
+                        listItem.setAttribute('data-task', !isChecked ? 'x' : ' ');
+                    }
+                    if (taskItem) {
+                        taskItem.completed = !isChecked;
+                    }
+                    new Notice('Failed to update task state in note');
                 }
             };
         });
@@ -1367,10 +1428,16 @@ export class DesktopHubView extends ItemView {
         });
         textarea.value = entry.body;
 
-        // Auto-expand textarea
+        // Auto-expand textarea without forced reflow
+        let resizePending = false;
         const autoResize = () => {
-            textarea.style.height = 'auto';
-            textarea.style.height = `${Math.min(Math.max(textarea.scrollHeight, 80), 400)}px`;
+            if (resizePending) return;
+            resizePending = true;
+            requestAnimationFrame(() => {
+                textarea.style.height = 'auto';
+                textarea.style.height = `${Math.min(Math.max(textarea.scrollHeight, 80), 400)}px`;
+                resizePending = false;
+            });
         };
         textarea.oninput = autoResize;
         setTimeout(() => {
@@ -1412,7 +1479,7 @@ export class DesktopHubView extends ItemView {
         // Action buttons
         const actions = editorContainer.createDiv({ cls: 'pos-inline-actions' });
         
-        const cancelBtn = actions.createEl('button', { text: 'Cancel' });
+        const cancelBtn = actions.createEl('button', { text: 'Cancel', cls: 'pos-inline-btn' });
         cancelBtn.onclick = () => {
             this._editingEntryId = null;
             this.updateStreamOnly();
@@ -1426,7 +1493,7 @@ export class DesktopHubView extends ItemView {
             const newBody = textarea.value.trim();
             saveBtn.disabled = true;
             try {
-                this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
+                this.invalidateRenderCacheForFile(entry.filePath);
                 await this.plugin.capture.updateNoteContent(entry.filePath, newBody, editingArea);
                 this._editingEntryId = null;
                 new Notice('Note updated');
