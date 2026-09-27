@@ -157,9 +157,9 @@ Discussed priority deliverables for the marketing campaign.
 
 ### 7.1 Visual Viewport & Keyboard Height Management
 * **`attachMobileSheetViewportBehavior`**: On mobile, `DesktopHubView` attaches a visual viewport observer (`window.visualViewport`) on `onOpen()` and tears it down on `onClose()`.
-* **Keyboard Class**: Detects keyboard appearance threshold ($>72\text{px}$) and toggles `.has-mobile-keyboard` on the root container for compact styling only. `--diwa-kb-h` (remaining keyboard overlap) is still set for mobile modal sheets.
-* **No Root Height Override**: Obsidian mobile already sizes its app container with its own `--keyboard-height` (`max-height: calc(100vh - var(--keyboard-height))`). DIWA must NOT resize `.diwa-workspace-root` on keyboard open (or force `100dvh`), otherwise the view is shrunk twice and a black gap covers the screen above the keyboard. The root stays at `height: 100%`.
-* **Full Height Flex Distribution**: `.pos-scratchpad-container` (`flex: 1; min-height: 0;`) and `.pos-document-stream` (`flex: 1 1 auto; min-height: 0;`) expand to fill available vertical space.
+* **Keyboard Class**: Detects keyboard appearance at a 72px threshold from the visual viewport or Obsidian's `--keyboard-height` and toggles `.has-mobile-keyboard` on the root for compact styling. On the affected iPhone, `visualViewport` stayed at full height while Obsidian reported `--keyboard-height: 301px`. `--diwa-kb-h` remains available for uncompensated overlap in mobile sheets.
+* **Obsidian Owns Keyboard Height**: Obsidian mobile shrinks its workspace above the keyboard. DIWA keeps `.diwa-workspace-root` at `height: 100%` of that space; do not impose a keyboard-specific root height or `100dvh`.
+* **Single Vertical Scroller When Keyboard Is Open**: The workspace root scrolls, not the inner `.pos-scratchpad-container`. Its normal mobile `overflow-x: hidden !important` implicitly makes `overflow-y` scrollable; therefore the keyboard-open selector must override it with `overflow: visible !important` (a non-important override does not win the cascade). The keyboard-open container uses `flex: 0 0 auto; min-height: 100%`, and `.pos-document-stream` uses `flex: 0 0 auto; min-height: auto`, preserving the header and stream instead of shrinking them away. This override is scoped to keyboard-open mobile layout; other layouts retain their existing horizontal overflow protection.
 
 ### 7.2 Mobile Search Experience & Stream Precedence
 * **Global Search Scope**: When a query is present in `_searchQuery`, `getFilteredCaptures()` prioritizes the keyword search across all notes in the vault, ignoring restrictive category or status filters.
@@ -170,8 +170,9 @@ Discussed priority deliverables for the marketing campaign.
   * Reduced container padding and gap (`padding-top: 6px !important; gap: 6px !important;`).
   * Instant feedback banner (`🔍 Found N notes matching "<query>"`) and compact top-aligned empty state (`🔍 No notes matching "<query>"`).
 
-### 7.3 Known Limitations & Future Roadmap
-* **iOS WebKit Layout Viewport Disconnect**: In certain iOS Obsidian configurations, focusing the search input causes iOS WebKit to auto-scroll the document while maintaining a fixed-height outer layout viewport, creating a persistent dead gap between the search input and the virtual keyboard. Further investigation deferred.
+### 7.3 On-Device Diagnosis and Resolution
+* With the keyboard open, diagnostics measured a correctly sized root (`440px`) but a `127px` scratchpad container and a `0px` document stream; the exposed root background appeared as a black band above the keyboard. Hit testing found no overlay in that band. A forced repaint did not help.
+* The first scroll-ownership change was ineffective because `overflow-x: hidden !important` still won over `overflow: visible` in the mobile rule. Adding `!important` to the more specific keyboard-open `overflow: visible` rule fixed the reported issue on the user's iPhone. The temporary diagnostic strip and repaint workaround were removed.
 
 ---
 
@@ -247,5 +248,3 @@ flowchart TD
   - 🗂️ *Open in New Tab*
   - 📋 *Copy Wikilink*
 - **Search Pivot**: Triggering *Filter Stream* (or the search icon in the sheet header) pivots the DIWA search input to that entity name, immediately collapsing the continuous scratchpad to display all related inbox captures.
-
-

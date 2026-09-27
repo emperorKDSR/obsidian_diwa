@@ -50,9 +50,9 @@
 
 ### 1. Mobile Search & Viewport UX
 *   [x] **VisualViewport Virtual Keyboard Sizing** — Wired `attachMobileSheetViewportBehavior` into `DesktopHubView` on mobile; automatically measures iOS keyboard via `window.visualViewport` and injects `--diwa-kb-h` / `.has-mobile-keyboard`.
-*   [x] **iOS Keyboard Black Gap Removed** — Removed the keyboard-open height override and the `100dvh` override on `.diwa-workspace-root`. Obsidian mobile already shrinks its container via `--keyboard-height`, so DIWA's extra resizing double-shrank the view and left a black gap above the keyboard (search and inline editing).
+*   [x] **No Duplicate Keyboard Root Sizing** — Removed the keyboard-open height override and `100dvh` on `.diwa-workspace-root`; Obsidian already shrinks its workspace via `--keyboard-height`. This alone did not resolve the observed black gap.
 *   [x] **Guarded Keyboard Auto-Scroll** — `scrollIntoView()` now runs only when the focused input is outside the visible viewport, avoiding iOS/WKWebView blank-region panning for already-visible search fields.
-*   [x] **Flex Height Fill** — Set `flex: 1; min-height: 0;` on `.pos-scratchpad-container` and `flex: 1 1 auto; min-height: 0;` on `.pos-document-stream`.
+*   [x] **Keyboard Scroll Ownership (Confirmed on iPhone)** — On keyboard open, `overflow: visible !important` overrides the existing mobile `overflow-x: hidden !important`, making the DIWA root the sole vertical scroller and preserving a content-sized stream. The first non-important overflow override did not work; the corrected build was deployed and the user confirmed the black gap is gone.
 *   [x] **Top-Aligned Search Empty State** — Applied `justify-content: flex-start` to prevent empty state from centering into off-screen space.
 *   [x] **Global Search Precedence** — Search query filters across all notes in the vault regardless of prior category/area filter selections.
 *   [x] **Immediate Stream Refresh on Search Open** — Tapping `🔍` resets filter to `'all'` and immediately re-renders the document stream under the search bar.

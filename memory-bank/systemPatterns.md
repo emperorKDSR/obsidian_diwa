@@ -85,6 +85,7 @@ The **Continuous Scratchpad** is the primary interactive hub:
 ## 4. Mobile Viewport & Search Architecture
 *   **Visual Viewport Listener**: `attachMobileSheetViewportBehavior` tracks `window.visualViewport` to compute `--diwa-kb-h` as the uncompensated keyboard overlap (used by mobile modal sheets) and toggle `.has-mobile-keyboard` on `DesktopHubView.contentEl` for compact styling.
 *   **No Root Resizing on Keyboard**: Obsidian mobile already sizes its container with its own `--keyboard-height`. `.diwa-workspace-root` must stay `height: 100%` — no keyboard-open height override and no `100dvh` — otherwise the view is shrunk twice and a black gap appears above the keyboard.
+*   **Root-Only Scroll Ownership**: Keyboard-open mobile styles keep `.diwa-workspace-root` as the only vertical scroller. The scratchpad container uses content-sized flex layout and `overflow: visible !important` to override its mobile `overflow-x: hidden !important`; without equal priority, it becomes an implicit vertical scroller and the document stream collapses to zero. The stream also uses nonshrinking flex sizing while the keyboard is open.
 *   **Search Stream Precedence**: Keyword search in `getFilteredCaptures()` takes global precedence across all notes, bypassing category/life-area filters. Opening mobile search auto-resets filter to `'all'` and triggers immediate re-render.
 
 ---
@@ -107,4 +108,3 @@ The **Continuous Scratchpad** is the primary interactive hub:
     *   Context Menu (`openWikilinkActionMenu`): Right-click (or long press on mobile) provides instant options: *Quick Preview*, *Filter Stream for [[...]]*, *Open in Adjacent Split*, *Open in New Tab*, and *Copy Wikilink*.
 *   **Stream Pivot Query (`filterStreamByWikilink`)**:
     *   Instantly targets DIWA search input to `[[Note]]` or note title, recalibrating the continuous stream and filter counters to display all related inbox captures.
-

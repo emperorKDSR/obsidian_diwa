@@ -55,6 +55,11 @@ export function attachMobileSheetViewportBehavior({
         });
     };
 
+    const readObsidianKeyboardHeight = (): number => {
+        const raw = win.getComputedStyle(win.document.documentElement).getPropertyValue('--keyboard-height');
+        return parseFloat(raw) || 0;
+    };
+
     const syncKeyboardOffset = () => {
         let keyboardHeight = 0;
         let overlap = 0;
@@ -68,7 +73,10 @@ export function attachMobileSheetViewportBehavior({
             const referenceBottom = referenceEl.getBoundingClientRect().bottom;
             overlap = Math.max(0, Math.round(referenceBottom - visibleBottom));
         }
-        const keyboardOpen = keyboardHeight >= keyboardThreshold || overlap >= keyboardThreshold;
+        // On Obsidian iOS the visual viewport does not shrink; Obsidian exposes --keyboard-height instead.
+        const keyboardOpen = keyboardHeight >= keyboardThreshold
+            || overlap >= keyboardThreshold
+            || readObsidianKeyboardHeight() >= keyboardThreshold;
         if (!keyboardOpen || overlap < keyboardThreshold) overlap = 0;
         sheetEl.style.setProperty(keyboardVarName, `${overlap}px`);
         sheetEl.toggleClass('has-mobile-keyboard', keyboardOpen);
@@ -83,15 +91,22 @@ export function attachMobileSheetViewportBehavior({
         syncKeyboardOffset();
     };
 
+    const handleObsidianKeyboardEvent = () => {
+        syncKeyboardOffset();
+    };
+    const OBSIDIAN_KEYBOARD_EVENTS = ['keyboardWillShow', 'keyboardDidShow', 'keyboardWillHide', 'keyboardDidHide'];
+
     sheetEl.addEventListener('focusin', handleFocusIn, true);
     win.addEventListener('resize', handleViewportChange);
     viewport?.addEventListener('resize', handleViewportChange);
     viewport?.addEventListener('scroll', handleViewportChange);
+    OBSIDIAN_KEYBOARD_EVENTS.forEach((name) => win.addEventListener(name, handleObsidianKeyboardEvent));
 
     syncKeyboardOffset();
 
     return () => {
         clearPendingScroll();
+        OBSIDIAN_KEYBOARD_EVENTS.forEach((name) => win.removeEventListener(name, handleObsidianKeyboardEvent));
         sheetEl.removeEventListener('focusin', handleFocusIn, true);
         win.removeEventListener('resize', handleViewportChange);
         viewport?.removeEventListener('resize', handleViewportChange);

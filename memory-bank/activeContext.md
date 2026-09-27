@@ -1,9 +1,9 @@
 # Active Context: DIWA — Personal OS
 
 ## Latest Fix: iOS Keyboard Black Overlay
-- Root cause: Obsidian mobile already shrinks its app container above the keyboard using its own `--keyboard-height`. DIWA additionally resized `.diwa-workspace-root` (keyboard-open height override + `100dvh`), shrinking the view twice and leaving a black gap over the screen during search and inline editing.
-- Fix: removed both root height overrides; the root stays `height: 100%` of Obsidian's container. `.has-mobile-keyboard` still toggles for compact styles, `--diwa-kb-h` remains for modal sheets, and `scrollIntoView()` is skipped when the focused field is already visible.
-- Status: deployed to vault, awaiting on-device confirmation.
+- Root cause confirmed on iPhone diagnostics: Obsidian correctly shrinks the DIWA root to the space above its keyboard (`440px`), but `.pos-scratchpad-container` became an implicit vertical scroller because of `overflow-x: hidden`. Its flex layout then shrank the container to `127px` and `.pos-document-stream` to `0px`, exposing the root's black background.
+- Fix: while the keyboard is open, the workspace root is the sole vertical scroller. The scratchpad container uses content-sized flex layout with `overflow: visible !important` to beat the existing mobile `overflow-x: hidden !important`; without equal priority, the first attempt remained broken. The stream no longer shrinks to zero. DIWA does not resize the root; Obsidian retains ownership of keyboard height.
+- Status: user confirmed the issue resolved on iPhone after the corrected CSS was built and deployed to the vault. Diagnostics and the ineffective forced-repaint workaround were removed.
 
 ## Current State: Mobile Note Editing Hardening & Touch Gestures Deployed
 - **Mobile Sticky Composer Auto-Hide & Collision Elimination**:

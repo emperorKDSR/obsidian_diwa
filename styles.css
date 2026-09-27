@@ -1112,11 +1112,21 @@ body.is-phone .pos-inline-textarea,
     /* Obsidian mobile already shrinks its container via --keyboard-height;
        overriding the root height here double-shrinks it into a black gap. */
 
-    /* Ensure container fills available space when keyboard is up */
+    /*
+     * The root is the only vertical scroller. `overflow-x: hidden` makes the
+     * container an implicit vertical scroll container on iOS, which allows the
+     * flex algorithm to collapse the document stream to zero height.
+     */
     .diwa-workspace-root.has-mobile-keyboard .pos-scratchpad-container {
-        flex: 1;
-        min-height: 0;
+        flex: 0 0 auto;
+        min-height: 100%;
+        overflow: visible !important;
         padding-bottom: 16px !important;
+    }
+
+    .diwa-workspace-root.has-mobile-keyboard .pos-document-stream {
+        flex: 0 0 auto;
+        min-height: auto;
     }
 
     /* Compact empty state when keyboard is open */
