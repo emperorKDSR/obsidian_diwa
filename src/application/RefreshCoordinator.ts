@@ -1,15 +1,14 @@
-import { App, Notice, TFile } from 'obsidian';
-import { VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_DIWA, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB } from '../constants';
+import { App, TFile } from 'obsidian';
+import { VIEW_TYPE_DESKTOP_HUB } from '../constants';
 import type { DiwaSettings } from '../types';
 import { DesktopHubView } from '../views/DesktopHubView';
-import { DiwaView } from '../view';
-import { MobileHubView } from '../views/MobileHubView';
 import type { IndexService } from '../services/IndexService';
 import { getCanonicalCapturePath } from '../utils/settingsPaths';
 
-export type RefreshScope = 'all' | 'tasks' | 'thoughts';
+export type RefreshScope = 'all' | 'tasks' | 'thoughts' | 'capture';
 
 const TASK_ONLY_REFRESH_DEBOUNCE_MS = 400;
+const CAPTURE_REFRESH_DEBOUNCE_MS = 250;
 const DEFAULT_REFRESH_DEBOUNCE_MS = 400;
 
 export class RefreshCoordinator {
@@ -48,9 +47,19 @@ export class RefreshCoordinator {
 
         const capPath = getCanonicalCapturePath(this.settings);
 
-        if (this.index.isThoughtFile(file.path)) await this.index.indexThoughtFile(file);
-        else if (this.index.isTaskFile(file.path)) await this.index.indexTaskFile(file);
-        else if (this.index.isDueFile(file.path)) this.index.indexDueFile(file);
+        if (this.index.isCaptureFile(file.path)) {
+            await this.index.indexCaptureFile(file);
+            this.notifyRefresh('capture');
+        } else if (this.index.isThoughtFile(file.path)) {
+            await this.index.indexThoughtFile(file);
+            this.notifyRefresh('thoughts');
+        } else if (this.index.isTaskFile(file.path)) {
+            await this.index.indexTaskFile(file);
+            this.notifyRefresh('tasks');
+        } else if (this.index.isDueFile(file.path)) {
+            this.index.indexDueFile(file);
+            this.notifyRefresh('all');
+        }
 
         if (file.path === capPath) await this.index.buildChecklistIndex();
     }
@@ -68,10 +77,9 @@ export class RefreshCoordinator {
             return;
         }
 
-        // Task-only updates still stay responsive, but batch long enough to absorb save/index bursts.
-        const debounceMs = this._pendingRefreshScope === 'tasks'
-            ? TASK_ONLY_REFRESH_DEBOUNCE_MS
-            : DEFAULT_REFRESH_DEBOUNCE_MS;
+        const debounceMs = this._pendingRefreshScope === 'capture'
+            ? CAPTURE_REFRESH_DEBOUNCE_MS
+            : (this._pendingRefreshScope === 'tasks' ? TASK_ONLY_REFRESH_DEBOUNCE_MS : DEFAULT_REFRESH_DEBOUNCE_MS);
         this._indexDebounceTimer = setTimeout(() => {
             this._indexDebounceTimer = null;
             this._dispatchRefresh();
@@ -90,23 +98,8 @@ export class RefreshCoordinator {
 
         const scope = this._pendingRefreshScope ?? 'all';
         this._pendingRefreshScope = null;
-        const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DIWA);
-        for (const leaf of leaves) {
-            const view = leaf.view as DiwaView;
-            if (view && typeof view.renderView === 'function') {
-                // Don't re-render while the user is mid-toggle — let optimistic UI stand
-                if (view._taskTogglePending > 0 || view._checklistTogglePending > 0 || view._capturePending > 0) continue;
-                // For task-only updates use incremental refresh to avoid full DOM rebuild
-                if (scope === 'tasks' && typeof (view as any).refreshTasks === 'function') {
-                    (view as any).refreshTasks();
-                } else if (scope === 'thoughts' && typeof (view as any).refreshThoughts === 'function') {
-                    (view as any).refreshThoughts();
-                } else {
-                    view.renderView();
-                }
-            }
-        }
-        // Refresh any open Desktop Hub leaves
+
+        // Refresh all open Desktop Hub (Workspace) views
         const hubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB);
         for (const leaf of hubLeaves) {
             const view = leaf.view as DesktopHubView;
@@ -118,42 +111,6 @@ export class RefreshCoordinator {
                 if (view._capturePending > 0 || view._taskPending > 0) continue;
                 if (scope === 'all' && typeof (view as DesktopHubView & { refreshAll?: () => void }).refreshAll === 'function') {
                     (view as DesktopHubView & { refreshAll: () => void }).refreshAll();
-                } else {
-                    view.renderView();
-                }
-            }
-        }
-        const mobileHubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB);
-        for (const leaf of mobileHubLeaves) {
-            const view = leaf.view as unknown as MobileHubView;
-            if (view && typeof view.renderView === 'function') {
-                if ((scope === 'tasks' || scope === 'all') && (view as MobileHubView & { _taskTogglePending?: number })._taskTogglePending && (view as MobileHubView & { _taskTogglePending?: number })._taskTogglePending! > 0) {
-                    continue;
-                }
-                if (scope === 'tasks' && typeof view.refreshTasks === 'function') {
-                    view.refreshTasks();
-                } else if (scope === 'thoughts' && typeof view.refreshThoughts === 'function') {
-                    view.refreshThoughts();
-                } else if (scope === 'all' && typeof (view as MobileHubView & { refreshAll?: () => void }).refreshAll === 'function') {
-                    (view as MobileHubView & { refreshAll: () => void }).refreshAll();
-                } else {
-                    view.renderView();
-                }
-            }
-        }
-        const tabletHubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB);
-        for (const leaf of tabletHubLeaves) {
-            const view = leaf.view as unknown as MobileHubView;
-            if (view && typeof view.renderView === 'function') {
-                if ((scope === 'tasks' || scope === 'all') && (view as MobileHubView & { _taskTogglePending?: number })._taskTogglePending && (view as MobileHubView & { _taskTogglePending?: number })._taskTogglePending! > 0) {
-                    continue;
-                }
-                if (scope === 'tasks' && typeof view.refreshTasks === 'function') {
-                    view.refreshTasks();
-                } else if (scope === 'thoughts' && typeof view.refreshThoughts === 'function') {
-                    view.refreshThoughts();
-                } else if (scope === 'all' && typeof (view as MobileHubView & { refreshAll?: () => void }).refreshAll === 'function') {
-                    (view as MobileHubView & { refreshAll: () => void }).refreshAll();
                 } else {
                     view.renderView();
                 }

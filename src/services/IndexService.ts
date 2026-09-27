@@ -1,5 +1,5 @@
 import { App, TFile, moment } from 'obsidian';
-import { DiwaSettings, ThoughtEntry, TaskEntry, DueEntry, TaskBucketStatus } from '../types';
+import { DiwaSettings, ThoughtEntry, TaskEntry, DueEntry, TaskBucketStatus, CaptureEntry, CaptureTaskItem } from '../types';
 import { extractWikiLinks } from '../utils/wikilinks';
 import { getThoughtDisplayTitle, inferJournalType } from '../journal/shared';
 import { normalizeThoughtTopics, toStoredThoughtTopic } from '../utils/topics';
@@ -25,6 +25,7 @@ type IndexRebuildSelection = {
     tasks?: boolean;
     dues?: boolean;
     checklist?: boolean;
+    captures?: boolean;
 };
 
 export class IndexService {
@@ -159,6 +160,7 @@ export class IndexService {
     }
     
     // Memory Indices
+    captureIndex: Map<string, CaptureEntry> = new Map();
     thoughtIndex: Map<string, ThoughtEntry> = new Map();
     taskIndex: Map<string, TaskEntry> = new Map();
     // ob-perf-03: Full DueEntry index — DuesTab reads from here instead of scanning vault on every render
@@ -187,6 +189,7 @@ export class IndexService {
     private _lastIndexedThoughtsFolderSetting: string;
     private _lastIndexedPfFolderSetting: string;
     private _lastIndexedCapturePath: string;
+    private _lastIndexedCaptureFolderSetting: string;
 
     constructor(app: App, settings: DiwaSettings) {
         this.app = app;
@@ -195,11 +198,13 @@ export class IndexService {
         const initialThoughtsFolder = this.getConfiguredThoughtsFolder();
         const initialPfFolder = this.getConfiguredPfFolder();
         const initialCapturePath = this.getConfiguredCapturePath();
+        const initialCaptureFolder = this.getConfiguredCaptureFolder();
         this._activeTasksFolder = initialTasksFolder;
         this._lastIndexedTasksFolderSetting = initialTasksFolder;
         this._lastIndexedThoughtsFolderSetting = initialThoughtsFolder;
         this._lastIndexedPfFolderSetting = initialPfFolder;
         this._lastIndexedCapturePath = initialCapturePath;
+        this._lastIndexedCaptureFolderSetting = initialCaptureFolder;
     }
 
     private normalizeVaultPath(path: string): string {
@@ -233,6 +238,9 @@ export class IndexService {
         return getCanonicalCapturePath(this.settings);
     }
 
+    getConfiguredCaptureFolder(): string {
+        return this.normalizeConfiguredPath(this.settings.captureFolder, '000 Bin/Diwa', 'captureFolder');
+    }
 
     private getTaskMarkdownFilesForFolder(folder: string): TFile[] {
         return this.app.vault.getMarkdownFiles().filter((file) =>
@@ -248,6 +256,7 @@ export class IndexService {
 
     async buildIndices() {
         await this.rebuildSelectedIndices({
+            captures: true,
             thoughts: true,
             tasks: true,
             dues: true,
@@ -267,6 +276,7 @@ export class IndexService {
 
     private normalizeRebuildSelection(selection: IndexRebuildSelection): Required<IndexRebuildSelection> {
         return {
+            captures: selection.captures === true,
             thoughts: selection.thoughts === true,
             tasks: selection.tasks === true,
             dues: selection.dues === true,
@@ -276,6 +286,7 @@ export class IndexService {
 
     private async buildSelectedIndicesInPlace(selection: Required<IndexRebuildSelection>): Promise<void> {
         await Promise.all([
+            selection.captures ? this.buildCaptureIndexInPlace() : Promise.resolve(),
             selection.thoughts ? this.buildThoughtIndexInPlace() : Promise.resolve(),
             selection.tasks ? this.buildTaskIndexInPlace() : Promise.resolve(),
             selection.dues ? this.buildDueIndexInPlace() : Promise.resolve(),
@@ -284,6 +295,10 @@ export class IndexService {
     }
 
     private applyRebuiltState(source: IndexService, selection: Required<IndexRebuildSelection>): void {
+        if (selection.captures) {
+            this.captureIndex = new Map(source.captureIndex);
+            this._lastIndexedCaptureFolderSetting = source._lastIndexedCaptureFolderSetting;
+        }
         if (selection.thoughts) {
             this.thoughtIndex = new Map(source.thoughtIndex);
             this._thoughtChecklistMap = new Map(
@@ -310,6 +325,7 @@ export class IndexService {
     }
 
     resetAllIndices(): void {
+        this.captureIndex.clear();
         this.thoughtIndex.clear();
         this.taskIndex.clear();
         this.dueIndex.clear();
@@ -426,12 +442,12 @@ export class IndexService {
         this._thoughtChecklistMap.clear();
         this._thoughtDoneChecklistMap.clear();
         const files = this.app.vault.getMarkdownFiles().filter(f => this.isThoughtFile(f.path));
-        for (const f of files) {
-            try {
-                await this.indexThoughtFile(f);
-            } catch (error) {
+        const CHUNK_SIZE = 50;
+        for (let i = 0; i < files.length; i += CHUNK_SIZE) {
+            const chunk = files.slice(i, i + CHUNK_SIZE);
+            await Promise.all(chunk.map(f => this.indexThoughtFile(f).catch(error => {
                 console.warn('[DIWA IndexService] skipped thought file due indexing error', { path: f.path, error });
-            }
+            })));
         }
     }
 
@@ -456,13 +472,13 @@ export class IndexService {
             if (files.length === 0) continue;
             this.taskIndex.clear();
 
-            // arch-02: Pass skipRebuild=true — rebuildCalculatedState() called once in buildIndices()
-            for (const f of files) {
-                try {
-                    await this.indexTaskFile(f, true);
-                } catch (error) {
+            // Parallel indexing in chunks of 50
+            const CHUNK_SIZE = 50;
+            for (let i = 0; i < files.length; i += CHUNK_SIZE) {
+                const chunk = files.slice(i, i + CHUNK_SIZE);
+                await Promise.all(chunk.map(f => this.indexTaskFile(f, true).catch(error => {
                     console.warn('[DIWA IndexService] skipped task file due indexing error', { path: f.path, error });
-                }
+                })));
             }
 
             if (this.taskIndex.size > 0) {
@@ -495,7 +511,7 @@ export class IndexService {
     async indexThoughtFile(file: TFile) {
         const cache = this.app.metadataCache.getFileCache(file);
         // arch-01: Read actual file content for body — was incorrectly set to file.basename
-        const content = await this.app.vault.read(file);
+        const content = await this.app.vault.cachedRead(file);
         const fallbackFrontmatter = IndexService.parseFrontmatterFallback(content);
         const cacheFrontmatter = cache?.frontmatter as Record<string, unknown> | undefined;
         const fm = {
@@ -573,7 +589,7 @@ export class IndexService {
     // arch-02: skipRebuild param prevents O(n²) calls during bulk index build
     async indexTaskFile(file: TFile, skipRebuild = false) {
         const cache = this.app.metadataCache.getFileCache(file);
-        const content = await this.app.vault.read(file);
+        const content = await this.app.vault.cachedRead(file);
         const fallbackFrontmatter = IndexService.parseFrontmatterFallback(content);
         const cacheFrontmatter = cache?.frontmatter as Record<string, unknown> | undefined;
         const fallbackFm = (fallbackFrontmatter ?? {}) as Record<string, unknown>;
@@ -739,10 +755,216 @@ export class IndexService {
         return this.getConfiguredPfFolder().toLowerCase() !== this._lastIndexedPfFolderSetting.toLowerCase();
     }
 
+    async buildCaptureIndex(): Promise<void> {
+        await this.rebuildSelectedIndices({ captures: true });
+    }
+
+    private async buildCaptureIndexInPlace(): Promise<void> {
+        this._lastIndexedCaptureFolderSetting = this.getConfiguredCaptureFolder();
+        this.captureIndex.clear();
+        const files = this.app.vault.getMarkdownFiles().filter(f => this.isCaptureFile(f.path));
+        // Parallel indexing in chunks of 50 for max speed
+        const CHUNK_SIZE = 50;
+        for (let i = 0; i < files.length; i += CHUNK_SIZE) {
+            const chunk = files.slice(i, i + CHUNK_SIZE);
+            await Promise.all(chunk.map(f => this.indexCaptureFile(f, true).catch(err => {
+                console.warn('[DIWA IndexService] skipped capture file due to indexing error', { path: f.path, err });
+                return null;
+            })));
+        }
+    }
+
+    async indexCaptureFile(file: TFile, skipRebuild = false): Promise<CaptureEntry | null> {
+        if (!this.isCaptureFile(file.path)) {
+            this.removeCaptureFile(file.path);
+            return null;
+        }
+
+        const existing = this.captureIndex.get(file.path);
+        if (existing && (existing as any)._mtime && file.stat.mtime <= (existing as any)._mtime) {
+            return existing;
+        }
+
+        const content = await this.app.vault.cachedRead(file);
+        const cache = this.app.metadataCache.getFileCache(file);
+        const fallbackFm = IndexService.parseFrontmatterFallback(content);
+        const fm = (cache?.frontmatter as Record<string, unknown> | undefined) ?? fallbackFm ?? {};
+
+        const createdStr = String(fm.created || '');
+        const modifiedStr = String(fm.modified || '');
+        let createdAtMs = createdStr ? moment(createdStr).valueOf() : file.stat.ctime;
+        if (isNaN(createdAtMs) || createdAtMs === 0) {
+            createdAtMs = file.stat.ctime || file.stat.mtime;
+        }
+
+        const area = String(fm.area || '').toLowerCase();
+        const tags = IndexService.normalizeContext(fm.tags ?? fm.tag);
+
+        // Parse body (strip frontmatter)
+        const body = content.replace(/^---[\s\S]*?---\r?\n*/, '').trim();
+
+        // Parse tasks
+        const tasks: CaptureTaskItem[] = [];
+        const lines = content.split('\n');
+        const taskRegex = /^(\s*-\s*\[)([ xX])(\]\s+.*)$/;
+        for (let i = 0; i < lines.length; i++) {
+            const match = lines[i].match(taskRegex);
+            if (match) {
+                const isDone = match[2].toLowerCase() === 'x';
+                const taskTitle = match[3].replace(/^\]\s+/, '').trim();
+                tasks.push({
+                    lineIndex: i,
+                    rawLine: lines[i],
+                    title: taskTitle,
+                    completed: isDone,
+                });
+            }
+        }
+
+        const hasTasks = tasks.length > 0 || String(fm.hasTasks).toLowerCase() === 'true';
+        const wikilinks = extractWikiLinks(body);
+        const dateMatches = body.match(/\[\[\d{4}-\d{2}-\d{2}\]\]/g) || [];
+        const allDates = dateMatches.map(d => d.replace(/\[\[|\]\]/g, ''));
+
+        const entry: CaptureEntry = {
+            id: file.path,
+            filePath: file.path,
+            created: createdStr || moment(createdAtMs).format('YYYY-MM-DDTHH:mm:ss'),
+            modified: modifiedStr || moment(file.stat.mtime).format('YYYY-MM-DDTHH:mm:ss'),
+            createdAtMs,
+            area,
+            tags,
+            body,
+            hasTasks,
+            tasks,
+            allDates,
+            wikilinks,
+        };
+        (entry as any)._mtime = file.stat.mtime;
+
+        this.captureIndex.set(file.path, entry);
+        return entry;
+    }
+
+    removeCaptureFile(path: string): boolean {
+        return this.captureIndex.delete(path);
+    }
+
+    isCaptureFile(path: string): boolean {
+        const folder = this.getConfiguredCaptureFolder();
+        const normalizedPath = this.normalizeVaultPath(path);
+        return this.pathIsInFolder(normalizedPath, folder)
+            && normalizedPath.toLowerCase().endsWith('.md')
+            && !normalizedPath.toLowerCase().includes('/trash/');
+    }
+
+    captureFolderChanged(): boolean {
+        return this.getConfiguredCaptureFolder().toLowerCase() !== this._lastIndexedCaptureFolderSetting.toLowerCase();
+    }
+
     captureLocationChanged(): boolean {
         return this.getConfiguredCapturePath().toLowerCase() !== this._lastIndexedCapturePath.toLowerCase();
     }
 
+    getAllCaptures(): CaptureEntry[] {
+        return Array.from(this.captureIndex.values()).sort((a, b) => b.createdAtMs - a.createdAtMs);
+    }
+
+    getOpenTaskCount(): number {
+        let count = 0;
+        for (const entry of this.captureIndex.values()) {
+            const tasks = Array.isArray(entry?.tasks) ? entry.tasks : [];
+            for (const t of tasks) {
+                if (t && !t.completed) count++;
+            }
+        }
+        return count;
+    }
+
+    getUntaggedCount(): number {
+        let count = 0;
+        for (const entry of this.captureIndex.values()) {
+            if (!entry) continue;
+            const area = String(entry.area || '').trim();
+            const tags = Array.isArray(entry.tags) ? entry.tags : [];
+            if (!area && tags.length === 0) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    getAreaCounts(): Record<string, number> {
+        const counts: Record<string, number> = {};
+        for (const entry of this.captureIndex.values()) {
+            if (!entry) continue;
+            const area = String(entry.area || '').toLowerCase().trim();
+            if (area) {
+                counts[area] = (counts[area] || 0) + 1;
+            }
+            const tags = Array.isArray(entry.tags) ? entry.tags : [];
+            for (const tag of tags) {
+                const normTag = String(tag || '').toLowerCase().trim();
+                if (normTag && normTag !== area) {
+                    counts[normTag] = (counts[normTag] || 0) + 1;
+                }
+            }
+        }
+        return counts;
+    }
+
+    getTodayDateStr(): string {
+        return moment().format('YYYY-MM-DD');
+    }
+
+    isDateToday(dateStr: string): boolean {
+        if (!dateStr || typeof dateStr !== 'string') return false;
+        return dateStr.trim() === this.getTodayDateStr();
+    }
+
+    isDatePast(dateStr: string): boolean {
+        if (!dateStr || typeof dateStr !== 'string') return false;
+        const target = moment(dateStr.trim(), 'YYYY-MM-DD', true);
+        if (!target.isValid()) return false;
+        return target.isBefore(moment().startOf('day'));
+    }
+
+    isDateFuture(dateStr: string): boolean {
+        if (!dateStr || typeof dateStr !== 'string') return false;
+        const target = moment(dateStr.trim(), 'YYYY-MM-DD', true);
+        if (!target.isValid()) return false;
+        return target.isAfter(moment().endOf('day'));
+    }
+
+    getTodayCapturesCount(): number {
+        const todayStr = this.getTodayDateStr();
+        let count = 0;
+        for (const entry of this.captureIndex.values()) {
+            const dates = Array.isArray(entry?.allDates) ? entry.allDates : [];
+            if (dates.includes(todayStr)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    getUpcomingCapturesCount(): number {
+        let count = 0;
+        for (const entry of this.captureIndex.values()) {
+            const dates = Array.isArray(entry?.allDates) ? entry.allDates : [];
+            if (dates.some(d => this.isDateFuture(d))) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    getEarliestFutureDate(entry: CaptureEntry): string | null {
+        const dates = Array.isArray(entry?.allDates) ? entry.allDates : [];
+        if (dates.length === 0) return null;
+        const futureDates = dates.filter(d => this.isDateFuture(d)).sort();
+        return futureDates.length > 0 ? futureDates[0] : null;
+    }
 
     async scanForContexts(): Promise<string[]> {
         const c = new Set<string>();

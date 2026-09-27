@@ -103,15 +103,16 @@ export function isTaskDone(task: TaskEntry): boolean {
 
 /**
  * Attach inline smart triggers to a capture textarea:
- *   @word<space>  → NLP date parse → sets due date + inserts [[date]] wiki link
  *   [[            → opens FileSuggestModal → inserts [[Note]] link
- *   #             → opens ContextSuggestModal → adds context chip
- *   + at line start → converts to `- [ ] ` checklist item
+ *   #             → opens ContextSuggestModal → inserts #tag (includes life areas & contexts)
+ *   @word<space>  → NLP date parse via chrono-node → inserts [[YYYY-MM-DD]]
+ *   /             → opens PersonSuggestModal → inserts [[Person Name]]
+ *   ++ or + at line start → converts to `- [ ] ` checklist item
  */
 export function attachInlineTriggers(
     app: App,
     textArea: HTMLTextAreaElement | HTMLInputElement,
-    setDueDate: (d: string) => void,
+    setDueDate?: (d: string) => void,
     onContext?: (tag: string) => void,
     getContexts?: () => string[],
     peopleFolder?: string
@@ -121,8 +122,25 @@ export function attachInlineTriggers(
         const pos = textArea.selectionStart ?? val.length;
         const before = val.substring(0, pos);
 
-        // @word<space> → NLP date first; if not a date, treat as @mention → person wikilink
-        const atMatch = before.match(/@(\S+)\s$/);
+        // 1. ++ anywhere or + at line start → checklist item conversion
+        if (before.endsWith('++')) {
+            const insertAt = pos - 2;
+            textArea.value = val.substring(0, insertAt) + '- [ ] ' + val.substring(pos);
+            textArea.setSelectionRange(insertAt + 6, insertAt + 6);
+            textArea.dispatchEvent(new Event('input', { bubbles: true }));
+            return;
+        }
+
+        if (before.endsWith('\n+') || before === '+') {
+            const insertAt = pos - 1;
+            textArea.value = val.substring(0, insertAt) + '- [ ] ' + val.substring(pos);
+            textArea.setSelectionRange(insertAt + 6, insertAt + 6);
+            textArea.dispatchEvent(new Event('input', { bubbles: true }));
+            return;
+        }
+
+        // 2. @word<space> → NLP date parse via chrono-node
+        const atMatch = before.match(/@([^\s]+)\s$/);
         if (atMatch) {
             const parsed = parseNaturalDate(atMatch[1]);
             if (parsed) {
@@ -130,48 +148,55 @@ export function attachInlineTriggers(
                 const wikiDate = `[[${parsed}]] `;
                 textArea.value = val.substring(0, removeFrom) + wikiDate + val.substring(pos);
                 textArea.setSelectionRange(removeFrom + wikiDate.length, removeFrom + wikiDate.length);
-                setDueDate(parsed);
+                if (setDueDate) setDueDate(parsed);
+                textArea.dispatchEvent(new Event('input', { bubbles: true }));
                 return;
             }
-            // Not a date → open person picker with the typed word as initial query
-            const word = atMatch[1];
-            const removeFrom = pos - atMatch[0].length;
-            textArea.value = val.substring(0, removeFrom) + val.substring(pos);
-            textArea.setSelectionRange(removeFrom, removeFrom);
-            new PersonSuggestModal(app, (file) => {
+        }
+
+        // 3. [[ → wiki-link insertion via file picker
+        if (before.endsWith('[[')) {
+            textArea.value = val.substring(0, pos - 2) + val.substring(pos);
+            const insertAt = pos - 2;
+            textArea.setSelectionRange(insertAt, insertAt);
+            new FileSuggestModal(app, (file) => {
                 const link = `[[${file.basename}]] `;
                 const cur = textArea.value;
-                const curPos = textArea.selectionStart ?? removeFrom;
+                const curPos = textArea.selectionStart ?? insertAt;
                 textArea.value = cur.substring(0, curPos) + link + cur.substring(curPos);
                 textArea.setSelectionRange(curPos + link.length, curPos + link.length);
                 textArea.focus();
                 textArea.dispatchEvent(new Event('input', { bubbles: true }));
-            }, peopleFolder, word).open();
-            return;
-        }
-
-        // # at start or after whitespace → open ContextSuggestModal
-        if (onContext && /(^|\s)#$/.test(before)) {
-            const insertAt = pos - 1;
-            textArea.value = val.substring(0, insertAt) + val.substring(pos);
-            textArea.setSelectionRange(insertAt, insertAt);
-            new ContextSuggestModal(app, getContexts ? getContexts() : [], (tag) => {
-                const cur = textArea.value;
-                const curPos = textArea.selectionStart ?? insertAt;
-                textArea.value = cur.substring(0, curPos) + cur.substring(curPos);
-                onContext(tag);
-                textArea.focus();
             }).open();
             return;
         }
 
-        // / at start or after whitespace → open PersonSuggestModal (type: people)
+        // 4. # at start of line or after whitespace → open Context/Taxonomy SuggestModal
+        if (/(^|\s)#$/.test(before)) {
+            const insertAt = pos - 1;
+            textArea.value = val.substring(0, insertAt) + val.substring(pos);
+            textArea.setSelectionRange(insertAt, insertAt);
+            new ContextSuggestModal(app, getContexts ? getContexts() : [], (tag) => {
+                const cleanTag = tag.replace(/^#/, '');
+                const tagStr = `#${cleanTag} `;
+                const cur = textArea.value;
+                const curPos = textArea.selectionStart ?? insertAt;
+                textArea.value = cur.substring(0, curPos) + tagStr + cur.substring(curPos);
+                textArea.setSelectionRange(curPos + tagStr.length, curPos + tagStr.length);
+                if (onContext) onContext(cleanTag);
+                textArea.focus();
+                textArea.dispatchEvent(new Event('input', { bubbles: true }));
+            }).open();
+            return;
+        }
+
+        // 5. / at start of line or after whitespace → open PersonSuggestModal (people mention)
         if (/(^|\s)\/$/.test(before)) {
             const insertAt = pos - 1;
             textArea.value = val.substring(0, insertAt) + val.substring(pos);
             textArea.setSelectionRange(insertAt, insertAt);
             new PersonSuggestModal(app, (file) => {
-                const link = `[[${file.basename}]]`;
+                const link = `[[${file.basename}]] `;
                 const cur = textArea.value;
                 const curPos = textArea.selectionStart ?? insertAt;
                 textArea.value = cur.substring(0, curPos) + link + cur.substring(curPos);
@@ -180,30 +205,6 @@ export function attachInlineTriggers(
                 textArea.dispatchEvent(new Event('input', { bubbles: true }));
             }, peopleFolder).open();
             return;
-        }
-
-        // [[ → wiki-link insertion via file picker
-        if (before.endsWith('[[')) {
-            textArea.value = val.substring(0, pos - 2) + val.substring(pos);
-            const insertAt = pos - 2;
-            textArea.setSelectionRange(insertAt, insertAt);
-            new FileSuggestModal(app, (file) => {
-                const link = `[[${file.basename}]]`;
-                const cur = textArea.value;
-                const curPos = textArea.selectionStart ?? insertAt;
-                textArea.value = cur.substring(0, curPos) + link + cur.substring(curPos);
-                textArea.setSelectionRange(curPos + link.length, curPos + link.length);
-                textArea.focus();
-                textArea.dispatchEvent(new Event('input', { bubbles: true }));
-            }).open();
-            return;
-        }
-
-        // + at line start → checklist item
-        if (before.endsWith('\n+') || before === '+') {
-            const insertAt = pos - 1;
-            textArea.value = val.substring(0, insertAt) + '- [ ] ' + val.substring(pos);
-            textArea.setSelectionRange(insertAt + 6, insertAt + 6);
         }
     });
 }

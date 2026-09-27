@@ -1,14 +1,10 @@
 import { Plugin, TFile, Notice, WorkspaceLeaf, Platform, moment, addIcon, setIcon, MarkdownRenderer, Menu } from 'obsidian';
-import { VIEW_TYPE_DIWA, KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB, VIEW_TYPE_DIWA_MINDMAP } from './constants';
+import { KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG } from './constants';
 import type { BulsaLeafState, ResponsiveShellState } from './types';
 import { DiwaSettings, GawaLayoutPreferences, TaskEntry, ThoughtEntry } from './types';
 import { sanitizeGawaLayoutPreferences } from './gawaLayout';
 import { isTablet, parseContextString } from './utils';
-import { DiwaView } from './view';
 import { DesktopHubView } from './views/DesktopHubView';
-import { MobileHubView } from './views/MobileHubView';
-import { TabletHubView } from './views/TabletHubView';
-import { MindMapView } from './views/MindMapView';
 import { DiwaSettingTab } from './settings';
 import { EditEntryModal } from './modals/EditEntryModal';
 import { EditThoughtModal } from './modals/EditThoughtModal';
@@ -18,6 +14,7 @@ import { ConfirmModal } from './modals/ConfirmModal';
 
 import { VaultService } from './services/VaultService';
 import { IndexService } from './services/IndexService';
+import { CaptureService } from './services/CaptureService';
 import { TaskLinkService } from './services/TaskLinkService';
 import { TaskReflectionService } from './services/TaskReflectionService';
 import { FocusService } from './services/FocusService';
@@ -38,6 +35,7 @@ const OPENABLE_DIWA_TAB_IDS = new Set([
     'journal',
     'export',
     'finance-analytics',
+    'ai-chat',
 ]);
 
 const REMOVED_DIWA_TAB_FALLBACKS: Record<string, string> = {
@@ -84,9 +82,6 @@ export default class DiwaPlugin extends Plugin {
     private startupRunToken = 0;
     private legacyMigrationTimer: number | null = null;
     private responsiveHubReconcileTimer: number | null = null;
-    private readonly scheduledThoughtRenderTimers = new Map<HTMLElement, number>();
-    private readonly thoughtRenderTokens = new WeakMap<HTMLElement, number>();
-    private readonly thoughtContentRenderCache = new Map<string, HTMLElement>();
     private reactiveRuntimeEventsRegistered = false;
     private reconcilingResponsiveHubLeaves = false;
     private globalDomStateCaptured = false;
@@ -97,6 +92,7 @@ export default class DiwaPlugin extends Plugin {
     // Services
     vault: VaultService;
     index: IndexService;
+    capture: CaptureService;
     // Compatibility facade for runtime callers expecting plugin.taskIndex.getAll()/set()
     taskIndex: TaskIndexCompat;
     // Shared singleton task controller (canonical public name)
@@ -154,6 +150,7 @@ export default class DiwaPlugin extends Plugin {
         // Initialize Services
         this.vault = new VaultService(this.app, this.settings);
         this.index = new IndexService(this.app, this.settings);
+        this.capture = new CaptureService(this.app, this.settings);
         this.vault.setTaskFolderResolver(() => this.index.getEffectiveTasksFolder());
         this.taskIndex = new TaskIndexCompat(this);
         this.controller = new TaskController(this);
@@ -174,25 +171,12 @@ export default class DiwaPlugin extends Plugin {
         this.app.workspace.onLayoutReady(async () => {
             const startupToken = ++this.startupRunToken;
             this.registerReactiveRuntimeEvents();
-            
-            // Migrate legacy tablet/mobile leaves to desktop hub
-            const oldLeaves = [
-                ...this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB),
-                ...this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB)
-            ];
-            for (const leaf of oldLeaves) {
-                await this.setLeafViewType(leaf, VIEW_TYPE_DESKTOP_HUB, false);
-            }
-
-            this.scheduleResponsiveHubReconciliation(0);
             await this.runStartupIndexBuild(startupToken);
         });
 
-        this.registerView(VIEW_TYPE_DIWA, (leaf) => new DiwaView(leaf, this));
         this.registerView(VIEW_TYPE_DESKTOP_HUB, (leaf) => new DesktopHubView(leaf, this));
-        this.registerView(VIEW_TYPE_MOBILE_HUB,  (leaf) => new MobileHubView(leaf, this));
-        this.registerView(VIEW_TYPE_TABLET_HUB,  (leaf) => new TabletHubView(leaf, this));
-        this.registerView(VIEW_TYPE_DIWA_MINDMAP, (leaf) => new MindMapView(leaf, this));
+        this.registerView(VIEW_TYPE_MOBILE_HUB, (leaf) => new DesktopHubView(leaf, this));
+        this.registerView(VIEW_TYPE_TABLET_HUB, (leaf) => new DesktopHubView(leaf, this));
 
 		addIcon(KATANA_ICON_ID, KATANA_ICON_SVG);
 		addIcon(JOURNAL_ICON_ID, JOURNAL_ICON_SVG);
@@ -203,32 +187,27 @@ export default class DiwaPlugin extends Plugin {
 		addIcon(SETTINGS_ICON_ID, SETTINGS_ICON_SVG);
         addIcon(DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG);
 
-        this.addRibbonIcon(DESKTOP_HUB_ICON_ID, 'Diwa Workspace', () => {
+        this.addRibbonIcon(DESKTOP_HUB_ICON_ID, 'DIWA Workspace', () => {
             void this.activateWorkspace();
         });
 
-        this.addCommand({ id: 'diwa-open-workspace', name: 'Open Workspace', icon: DESKTOP_HUB_ICON_ID, callback: () => { this.activateWorkspace(); } });
-        this.addCommand({ id: 'diwa-open-journal-input', name: 'Open Journal', icon: JOURNAL_ICON_ID, callback: () => { void this.activateJournalInput(); } });
-        this.addCommand({ id: 'diwa-open-gawa', name: 'Open Gawa', icon: 'check-square-2', callback: () => { void this.activateGawa(); } });
-        this.addCommand({ id: 'diwa-open-bulsa', name: 'Open Bulsa', icon: PF_ICON_ID, callback: () => { void this.activateBulsa(); } });
         this.addCommand({
-            id: 'diwa-open-mindmap',
-            name: 'Open Mind Map View',
-            icon: 'map',
-            callback: async () => {
-                const activeFile = this.app.workspace.getActiveFile();
-                if (activeFile && activeFile.extension === 'md') {
-                    const leaf = this.app.workspace.getLeaf(true);
-                    await leaf.setViewState({
-                        type: VIEW_TYPE_DIWA_MINDMAP,
-                        active: true,
-                        state: { file: activeFile.path }
-                    });
-                    this.app.workspace.revealLeaf(leaf);
-                } else {
-                    new Notice('Please open a markdown note to generate a mind map.');
-                }
-            }
+            id: 'diwa-open-workspace',
+            name: 'Open DIWA Workspace',
+            icon: DESKTOP_HUB_ICON_ID,
+            callback: () => { void this.activateWorkspace(); }
+        });
+        this.addCommand({
+            id: 'diwa-open-scratchpad',
+            name: 'Open Continuous Workspace (Mobile/Tablet/Desktop)',
+            icon: 'edit',
+            callback: () => { void this.activateWorkspace(); }
+        });
+        this.addCommand({
+            id: 'diwa-quick-capture',
+            name: 'Quick Capture',
+            icon: 'plus',
+            callback: () => { void this.activateWorkspace(); }
         });
 
 		this.addSettingTab(new DiwaSettingTab(this.app, this));
@@ -240,7 +219,6 @@ export default class DiwaPlugin extends Plugin {
         this.startupRunToken++;
         this.clearLegacyMigrationTimer();
         this.clearResponsiveHubReconcileTimer();
-        this.clearScheduledThoughtContentRenders();
         this.restoreGlobalDomState();
         this.refreshCoordinator?.onunload();
         this.detachRegisteredLeaves();
@@ -293,29 +271,12 @@ export default class DiwaPlugin extends Plugin {
         document.body.toggleClass('is-desktop', this.initialBodyHadDesktopClass);
     }
 
-    private clearScheduledThoughtContentRenders(): void {
-        for (const timer of this.scheduledThoughtRenderTimers.values()) {
-            window.clearTimeout(timer);
-        }
-        this.scheduledThoughtRenderTimers.clear();
-        this.thoughtContentRenderCache.clear();
-    }
-
     private detachRegisteredLeaves(): void {
-        const viewTypes = [
-            VIEW_TYPE_DIWA,
-            VIEW_TYPE_DESKTOP_HUB,
-            VIEW_TYPE_MOBILE_HUB,
-            VIEW_TYPE_TABLET_HUB,
-        ];
-
-        for (const viewType of viewTypes) {
-            for (const leaf of this.app.workspace.getLeavesOfType(viewType)) {
-                try {
-                    leaf.detach();
-                } catch (error) {
-                    console.warn('[DIWA] failed to detach leaf during unload', { viewType, error });
-                }
+        for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB)) {
+            try {
+                leaf.detach();
+            } catch (error) {
+                console.warn('[DIWA] failed to detach leaf during unload', error);
             }
         }
     }
@@ -365,24 +326,12 @@ export default class DiwaPlugin extends Plugin {
     }
 
     async activateWorkspace() {
-        await this.activateDesktopHub();
-    }
-
-    async activateDesktopHub() {
         const { workspace } = this.app;
-        // Reuse an existing Desktop Hub leaf if already open
-        const existing = workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB);
+        const existing = workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB)
+            .concat(workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB))
+            .concat(workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB));
         if (existing.length > 0) {
             workspace.revealLeaf(existing[0]);
-            return;
-        }
-        const responsiveLeaf = [
-            ...workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB),
-            ...workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB),
-        ][0];
-        if (responsiveLeaf) {
-            await this.setLeafViewType(responsiveLeaf, VIEW_TYPE_DESKTOP_HUB, true);
-            workspace.revealLeaf(responsiveLeaf);
             return;
         }
         const leaf = Platform.isDesktop ? workspace.getLeaf('tab') : workspace.getLeaf(false);
@@ -392,14 +341,16 @@ export default class DiwaPlugin extends Plugin {
         }
     }
 
+    async activateDesktopHub() {
+        await this.activateWorkspace();
+    }
+
     async activateMobileHub() {
-        // Redirect legacy mobile leaves to desktop hub
-        await this.activateDesktopHub();
+        await this.activateWorkspace();
     }
 
     async activateTabletHub() {
-        // Redirect legacy tablet leaves to desktop hub
-        await this.activateDesktopHub();
+        await this.activateWorkspace();
     }
 
     private async runStartupIndexBuild(startupToken: number): Promise<void> {
@@ -440,10 +391,6 @@ export default class DiwaPlugin extends Plugin {
         }
 
         if (!this.isStartupRunActive(startupToken)) return;
-        await this.migrateLegacyMobileGawaLeaves(startupToken);
-        if (!this.isStartupRunActive(startupToken)) return;
-        await this.reconcileResponsiveHubLeaves();
-        if (!this.isStartupRunActive(startupToken)) return;
         if (buildSucceeded) return;
         this.notifyRefresh();
     }
@@ -461,7 +408,10 @@ export default class DiwaPlugin extends Plugin {
         this.registerEvent(this.app.vault.on('create', async (f) => {
             const scope = this.getRefreshScopeForPath(f.path);
             if (!scope || !(f instanceof TFile)) return;
-            if (this.index.isThoughtFile(f.path)) {
+            if (this.index.isCaptureFile(f.path)) {
+                await this.index.indexCaptureFile(f);
+            }
+            else if (this.index.isThoughtFile(f.path)) {
                 await this.index.indexThoughtFile(f);
                 if (!this.getThoughtController().isUpdatingThoughtPath(f.path)) {
                     this.getThoughtController().syncIndexedThought(f.path);
@@ -485,6 +435,7 @@ export default class DiwaPlugin extends Plugin {
         this.registerEvent(this.app.vault.on('delete', async (f) => {
             const scope = this.getRefreshScopeForPath(f.path);
             if (!scope) return;
+            if (this.index.isCaptureFile(f.path)) this.index.removeCaptureFile(f.path);
             this.getThoughtController().removeThoughtFromIndex(f.path);
             this.index.removeTaskFile(f.path);
             if (this.index.isDueFile(f.path)) this.index.removeDueFile(f.path);
@@ -497,6 +448,8 @@ export default class DiwaPlugin extends Plugin {
                 this.getRefreshScopeForPath(f.path),
             );
             if (!scope || !(f instanceof TFile)) return;
+            if (this.index.isCaptureFile(oldPath)) this.index.removeCaptureFile(oldPath);
+            if (this.index.isCaptureFile(f.path)) await this.index.indexCaptureFile(f);
             this.getThoughtController().removeThoughtFromIndex(oldPath);
             const removedTask = this.index.removeTaskFile(oldPath, true);
             if (this.index.isDueFile(oldPath)) this.index.removeDueFile(oldPath, true);
@@ -536,6 +489,15 @@ export default class DiwaPlugin extends Plugin {
             }
         }));
 
+        this.registerEvent(this.app.workspace.on('file-open', (file) => {
+            for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB)) {
+                const view = leaf.view as DesktopHubView;
+                if (view && typeof view.onActiveFileChange === 'function') {
+                    view.onActiveFileChange(file);
+                }
+            }
+        }));
+
         this.registerEvent(this.app.workspace.on('layout-change', () => {
             this.scheduleResponsiveHubReconciliation();
         }));
@@ -545,259 +507,28 @@ export default class DiwaPlugin extends Plugin {
         });
     }
 
-    private scheduleResponsiveHubReconciliation(delay = 100): void {
-        if (this.unloading) return;
-        this.clearResponsiveHubReconcileTimer();
-        this.responsiveHubReconcileTimer = window.setTimeout(() => {
-            this.responsiveHubReconcileTimer = null;
-            void this.reconcileResponsiveHubLeaves();
-        }, delay);
-    }
-
-    private async reconcileResponsiveHubLeaves(): Promise<void> {
-        if (this.unloading || this.reconcilingResponsiveHubLeaves) return;
-        const targetViewType = this.getResponsiveHubTargetViewType();
-        const responsiveLeaves = [
-            ...this.app.workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB),
-            ...this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB),
-            ...this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB),
-        ];
-        if (responsiveLeaves.length === 0) return;
-
-        const leavesByRoot = new Map<object, WorkspaceLeaf[]>();
-        for (const leaf of responsiveLeaves) {
-            const root = leaf.getRoot();
-            const group = leavesByRoot.get(root);
-            if (group) {
-                group.push(leaf);
-            } else {
-                leavesByRoot.set(root, [leaf]);
-            }
-        }
-
-        const groupsToReconcile = Array.from(leavesByRoot.values()).filter((group) => (
-            group.length > 1 || group.some((leaf) => leaf.getViewState().type !== targetViewType)
-        ));
-        if (groupsToReconcile.length === 0) return;
-
-        this.reconcilingResponsiveHubLeaves = true;
-        try {
-            const activeLeaf = this.app.workspace.activeLeaf;
-            const leavesToDetach: WorkspaceLeaf[] = [];
-
-            for (const group of groupsToReconcile) {
-                const targetLeaf = group.find((leaf) => leaf.getViewState().type === targetViewType);
-                const keeper = group.find((leaf) => leaf === activeLeaf) ?? targetLeaf ?? group[0];
-                const shouldActivateKeeper = keeper === activeLeaf;
-
-                if (keeper.getViewState().type !== targetViewType) {
-                    await this.setLeafViewType(keeper, targetViewType, shouldActivateKeeper);
-                }
-
-                for (const leaf of group) {
-                    if (leaf !== keeper) {
-                        leavesToDetach.push(leaf);
-                    }
-                }
-            }
-
-            for (const leaf of leavesToDetach) {
-                try {
-                    leaf.detach();
-                } catch (error) {
-                    console.warn('[DIWA] failed to detach duplicate responsive hub leaf', error);
-                }
-            }
-            if (leavesToDetach.length > 0) void this.app.workspace.requestSaveLayout();
-        } finally {
-            this.reconcilingResponsiveHubLeaves = false;
-        }
-    }
-
-    private getResponsiveHubTargetViewType(): string {
-        return VIEW_TYPE_DESKTOP_HUB;
-    }
-
-    private sanitizeResponsiveShellState(state: Record<string, unknown>): ResponsiveShellState {
-        const nextState: Record<string, unknown> = { ...state };
-        if (nextState.activeView === 'projects') nextState.activeView = 'tasks';
-        delete nextState.projectFilter;
-        delete nextState.expandedProjectIds;
-        delete nextState.selectedProjectId;
-        delete nextState.selectedMilestoneIds;
-        return nextState as ResponsiveShellState;
-    }
-
-    private maybeSanitizeLeafState(type: string, state: unknown): unknown {
-        if (!state || typeof state !== 'object') return state;
-        if (type === VIEW_TYPE_MOBILE_HUB || type === VIEW_TYPE_TABLET_HUB) {
-            return this.sanitizeResponsiveShellState(state as Record<string, unknown>);
-        }
-        return { ...(state as Record<string, unknown>) };
-    }
-
-    private async setLeafViewType(leaf: WorkspaceLeaf, type: string, active: boolean): Promise<void> {
-        const currentState = leaf.getViewState();
-        await leaf.setViewState({
-            ...currentState,
-            type,
-            active,
-            state: this.maybeSanitizeLeafState(type, currentState.state) as Record<string, unknown> | undefined,
-        });
-    }
-
-    private async activateResponsiveHubLeaf(statePatch: Partial<ResponsiveShellState> = {}): Promise<WorkspaceLeaf | null> {
-        if (!this.isMobile()) return null;
-
-        const { workspace } = this.app;
-        const targetViewType = this.getResponsiveHubTargetViewType();
-        if (targetViewType !== VIEW_TYPE_MOBILE_HUB && targetViewType !== VIEW_TYPE_TABLET_HUB) {
-            return null;
-        }
-
-        const targetLeaf = workspace.getLeavesOfType(targetViewType)[0]
-            ?? this.getReusableResponsiveHubLeaf()
-            ?? workspace.getLeaf(false);
-        if (!targetLeaf) return null;
-
-        await this.setResponsiveHubLeafState(targetLeaf, targetViewType, statePatch, true);
-        workspace.revealLeaf(targetLeaf);
-        return targetLeaf;
-    }
-
-    private getReusableResponsiveHubLeaf(): WorkspaceLeaf | null {
-        const { workspace } = this.app;
-        const responsiveLeaves = [
-            ...workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB),
-            ...workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB),
-            ...workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB),
-        ];
-        return (workspace.activeLeaf && responsiveLeaves.includes(workspace.activeLeaf) ? workspace.activeLeaf : null)
-            ?? responsiveLeaves[0]
-            ?? null;
-    }
-
-    private async setResponsiveHubLeafState(
-        leaf: WorkspaceLeaf,
-        type: typeof VIEW_TYPE_MOBILE_HUB | typeof VIEW_TYPE_TABLET_HUB,
-        statePatch: Partial<ResponsiveShellState>,
-        active: boolean,
-    ): Promise<void> {
-        const currentState = leaf.getViewState();
-        const currentLeafState = currentState.state && typeof currentState.state === 'object'
-            ? { ...(currentState.state as ResponsiveShellState) }
-            : {};
-        const sanitizedCurrentState = this.sanitizeResponsiveShellState(currentLeafState);
-        const sanitizedPatch = this.sanitizeResponsiveShellState(statePatch as Record<string, unknown>);
-        const currentBulsaState = this.getBulsaLeafState(sanitizedCurrentState.bulsa);
-        const nextBulsaState = this.getBulsaLeafState(sanitizedPatch.bulsa);
-        const nextState: ResponsiveShellState = {
-            ...sanitizedCurrentState,
-            ...sanitizedPatch,
-        };
-
-        if (currentBulsaState || nextBulsaState) {
-            nextState.bulsa = {
-                ...(currentBulsaState ?? {}),
-                ...(nextBulsaState ?? {}),
-            };
-        }
-
-        await leaf.setViewState({
-            ...currentState,
-            type,
-            active,
-            state: nextState,
-        });
-    }
-
-    private getBulsaLeafState(state: unknown): BulsaLeafState | undefined {
-        return state && typeof state === 'object'
-            ? { ...(state as BulsaLeafState) }
-            : undefined;
-    }
-
-    private async migrateLegacyMobileGawaLeaves(startupToken?: number): Promise<void> {
-        if (startupToken !== undefined && !this.isStartupRunActive(startupToken)) return;
-        const leaves = this.app.workspace.getLeavesOfType('diwa-mobile-gawa');
-        if (leaves.length === 0) return;
-        if (startupToken !== undefined && !this.isStartupRunActive(startupToken)) return;
-        await Promise.all(leaves.map((leaf) => leaf.setViewState({
-            type: VIEW_TYPE_DIWA,
-            active: false,
-            state: { activeTab: 'review-gawa', isDedicated: false },
-        })));
+    private scheduleResponsiveHubReconciliation(_delay = 100): void {
+        // Unified DesktopHubView handles all device sizes
     }
 
     async activateGawa() {
-        await this.activateView('review-gawa');
+        await this.activateWorkspace();
     }
 
     async activateBulsa() {
-        if (this.isMobile()) {
-            await this.activateResponsiveHubLeaf({ activeView: 'bulsa' });
-            return;
-        }
-        await this.activateView('dues');
+        await this.activateWorkspace();
     }
 
     async activateJournalInput() {
-        this.pendingJournalInputFocus = Platform.isMobile && !isTablet(this.app);
-        await this.activateView('journal');
+        await this.activateWorkspace();
     }
 
     consumeJournalInputFocusRequest(): boolean {
-        const pending = this.pendingJournalInputFocus;
-        this.pendingJournalInputFocus = false;
-        return pending;
+        return false;
     }
 
-    private normalizeDiwaTabId(tabId?: string | null): string {
-        const requestedTab = tabId ?? 'home';
-        const nextTab = REMOVED_DIWA_TAB_FALLBACKS[requestedTab] ?? requestedTab;
-        return OPENABLE_DIWA_TAB_IDS.has(nextTab) ? nextTab : DEFAULT_OPENABLE_DIWA_TAB_ID;
-    }
-
-    async activateView(tabId?: string, isDedicated: boolean = false) {
-        const { workspace } = this.app;
-        const targetTab = this.normalizeDiwaTabId(tabId);
-        const leaves = workspace.getLeavesOfType(VIEW_TYPE_DIWA);
-        let targetLeaf: WorkspaceLeaf | null = null;
-        for (const leaf of leaves) {
-            const view = leaf.view as DiwaView;
-            if (view && view.isDedicated === isDedicated && view.activeTab === targetTab) { targetLeaf = leaf; break; }
-        }
-        if (!targetLeaf && isDedicated && !Platform.isMobile) {
-            for (const leaf of leaves) {
-                const view = leaf.view as DiwaView;
-                if (view && view.isDedicated) {
-                    targetLeaf = leaf;
-                    break;
-                }
-            }
-        }
-        // On mobile, reuse any existing MINA leaf rather than opening a new tab
-        if (!targetLeaf && Platform.isMobile && leaves.length > 0) {
-            targetLeaf = leaves[0];
-        }
-        if (!targetLeaf) targetLeaf = Platform.isMobile ? workspace.getLeaf(false) : workspace.getLeaf('tab');
-        if (targetLeaf) {
-            const currentState = targetLeaf.getViewState();
-            const currentLeafState = currentState.state && typeof currentState.state === 'object'
-                ? { ...(currentState.state as Record<string, unknown>) }
-                : {};
-            await targetLeaf.setViewState({
-                ...currentState,
-                type: VIEW_TYPE_DIWA,
-                active: true,
-                state: {
-                    ...currentLeafState,
-                    activeTab: targetTab,
-                    isDedicated,
-                },
-            });
-            workspace.revealLeaf(targetLeaf);
-        }
+    async activateView(_tabId?: string, _isDedicated: boolean = false) {
+        await this.activateWorkspace();
     }
 
     async scanForContexts(startupToken?: number) {
@@ -889,23 +620,26 @@ export default class DiwaPlugin extends Plugin {
 	    await this.saveData(this.settings);
 	    if (this.vault) this.vault.updateSettings(this.settings);
 	    if (this.index) this.index.updateSettings(this.settings);
+        if (this.capture) this.capture.updateSettings(this.settings);
 	    if (this.taskLink) this.taskLink.updateSettings(this.settings);
 	    if (this.taskReflection) this.taskReflection.updateSettings(this.settings);
 	    if (this.refreshCoordinator) this.refreshCoordinator.updateSettings(this.settings);
         this.applyMobileCssVars();
+        const shouldRefreshCaptures = this.index?.captureFolderChanged() ?? false;
         const shouldRefreshTasks = this.index?.tasksFolderChanged() ?? false;
         const shouldRefreshThoughts = this.index?.thoughtsFolderChanged() ?? false;
         const shouldRefreshDues = this.index?.dueFolderChanged() ?? false;
         const shouldRefreshChecklist = this.index?.captureLocationChanged() ?? false;
-        const shouldRefreshIndexedState = shouldRefreshTasks
+        const shouldRefreshIndexedState = shouldRefreshCaptures
+            || shouldRefreshTasks
             || shouldRefreshThoughts
             || shouldRefreshDues
-            || shouldRefreshChecklist
-;
+            || shouldRefreshChecklist;
 
         if (!this.index || !shouldRefreshIndexedState) return;
 
         await this.index.rebuildSelectedIndices({
+            captures: shouldRefreshCaptures,
             tasks: shouldRefreshTasks,
             thoughts: shouldRefreshThoughts,
             dues: shouldRefreshDues,
@@ -930,8 +664,9 @@ export default class DiwaPlugin extends Plugin {
             && !shouldRefreshThoughts
             && !shouldRefreshDues
             && !shouldRefreshChecklist
+            && !shouldRefreshCaptures
             ? 'tasks'
-            : 'all';
+            : (shouldRefreshCaptures && !shouldRefreshTasks && !shouldRefreshThoughts && !shouldRefreshDues && !shouldRefreshChecklist ? 'capture' : 'all');
         this.notifyRefresh(refreshScope);
 	}
 
@@ -940,10 +675,6 @@ export default class DiwaPlugin extends Plugin {
         value: DiwaSettings[K],
         refreshScope?: RefreshScope,
     ): Promise<void> {
-        if (this.settings[key] === value) {
-            if (refreshScope) this.notifyRefresh(refreshScope);
-            return;
-        }
         this.settings[key] = value;
         await this.saveSettings();
         if (refreshScope) this.notifyRefresh(refreshScope);
@@ -978,13 +709,9 @@ export default class DiwaPlugin extends Plugin {
     }
 
     forceGawaLayoutRefresh(): void {
-        const diwaLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DIWA);
-        for (const leaf of diwaLeaves) {
+        const desktopLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB);
+        for (const leaf of desktopLeaves) {
             const view = leaf.view as any;
-            if (typeof view?.forceGawaRerender === 'function') {
-                view.forceGawaRerender();
-                continue;
-            }
             if (typeof view?.renderView === 'function') view.renderView();
         }
     }
@@ -1042,13 +769,6 @@ export default class DiwaPlugin extends Plugin {
     }
 
     private refreshOpenTaskPanes(): void {
-        const diwaLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DIWA);
-        for (const leaf of diwaLeaves) {
-            const view = leaf.view as any;
-            if (typeof view?.refreshTasks === 'function') view.refreshTasks();
-            else if (typeof view?.renderView === 'function') view.renderView();
-        }
-
         const desktopLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB);
         for (const leaf of desktopLeaves) {
             const view = leaf.view as any;
@@ -1134,6 +854,7 @@ export default class DiwaPlugin extends Plugin {
 
 
     private getRefreshScopeForPath(path: string): RefreshScope | null {
+        if (this.index.isCaptureFile(path)) return 'capture';
         if (this.index.isTaskFile(path)) return 'tasks';
         if (this.index.isThoughtFile(path)) return 'thoughts';
         if (this.index.isDueFile(path)) return 'all';
@@ -1211,461 +932,5 @@ export default class DiwaPlugin extends Plugin {
             .map((ctx) => String(ctx || '').trim())
             .filter(Boolean);
         return Array.from(new Set(contexts)).sort((left, right) => left.localeCompare(right));
-    }
-
-    renderTaskRow(
-        parent: HTMLElement,
-        task: TaskEntry,
-        options: { mobile?: boolean; compact?: boolean } = {},
-    ): HTMLElement {
-        const taskId = task.taskId?.trim() || task.filePath;
-        const done = task.status === 'done'
-            || task.state === 'done'
-            || task.bucketStatus === 'done'
-            || task.lifecycleStatus === 'done'
-            || !!task.completedAt;
-        const row = parent.createDiv('diwa-task-row diwa-task-row--mobile');
-        if (done) row.addClass('is-done');
-        if (options.compact) row.addClass('is-compact');
-
-        const toggleBtn = row.createEl('button', {
-            cls: 'diwa-task-cb',
-            attr: {
-                type: 'button',
-                role: 'checkbox',
-                'aria-checked': done ? 'true' : 'false',
-                'aria-label': done ? 'Mark task as open' : 'Mark task as done',
-            },
-        });
-        const renderCheckboxState = (isDone: boolean): void => {
-            toggleBtn.empty();
-            toggleBtn.setAttr('aria-checked', isDone ? 'true' : 'false');
-            toggleBtn.toggleClass('is-checked', isDone);
-            if (!isDone) return;
-            const checkIcon = toggleBtn.createSpan('diwa-task-cb-icon');
-            setIcon(checkIcon, 'check');
-        };
-        renderCheckboxState(done);
-
-        toggleBtn.addEventListener('click', async (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const nextDone = !row.hasClass('is-done');
-            row.toggleClass('is-done', nextDone);
-            renderCheckboxState(nextDone);
-            setTimeout(async () => {
-                const ok = await this.getTaskController().toggleTask(taskId);
-                if (!ok) {
-                    row.toggleClass('is-done', done);
-                    renderCheckboxState(done);
-                }
-                this.notifyRefresh('tasks');
-            }, 250);
-        });
-
-        const main = row.createDiv('diwa-task-body');
-        const title = (task.title || task.body || 'Untitled task').trim();
-        main.createDiv({ cls: 'diwa-task-title', text: title });
-        if (!options.compact) {
-            const meta = main.createDiv('diwa-task-meta');
-            if (done) meta.createDiv({ cls: 'diwa-chip is-done', text: 'Done' });
-            if (task.due?.trim()) {
-                meta.createDiv({ cls: 'diwa-chip', text: `Due ${task.due.trim()}` });
-            }
-            if (task.context?.length) {
-                task.context
-                    .map((ctx) => String(ctx || '').trim())
-                    .filter(Boolean)
-                    .forEach((ctx) => {
-                        meta.createDiv({ cls: 'diwa-chip', text: `#${ctx}` });
-                    });
-            }
-        }
-
-        row.addEventListener('click', async () => {
-            const file = this.app.vault.getAbstractFileByPath(task.filePath);
-            if (file instanceof TFile) {
-                await this.app.workspace.getLeaf(false).openFile(file);
-            }
-        });
-
-        // Long-Press gesture for touch devices (safe from swipe conflicts)
-        let pressTimer: number | null = null;
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let isMoving = false;
-
-        row.addEventListener('touchstart', (e) => {
-            if (e.touches.length > 1) return;
-            isMoving = false;
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-            
-            pressTimer = window.setTimeout(() => {
-                if (!isMoving) {
-                    if (navigator.vibrate) {
-                        navigator.vibrate(12);
-                    }
-                    new EditTaskModal(this.app, task, this.vault, this.index, () => this.notifyRefresh('tasks')).open();
-                }
-            }, 500);
-        }, { passive: true });
-
-        row.addEventListener('touchmove', (e) => {
-            const diffX = Math.abs(e.touches[0].clientX - touchStartX);
-            const diffY = Math.abs(e.touches[0].clientY - touchStartY);
-            if (diffX > 8 || diffY > 8) {
-                isMoving = true;
-                if (pressTimer) {
-                    clearTimeout(pressTimer);
-                    pressTimer = null;
-                }
-            }
-        }, { passive: true });
-
-        row.addEventListener('touchend', () => {
-            if (pressTimer) {
-                clearTimeout(pressTimer);
-                pressTimer = null;
-            }
-        });
-
-        row.addEventListener('touchcancel', () => {
-            if (pressTimer) {
-                clearTimeout(pressTimer);
-                pressTimer = null;
-            }
-        });
-
-        return row;
-    }
-
-    renderThoughtCard(
-        parent: HTMLElement,
-        thought: ThoughtEntry,
-        options: { mobile?: boolean } = {},
-    ): HTMLElement {
-        const card = parent.createDiv('diwa-thought-card');
-        if (options.mobile) card.addClass('is-mobile');
-
-        // Content Column (starts directly from the left edge)
-        const contentCol = card.createDiv('diwa-content-col');
-        
-        // Header Row
-        const header = contentCol.createDiv('diwa-thought-header');
-        header.createSpan({ cls: 'user-name', text: thought.title || 'Thought' });
-        
-        const verified = header.createSpan({ cls: 'verification-badge' });
-        verified.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="var(--interactive-accent)"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
-        
-        const handle = (thought.context && thought.context.length > 0) ? `@${thought.context[0]}` : '@diwa';
-        header.createSpan({ cls: 'user-handle', text: handle });
-        header.createSpan({ cls: 'meta-dot', text: '·' });
-        
-        const relativeTime = window.moment(thought.created || thought.modified).fromNow(true);
-        header.createSpan({ cls: 'timestamp', text: relativeTime });
-        
-        const moreBtn = header.createEl('button', { cls: 'btn-more-options', attr: { 'aria-label': 'More options' } });
-        moreBtn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 12c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm9 2c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm7 0c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>`;
-        moreBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const file = this.app.vault.getAbstractFileByPath(thought.filePath);
-            if (file instanceof TFile) {
-                this.attachThoughtLongPress(card, thought);
-                card.dispatchEvent(new MouseEvent('contextmenu'));
-            }
-        });
-
-        // Body Text
-        const bodyEl = contentCol.createDiv('diwa-thought-body');
-        const content = (thought.body || thought.content || '').trim();
-        this.scheduleThoughtContentRender(bodyEl, content, thought, this.getThoughtRenderCacheKey(thought, content));
-
-        // Action Toolbar
-        const footer = contentCol.createDiv('diwa-thought-actions');
-        
-        // Reply / Open Note
-        const replyBtn = footer.createEl('button', { cls: 'action-btn reply', attr: { 'aria-label': 'Open Note' } });
-        replyBtn.innerHTML = `<span class="icon-wrap"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 2.22.73 4.27 1.97 5.93L3 22l4.25-1.12C8.79 21.46 10.34 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.46 0-2.83-.41-4.01-1.13l-.29-.17-2.5.66.67-2.43-.19-.31C4.94 15.39 4.5 13.74 4.5 12c0-4.14 3.36-7.5 7.5-7.5s7.5 3.36 7.5 7.5-3.36 7.5-7.5 7.5z"/></svg></span>`;
-        replyBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            const file = this.app.vault.getAbstractFileByPath(thought.filePath);
-            if (file instanceof TFile) {
-                await this.app.workspace.getLeaf(false).openFile(file);
-            }
-        });
-
-        // Promote to Gawa Task
-        const promoteBtn = footer.createEl('button', { cls: 'action-btn repost', attr: { 'aria-label': 'Promote to Task' } });
-        promoteBtn.innerHTML = `<span class="icon-wrap"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.43 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM6 12c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46C15.03 4.46 13.57 4 12 4c-4.42 0-8 3.58-8 8H1l4 4 4-4H6z"/></svg></span>`;
-        promoteBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            const taskContent = (thought.body || thought.content || thought.title || '').trim();
-            const file = await this.vault.createTaskFile(taskContent, [...(thought.context || [])]);
-            if (file) {
-                new Notice('Thought promoted to Task successfully!');
-                if (navigator.vibrate) {
-                    navigator.vibrate(15);
-                }
-                this.notifyRefresh('tasks');
-            }
-        });
-
-        // Like / Toggle Pinned
-        const likeBtn = footer.createEl('button', { cls: 'action-btn like', attr: { 'aria-label': 'Pin Thought' } });
-        const liked = thought.pinned ? 'var(--text-error)' : 'currentColor';
-        likeBtn.innerHTML = `<span class="icon-wrap" style="color: ${liked}"><svg viewBox="0 0 24 24" width="18" height="18" fill="${thought.pinned ? 'var(--text-error)' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></span>`;
-        likeBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            const file = this.app.vault.getAbstractFileByPath(thought.filePath);
-            if (file instanceof TFile) {
-                await this.app.fileManager.processFrontMatter(file, (fm) => {
-                    fm.pinned = !fm.pinned;
-                });
-                if (navigator.vibrate) {
-                    navigator.vibrate(10);
-                }
-                this.notifyRefresh('thoughts');
-            }
-        });
-
-        // Share Link Note
-        const shareBtn = footer.createEl('button', { cls: 'action-btn share', attr: { 'aria-label': 'Copy URL' } });
-        shareBtn.innerHTML = `<span class="icon-wrap"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/></svg></span>`;
-        shareBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const obsUrl = `obsidian://open?vault=${encodeURIComponent(this.app.vault.getName())}&file=${encodeURIComponent(thought.filePath)}`;
-            navigator.clipboard.writeText(obsUrl);
-            new Notice('Copied Obsidian URL to clipboard!');
-        });
-
-        this.attachThoughtLongPress(card, thought);
-        return card;
-    }
-
-    private scheduleThoughtContentRender(el: HTMLElement, content: string, thought: ThoughtEntry, cacheKey: string): void {
-        const token = (this.thoughtRenderTokens.get(el) ?? 0) + 1;
-        this.thoughtRenderTokens.set(el, token);
-        const existingTimer = this.scheduledThoughtRenderTimers.get(el);
-        if (existingTimer !== undefined) {
-            window.clearTimeout(existingTimer);
-        }
-        const timer = window.setTimeout(() => {
-            this.scheduledThoughtRenderTimers.delete(el);
-            void this.renderThoughtContent(el, content, thought, token, cacheKey);
-        }, 0);
-        this.scheduledThoughtRenderTimers.set(el, timer);
-    }
-
-    private async renderThoughtContent(
-        el: HTMLElement,
-        content: string,
-        thought: ThoughtEntry,
-        token: number,
-        cacheKey: string,
-    ): Promise<void> {
-        if (this.unloading || !el.isConnected || this.thoughtRenderTokens.get(el) !== token) return;
-        const cached = this.thoughtContentRenderCache.get(cacheKey);
-        if (cached) {
-            el.replaceChildren(...Array.from(cached.cloneNode(true).childNodes));
-            enableImageZoom(this.app, el);
-            return;
-        }
-        const stagedEl = document.createElement('div');
-        await MarkdownRenderer.render(this.app, content, stagedEl, thought.filePath || '', this);
-        if (this.unloading || !el.isConnected || this.thoughtRenderTokens.get(el) !== token) return;
-        this.cacheThoughtContentRender(cacheKey, stagedEl);
-        el.replaceChildren(...Array.from(stagedEl.childNodes));
-        enableImageZoom(this.app, el);
-    }
-
-    private getThoughtRenderCacheKey(thought: ThoughtEntry, content: string): string {
-        return [
-            thought.id || thought.filePath || thought.title || 'thought',
-            thought.filePath || '',
-            thought.modified || '',
-            thought.updatedAt || '',
-            content,
-        ].join('::');
-    }
-
-    private cacheThoughtContentRender(cacheKey: string, stagedEl: HTMLElement): void {
-        this.thoughtContentRenderCache.set(cacheKey, stagedEl.cloneNode(true) as HTMLElement);
-        while (this.thoughtContentRenderCache.size > 200) {
-            const oldestKey = this.thoughtContentRenderCache.keys().next().value;
-            if (!oldestKey) break;
-            this.thoughtContentRenderCache.delete(oldestKey);
-        }
-    }
-
-    private attachThoughtLongPress(cardEl: HTMLElement, thought: ThoughtEntry): void {
-        let pressTimer: number | null = null;
-
-        const isLinkTarget = (event: Event): boolean => {
-            const target = event.target as HTMLElement | null;
-            return !!target?.closest('a');
-        };
-
-        const start = (event: TouchEvent) => {
-            if (isLinkTarget(event)) return;
-            pressTimer = window.setTimeout(() => {
-                pressTimer = null;
-                this.openThoughtActionMenu(thought);
-            }, 450);
-        };
-
-        const cancel = () => {
-            if (pressTimer !== null) {
-                clearTimeout(pressTimer);
-                pressTimer = null;
-            }
-        };
-
-        cardEl.addEventListener('touchstart', start, { passive: true });
-        cardEl.addEventListener('touchend', cancel);
-        cardEl.addEventListener('touchmove', cancel, { passive: true });
-        cardEl.addEventListener('touchcancel', cancel);
-        cardEl.addEventListener('contextmenu', (event) => {
-            if (isLinkTarget(event)) return;
-            event.preventDefault();
-            this.openThoughtActionMenu(thought);
-        });
-    }
-
-    private openThoughtActionMenu(thought: ThoughtEntry): void {
-        const menu = new Menu();
-        menu.addItem((item) =>
-            item
-                .setTitle('Open Note')
-                .setIcon('link')
-                .onClick(() => { void this.openThoughtNote(thought); }),
-        );
-        menu.addItem((item) =>
-            item
-                .setTitle('Mind Map')
-                .setIcon('map')
-                .onClick(async () => {
-                    const leaf = this.app.workspace.getLeaf(false);
-                    await leaf.setViewState({
-                        type: VIEW_TYPE_DIWA_MINDMAP,
-                        active: true,
-                        state: { file: thought.filePath }
-                    });
-                    this.app.workspace.revealLeaf(leaf);
-                }),
-        );
-        menu.addItem((item) =>
-            item
-                .setTitle('Edit')
-                .setIcon('pencil')
-                .onClick(() => this.editThought(thought)),
-        );
-        menu.addItem((item) =>
-            item
-                .setTitle('Convert to Task')
-                .setIcon('check-square')
-                .onClick(() => {
-                    void this.handleConvertThought(thought);
-                }),
-        );
-        menu.addItem((item) =>
-            item
-                .setTitle('Convert & Edit')
-                .setIcon('pencil')
-                .onClick(() => {
-                    void this.handleConvertThought(thought, true);
-                }),
-        );
-        menu.addItem((item) =>
-            item
-                .setTitle('Archive')
-                .setIcon('archive')
-                .onClick(() => { void this.archiveThought(thought); }),
-        );
-        menu.addItem((item) =>
-            item
-                .setTitle('Delete')
-                .setIcon('trash')
-                .onClick(() => this.deleteThought(thought)),
-        );
-        menu.showAtPosition({
-            x: Math.round(window.innerWidth / 2),
-            y: Math.round(window.innerHeight - 100),
-        });
-    }
-
-    private async handleConvertThought(thought: ThoughtEntry, openEditor = false): Promise<void> {
-        const thoughtId = (thought.id || thought.filePath || '').trim();
-        if (!thoughtId) {
-            console.error('[DIWA] Cannot convert thought: missing thought id/path', thought);
-            return;
-        }
-
-        const controller = this.getTaskController();
-        console.debug('[DIWA] Converting thought -> task', thoughtId);
-
-        try {
-            const ok = await controller.convertThoughtToTask(thoughtId);
-            if (!ok) {
-                return;
-            }
-            if (openEditor) {
-                this.openConvertedTaskEditor(thoughtId);
-            }
-            this.notifyRefresh('all');
-        } catch (error) {
-            console.error(error);
-        }
-    }
-
-    private openConvertedTaskEditor(thoughtId: string): void {
-        const linked = this.getTaskController().getLinkedTasksForThought(thoughtId).slice();
-        if (linked.length === 0) return;
-        linked.sort((left, right) => (right.modified || '').localeCompare(left.modified || ''));
-        const task = linked[0];
-        new EditTaskModal(
-            this.app,
-            task,
-            this.vault,
-            this.index,
-            () => {
-                void this.getTaskController().reconcileTask(task.filePath, undefined, task);
-            },
-        ).open();
-    }
-
-    private async openThoughtNote(thought: ThoughtEntry): Promise<void> {
-        const file = this.app.vault.getAbstractFileByPath(thought.filePath);
-        if (!(file instanceof TFile)) return;
-        await this.app.workspace.getLeaf(false).openFile(file);
-    }
-
-    editThought(thought: ThoughtEntry): void {
-        const content = (thought.body || thought.content || '').trim();
-        if (Platform.isMobile && !isTablet(this.app)) {
-            new MobilePostComposerModal(this.app, this, {
-                editFilePath: thought.filePath,
-                text: content,
-                contexts: thought.context ?? [],
-                topic: thought.topic,
-            }).open();
-            return;
-        }
-
-        new EditThoughtModal(this.app, this, thought).open();
-    }
-
-    private async archiveThought(thought: ThoughtEntry): Promise<void> {
-        const thoughtId = thought.id || thought.filePath;
-        await this.getThoughtController().setArchived(thoughtId, true);
-        this.notifyRefresh('thoughts');
-    }
-
-    private deleteThought(thought: ThoughtEntry): void {
-        new ConfirmModal(this.app, 'Delete this thought?', async () => {
-            await this.vault.deleteFile(thought.filePath, 'thoughts');
-            this.getThoughtController().removeThoughtFromIndex(thought.filePath);
-            this.notifyRefresh('thoughts');
-        }).open();
     }
 }

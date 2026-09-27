@@ -24,6 +24,38 @@ export interface GawaLayoutPreferences {
 export type ResponsiveWorkspaceView = 'home' | 'review' | 'tasks' | 'thoughts' | 'bulsa';
 export type BulsaMode = 'ledger' | 'insights';
 
+export interface LifeArea {
+    id: string;
+    label: string;
+    icon: string;
+    color?: string;
+}
+
+export interface CaptureTaskItem {
+    lineIndex: number;
+    rawLine: string;
+    title: string;
+    completed: boolean;
+}
+
+export interface CaptureEntry {
+    id: string;
+    filePath: string;
+    created: string; // ISO-8601 or YYYY-MM-DD HH:mm:ss
+    modified: string;
+    createdAtMs: number;
+    area: string;
+    tags: string[];
+    body: string;
+    hasTasks: boolean;
+    tasks: CaptureTaskItem[];
+    allDates: string[];
+    wikilinks: string[];
+    pinned?: boolean;
+}
+
+export type ScratchpadFilterMode = 'all' | 'tasks_only' | 'untagged' | string;
+
 export interface BulsaLeafState {
     mode?: BulsaMode;
     showAllDues?: boolean;
@@ -49,62 +81,19 @@ export interface ResponsiveShellState extends Record<string, unknown> {
 
 export interface DiwaSettings {
     captureFolder: string;
-	captureFilePath: string;
-    tasksFilePath: string;
+    lifeAreas: LifeArea[];
+    newNoteFolder: string;
+    attachmentsFolder: string;
+    peopleFolder: string;
     thoughtsFolder: string;
     tasksFolder: string;
     pfFolder: string;
-	dateFormat: string;
-    timeFormat: string;
+    reviewsFolder: string;
     contexts: string[];
     hiddenContexts: string[];
-    selectedContexts: string[];
-    newNoteFolder: string;
-    dailySectionStates: Record<string, boolean>;
-    showDailySections: boolean;
-    showDailyChecklist: boolean;
-    showDailyTasks: boolean;
-    showDailyDues: boolean;
-    showDailyThoughts: boolean;
-    showDailyPinned: boolean;
-    showDailySummary: boolean;
-    grundfosModeOrder: string[];
-    journalModeOrder: string[];
-    pfModeOrder: string[];
-    grundfosKeywords: string[];
-    journalKeywords: string[];
-    blurredNotes: string[];
-    isCompactView: boolean;
-    customModes: CustomMode[];
-    customModeOrders: Record<string, string[]>;
-    weeklyGoals: string[];
-    monthlyGoals: string[];
-    monthlyIncome: number;
-    northStarGoals: string[];
-    attachmentsFolder: string;
-    reviewsFolder: string;
     mobileBottomBarHeight: number;
     legacyMigrated?: boolean;
-    peopleFolder: string;
-    contextOrder: string[];
     gawaLayoutPreferences: GawaLayoutPreferences;
-    canvasDefaultDepth: number; // default BFS depth for mind map generation
-    canvasDefaultDirection: 'lr' | 'rl' | 'tb' | 'bt' | 'radial'; // default layout direction
-    canvasNodeWidth: number; // default canvas node width (px)
-    canvasNodeHeight: number; // default canvas node height (px)
-    canvasSpacingX: number; // horizontal spacing between nodes (px)
-    canvasSpacingY: number; // vertical spacing between nodes (px)
-    canvasOutputFolder: string; // folder to place generated canvas files (empty = same folder as source)
-    mindMapNodeSizes: Record<string, {width: number, height: number, x?: number, y?: number}>;
-    mindMapFloatingNodes: Record<string, string[]>;
-}
-
-export interface CustomMode {
-    id: string;
-    name: string;
-    context: string;
-    keywords: string[];
-    icon: string;
 }
 
 export interface ReplyEntry {

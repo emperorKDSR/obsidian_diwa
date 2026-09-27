@@ -23,13 +23,13 @@ export function getCanonicalCaptureFolder(settings: DiwaSettings): string {
 
 export function getCanonicalCapturePath(settings: DiwaSettings): string {
     const folder = getCanonicalCaptureFolder(settings);
-    const file = normalizeConfiguredSettingPath(settings.captureFilePath, DEFAULT_SETTINGS.captureFilePath, 'captureFilePath');
+    const file = normalizeConfiguredSettingPath((settings as any).captureFilePath, 'diwa.md', 'captureFilePath');
     return joinConfiguredPath(folder, file);
 }
 
 export function getCanonicalLegacyTasksCapturePath(settings: DiwaSettings): string {
     const folder = getCanonicalCaptureFolder(settings);
-    const file = normalizeConfiguredSettingPath(settings.tasksFilePath, DEFAULT_SETTINGS.tasksFilePath, 'tasksFilePath');
+    const file = normalizeConfiguredSettingPath((settings as any).tasksFilePath, 'diwa_tasks.md', 'tasksFilePath');
     return joinConfiguredPath(folder, file);
 }
 

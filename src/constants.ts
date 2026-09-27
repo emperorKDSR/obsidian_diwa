@@ -1,5 +1,12 @@
-import { DiwaSettings } from './types';
+import { DiwaSettings, LifeArea } from './types';
 import { createDefaultGawaLayoutPreferences } from './gawaLayout';
+
+export const DEFAULT_LIFE_AREAS: LifeArea[] = [
+    { id: 'work', label: 'Work', icon: '💼' },
+    { id: 'health', label: 'Health', icon: '🌱' },
+    { id: 'wealth', label: 'Wealth', icon: '💰' },
+    { id: 'growth', label: 'Growth', icon: '💡' },
+];
 
 export const VIEW_TYPE_DIWA = "diwa-view";
 export const VIEW_TYPE_DESKTOP_HUB = "diwa-desktop-hub";
@@ -101,54 +108,18 @@ export const ICON_EYE_OFF = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-
 export const ICON_CHECKLIST = '<polyline points="9 11 12 14 22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
 
 export const DEFAULT_SETTINGS: DiwaSettings = {
-    captureFolder: '000 Bin',
-    captureFilePath: 'diwa.md',
-    tasksFilePath: 'diwa_tasks.md',
+    captureFolder: '000 Bin/Diwa',
+    lifeAreas: DEFAULT_LIFE_AREAS,
+    newNoteFolder: '000 Bin',
+    attachmentsFolder: '000 Bin/DIWA Attachments',
+    peopleFolder: '000 Bin/DIWA People',
     thoughtsFolder: '000 Bin/DIWA',
     tasksFolder: '000 Bin/DIWA Gawa',
     pfFolder: '000 Bin/DIWA PF',
-    dateFormat: 'YYYY-MM-DD',
-    timeFormat: 'HH:mm',
+    reviewsFolder: '000 Bin/DIWA Reviews',
     contexts: [],
     hiddenContexts: [],
-    selectedContexts: [],
-    contextOrder: [],
-    newNoteFolder: '000 Bin',
-    dailySectionStates: {},
-    showDailySections: true,
-    showDailyChecklist: true,
-    showDailyTasks: true,
-    showDailyDues: true,
-    showDailyThoughts: true,
-    showDailyPinned: true,
-    showDailySummary: true,
-    grundfosModeOrder: [],
-    journalModeOrder: [],
-    pfModeOrder: [],
-    grundfosKeywords: [],
-    journalKeywords: [],
-    blurredNotes: [],
-    isCompactView: false,
-    customModes: [],
-    customModeOrders: {},
-    weeklyGoals: [],
-    monthlyGoals: [],
-    monthlyIncome: 0,
-    northStarGoals: [],
-    attachmentsFolder: '000 Bin/DIWA Attachments',
-    reviewsFolder: '000 Bin/DIWA Reviews',
     mobileBottomBarHeight: 56,
-    peopleFolder: '000 Bin/DIWA People',
     legacyMigrated: false,
     gawaLayoutPreferences: createDefaultGawaLayoutPreferences(),
-    // Canvas defaults
-    canvasDefaultDepth: 2,
-    canvasDefaultDirection: 'lr',
-    canvasNodeWidth: 400,
-    canvasNodeHeight: 300,
-    canvasSpacingX: 100,
-    canvasSpacingY: 50,
-    canvasOutputFolder: '',
-    mindMapNodeSizes: {},
-    mindMapFloatingNodes: {},
 };

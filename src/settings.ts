@@ -1,5 +1,5 @@
 import { App, PluginSettingTab, Setting, TextComponent } from 'obsidian';
-import DiwaPlugin from './main';
+import type DiwaPlugin from './main';
 
 export function bindDeferredTextSetting(
     text: TextComponent,
@@ -43,74 +43,122 @@ export function bindDeferredTextSetting(
 }
 
 export class DiwaSettingTab extends PluginSettingTab {
-	plugin: DiwaPlugin;
+    plugin: DiwaPlugin;
 
-	constructor(app: App, plugin: DiwaPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
+    constructor(app: App, plugin: DiwaPlugin) {
+        super(app, plugin);
+        this.plugin = plugin;
+    }
 
-	display(): void {
-		const {containerEl} = this;
-		containerEl.empty();
-		containerEl.createEl('h2', {text: 'DIWA Settings'});
+    display(): void {
+        const { containerEl } = this;
+        containerEl.empty();
+        containerEl.createEl('h2', { text: 'DIWA — Personal OS Settings' });
 
-        containerEl.createEl('h3', { text: 'Storage & Capture' });
-		new Setting(containerEl).setName('Capture Folder').setDesc('Folder for daily capture logs (tables).').addText(text => {
-		    text.setPlaceholder('000 Bin/DIWA');
-		    bindDeferredTextSetting(text, this.plugin.settings.captureFolder, async (value) => {
-		        await this.plugin.updateSetting('captureFolder', value);
-		    });
-		});
-		new Setting(containerEl).setName('Thoughts Folder').setDesc('Folder for individual thought files (YAML).').addText(text => {
-		    text.setPlaceholder('000 Bin/DIWA');
-		    bindDeferredTextSetting(text, this.plugin.settings.thoughtsFolder, async (value) => {
-		        await this.plugin.updateSetting('thoughtsFolder', value);
-		    });
-		});
-		new Setting(containerEl).setName('Gawa Folder').setDesc('Folder for individual gawa files (YAML).').addText(text => {
-		    text.setPlaceholder('000 Bin/DIWA Gawa');
-		    bindDeferredTextSetting(text, this.plugin.settings.tasksFolder, async (value) => {
-		        await this.plugin.updateSetting('tasksFolder', value);
-		    });
-		});
-		new Setting(containerEl).setName('Bulsa Folder').setDesc('Folder for Bulsa notes and recurring obligations.').addText(text => {
-		    text.setPlaceholder('000 Bin/DIWA PF');
-		    bindDeferredTextSetting(text, this.plugin.settings.pfFolder, async (value) => {
-		        await this.plugin.updateSetting('pfFolder', value);
-		    });
-		});
-		new Setting(containerEl).setName('People Folder').setDesc('Folder where new people notes are created when using the / trigger.').addText(text => {
-		    text.setPlaceholder('000 Bin/DIWA People');
-		    bindDeferredTextSetting(text, this.plugin.settings.peopleFolder ?? '000 Bin/DIWA People', async (value) => {
-		        await this.plugin.updateSetting('peopleFolder', value);
-		    });
-		});
-		new Setting(containerEl).setName('Attachments Folder').setDesc('Folder where pasted/dropped images and files are saved.').addText(text => {
-		    text.setPlaceholder('000 Bin/DIWA Attachments');
-		    bindDeferredTextSetting(text, this.plugin.settings.attachmentsFolder ?? '000 Bin/DIWA Attachments', async (value) => {
-		        await this.plugin.updateSetting('attachmentsFolder', value);
-		    });
-		});
-		new Setting(containerEl).setName('New Note Folder').setDesc('Default folder for new synthesized notes.').addText(text => {
-		    text.setPlaceholder('000 Bin');
-		    bindDeferredTextSetting(text, this.plugin.settings.newNoteFolder, async (value) => {
-		        await this.plugin.updateSetting('newNoteFolder', value);
-		    });
-		});
-		new Setting(containerEl).setName('Reviews Folder').setDesc('Root folder for Weekly and Monthly review files.').addText(text => {
-		    text.setPlaceholder('000 Bin/DIWA Reviews');
-		    bindDeferredTextSetting(text, this.plugin.settings.reviewsFolder ?? '000 Bin/DIWA Reviews', async (value) => {
-		        await this.plugin.updateSetting('reviewsFolder', value);
-		    });
-		});
+        // ── 1. Storage & Workspace ──
+        containerEl.createEl('h3', { text: 'Storage & Workspace' });
 
-        containerEl.createEl('h3', { text: 'Formats' });
-		new Setting(containerEl).setName('Date Format').setDesc('moment.js format for dates.').addText(text => text.setPlaceholder('YYYY-MM-DD').setValue(this.plugin.settings.dateFormat).onChange(async (value) => { await this.plugin.updateSetting('dateFormat', value, 'all'); }));
-		new Setting(containerEl).setName('Time Format').setDesc('moment.js format for time.').addText(text => text.setPlaceholder('HH:mm').setValue(this.plugin.settings.timeFormat).onChange(async (value) => { await this.plugin.updateSetting('timeFormat', value, 'all'); }));
         new Setting(containerEl)
-            .setName('Mobile bottom bar height')
-            .setDesc('Height (px) reserved for Obsidian mobile bottom toolbar so DIWA tabs stay visible above it.')
+            .setName('Capture Folder')
+            .setDesc('Root folder for continuous workspace atomic notes (partitioned automatically by YYYY/MM).')
+            .addText(text => {
+                text.setPlaceholder('000 Bin/Diwa');
+                bindDeferredTextSetting(text, this.plugin.settings.captureFolder ?? '000 Bin/Diwa', async (value) => {
+                    await this.plugin.updateSetting('captureFolder', value);
+                });
+            });
+
+        new Setting(containerEl)
+            .setName('New Note Folder')
+            .setDesc('Default destination folder when merging or creating new notes.')
+            .addText(text => {
+                text.setPlaceholder('000 Bin');
+                bindDeferredTextSetting(text, this.plugin.settings.newNoteFolder ?? '000 Bin', async (value) => {
+                    await this.plugin.updateSetting('newNoteFolder', value);
+                });
+            });
+
+        new Setting(containerEl)
+            .setName('Attachments Folder')
+            .setDesc('Folder where pasted images and embedded assets are saved.')
+            .addText(text => {
+                text.setPlaceholder('000 Bin/DIWA Attachments');
+                bindDeferredTextSetting(text, this.plugin.settings.attachmentsFolder ?? '000 Bin/DIWA Attachments', async (value) => {
+                    await this.plugin.updateSetting('attachmentsFolder', value);
+                });
+            });
+
+        // ── 2. Life Areas Taxonomy ──
+        containerEl.createEl('h3', { text: 'Life Areas Taxonomy' });
+        const currentAreas = [...(this.plugin.settings.lifeAreas || [])];
+
+        currentAreas.forEach((area, i) => {
+            const rowSetting = new Setting(containerEl);
+            rowSetting.setName(`${area.icon || '🏷️'} ${area.label}`);
+            rowSetting.setDesc(`Tag identifier: #${area.id}`);
+
+            rowSetting.addText(text => {
+                text.setPlaceholder('Emoji')
+                    .setValue(area.icon);
+                text.inputEl.style.width = '60px';
+                text.inputEl.style.textAlign = 'center';
+                text.onChange(async (val) => {
+                    currentAreas[i] = { ...currentAreas[i], icon: val.trim() };
+                    rowSetting.setName(`${currentAreas[i].icon || '🏷️'} ${currentAreas[i].label}`);
+                    await this.plugin.updateSetting('lifeAreas', [...currentAreas], 'all');
+                });
+            });
+
+            rowSetting.addText(text => {
+                text.setPlaceholder('Label')
+                    .setValue(area.label);
+                text.onChange(async (val) => {
+                    const newLabel = val.trim();
+                    const newId = newLabel.toLowerCase().replace(/[^a-z0-9_-]/g, '_') || `area_${i}`;
+                    currentAreas[i] = { ...currentAreas[i], label: newLabel, id: newId };
+                    rowSetting.setName(`${currentAreas[i].icon || '🏷️'} ${currentAreas[i].label}`);
+                    rowSetting.setDesc(`Tag identifier: #${currentAreas[i].id}`);
+                    await this.plugin.updateSetting('lifeAreas', [...currentAreas], 'all');
+                });
+            });
+
+            rowSetting.addButton(btn => {
+                btn.setButtonText('Delete')
+                    .setWarning()
+                    .onClick(async () => {
+                        currentAreas.splice(i, 1);
+                        await this.plugin.updateSetting('lifeAreas', [...currentAreas], 'all');
+                        this.display();
+                    });
+            });
+        });
+
+        new Setting(containerEl)
+            .setName('Add Life Area')
+            .setDesc('Add a new life area category to your scratchpad')
+            .addButton(btn => {
+                btn.setButtonText('+ Add Area')
+                    .setCta()
+                    .onClick(async () => {
+                        const newAreas = [
+                            ...(this.plugin.settings.lifeAreas || []),
+                            {
+                                id: `area_${Date.now().toString().slice(-4)}`,
+                                label: 'New Area',
+                                icon: '⭐'
+                            }
+                        ];
+                        await this.plugin.updateSetting('lifeAreas', newAreas, 'all');
+                        this.display();
+                    });
+            });
+
+        // ── 3. Device & Mobile Layout ──
+        containerEl.createEl('h3', { text: 'Mobile & Layout' });
+
+        new Setting(containerEl)
+            .setName('Mobile Bottom Bar Height')
+            .setDesc('Height (px) reserved above Obsidian mobile bottom navigation bar so the sticky composer stays visible.')
             .addSlider((slider) => {
                 slider
                     .setLimits(0, 100, 1)
@@ -121,88 +169,78 @@ export class DiwaSettingTab extends PluginSettingTab {
                     });
             });
 
-// Canvas Mind Map Settings
-        containerEl.createEl('h3', { text: 'Canvas Mind Map Settings' });
-        new Setting(containerEl).setName('Default Depth')
-            .setDesc('BFS depth for mind map generation')
-            .addText(text => text
-                .setPlaceholder('2')
-                .setValue(this.plugin.settings.canvasDefaultDepth?.toString() ?? '2')
-                .onChange(async (value) => {
-                    const num = parseInt(value);
-                    await this.plugin.updateSetting('canvasDefaultDepth', isNaN(num) ? 2 : num);
-                }));
-        new Setting(containerEl).setName('Default Layout')
-            .setDesc('Layout direction for mind map')
-            .addDropdown(drop => drop
-                .addOption('lr', 'Left-to-Right')
-                .addOption('rl', 'Right-to-Left')
-                .addOption('tb', 'Top-to-Bottom')
-                .addOption('bt', 'Bottom-to-Top')
-                .addOption('radial', 'Radial')
-                .setValue(this.plugin.settings.canvasDefaultDirection ?? 'lr')
-                .onChange(async (value) => {
-                    await this.plugin.updateSetting('canvasDefaultDirection', value as 'lr'|'rl'|'tb'|'bt'|'radial');
-                }));
-        new Setting(containerEl).setName('Node Width')
-            .setDesc('Default canvas node width in pixels')
-            .addText(text => text
-                .setPlaceholder('400')
-                .setValue(this.plugin.settings.canvasNodeWidth?.toString() ?? '400')
-                .onChange(async (value) => {
-                    const num = parseInt(value);
-                    await this.plugin.updateSetting('canvasNodeWidth', isNaN(num) ? 400 : num);
-                }));
-        new Setting(containerEl).setName('Node Height')
-            .setDesc('Default canvas node height in pixels')
-            .addText(text => text
-                .setPlaceholder('300')
-                .setValue(this.plugin.settings.canvasNodeHeight?.toString() ?? '300')
-                .onChange(async (value) => {
-                    const num = parseInt(value);
-                    await this.plugin.updateSetting('canvasNodeHeight', isNaN(num) ? 300 : num);
-                }));
-        new Setting(containerEl).setName('Horizontal Spacing')
-            .setDesc('Spacing between nodes horizontally')
-            .addText(text => text
-                .setPlaceholder('100')
-                .setValue(this.plugin.settings.canvasSpacingX?.toString() ?? '100')
-                .onChange(async (value) => {
-                    const num = parseInt(value);
-                    await this.plugin.updateSetting('canvasSpacingX', isNaN(num) ? 100 : num);
-                }));
-        new Setting(containerEl).setName('Vertical Spacing')
-            .setDesc('Spacing between nodes vertically')
-            .addText(text => text
-                .setPlaceholder('50')
-                .setValue(this.plugin.settings.canvasSpacingY?.toString() ?? '50')
-                .onChange(async (value) => {
-                    const num = parseInt(value);
-                    await this.plugin.updateSetting('canvasSpacingY', isNaN(num) ? 50 : num);
-                }));
-        new Setting(containerEl).setName('Canvas Output Folder')
-            .setDesc('Folder to save generated canvas files (empty = same folder as source)')
-            .addText(text => text
-                .setPlaceholder('')
-                .setValue(this.plugin.settings.canvasOutputFolder ?? '')
-                .onChange(async (value) => {
-                    await this.plugin.updateSetting('canvasOutputFolder', value.trim());
-                }));
-        // Bulsa heading restored
-        containerEl.createEl('h3', { text: 'Bulsa' });
-        new Setting(containerEl).setName('Monthly Income').setDesc('Used for the cashflow overview in Bulsa Insights.').addText(text => text.setPlaceholder('0').setValue(this.plugin.settings.monthlyIncome.toString()).onChange(async (value) => { await this.plugin.updateSetting('monthlyIncome', parseFloat(value) || 0); }));
+        // ── 4. Contexts & Vault Tags ──
+        containerEl.createEl('h3', { text: 'Contexts & Vault Tags' });
 
-        containerEl.createEl('h3', { text: 'Contexts & Tags' });
-        const contextSetting = new Setting(containerEl).setName('Manage Contexts').setDesc('Click to rescan your vault for context tags (#tag).');
-        contextSetting.addButton(btn => btn.setButtonText('Scan Vault').onClick(async () => {
-            const found = await this.plugin.index.scanForContexts();
-            let added = 0;
-            found.forEach(c => { if (!this.plugin.settings.contexts.includes(c)) { this.plugin.settings.contexts.push(c); added++; } });
-            if (added > 0) {
-                await this.plugin.saveSettings();
-                this.display();
-            } else {
-            }
-        }));
-	}
+        new Setting(containerEl)
+            .setName('Manage Contexts')
+            .setDesc('Scan vault to populate and synchronize hashtag suggestions.')
+            .addButton(btn => btn.setButtonText('Scan Vault').onClick(async () => {
+                const found = await this.plugin.index.scanForContexts();
+                let added = 0;
+                found.forEach(c => {
+                    if (!this.plugin.settings.contexts.includes(c)) {
+                        this.plugin.settings.contexts.push(c);
+                        added++;
+                    }
+                });
+                if (added > 0) {
+                    await this.plugin.saveSettings();
+                    this.display();
+                }
+            }));
+
+        // ── 5. Advanced Vault Folders ──
+        containerEl.createEl('h3', { text: 'Legacy & Advanced Folders' });
+
+        new Setting(containerEl)
+            .setName('Thoughts Folder')
+            .setDesc('Directory for standalone thought notes.')
+            .addText(text => {
+                text.setPlaceholder('000 Bin/DIWA');
+                bindDeferredTextSetting(text, this.plugin.settings.thoughtsFolder, async (value) => {
+                    await this.plugin.updateSetting('thoughtsFolder', value);
+                });
+            });
+
+        new Setting(containerEl)
+            .setName('Gawa Tasks Folder')
+            .setDesc('Directory for standalone Gawa task notes.')
+            .addText(text => {
+                text.setPlaceholder('000 Bin/DIWA Gawa');
+                bindDeferredTextSetting(text, this.plugin.settings.tasksFolder, async (value) => {
+                    await this.plugin.updateSetting('tasksFolder', value);
+                });
+            });
+
+        new Setting(containerEl)
+            .setName('Bulsa Obligations Folder')
+            .setDesc('Directory for Bulsa recurring dues and obligations.')
+            .addText(text => {
+                text.setPlaceholder('000 Bin/DIWA PF');
+                bindDeferredTextSetting(text, this.plugin.settings.pfFolder, async (value) => {
+                    await this.plugin.updateSetting('pfFolder', value);
+                });
+            });
+
+        new Setting(containerEl)
+            .setName('People Folder')
+            .setDesc('Directory for contact notes.')
+            .addText(text => {
+                text.setPlaceholder('000 Bin/DIWA People');
+                bindDeferredTextSetting(text, this.plugin.settings.peopleFolder ?? '000 Bin/DIWA People', async (value) => {
+                    await this.plugin.updateSetting('peopleFolder', value);
+                });
+            });
+
+        new Setting(containerEl)
+            .setName('Reviews Folder')
+            .setDesc('Root directory for periodic review notes.')
+            .addText(text => {
+                text.setPlaceholder('000 Bin/DIWA Reviews');
+                bindDeferredTextSetting(text, this.plugin.settings.reviewsFolder ?? '000 Bin/DIWA Reviews', async (value) => {
+                    await this.plugin.updateSetting('reviewsFolder', value);
+                });
+            });
+    }
 }
