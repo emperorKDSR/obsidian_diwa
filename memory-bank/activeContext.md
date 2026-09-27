@@ -20,11 +20,20 @@
   - Clean TypeScript compilation and bundling with `npm run build` (0 errors).
   - Deployed `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000/.obsidian/plugins/Obsidian_diwa`.
 
-## Current Focus: Multi-Selection Filtering Architecture (Option 1 Deployed)
-- **Pinned Modifier + Facet Carousel**:
-  - Decoupled `_filterTasksOnly: boolean` from `_activeFilter: ScratchpadFilterMode` in `DesktopHubView.ts`.
-  - Pinned `[ ☑️ Open Tasks ]` as an independent toggle chip at the start of the filter carousel, separated by `.pos-filter-divider`.
-  - Allows simultaneous multi-dimensional queries: Open Tasks + Today, Open Tasks + Upcoming, Open Tasks + Grundfos (or any life area/tag), or All Open Tasks.
-  - Toggling `Open Tasks` dynamically recalibrates all badge counters across the carousel (`IndexService.getAreaCounts(tasksOnly)`, `getTodayCapturesCount(tasksOnly)`, `getUpcomingCapturesCount(tasksOnly)`).
-  - Orthogonal stream filtering in `getFilteredCaptures()` and context-aware empty state messaging.
-  - Full bundle compiled and deployed to test vault.
+## Current Focus: Wikilink System Interaction (Mobile Peek Sheet & Desktop Split Navigation) Deployed
+- **Mobile Slide-Up Bottom Sheet (`WikilinkPeekModal`)**:
+  - Tapping a non-date wikilink (`[[...]]`) in the stream smoothly slides up a 68vh bottom sheet over the stream with backdrop blur (`backdrop-filter: blur(8px)`), swipe-down dismissal gestures, and drag handle.
+  - Renders markdown live with `MarkdownRenderer` and a dedicated `Component` lifecycle.
+  - Interactive checkboxes inside the peek preview update the target note atomically via `app.vault.process()`.
+  - Built-in **Quick Append Bar**: allows appending notes/tasks directly to the referenced note without opening the file.
+  - Unresolved link handling: displays "Note does not exist yet" card with a 1-tap `[ ➕ Create Note ]` action.
+- **Desktop Protected Split Navigation**:
+  - Standard left-click targets an adjacent split leaf or opens a vertical split pane, preventing the DIWA stream leaf from being evicted or replaced.
+  - Supports modifier keys: `Cmd/Ctrl + Click` (new tab), `Alt + Click` (floating window).
+  - Native hover preview support via Obsidian's core `hover-link` event.
+  - Right-click / context menu: provides options for Quick Preview, Open in Split, Open in Tab, Filter Stream for `[[Note]]`, and Copy Wikilink.
+- **Stream Pivot Filter (`filterStreamByWikilink`)**:
+  - Pivots the DIWA continuous scratchpad search to filter all captures referencing the target note.
+- **Deployment**:
+  - Clean TypeScript compilation with `npm run build` (0 errors).
+  - Deployed `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000/.obsidian/plugins/Obsidian_diwa`.

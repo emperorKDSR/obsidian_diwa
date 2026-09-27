@@ -1,12 +1,22 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Multi-Selection Filtering Architecture (Option 1) Deployed
+## Current Phase: Wikilink System Interaction (Mobile Peek Sheet & Desktop Split Navigation) Deployed
 
 ---
 
 ## Completed Roadmap Checklist
 
-### 0. Multi-Selection Filtering Architecture (Option 1)
+### 0. Wikilink System Interaction (Mobile Peek Sheet & Desktop Split Navigation)
+*   [x] **Mobile Slide-Up Bottom Sheet (`WikilinkPeekModal`)** — Tapping a wikilink in the stream opens a thumb-friendly 68vh bottom sheet with backdrop blur and touch swipe-down dismiss gestures.
+*   [x] **Live In-Modal Markdown Rendering & Interactive Tasks** — Note body rendered via `MarkdownRenderer` with clean `Component` lifecycle; interactive `- [ ]` checkboxes toggle directly in the referenced note using atomic `app.vault.process()`.
+*   [x] **1-Tap Quick Append Bar** — Input capsule at the bottom of the modal allows instantly appending thoughts or tasks to the linked note without opening the full editor.
+*   [x] **Unresolved (Ghost) Link Handler** — Clean fallback UI displaying note absence with a 1-tap `[ ➕ Create Note ]` button.
+*   [x] **Desktop Protected Split Navigation** — Standard left-click opens target note in an adjacent split leaf or creates a vertical split, completely preventing DIWA stream eviction.
+*   [x] **Modifier Clicks & Native Hover** — Supports `Cmd/Ctrl + Click` (new tab), `Alt + Click` (floating window), and native Obsidian Page Preview on hover via `hover-link` event.
+*   [x] **Context Menu & Stream Pivot Filtering (`filterStreamByWikilink`)** — Right-click on desktop and long-press on mobile display context options to preview, open in split/tab, or instantly filter the DIWA stream by `[[Note]]`.
+*   [x] **Production Bundle Deployed** — `npm run build` compiled clean; bundle deployed to test vault.
+
+### 0.1. Multi-Selection Filtering Architecture (Option 1)
 *   [x] **Independent Task Lens Modifier** — Decoupled task mode (`_filterTasksOnly: boolean`) from facet state (`_activeFilter: ScratchpadFilterMode`), allowing compound multi-select queries (e.g. Open Tasks + Today, Open Tasks + Upcoming, Open Tasks + Grundfos).
 *   [x] **Pinned Modifier Pill & Divider** — Positioned `[ ☑️ Open Tasks ]` as a sticky toggle pill at the front of the carousel, separated by `.pos-filter-divider`.
 *   [x] **Context-Aware Dynamic Badges** — `IndexService` methods (`getAreaCounts`, `getTodayCapturesCount`, `getUpcomingCapturesCount`) accept optional `tasksOnly?: boolean` parameter to reflect exact open task counts across each facet when the modifier is active.

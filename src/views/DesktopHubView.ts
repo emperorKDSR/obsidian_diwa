@@ -4,6 +4,7 @@ import { VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID } from '../constants';
 import { CaptureEntry, ScratchpadFilterMode } from '../types';
 import { MergeNotesModal } from '../modals/MergeNotesModal';
 import { DatePickerModal } from '../modals/DatePickerModal';
+import { WikilinkPeekModal } from '../modals/WikilinkPeekModal';
 import { isTablet, attachInlineTriggers, attachMediaPasteHandler } from '../utils';
 import { attachMobileSheetViewportBehavior } from '../utils/mobileSheetViewport';
 
@@ -1356,6 +1357,83 @@ export class DesktopHubView extends ItemView {
         menu.showAtMouseEvent(e);
     }
 
+    public filterStreamByWikilink(linkName: string): void {
+        this._searchQuery = linkName;
+        this._renderedCount = BATCH_SIZE;
+        if (Platform.isMobile) {
+            this._mobileSearchOpen = true;
+        }
+        if (this._headerBarEl) {
+            this.renderHeaderBar(this._headerBarEl);
+        }
+        this.updateStreamOnly();
+        this.updateFilterCounts();
+        this.updateComposerVisibility();
+        new Notice(`Filtered stream by "${linkName}"`);
+    }
+
+    private openWikilinkActionMenu(e: MouseEvent, linkText: string, sourcePath: string): void {
+        const menu = new Menu();
+        const cleanName = linkText.split('#')[0];
+
+        menu.addItem((item) => {
+            item.setTitle('👁️ Quick Preview')
+                .setIcon('eye')
+                .onClick(() => {
+                    new WikilinkPeekModal(
+                        this.app,
+                        this.plugin,
+                        linkText,
+                        sourcePath,
+                        (target) => this.filterStreamByWikilink(target)
+                    ).open();
+                });
+        });
+
+        menu.addItem((item) => {
+            item.setTitle(`🔍 Filter Stream for [[${cleanName}]]`)
+                .setIcon('search')
+                .onClick(() => {
+                    this.filterStreamByWikilink(cleanName);
+                });
+        });
+
+        menu.addSeparator();
+
+        menu.addItem((item) => {
+            item.setTitle('📖 Open in Adjacent Split')
+                .setIcon('split')
+                .onClick(async () => {
+                    const splitLeaf = this.app.workspace.getLeaf('split', 'vertical');
+                    const destFile = this.app.metadataCache.getFirstLinkpathDest(cleanName, sourcePath);
+                    if (destFile) {
+                        await splitLeaf.openFile(destFile);
+                    } else {
+                        await this.app.workspace.openLinkText(linkText, sourcePath, 'split');
+                    }
+                });
+        });
+
+        menu.addItem((item) => {
+            item.setTitle('🗂️ Open in New Tab')
+                .setIcon('tab')
+                .onClick(async () => {
+                    await this.app.workspace.openLinkText(linkText, sourcePath, 'tab');
+                });
+        });
+
+        menu.addItem((item) => {
+            item.setTitle('📋 Copy Wikilink')
+                .setIcon('copy')
+                .onClick(async () => {
+                    await navigator.clipboard.writeText(`[[${linkText}]]`);
+                    new Notice(`Copied [[${linkText}]]`);
+                });
+        });
+
+        menu.showAtMouseEvent(e);
+    }
+
     private attachInteractiveElements(container: HTMLElement, entry: CaptureEntry): void {
         // 1. Task Checkboxes
         const checkboxes = container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
@@ -1408,7 +1486,7 @@ export class DesktopHubView extends ItemView {
             };
         });
 
-        // 2. Rendered internal date links
+        // 2. Rendered internal date links and note wikilinks
         const internalLinks = container.querySelectorAll<HTMLAnchorElement>('a.internal-link');
         internalLinks.forEach(link => {
             const href = link.getAttribute('data-href') || link.textContent || '';
@@ -1428,6 +1506,78 @@ export class DesktopHubView extends ItemView {
                     e.preventDefault();
                     e.stopPropagation();
                     this.openDateActionMenu(e, entry, dateStr);
+                };
+            } else {
+                link.addClass('pos-stream-wikilink');
+
+                // Native hover preview via Obsidian Page Preview
+                link.addEventListener('mouseover', (e: MouseEvent) => {
+                    this.app.workspace.trigger('hover-link', {
+                        event: e,
+                        source: VIEW_TYPE_DESKTOP_HUB,
+                        hoverParent: this,
+                        targetEl: link,
+                        linktext: href,
+                        sourcePath: entry.filePath
+                    });
+                });
+
+                // Context menu (Right-click on desktop, long-press on mobile)
+                link.oncontextmenu = (e: MouseEvent) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.openWikilinkActionMenu(e, href, entry.filePath);
+                };
+
+                // Click / Tap handler
+                link.onclick = async (e: MouseEvent) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    // Mobile: Slide-Up Bottom Sheet (Peek Sheet)
+                    if (Platform.isMobile) {
+                        new WikilinkPeekModal(
+                            this.app,
+                            this.plugin,
+                            href,
+                            entry.filePath,
+                            (target) => this.filterStreamByWikilink(target)
+                        ).open();
+                        return;
+                    }
+
+                    // Desktop Modifier Clicks
+                    if (e.metaKey || e.ctrlKey) {
+                        await this.app.workspace.openLinkText(href, entry.filePath, 'tab');
+                        return;
+                    }
+                    if (e.altKey) {
+                        await this.app.workspace.openLinkText(href, entry.filePath, 'window');
+                        return;
+                    }
+
+                    // Desktop Standard Left-Click: Protected Split Navigation
+                    const cleanName = href.split('#')[0];
+                    const leaves = this.app.workspace.getLeavesOfType('markdown');
+                    const targetLeaf = leaves.find(l => l !== this.leaf);
+
+                    if (targetLeaf) {
+                        this.app.workspace.setActiveLeaf(targetLeaf, { focus: true });
+                        const destFile = this.app.metadataCache.getFirstLinkpathDest(cleanName, entry.filePath);
+                        if (destFile) {
+                            await targetLeaf.openFile(destFile);
+                        } else {
+                            await this.app.workspace.openLinkText(href, entry.filePath, false);
+                        }
+                    } else {
+                        const splitLeaf = this.app.workspace.getLeaf('split', 'vertical');
+                        const destFile = this.app.metadataCache.getFirstLinkpathDest(cleanName, entry.filePath);
+                        if (destFile) {
+                            await splitLeaf.openFile(destFile);
+                        } else {
+                            await this.app.workspace.openLinkText(href, entry.filePath, 'split');
+                        }
+                    }
                 };
             }
         });

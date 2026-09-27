@@ -88,3 +88,25 @@ The **Continuous Scratchpad** is the primary interactive hub:
 *   **Search Stream Precedence**: Keyword search in `getFilteredCaptures()` takes global precedence across all notes, bypassing category/life-area filters. Opening mobile search auto-resets filter to `'all'` and triggers immediate re-render.
 *   **Progressive Dynamic Height**: Uses `@supports (height: 100dvh)` fallback for dynamic viewport scaling on modern iOS.
 
+---
+
+## 5. Wikilink Interaction Architecture (`WikilinkPeekModal` & Protected Leaves)
+*   **Link Routing & Segregation**: `DesktopHubView.attachInteractiveElements` intercepts all `a.internal-link` anchors in rendered stream captures:
+    *   *Date Links* (`YYYY-MM-DD`): Intercepted by `openDateActionMenu` for snooze/tickler scheduling.
+    *   *Note Wikilinks*: Handled through responsive platform routing without evicting the DIWA workspace leaf.
+*   **Mobile Slide-Up Bottom Sheet (`WikilinkPeekModal`)**:
+    *   Styled with `.pos-mobile-bottom-sheet` and `.pos-bottom-sheet-backdrop` (`backdrop-filter: blur(8px)`).
+    *   Occupies 68vh (expanding up to 88vh) with touch drag-handle and swipe-down-to-dismiss gesture threshold (>80px delta).
+    *   Renders note markdown live via `MarkdownRenderer` with explicit `Component` lifecycle (`load()`/`unload()`).
+    *   Interactive task checkboxes inside the sheet update the target note atomically via `app.vault.process()`.
+    *   Built-in **Quick Append Bar**: Allows appending thoughts or `- [ ]` tasks directly to the referenced note via atomic write without opening the note editor.
+    *   Unresolved (Ghost) link handling: Displays clean empty state with a 1-tap `[ ➕ Create Note ]` action.
+*   **Desktop Protected Split Navigation**:
+    *   Normal left-click searches for an adjacent open markdown leaf (`workspace.getLeavesOfType('markdown')`) or opens a vertical split leaf (`workspace.getLeaf('split', 'vertical')`). The DIWA leaf is never replaced or evicted.
+    *   Modifier clicks: `Cmd/Ctrl + Click` opens in a new background tab (`'tab'`), `Alt + Click` opens in a floating window (`'window'`).
+    *   Hover Preview: Fires `workspace.trigger('hover-link', ...)` so Obsidian core's **Page Preview** works natively.
+    *   Context Menu (`openWikilinkActionMenu`): Right-click (or long press on mobile) provides instant options: *Quick Preview*, *Filter Stream for [[...]]*, *Open in Adjacent Split*, *Open in New Tab*, and *Copy Wikilink*.
+*   **Stream Pivot Query (`filterStreamByWikilink`)**:
+    *   Instantly targets DIWA search input to `[[Note]]` or note title, recalibrating the continuous stream and filter counters to display all related inbox captures.
+
+

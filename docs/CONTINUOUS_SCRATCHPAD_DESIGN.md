@@ -181,4 +181,80 @@ Discussed priority deliverables for the marketing campaign.
 ### 7.3 Known Limitations & Future Roadmap
 * **iOS WebKit Layout Viewport Disconnect**: In certain iOS Obsidian configurations, focusing the search input causes iOS WebKit to auto-scroll the document while maintaining a fixed-height outer layout viewport, creating a persistent dead gap between the search input and the virtual keyboard. Further investigation deferred.
 
+---
+
+## 8. Wikilink System Interaction Architecture
+
+### 8.1 The Leaf Protection Principle
+In standard Obsidian, clicking an internal link (`<a class="internal-link">`) inside a custom leaf (`ItemView`) replaces the active view with the linked note unless explicitly handled. Within the DIWA Continuous Workspace, this destroys capture momentum: the stream position is lost, active filters reset, and the user must navigate backward to resume triage.
+
+DIWA implements a **dual-platform, context-preserving interaction system** that segregates temporal date links from note wikilinks, guaranteeing that the DIWA workspace leaf is never unintentionally evicted.
+
+```mermaid
+flowchart TD
+    subgraph Click ["Stream Link Interaction"]
+        UserAction[User Clicks / Taps Wikilink]
+        DateTest{Is Date Link?}
+        PlatformTest{Platform.isMobile?}
+    end
+
+    subgraph Mobile ["Mobile Workflow"]
+        PeekSheet[WikilinkPeekModal - 68vh Slide-Up Bottom Sheet]
+        LiveTasks[In-Sheet Interactive Tasks via app.vault.process]
+        QuickAppend[⚡ Quick Append Input Capsule]
+    end
+
+    subgraph Desktop ["Desktop Workflow"]
+        ModCheck{Modifier Key?}
+        AdjacentSplit[Open / Reuse Adjacent Vertical Split Leaf]
+        TabOrWindow[Open in New Tab / Floating Window]
+        HoverPreview[Native Hover Preview via hover-link event]
+    end
+
+    UserAction --> DateTest
+    DateTest -- YYYY-MM-DD --> DateMenu[Snooze / Reschedule Menu]
+    DateTest -- Note Wikilink --> PlatformTest
+
+    PlatformTest -- Mobile --> PeekSheet
+    PeekSheet --> LiveTasks
+    PeekSheet --> QuickAppend
+
+    PlatformTest -- Desktop --> ModCheck
+    ModCheck -- Normal Click --> AdjacentSplit
+    ModCheck -- Cmd / Ctrl / Alt --> TabOrWindow
+    UserAction -. Hover .-> HoverPreview
+```
+
+### 8.2 Mobile: Slide-Up Peek Sheet (`WikilinkPeekModal`)
+1. **Ergonomic Sheet Presentation**:
+   - Slides up from the bottom to **68vh** (expanding to 88vh), resting firmly inside the thumb-reach zone.
+   - Backdrop blur (`backdrop-filter: blur(8px)`) over the DIWA stream maintains spatial context without distraction.
+   - **Swipe-Down Dismissal**: Touch drag-handle at the top tracks touch delta. Pulling down past 80px triggers an animated dismissal back to the exact scroll position in the stream.
+2. **Live In-Sheet Markdown & Task Toggling**:
+   - Renders the target note’s markdown body in real time using `MarkdownRenderer` bound to an isolated `Component` lifecycle.
+   - Interactive checkboxes inside the referenced note can be checked off in-place (`- [ ]` $\leftrightarrow$ `- [x]`), committing changes directly to the file via atomic `app.vault.process()` transactions.
+3. **⚡ Quick Append Bar**:
+   - Sticky footer input capsule allows capturing a rapid thought, meeting note, or `- [ ]` task directly into the referenced note without opening the file.
+4. **Unresolved / Ghost Link Handling**:
+   - When referencing a note that has not yet been created, the sheet displays a clean "Note does not exist yet" card with a 1-tap **`[ ➕ Create Note ]`** action.
+
+### 8.3 Desktop: Protected Split Navigation
+1. **Leaf Safeguarding**:
+   - Standard left-click searches for an open adjacent markdown leaf (`workspace.getLeavesOfType('markdown')`). If found, it opens the target note there. If none exists, it opens a vertical split pane (`split: 'vertical'`). The DIWA leaf remains completely open on the left.
+2. **Native Modifier Clicks**:
+   - `Cmd / Ctrl + Click`: Opens the note in a new background tab (`'tab'`).
+   - `Alt + Click`: Opens the note in a separate floating popout window (`'window'`).
+3. **Native Hover Preview**:
+   - Listens to mouseover events and fires Obsidian's `hover-link` event, allowing the native core **Page Preview** popover to activate seamlessly.
+
+### 8.4 Stream Pivot Filtering (`filterStreamByWikilink`)
+- **Right-Click (Desktop) & Long-Press (Mobile)**: Opens an action context menu containing:
+  - 👁️ *Quick Preview*
+  - 🔍 *Filter Stream for `[[Note]]`*
+  - 📖 *Open in Adjacent Split*
+  - 🗂️ *Open in New Tab*
+  - 📋 *Copy Wikilink*
+- **Search Pivot**: Triggering *Filter Stream* (or the search icon in the sheet header) pivots the DIWA search input to that entity name, immediately collapsing the continuous scratchpad to display all related inbox captures.
+
+
 
