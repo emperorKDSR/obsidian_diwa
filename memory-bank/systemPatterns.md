@@ -83,10 +83,9 @@ The **Continuous Scratchpad** is the primary interactive hub:
 ---
 
 ## 4. Mobile Viewport & Search Architecture
-*   **Visual Viewport Listener**: `attachMobileSheetViewportBehavior` dynamically tracks `window.visualViewport` to compute `--diwa-visible-h` (visual viewport bottom − DIWA root top), compute `--diwa-kb-h` as the uncompensated keyboard overlap (parent bottom − visual viewport bottom; 0 when Obsidian already resized its container), and toggle `.has-mobile-keyboard` on `DesktopHubView.contentEl`.
-*   **Keyboard Offset Containment**: `.diwa-workspace-root.has-mobile-keyboard` constrains height to `var(--diwa-visible-h, calc(100% - var(--diwa-kb-h, 0px)))` so content uses the actual visible viewport instead of unreliable iOS layout-viewport percentages.
+*   **Visual Viewport Listener**: `attachMobileSheetViewportBehavior` tracks `window.visualViewport` to compute `--diwa-kb-h` as the uncompensated keyboard overlap (used by mobile modal sheets) and toggle `.has-mobile-keyboard` on `DesktopHubView.contentEl` for compact styling.
+*   **No Root Resizing on Keyboard**: Obsidian mobile already sizes its container with its own `--keyboard-height`. `.diwa-workspace-root` must stay `height: 100%` — no keyboard-open height override and no `100dvh` — otherwise the view is shrunk twice and a black gap appears above the keyboard.
 *   **Search Stream Precedence**: Keyword search in `getFilteredCaptures()` takes global precedence across all notes, bypassing category/life-area filters. Opening mobile search auto-resets filter to `'all'` and triggers immediate re-render.
-*   **Progressive Dynamic Height**: Uses `@supports (height: 100dvh)` fallback for dynamic viewport scaling on modern iOS.
 
 ---
 

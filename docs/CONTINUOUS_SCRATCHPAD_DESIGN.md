@@ -157,17 +157,9 @@ Discussed priority deliverables for the marketing campaign.
 
 ### 7.1 Visual Viewport & Keyboard Height Management
 * **`attachMobileSheetViewportBehavior`**: On mobile, `DesktopHubView` attaches a visual viewport observer (`window.visualViewport`) on `onOpen()` and tears it down on `onClose()`.
-* **Dynamic Keyboard Variables**: Detects keyboard appearance threshold ($>72\text{px}$), sets `--diwa-visible-h` to the measured visible height from the DIWA root top to `window.visualViewport` bottom, and sets `--diwa-kb-h` to any remaining keyboard overlap still hiding the parent container. This avoids both layout-viewport `100%` sizing bugs and double keyboard compensation when Obsidian already resized its container.
-* **Layout Containment**:
-  ```css
-  .diwa-workspace-root.has-mobile-keyboard {
-      height: var(--diwa-visible-h, calc(100% - var(--diwa-kb-h, 0px))) !important;
-      max-height: var(--diwa-visible-h, calc(100% - var(--diwa-kb-h, 0px))) !important;
-      overflow-y: auto !important;
-  }
-  ```
+* **Keyboard Class**: Detects keyboard appearance threshold ($>72\text{px}$) and toggles `.has-mobile-keyboard` on the root container for compact styling only. `--diwa-kb-h` (remaining keyboard overlap) is still set for mobile modal sheets.
+* **No Root Height Override**: Obsidian mobile already sizes its app container with its own `--keyboard-height` (`max-height: calc(100vh - var(--keyboard-height))`). DIWA must NOT resize `.diwa-workspace-root` on keyboard open (or force `100dvh`), otherwise the view is shrunk twice and a black gap covers the screen above the keyboard. The root stays at `height: 100%`.
 * **Full Height Flex Distribution**: `.pos-scratchpad-container` (`flex: 1; min-height: 0;`) and `.pos-document-stream` (`flex: 1 1 auto; min-height: 0;`) expand to fill available vertical space.
-* **Progressive `100dvh` Support**: Leverages `@supports (height: 100dvh)` for dynamic viewport units on iOS 15.4+.
 
 ### 7.2 Mobile Search Experience & Stream Precedence
 * **Global Search Scope**: When a query is present in `_searchQuery`, `getFilteredCaptures()` prioritizes the keyword search across all notes in the vault, ignoring restrictive category or status filters.

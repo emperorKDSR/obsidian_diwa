@@ -1109,12 +1109,8 @@ body.is-phone .pos-inline-textarea,
         box-sizing: border-box;
     }
 
-    /* When iOS keyboard is open, constrain workspace to visual viewport */
-    .diwa-workspace-root.has-mobile-keyboard {
-        height: var(--diwa-visible-h, calc(100% - var(--diwa-kb-h, 0px))) !important;
-        max-height: var(--diwa-visible-h, calc(100% - var(--diwa-kb-h, 0px))) !important;
-        overflow-y: auto !important;
-    }
+    /* Obsidian mobile already shrinks its container via --keyboard-height;
+       overriding the root height here double-shrinks it into a black gap. */
 
     /* Ensure container fills available space when keyboard is up */
     .diwa-workspace-root.has-mobile-keyboard .pos-scratchpad-container {
@@ -1275,16 +1271,6 @@ body.is-phone .pos-inline-textarea,
         padding: 4px 8px;
         min-width: 30px;
         min-height: 30px;
-    }
-}
-
-/* Dynamic Viewport Unit Progressive Enhancement */
-@supports (height: 100dvh) {
-    @media (max-width: 768px) {
-        .diwa-workspace-root:not(.has-mobile-keyboard) {
-            height: 100dvh;
-            max-height: 100dvh;
-        }
     }
 }
 
