@@ -1,29 +1,28 @@
 # Active Context: DIWA — Personal OS
 
-## Latest Fix: iOS Keyboard Black Overlay
+## Current State: Star & Filter System Dynamic Refresh Hardened & Deployed
+- **Real-Time Dynamic Refresh & Synchronous Cache Mutation**:
+  - `setCaptureImportance(filePath, newState)` immediately mutates in-memory index state and scrubs `#important`/`#star` tags synchronously, preventing UI lag or stale index rollbacks.
+  - `IndexService.indexCaptureFile` reads raw disk content with `app.vault.read()` and authoritative `parseFrontmatterFallback()` rather than relying on delayed Obsidian `metadataCache` snapshots.
+  - `RefreshCoordinator` handles `'capture'` scope via `view.refreshCapture()` (`updateStreamOnly()` + `updateFilterCounts()`), preserving container and scroll position while instantly repainting cards and badge counters.
+- **1-Tap Star Marking (`⭐` / `☆`)**:
+  - Interactive star button (`.pos-star-btn`) directly on note cards in the stream with optimistic UI updates and atomic frontmatter mutation (`toggleNoteImportance()`).
+  - Added "⭐ Mark as Important" / "☆ Remove from Important" option in the note action menu (`⋯`).
+  - Added star toggle chips (`⭐ Important`) in Desktop Hero Composer and Mobile Sticky Composer.
+- **Fast Multi-Facet Indexing**:
+  - `IndexService` parses `important: true`, `pinned: true`, and `#important` / `#star` tags into in-memory `CaptureEntry.important`.
+  - Added `getImportantCount(tasksOnly?: boolean)` supporting compound queries with open tasks.
+- **Surfacing at a Whim**:
+  - **Filter Carousel**: `[ ⭐ Important (N) ]` chip with live badge counter.
+  - **Search Modifiers**: Searching `is:important`, `!important`, or `⭐` filters down to starred notes.
+  - **Global Commands**: `DIWA: Surface Important Notes` and `DIWA: Toggle Important on Current Note`.
+- **Deployment**:
+  - Clean compile with `npm run build` (0 errors) and deployed to active vault.
+
+## Recent Fix: iOS Keyboard Black Overlay
 - Root cause confirmed on iPhone diagnostics: Obsidian correctly shrinks the DIWA root to the space above its keyboard (`440px`), but `.pos-scratchpad-container` became an implicit vertical scroller because of `overflow-x: hidden`. Its flex layout then shrank the container to `127px` and `.pos-document-stream` to `0px`, exposing the root's black background.
 - Fix: while the keyboard is open, the workspace root is the sole vertical scroller. The scratchpad container uses content-sized flex layout with `overflow: visible !important` to beat the existing mobile `overflow-x: hidden !important`; without equal priority, the first attempt remained broken. The stream no longer shrinks to zero. DIWA does not resize the root; Obsidian retains ownership of keyboard height.
 - Status: user confirmed the issue resolved on iPhone after the corrected CSS was built and deployed to the vault. Diagnostics and the ineffective forced-repaint workaround were removed.
-
-## Current State: Mobile Note Editing Hardening & Touch Gestures Deployed
-- **Mobile Sticky Composer Auto-Hide & Collision Elimination**:
-  - `updateComposerVisibility()` dynamically toggles `.is-hidden` on `.pos-mobile-sticky-composer` when `_editingEntryId` is active, completely eliminating layout collisions where the capture bar covered the Save/Cancel buttons.
-  - Automatically restores sticky composer visibility when inline editing ends (via Cancel, Save, or Escape).
-- **Auto-Scroll & iOS Zoom Protection**:
-  - Implemented auto-centering `scrollIntoView({ behavior: 'smooth', block: 'center' })` upon editor activation.
-  - Enforced `font-size: 16px !important;` on `.pos-inline-textarea` across mobile viewports, permanently resolving iOS Safari/WebKit automatic viewport zooming and off-center coordinate shifts.
-- **Card Touch Gestures & Action Menus**:
-  - Added double-click / double-tap on `.pos-note-stream-item` to trigger inline edit mode directly without requiring precise button taps.
-  - Added note action menu (`⋯` button) with 1-tap options:
-    - ✏️ **Edit Note (Inline)**
-    - 📖 **Open in Obsidian Editor** (`app.workspace.openLinkText`)
-    - 📋 **Copy Note Content**
-    - 🗑️ **Delete Note**
-  - Expanded action icon touch targets to 32px–44px and guaranteed `.pos-note-actions` visibility on touch and mobile devices (`body.is-mobile`, `body.is-tablet`, `@media (pointer: coarse)`).
-- **Deployment & Housekeeping**:
-  - Clean TypeScript compilation with `npm run build` (0 errors).
-  - Cleaned up unused legacy `is-diwa-v2-active` DOM class references in `src/main.ts`.
-  - Updated release action name in `.github/workflows/release.yml` from `MINA V2` to `DIWA`.
 
 ## Previous Focus: Mobile Note Editing Hardening & Touch Gestures Deployed
 - **Mobile Slide-Up Bottom Sheet (`WikilinkPeekModal`)**:

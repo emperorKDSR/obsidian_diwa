@@ -785,10 +785,10 @@ export class IndexService {
             return existing;
         }
 
-        const content = await this.app.vault.cachedRead(file);
-        const cache = this.app.metadataCache.getFileCache(file);
+        const content = await this.app.vault.read(file);
         const fallbackFm = IndexService.parseFrontmatterFallback(content);
-        const fm = (cache?.frontmatter as Record<string, unknown> | undefined) ?? fallbackFm ?? {};
+        const cache = this.app.metadataCache.getFileCache(file);
+        const fm = fallbackFm ?? (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
 
         const createdStr = String(fm.created || '');
         const modifiedStr = String(fm.modified || '');
@@ -826,6 +826,16 @@ export class IndexService {
         const dateMatches = body.match(/\[\[\d{4}-\d{2}-\d{2}\]\]/g) || [];
         const allDates = dateMatches.map(d => d.replace(/\[\[|\]\]/g, ''));
 
+        const important = Boolean(
+            fm.important === true ||
+            String(fm.important).toLowerCase() === 'true' ||
+            fm.pinned === true ||
+            String(fm.pinned).toLowerCase() === 'true' ||
+            tags.includes('important') ||
+            tags.includes('star') ||
+            tags.includes('starred')
+        );
+
         const entry: CaptureEntry = {
             id: file.path,
             filePath: file.path,
@@ -839,6 +849,8 @@ export class IndexService {
             tasks,
             allDates,
             wikilinks,
+            important,
+            pinned: important,
         };
         (entry as any)._mtime = file.stat.mtime;
 
@@ -890,6 +902,38 @@ export class IndexService {
         let count = 0;
         for (const entry of this.captureIndex.values()) {
             if (this.hasOpenTasks(entry)) count++;
+        }
+        return count;
+    }
+
+    setCaptureImportance(filePath: string, important: boolean): void {
+        const entry = this.captureIndex.get(filePath);
+        if (entry) {
+            entry.important = important;
+            entry.pinned = important;
+            if (!important && Array.isArray(entry.tags)) {
+                entry.tags = entry.tags.filter(t => !['important', 'star', 'starred'].includes(String(t || '').trim().replace(/^#/, '').toLowerCase()));
+            }
+        }
+    }
+
+    isImportant(entry: CaptureEntry | null | undefined): boolean {
+        if (!entry) return false;
+        if (entry.important !== undefined) {
+            return Boolean(entry.important);
+        }
+        return Boolean(
+            entry.pinned ||
+            (Array.isArray(entry.tags) && entry.tags.some(t => ['important', 'star', 'starred'].includes(String(t || '').trim().replace(/^#/, '').toLowerCase())))
+        );
+    }
+
+    getImportantCount(tasksOnly: boolean = false): number {
+        let count = 0;
+        for (const entry of this.captureIndex.values()) {
+            if (!entry) continue;
+            if (tasksOnly && !this.hasOpenTasks(entry)) continue;
+            if (this.isImportant(entry)) count++;
         }
         return count;
     }

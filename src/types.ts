@@ -52,9 +52,10 @@ export interface CaptureEntry {
     allDates: string[];
     wikilinks: string[];
     pinned?: boolean;
+    important?: boolean;
 }
 
-export type ScratchpadFilterMode = 'all' | 'tasks_only' | 'untagged' | string;
+export type ScratchpadFilterMode = 'all' | 'tasks_only' | 'important' | 'untagged' | string;
 
 export interface BulsaLeafState {
     mode?: BulsaMode;

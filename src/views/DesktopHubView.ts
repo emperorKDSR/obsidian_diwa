@@ -22,6 +22,7 @@ export class DesktopHubView extends ItemView {
     private _searchQuery: string = '';
     private _searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private _selectedAreaForNewNote: string = '';
+    private _selectedImportantForNewNote: boolean = false;
     private _selectedEntryIds: Set<string> = new Set();
     private _selectionMode: boolean = false;
     private _editingEntryId: string | null = null;
@@ -148,6 +149,20 @@ export class DesktopHubView extends ItemView {
     updateTaskPaneFromIndex(): void {
         this.updateStreamOnly();
         this.updateFilterCounts();
+    }
+
+    refreshCapture(): void {
+        this.updateStreamOnly();
+        this.updateFilterCounts();
+    }
+
+    public showImportantFilter(): void {
+        this._activeFilter = 'important';
+        this._searchQuery = '';
+        this._renderedCount = BATCH_SIZE;
+        this.updateFilterActiveStates();
+        this.updateStreamOnly();
+        this.updateComposerVisibility();
     }
 
     renderView(resetPagination = true): void {
@@ -394,6 +409,7 @@ export class DesktopHubView extends ItemView {
             const openTaskNoteCount = this.plugin.index?.getOpenTaskNoteCount?.() || 0;
             const allCaptures = this.plugin.index?.getAllCaptures?.() || [];
             const totalCount = isTasksOnly ? openTaskNoteCount : allCaptures.length;
+            const importantCount = this.plugin.index?.getImportantCount?.(isTasksOnly) || 0;
             const todayCount = this.plugin.index?.getTodayCapturesCount?.(isTasksOnly) || 0;
             const upcomingCount = this.plugin.index?.getUpcomingCapturesCount?.(isTasksOnly) || 0;
             const areaCounts = this.plugin.index?.getAreaCounts?.(isTasksOnly) || {};
@@ -430,7 +446,22 @@ export class DesktopHubView extends ItemView {
                 this.updateStreamOnly();
             };
 
-            // 3. Today / Resurface chip
+            // 3. Important / Starred chip
+            const importantChip = scrollable.createDiv({
+                cls: `pos-filter-chip pos-chip-important ${this._activeFilter === 'important' ? 'is-active' : ''} ${importantCount > 0 ? 'has-items' : ''}`,
+            });
+            importantChip.dataset.filter = 'important';
+            importantChip.createSpan({ cls: 'pos-chip-icon', text: '⭐' });
+            importantChip.createSpan({ cls: 'pos-chip-label', text: 'Important' });
+            importantChip.createSpan({ cls: 'pos-chip-badge', text: `${importantCount}` });
+            importantChip.onclick = () => {
+                this._activeFilter = this._activeFilter === 'important' ? 'all' : 'important';
+                this._renderedCount = BATCH_SIZE;
+                this.updateFilterActiveStates();
+                this.updateStreamOnly();
+            };
+
+            // 4. Today / Resurface chip
             const todayChip = scrollable.createDiv({
                 cls: `pos-filter-chip pos-chip-today ${this._activeFilter === 'today' ? 'is-active' : ''} ${todayCount > 0 ? 'has-items' : ''}`,
             });
@@ -503,7 +534,7 @@ export class DesktopHubView extends ItemView {
         });
     }
 
-    private updateFilterCounts(): void {
+    public updateFilterCounts(): void {
         if (this._filterBarEl && this._filterBarEl.isConnected) {
             this.renderFilterBar(this._filterBarEl);
         } else if (this._containerEl) {
@@ -601,6 +632,18 @@ export class DesktopHubView extends ItemView {
             });
             taskBtn.setText('☑️ Task');
 
+            // Star toggle pill in Row 2
+            const starPill = pillsRow.createEl('button', {
+                cls: `pos-composer-area-pill pos-composer-star-pill ${this._selectedImportantForNewNote ? 'is-selected' : ''}`,
+                attr: { 'aria-label': 'Toggle important flag' }
+            });
+            starPill.setText(this._selectedImportantForNewNote ? '⭐ Important' : '☆ Important');
+            starPill.onclick = () => {
+                this._selectedImportantForNewNote = !this._selectedImportantForNewNote;
+                starPill.toggleClass('is-selected', this._selectedImportantForNewNote);
+                starPill.setText(this._selectedImportantForNewNote ? '⭐ Important' : '☆ Important');
+            };
+
             const areas = this.plugin.settings.lifeAreas || [];
             for (const area of areas) {
                 const isSelected = this._selectedAreaForNewNote === area.id;
@@ -684,11 +727,15 @@ export class DesktopHubView extends ItemView {
                     await this.plugin.capture.createCaptureNote(
                         text,
                         this._selectedAreaForNewNote,
-                        []
+                        [],
+                        this._selectedImportantForNewNote
                     );
                     this.plugin.capture.clearDraft();
                     textarea.value = '';
                     this._selectedAreaForNewNote = '';
+                    this._selectedImportantForNewNote = false;
+                    starPill.removeClass('is-selected');
+                    starPill.setText('☆ Important');
                     this.renderComposerPillSelection(composerWrapper);
                     autoResize();
                     new Notice('Note captured!');
@@ -791,6 +838,18 @@ export class DesktopHubView extends ItemView {
                 this.plugin.capture.saveDraft(textarea.value);
             };
 
+            // Star toggle button
+            const starBtn = leftControls.createEl('button', {
+                cls: `pos-composer-pill-btn pos-composer-star-btn ${this._selectedImportantForNewNote ? 'is-selected' : ''}`,
+                attr: { 'aria-label': 'Toggle important flag' }
+            });
+            starBtn.setText(this._selectedImportantForNewNote ? '⭐ Important' : '☆ Important');
+            starBtn.onclick = () => {
+                this._selectedImportantForNewNote = !this._selectedImportantForNewNote;
+                starBtn.toggleClass('is-selected', this._selectedImportantForNewNote);
+                starBtn.setText(this._selectedImportantForNewNote ? '⭐ Important' : '☆ Important');
+            };
+
             // Life area selection chips
             const areas = this.plugin.settings.lifeAreas || [];
             for (const area of areas) {
@@ -826,11 +885,15 @@ export class DesktopHubView extends ItemView {
                     await this.plugin.capture.createCaptureNote(
                         text,
                         this._selectedAreaForNewNote,
-                        []
+                        [],
+                        this._selectedImportantForNewNote
                     );
                     this.plugin.capture.clearDraft();
                     textarea.value = '';
                     this._selectedAreaForNewNote = '';
+                    this._selectedImportantForNewNote = false;
+                    starBtn.removeClass('is-selected');
+                    starBtn.setText('☆ Important');
                     this.renderComposerPillSelection(composerWrapper);
                     autoResize();
                     new Notice('Note captured!');
@@ -873,6 +936,9 @@ export class DesktopHubView extends ItemView {
         // 1. Search query filter (searches across all notes in workspace)
         if (this._searchQuery.trim()) {
             const query = this._searchQuery.toLowerCase().trim();
+            if (query === 'is:important' || query === '!important' || query === '⭐') {
+                return entries.filter(e => this.plugin.index?.isImportant(e));
+            }
             return entries.filter(e => {
                 if (!e) return false;
                 if (String(e.body || '').toLowerCase().includes(query)) return true;
@@ -889,7 +955,9 @@ export class DesktopHubView extends ItemView {
         }
 
         // 3. Mode / Life Area facet filter (active when not searching)
-        if (this._activeFilter === 'today') {
+        if (this._activeFilter === 'important') {
+            entries = entries.filter(e => e && this.plugin.index?.isImportant(e));
+        } else if (this._activeFilter === 'today') {
             const todayStr = this.plugin.index?.getTodayDateStr?.() || moment().format('YYYY-MM-DD');
             entries = entries.filter(e => e && Array.isArray(e.allDates) && e.allDates.includes(todayStr));
         } else if (this._activeFilter === 'upcoming') {
@@ -915,7 +983,7 @@ export class DesktopHubView extends ItemView {
         return entries;
     }
 
-    private updateStreamOnly(): void {
+    public updateStreamOnly(): void {
         if (!this._streamContainerEl) return;
         this.renderStream(this._streamContainerEl);
     }
@@ -1077,8 +1145,9 @@ export class DesktopHubView extends ItemView {
 
     private renderNoteItem(parent: HTMLElement, entry: CaptureEntry): void {
         const isSelected = this._selectedEntryIds.has(entry.id);
+        const isImportant = this.plugin.index.isImportant(entry);
         const item = parent.createDiv({
-            cls: `pos-note-stream-item ${isSelected ? 'is-selected' : ''} ${this._selectionMode ? 'is-selection-mode' : ''}`
+            cls: `pos-note-stream-item ${isSelected ? 'is-selected' : ''} ${this._selectionMode ? 'is-selection-mode' : ''} ${isImportant ? 'is-important' : ''}`
         });
 
         // If in selection mode, tapping the note card toggles its selection
@@ -1237,6 +1306,28 @@ export class DesktopHubView extends ItemView {
         // Right meta: Action hover menu
         const metaRight = metaEl.createDiv({ cls: 'pos-note-actions' });
 
+        const starBtn = metaRight.createSpan({
+            cls: `pos-action-icon pos-star-btn ${isImportant ? 'is-starred' : ''}`,
+            text: isImportant ? '⭐' : '☆',
+            attr: { 'aria-label': isImportant ? 'Unmark important' : 'Mark as important' }
+        });
+        starBtn.onclick = async (e) => {
+            e.stopPropagation();
+            try {
+                this.invalidateRenderCacheForFile(entry.filePath);
+                const newState = await this.plugin.capture.toggleNoteImportance(entry.filePath);
+                entry.important = newState;
+                entry.pinned = newState;
+                this.plugin.index?.setCaptureImportance?.(entry.filePath, newState);
+                new Notice(newState ? 'Marked as Important ⭐' : 'Unmarked from Important');
+                this.updateFilterCounts();
+                this.updateStreamOnly();
+            } catch (err) {
+                console.error('[DIWA] Toggle note importance error', err);
+                new Notice('Failed to update importance');
+            }
+        };
+
         const editBtn = metaRight.createSpan({
             cls: 'pos-action-icon',
             text: '✏️',
@@ -1383,6 +1474,27 @@ export class DesktopHubView extends ItemView {
 
     private openNoteActionMenu(e: MouseEvent, entry: CaptureEntry): void {
         const menu = new Menu();
+        const isImportant = this.plugin.index.isImportant(entry);
+
+        menu.addItem((item) => {
+            item.setTitle(isImportant ? '☆ Remove from Important' : '⭐ Mark as Important')
+                .setIcon(isImportant ? 'star-off' : 'star')
+                .onClick(async () => {
+                    try {
+                        this.invalidateRenderCacheForFile(entry.filePath);
+                        const newState = await this.plugin.capture.toggleNoteImportance(entry.filePath);
+                        entry.important = newState;
+                        entry.pinned = newState;
+                        this.plugin.index?.setCaptureImportance?.(entry.filePath, newState);
+                        new Notice(newState ? 'Marked as Important ⭐' : 'Unmarked from Important');
+                        this.updateFilterCounts();
+                        this.updateStreamOnly();
+                    } catch (err) {
+                        console.error('[DIWA] Toggle note importance error', err);
+                        new Notice('Failed to update importance');
+                    }
+                });
+        });
 
         menu.addItem((item) => {
             item.setTitle('✏️ Edit Note (Inline)')

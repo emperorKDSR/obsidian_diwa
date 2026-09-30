@@ -1,12 +1,26 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Mobile Note Editing Hardening & Touch Gestures Deployed
+## Current Phase: Star & Filter System (Important Notes) Deployed
 
 ---
 
 ## Completed Roadmap Checklist
 
-### 0. Mobile Note Editing Hardening & Touch Gestures (Option A)
+### 0. Star & Filter System (Important Notes)
+*   [x] **1-Tap Star Marking (`⭐` / `☆`)** — Added `.pos-star-btn` to note stream cards with optimistic UI updating and atomic frontmatter mutation (`toggleNoteImportance()`).
+*   [x] **Immediate In-Memory Synchronous Cache Mutation** — `setCaptureImportance(filePath, newState)` mutates the in-memory cache directly and scrubs `#important`/`#star` tags synchronously, completely eliminating delay or stale rollbacks.
+*   [x] **Authoritative File Read in Indexing** — `IndexService.indexCaptureFile` reads directly from disk via `app.vault.read()` with raw `parseFrontmatterFallback()`, bypassing Obsidian's asynchronous `metadataCache` delay.
+*   [x] **Granular Refresh Scope (`refreshCapture`)** — `RefreshCoordinator` routes `capture` scope updates through `view.refreshCapture()`, cleanly re-rendering stream cards and updating filter badges without layout destruction.
+*   [x] **Note Action Menu Integration** — Added "⭐ Mark as Important" / "☆ Remove from Important" option in the note action menu (`⋯`).
+*   [x] **Capture Composer Toggle** — Added star toggle chips (`⭐ Important`) to Desktop Hero Composer and Mobile Sticky Composer to flag notes at capture time.
+*   [x] **Fast In-Memory Indexing** — `IndexService` parses `important: true`, `pinned: true`, and `#important` / `#star` tags; added `getImportantCount()` supporting compound queries with open tasks.
+*   [x] **Filter Carousel Chip** — Added `[ ⭐ Important (N) ]` chip with real-time count badge next to All Notes / Today.
+*   [x] **Search Modifiers** — Searching `is:important`, `!important`, or `⭐` filters down to starred notes.
+*   [x] **Global Obsidian Commands** — Registered `DIWA: Surface Important Notes` and `DIWA: Toggle Important on Current Note`.
+*   [x] **Gold Visual Accents** — Left highlight border on important note cards and amber styling for active chips and star buttons.
+*   [x] **Build & Verification** — Clean compile with `npm run build` (0 errors) and deployed to active vault.
+
+### 0.1. Mobile Note Editing Hardening & Touch Gestures (Option A)
 *   [x] **Mobile Sticky Composer Collision Elimination** — `updateComposerVisibility()` dynamically hides `.pos-mobile-sticky-composer` when `_editingEntryId` is active, preventing the floating capture bar from obstructing the Save and Cancel buttons.
 *   [x] **Smooth Auto-Scroll & iOS Zoom Prevention** — Enforced `font-size: 16px !important;` on `.pos-inline-textarea` on mobile to prevent iOS Safari/WebKit auto-zoom, and added smooth `scrollIntoView({ behavior: 'smooth', block: 'center' })` on editor focus.
 *   [x] **Card Double-Click / Double-Tap to Edit** — Double-tapping or double-clicking any note card triggers inline edit mode directly without requiring tiny button clicks.

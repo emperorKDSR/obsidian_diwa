@@ -21,7 +21,8 @@ export class CaptureService {
     async createCaptureNote(
         rawContent: string,
         area: string = '',
-        tags: string[] = []
+        tags: string[] = [],
+        important: boolean = false
     ): Promise<TFile> {
         const now = moment();
         const year = now.format('YYYY');
@@ -62,6 +63,10 @@ export class CaptureService {
             }
         }
 
+        if (important) {
+            frontmatterLines.push('important: true');
+        }
+
         frontmatterLines.push(`hasTasks: ${hasTasks}`);
         frontmatterLines.push('---');
         frontmatterLines.push('');
@@ -78,6 +83,52 @@ export class CaptureService {
 
         const newFile = await this.app.vault.create(filePath, fileContent);
         return newFile;
+    }
+
+    /**
+     * Toggles importance (starred status) on a note atomically via frontmatter.
+     * Returns the new boolean importance state.
+     */
+    async toggleNoteImportance(filePath: string): Promise<boolean> {
+        const file = this.app.vault.getAbstractFileByPath(filePath);
+        if (!(file instanceof TFile)) {
+            throw new Error(`[CaptureService] File not found for path: ${filePath}`);
+        }
+
+        let newImportanceState = false;
+        await this.app.fileManager.processFrontMatter(file, (fm) => {
+            const rawTags: unknown[] = Array.isArray(fm.tags)
+                ? fm.tags
+                : (typeof fm.tags === 'string' ? fm.tags.split(',') : (Array.isArray(fm.tag) ? fm.tag : (typeof fm.tag === 'string' ? fm.tag.split(',') : [])));
+            const normalizedTags = rawTags.map((t: unknown) => String(t || '').trim().replace(/^#/, '').toLowerCase());
+            const hasImportantTag = normalizedTags.some((t: string) => ['important', 'star', 'starred'].includes(t));
+            const current = Boolean(
+                fm.important === true ||
+                String(fm.important).toLowerCase() === 'true' ||
+                fm.pinned === true ||
+                String(fm.pinned).toLowerCase() === 'true' ||
+                hasImportantTag
+            );
+            newImportanceState = !current;
+            if (newImportanceState) {
+                fm.important = true;
+                if (fm.pinned !== undefined) delete fm.pinned;
+            } else {
+                delete fm.important;
+                delete fm.pinned;
+                if (Array.isArray(fm.tags)) {
+                    fm.tags = fm.tags.filter((t: unknown) => !['important', 'star', 'starred'].includes(String(t || '').trim().replace(/^#/, '').toLowerCase()));
+                    if (fm.tags.length === 0) delete fm.tags;
+                }
+                if (Array.isArray(fm.tag)) {
+                    fm.tag = fm.tag.filter((t: unknown) => !['important', 'star', 'starred'].includes(String(t || '').trim().replace(/^#/, '').toLowerCase()));
+                    if (fm.tag.length === 0) delete fm.tag;
+                }
+            }
+            fm.modified = moment().format('YYYY-MM-DDTHH:mm:ss');
+        });
+
+        return newImportanceState;
     }
 
     /**

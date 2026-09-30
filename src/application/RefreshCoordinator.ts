@@ -104,13 +104,15 @@ export class RefreshCoordinator {
         for (const leaf of hubLeaves) {
             const view = leaf.view as DesktopHubView;
             if (view && typeof view.renderView === 'function') {
-                if (scope === 'tasks' && typeof (view as DesktopHubView & { refreshTasks?: () => void }).refreshTasks === 'function') {
-                    (view as DesktopHubView & { refreshTasks: () => void }).refreshTasks();
+                if (scope === 'tasks' && typeof view.refreshTasks === 'function') {
+                    view.refreshTasks();
                     continue;
                 }
                 if (view._capturePending > 0 || view._taskPending > 0) continue;
-                if (scope === 'all' && typeof (view as DesktopHubView & { refreshAll?: () => void }).refreshAll === 'function') {
-                    (view as DesktopHubView & { refreshAll: () => void }).refreshAll();
+                if (scope === 'all' && typeof view.refreshAll === 'function') {
+                    view.refreshAll();
+                } else if (scope === 'capture' && typeof view.refreshCapture === 'function') {
+                    view.refreshCapture();
                 } else {
                     view.renderView();
                 }

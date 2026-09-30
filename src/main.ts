@@ -199,6 +199,30 @@ export default class DiwaPlugin extends Plugin {
             callback: () => { void this.activateWorkspace(); }
         });
         this.addCommand({
+            id: 'diwa-surface-important-notes',
+            name: 'Surface Important Notes',
+            icon: 'star',
+            callback: () => { void this.activateWorkspaceWithImportantFilter(); }
+        });
+        this.addCommand({
+            id: 'diwa-toggle-important-active-file',
+            name: 'Toggle Important on Current Note',
+            icon: 'star',
+            checkCallback: (checking: boolean) => {
+                const activeFile = this.app.workspace.getActiveFile();
+                if (activeFile && activeFile instanceof TFile) {
+                    if (!checking) {
+                        void this.capture.toggleNoteImportance(activeFile.path).then(newState => {
+                            new Notice(newState ? 'Marked as Important ⭐' : 'Unmarked from Important');
+                            this.notifyRefresh('capture');
+                        });
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+        this.addCommand({
             id: 'diwa-open-scratchpad',
             name: 'Open Continuous Workspace (Mobile/Tablet/Desktop)',
             icon: 'edit',
@@ -343,6 +367,17 @@ export default class DiwaPlugin extends Plugin {
         if (leaf) {
             await leaf.setViewState({ type: VIEW_TYPE_DESKTOP_HUB, active: true });
             workspace.revealLeaf(leaf);
+        }
+    }
+
+    async activateWorkspaceWithImportantFilter() {
+        await this.activateWorkspace();
+        const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB);
+        if (leaves.length > 0) {
+            const view = leaves[0].view as DesktopHubView;
+            if (view && typeof view.showImportantFilter === 'function') {
+                view.showImportantFilter();
+            }
         }
     }
 
