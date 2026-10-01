@@ -1,32 +1,31 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Mobile Floating Bottom Search Capsule Deployed
-- **Floating Bottom Search Capsule (`.pos-mobile-floating-search`)**:
-  - Tapping **🔍** on the mobile floating dock transforms it into a sleek bottom search capsule directly above the virtual keyboard.
-  - Automatically focuses the input field, raising the virtual keyboard without any layout jump or top-of-screen reach.
-  - Live real-time stream filtering as the user types with debouncing.
-  - Pressing Return / Search on keyboard dismisses the keyboard while keeping filtered results on screen.
-  - Tapping **✕** clears the query, resets the stream, and collapses back to the 4-icon dock.
-- **Top Header Cleaned**:
-  - Removed top search bar on mobile phones; search is unified into the bottom floating capsule.
-  - Desktop and iPad retain standard top search in `.pos-header-bar`.
+## Current State: Mobile Slide-Up Bottom Filter Sheet (Option 1) Deployed
+- **Slide-Up Bottom Filter Sheet (`MobileFilterSheetModal`)**:
+  - Tapping the **🏷️ (`sliders-horizontal`)** icon on the 4-icon mobile floating dock opens a thumb-friendly bottom sheet over a blurred backdrop (`backdrop-filter: blur(8px)`).
+  - Includes touch swipe-down gestures on the drag handle, a top "Reset All" action, and an "✕" close button.
+  - **Quick Lenses Grid**:
+    - `☑️ Open Tasks`: Compound modifier toggle that dynamically updates counts across all lenses and filters notes with open tasks.
+    - `📋 All Notes` / `All Task Notes`: Shows total count.
+    - `⭐ Important`: Surfaces starred/important notes with live badge count.
+    - `📅 Today`: Surfaces today's notes and scheduled items with live badge count.
+    - `📆 Upcoming`: Surfaces future scheduled items sorted chronologically.
+    - `🧹 Untagged`: Surfaces notes without any life area or tags.
+  - **Life Areas Grid**:
+    - Surfaces all user-configured life areas with their icons, labels, and real-time count badges.
+  - 1-tap thumb selection immediately applies the filter to the background document stream and highlights the active chip.
+- **Top Mobile Header & Layout Cleanliness**:
+  - The top horizontal `.pos-filter-bar` is omitted entirely on phones, maximizing vertical screen real estate for the stream.
+  - Desktop and iPad retain their top horizontal filter carousel and desktop hero composer intact.
 - **Build & Vault Deployment**:
   - Clean compile (`npm run build`, 0 errors) and deployed to `/Users/K26/Obsidian/K0000` & `/Users/K26/Obsidian/K0001`.
 
-## Previous State: Star & Filter System Dynamic Refresh Hardened & Deployed
+## Previous State: Mobile Floating Bottom Search Capsule Deployed
+- Tapping **🔍** on the mobile floating dock transforms it into a bottom search capsule docked directly above the virtual keyboard.
+- Live real-time stream filtering as the user types with debouncing.
+- Pressing Return / Search dismisses keyboard while preserving filtered stream.
+- Tapping **✕** clears query and restores the 4-icon dock.
 
 ## Recent Fix: iOS Keyboard Black Overlay
-- Root cause confirmed on iPhone diagnostics: Obsidian correctly shrinks the DIWA root to the space above its keyboard (`440px`), but `.pos-scratchpad-container` became an implicit vertical scroller because of `overflow-x: hidden`. Its flex layout then shrank the container to `127px` and `.pos-document-stream` to `0px`, exposing the root's black background.
-- Fix: while the keyboard is open, the workspace root is the sole vertical scroller. The scratchpad container uses content-sized flex layout with `overflow: visible !important` to beat the existing mobile `overflow-x: hidden !important`; without equal priority, the first attempt remained broken. The stream no longer shrinks to zero. DIWA does not resize the root; Obsidian retains ownership of keyboard height.
-- Status: user confirmed the issue resolved on iPhone after the corrected CSS was built and deployed to the vault. Diagnostics and the ineffective forced-repaint workaround were removed.
-
-## Previous Focus: Mobile Note Editing Hardening & Touch Gestures Deployed
-- **Mobile Slide-Up Bottom Sheet (`WikilinkPeekModal`)**:
-  - Tapping a non-date wikilink (`[[...]]`) in the stream smoothly slides up a 68vh bottom sheet over the stream with backdrop blur (`backdrop-filter: blur(8px)`), swipe-down dismissal gestures, and drag handle.
-  - Renders markdown live with `MarkdownRenderer` and a dedicated `Component` lifecycle.
-  - Interactive checkboxes inside the peek preview update the target note atomically via `app.vault.process()`.
-  - Built-in **Quick Append Bar**: allows appending notes/tasks directly to the referenced note without opening the file.
-- **Desktop Protected Split Navigation**:
-  - Standard left-click targets an adjacent split leaf or opens a vertical split pane, preventing the DIWA stream leaf from being evicted or replaced.
-  - Supports modifier keys: `Cmd/Ctrl + Click` (new tab), `Alt + Click` (floating window).
-  - Native hover preview support via Obsidian's core `hover-link` event.
+- Workspace root is sole vertical scroller with content-sized flex layout and `overflow: visible !important`.
+- Status: confirmed resolved on iPhone.

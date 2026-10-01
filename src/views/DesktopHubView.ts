@@ -6,6 +6,7 @@ import { MergeNotesModal } from '../modals/MergeNotesModal';
 import { DatePickerModal } from '../modals/DatePickerModal';
 import { WikilinkPeekModal } from '../modals/WikilinkPeekModal';
 import { MobilePostComposerModal } from '../modals/MobilePostComposerModal';
+import { MobileFilterSheetModal } from '../modals/MobileFilterSheetModal';
 import { isTablet, attachInlineTriggers, attachMediaPasteHandler } from '../utils';
 import { attachMobileSheetViewportBehavior } from '../utils/mobileSheetViewport';
 
@@ -185,6 +186,23 @@ export class DesktopHubView extends ItemView {
         this.updateFilterCounts();
     }
 
+    public get activeFilter(): ScratchpadFilterMode {
+        return this._activeFilter;
+    }
+
+    public get filterTasksOnly(): boolean {
+        return this._filterTasksOnly;
+    }
+
+    public applyFilterFromSheet(filter: ScratchpadFilterMode, tasksOnly: boolean): void {
+        this._activeFilter = filter;
+        this._filterTasksOnly = tasksOnly;
+        this._renderedCount = BATCH_SIZE;
+        this.updateStreamOnly();
+        this.updateFilterActiveStates();
+        this.updateFilterCounts();
+    }
+
     public showImportantFilter(): void {
         this._activeFilter = 'important';
         this._searchQuery = '';
@@ -208,11 +226,12 @@ export class DesktopHubView extends ItemView {
         this._headerBarEl = this._containerEl.createDiv({ cls: 'pos-header-bar' });
         this.renderHeaderBar(this._headerBarEl);
 
-        // Filter / Life Area carousel bar
-        this._filterBarEl = this._containerEl.createDiv({ cls: 'pos-filter-bar' });
-        this.renderFilterBar(this._filterBarEl);
-        if (isMobile) {
-            this._filterBarEl.toggleClass('is-hidden', !this._mobileFiltersOpen);
+        // Filter / Life Area carousel bar (Desktop & Tablet only)
+        if (!isMobile) {
+            this._filterBarEl = this._containerEl.createDiv({ cls: 'pos-filter-bar' });
+            this.renderFilterBar(this._filterBarEl);
+        } else {
+            this._filterBarEl = null;
         }
 
         // Multi-select bulk action bar (if in selection mode)
@@ -502,20 +521,21 @@ export class DesktopHubView extends ItemView {
     }
 
     private updateFilterActiveStates(): void {
-        if (!this._filterBarEl) return;
-        const chips = this._filterBarEl.querySelectorAll<HTMLElement>('.pos-filter-chip');
-        chips.forEach(chip => {
-            const filter = chip.dataset.filter;
-            if (filter === 'tasks_only') {
-                chip.toggleClass('is-active', this._filterTasksOnly);
-            } else {
-                chip.toggleClass('is-active', filter === this._activeFilter);
-            }
-        });
+        if (this._filterBarEl) {
+            const chips = this._filterBarEl.querySelectorAll<HTMLElement>('.pos-filter-chip');
+            chips.forEach(chip => {
+                const filter = chip.dataset.filter;
+                if (filter === 'tasks_only') {
+                    chip.toggleClass('is-active', this._filterTasksOnly);
+                } else {
+                    chip.toggleClass('is-active', filter === this._activeFilter);
+                }
+            });
+        }
         const filterBtn = this._composerEl?.querySelector<HTMLElement>('.pos-mobile-action-filter');
         if (filterBtn) {
             const hasActiveFilter = this._activeFilter !== 'all' || this._filterTasksOnly;
-            filterBtn.toggleClass('is-active', this._mobileFiltersOpen || hasActiveFilter);
+            filterBtn.toggleClass('is-active', hasActiveFilter);
         }
         const searchBtn = this._composerEl?.querySelector<HTMLElement>('.pos-mobile-action-search');
         if (searchBtn) {
@@ -706,19 +726,15 @@ export class DesktopHubView extends ItemView {
                     this.renderComposer(parent, true);
                 };
 
-                // 3. Filter Toggle Action (Icon only)
+                // 3. Filter Sheet Action (Icon only)
                 const hasActiveFilter = this._activeFilter !== 'all' || this._filterTasksOnly;
                 const filterBtn = actionBar.createEl('button', {
-                    cls: `pos-mobile-action-btn pos-mobile-action-filter ${this._mobileFiltersOpen || hasActiveFilter ? 'is-active' : ''}`,
-                    attr: { 'aria-label': 'Toggle filter carousel', title: 'Filter' }
+                    cls: `pos-mobile-action-btn pos-mobile-action-filter ${hasActiveFilter ? 'is-active' : ''}`,
+                    attr: { 'aria-label': 'Filter stream', title: 'Filter' }
                 });
                 setIcon(filterBtn, 'sliders-horizontal');
                 filterBtn.onclick = () => {
-                    this._mobileFiltersOpen = !this._mobileFiltersOpen;
-                    if (this._filterBarEl) {
-                        this._filterBarEl.toggleClass('is-hidden', !this._mobileFiltersOpen);
-                    }
-                    filterBtn.toggleClass('is-active', this._mobileFiltersOpen || (this._activeFilter !== 'all' || this._filterTasksOnly));
+                    new MobileFilterSheetModal(this.app, this.plugin, this).open();
                 };
 
                 // 4. Nav Bar Toggle Action (Icon only)

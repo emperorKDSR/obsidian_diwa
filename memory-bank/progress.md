@@ -1,19 +1,26 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Mobile Floating Action Bar & Header Clean-Up Deployed
+## Current Phase: Mobile Slide-Up Bottom Filter Sheet Deployed
 
 ---
 
 ## Completed Roadmap Checklist
 
-### 0. Mobile Floating Action Dock, Expandable Composer & Bottom Search
+### 0. Mobile Slide-Up Bottom Filter Sheet (Option 1)
+*   [x] **Slide-Up Bottom Filter Sheet (`MobileFilterSheetModal`)** — Tapping **🏷️ (`sliders-horizontal`)** on the 4-icon dock opens an ergonomic modal over a frosted backdrop (`backdrop-filter: blur(8px)`).
+*   [x] **Quick Lenses Grid** — Includes `☑️ Open Tasks` (compound toggle modifier), `📋 All Notes` / `All Task Notes`, `⭐ Important`, `📅 Today`, `📆 Upcoming`, and `🧹 Untagged` with real-time count badges.
+*   [x] **Life Areas Grid** — Displays all user life areas with icons and real-time badge counts.
+*   [x] **Instant 1-Tap Thumb Filtering** — Instantly applies filters to the background stream and highlights the active chip.
+*   [x] **Touch Swipe-Down Dismissal** — Includes top drag handle with touch swipe gestures, top "Reset All" button, and "✕" close button.
+*   [x] **Top Header Cleanliness** — Removed top `.pos-filter-bar` on phones; desktop/iPad top filter carousels remain intact.
+*   [x] **Build & Vault Deployed** — Clean compile with `npm run build` (0 errors) and deployed to `/Users/K26/Obsidian/K0000` & `K0001`.
+
+### 0.1. Mobile Floating Action Dock, Expandable Composer & Bottom Search
 *   [x] **Sleek Frosted Floating Dock (`.pos-mobile-action-bar`)** — Compact centered floating island (`backdrop-filter: blur(28px) saturate(180%)`) with 4 icon-only buttons (**➕**, **🔍**, **🏷️**, **📱**).
 *   [x] **Floating Bottom Search Capsule on 🔍** — Tapping **🔍** transforms the dock into an active bottom search pill (`.pos-mobile-floating-search`) docked right above the virtual keyboard with auto-focus, real-time debounced stream filtering, and `✕` dismiss button.
 *   [x] **Expandable Floating Composer on ➕** — Tapping **➕** transitions smoothly into the floating 2-row composer capsule (`.pos-mobile-sticky-composer`) with auto-expanding textarea, `[ ↑ ]` send button, `☑️ Task`, `⭐ Important`, Life Area chips, draft restoration, and `✕ Close` dismiss pill.
 *   [x] **Mobile Top Header Clean-Up** — Removed redundant top search and top action buttons on phones.
-*   [x] **On-Demand Filter Carousel** — Filter carousel hidden by default on phones, expanding smoothly on tap.
 *   [x] **Desktop / iPad Protected** — Desktop and iPad retain full header search, actions, and hero composer intact.
-*   [x] **Build & Vault Deployed** — Clean compile with `npm run build` (0 errors) and deployed to `/Users/K26/Obsidian/K0000` & `K0001`.
 
 ### 0.1. Star & Filter System (Important Notes)
 *   [x] **1-Tap Star Marking (`⭐` / `☆`)** — Added `.pos-star-btn` to note stream cards with optimistic UI updating and atomic frontmatter mutation (`toggleNoteImportance()`).
