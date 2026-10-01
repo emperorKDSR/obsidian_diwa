@@ -105,6 +105,32 @@ export class DesktopHubView extends ItemView {
 
         this._containerEl = this.contentEl.createDiv({ cls: 'pos-scratchpad-container' });
         this.renderView();
+
+        // Click / tap outside listener to dismiss expanded mobile composer or inline editor
+        this.contentEl.addEventListener('pointerdown', (e: PointerEvent) => {
+            const target = e.target as HTMLElement | null;
+            if (!target) return;
+
+            // 1. If mobile composer is open and tapped outside
+            if (this._mobileComposerOpen && this._composerEl) {
+                if (!this._composerEl.contains(target) && !target.closest('.modal, .pos-modal, .suggestion-container, .menu, .suggestion-item')) {
+                    this._mobileComposerOpen = false;
+                    if (this._containerEl) {
+                        this.renderComposer(this._containerEl, true);
+                    }
+                }
+            }
+
+            // 2. If inline editing a note and tapped outside
+            if (this._editingEntryId) {
+                const editorEl = this.contentEl.querySelector('.pos-inline-editor');
+                if (editorEl && !editorEl.contains(target) && !target.closest('.modal, .pos-modal, .suggestion-container, .menu, .suggestion-item, .pos-note-card')) {
+                    this._editingEntryId = null;
+                    this.updateStreamOnly();
+                    this.updateComposerVisibility();
+                }
+            }
+        });
     }
 
     async onClose(): Promise<void> {
