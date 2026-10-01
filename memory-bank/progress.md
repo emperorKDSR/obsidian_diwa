@@ -1,12 +1,35 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Mobile Slide-Up Bottom Filter Sheet Deployed
+## Current Phase: Inline Task Text Flow & Centered Checkmarks Deployed
 
 ---
 
 ## Completed Roadmap Checklist
 
-### 0. Mobile Slide-Up Bottom Filter Sheet (Option 1)
+### 0. Task Inline Flow, Flush Alignment & Centered Checkmark Placement
+*   [x] **Natural Inline Flow (Shuffled Text Fix)** — Replaced `display: flex` on `li.task-list-item` with `position: relative; padding-left: 24px;` and absolute checkbox positioning (`left: 0; top: 3px;`). All text nodes and `[[wikilinks]]` flow continuously without flex column scrambling.
+*   [x] **Flush Left Alignment** — Set `padding-left: 0 !important` on `ul.contains-task-list` and `ul:has(> .task-list-item)`, aligning task checkboxes flush with note text paragraphs and headings.
+*   [x] **Centered Checkmark Glyphs** — Configured `display: inline-grid; place-content: center; background-position: center; -webkit-mask-position: center;` ensuring SVG checkmarks are centered inside the checkbox box.
+*   [x] **Proportionate Dimensions & Vertical Baseline** — Standardized checkboxes to `var(--checkbox-size, 16px)` with clean top alignment for multiline tasks.
+*   [x] **Build & Vault Deployed** — Clean compile with `npm run build` (0 errors) and deployed to `/Users/K26/Obsidian/K0000` & `K0001`.
+
+### 0.1. Mobile Ultra-Minimalist Stream (Option 1)
+*   [x] **Ultra-Clean Header Bar** — Stream card headers on mobile phones show only the timestamp (`9:42 AM`) on the left and 2 actions (**`⭐`** and **`⋯`**) on the right.
+*   [x] **Header Pill Omission** — Omitted Life Area pills, tag badges, and header date pills on mobile phones, removing all visual clutter while preserving note body markdown.
+*   [x] **Action Menu Integration** — Life Area assignment (`🏷️ Set Life Area...`) available on-demand via the `⋯` menu.
+*   [x] **Bottom Filter Sheet Discovery** — Browsing by Area and Date remains 1-tap accessible via the **🏷️** bottom dock icon.
+*   [x] **Desktop / iPad Protected** — Desktop and tablet retain full metadata badges (area, tags, dates) and full hover-action suite (`⭐ ✏️ ⋯ 🗑️`).
+*   [x] **Build & Vault Deployed** — Clean compile with `npm run build` (0 errors) and deployed to `/Users/K26/Obsidian/K0000` & `K0001`.
+
+### 0.1. Mobile Stream Decluttering (Levels 1 & 2 + Option B)
+*   [x] **Action Icon Consolidation (Level 1)** — Reduced mobile note card actions from 4 buttons (`⭐ ✏️ ⋯ 🗑️`) to 2 buttons (`⭐` and `⋯`), eliminating 60px+ of button noise per card while preserving 1-tap star toggling.
+*   [x] **Note Action Menu Expansion** — Added `🏷️ Set Life Area...` directly into the `⋯` menu alongside *✏️ Edit*, *📖 Open in Obsidian*, *📋 Copy*, and *🗑️ Delete*. Double-tap card body continues to trigger inline editing.
+*   [x] **Metadata Noise Reduction (Level 2)** — Omitted dashed `+ Area` on untagged notes on mobile, keeping captures clean and distraction-free.
+*   [x] **Minimalist Clean Timeline (Option B)** — Styled notes with subtle 1px divider lines, refined micro-typography, compact date reminder pills, and 2.5px gold left-accent rail on important notes.
+*   [x] **Desktop / iPad Protected** — Desktop and tablet retain full hover-action suite (`⭐ ✏️ ⋯ 🗑️`).
+*   [x] **Build & Vault Deployed** — Clean compile with `npm run build` (0 errors) and deployed to `/Users/K26/Obsidian/K0000` & `K0001`.
+
+### 0.1. Mobile Slide-Up Bottom Filter Sheet (Option 1)
 *   [x] **Slide-Up Bottom Filter Sheet (`MobileFilterSheetModal`)** — Tapping **🏷️ (`sliders-horizontal`)** on the 4-icon dock opens an ergonomic modal over a frosted backdrop (`backdrop-filter: blur(8px)`).
 *   [x] **Quick Lenses Grid** — Includes `☑️ Open Tasks` (compound toggle modifier), `📋 All Notes` / `All Task Notes`, `⭐ Important`, `📅 Today`, `📆 Upcoming`, and `🧹 Untagged` with real-time count badges.
 *   [x] **Life Areas Grid** — Displays all user life areas with icons and real-time badge counts.

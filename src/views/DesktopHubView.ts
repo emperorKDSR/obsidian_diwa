@@ -1386,102 +1386,107 @@ export class DesktopHubView extends ItemView {
             };
         }
 
+        const isMobile = Platform.isMobile && !isTablet(this.app);
         const timeStr = moment(entry.createdAtMs).format('h:mm A');
         metaLeft.createSpan({ cls: 'pos-note-time', text: timeStr });
 
         const areas = this.plugin.settings.lifeAreas || [];
         const areaObj = entry.area ? areas.find(a => a.id.toLowerCase() === entry.area.toLowerCase()) : null;
 
-        const badge = metaLeft.createSpan({
-            cls: `pos-area-badge ${entry.area ? `pos-area-${entry.area.toLowerCase()}` : 'pos-area-add'}`,
-            text: areaObj ? `${areaObj.icon || ''} ${areaObj.label}`.trim() : (entry.area ? entry.area : '+ Area'),
-            attr: { 'aria-label': 'Click to change life area' }
-        });
+        // Metadata badges (Desktop & Tablet only; mobile keeps ultra-clean single timestamp)
+        if (!isMobile) {
+            // Render Area badge on desktop
+            const badge = metaLeft.createSpan({
+                cls: `pos-area-badge ${entry.area ? `pos-area-${entry.area.toLowerCase()}` : 'pos-area-add'}`,
+                text: areaObj ? `${areaObj.icon || ''} ${areaObj.label}`.trim() : (entry.area ? entry.area : '+ Area'),
+                attr: { 'aria-label': 'Click to change life area' }
+            });
 
-        badge.onclick = (e) => {
-            e.stopPropagation();
-            const menu = new Menu();
-            for (const area of areas) {
-                menu.addItem((item) => {
-                    item.setTitle(`${area.icon || ''} ${area.label}`.trim())
-                        .setChecked(entry.area.toLowerCase() === area.id.toLowerCase())
-                        .onClick(async () => {
-                            try {
-                                this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
-                                await this.plugin.capture.updateNoteContent(entry.filePath, entry.body, area.id);
-                                new Notice(`Moved to ${area.label}`);
-                                this.updateStreamOnly();
-                                this.updateFilterCounts();
-                            } catch (err) {
-                                console.error('[DIWA] Update note area error', err);
-                                new Notice('Failed to update area');
-                            }
-                        });
-                });
-            }
-            if (entry.area) {
-                menu.addSeparator();
-                menu.addItem((item) => {
-                    item.setTitle('✕ Remove Area (Untagged)')
-                        .onClick(async () => {
-                            try {
-                                this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
-                                await this.plugin.capture.updateNoteContent(entry.filePath, entry.body, '');
-                                new Notice('Removed area');
-                                this.updateStreamOnly();
-                                this.updateFilterCounts();
-                            } catch (err) {
-                                console.error('[DIWA] Remove note area error', err);
-                                new Notice('Failed to remove area');
-                            }
-                        });
-                });
-            }
-            menu.showAtMouseEvent(e);
-        };
+            badge.onclick = (e) => {
+                e.stopPropagation();
+                const menu = new Menu();
+                for (const area of areas) {
+                    menu.addItem((item) => {
+                        item.setTitle(`${area.icon || ''} ${area.label}`.trim())
+                            .setChecked(entry.area.toLowerCase() === area.id.toLowerCase())
+                            .onClick(async () => {
+                                try {
+                                    this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
+                                    await this.plugin.capture.updateNoteContent(entry.filePath, entry.body, area.id);
+                                    new Notice(`Moved to ${area.label}`);
+                                    this.updateStreamOnly();
+                                    this.updateFilterCounts();
+                                } catch (err) {
+                                    console.error('[DIWA] Update note area error', err);
+                                    new Notice('Failed to update area');
+                                }
+                            });
+                    });
+                }
+                if (entry.area) {
+                    menu.addSeparator();
+                    menu.addItem((item) => {
+                        item.setTitle('✕ Remove Area (Untagged)')
+                            .onClick(async () => {
+                                try {
+                                    this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
+                                    await this.plugin.capture.updateNoteContent(entry.filePath, entry.body, '');
+                                    new Notice('Removed area');
+                                    this.updateStreamOnly();
+                                    this.updateFilterCounts();
+                                } catch (err) {
+                                    console.error('[DIWA] Remove note area error', err);
+                                    new Notice('Failed to remove area');
+                                }
+                            });
+                    });
+                }
+                menu.showAtMouseEvent(e);
+            };
 
-        // Other tags
-        for (const tag of entry.tags) {
-            if (tag.toLowerCase() !== entry.area.toLowerCase()) {
-                const tagBadge = metaLeft.createSpan({ cls: 'pos-tag-badge', text: `#${tag}` });
-                tagBadge.onclick = (e) => {
-                    e.stopPropagation();
-                    this._searchQuery = `#${tag}`;
-                    this._renderedCount = BATCH_SIZE;
-                    this.updateStreamOnly();
-                };
+            // Other tags
+            for (const tag of entry.tags) {
+                if (tag.toLowerCase() !== entry.area.toLowerCase()) {
+                    const tagBadge = metaLeft.createSpan({ cls: 'pos-tag-badge', text: `#${tag}` });
+                    tagBadge.onclick = (e) => {
+                        e.stopPropagation();
+                        this._searchQuery = `#${tag}`;
+                        this._renderedCount = BATCH_SIZE;
+                        this.updateStreamOnly();
+                    };
+                }
+            }
+
+            // Date reminder badges
+            if (entry.allDates && entry.allDates.length > 0) {
+                for (const dateStr of entry.allDates) {
+                    const isToday = this.plugin.index.isDateToday(dateStr);
+                    const isPast = this.plugin.index.isDatePast(dateStr);
+
+                    const badgeCls = isToday
+                        ? 'pos-date-badge-today'
+                        : isPast
+                        ? 'pos-date-badge-past'
+                        : 'pos-date-badge-future';
+
+                    const icon = isToday ? '📅' : isPast ? '⏳' : '📆';
+                    const label = isToday ? 'Today' : dateStr;
+
+                    const dateBadge = metaLeft.createSpan({
+                        cls: `pos-date-badge ${badgeCls}`,
+                        text: `${icon} ${label}`,
+                        attr: { 'aria-label': `Reminder date: ${dateStr}. Click to snooze or reschedule.` }
+                    });
+
+                    dateBadge.onclick = (e) => {
+                        e.stopPropagation();
+                        this.openDateActionMenu(e, entry, dateStr);
+                    };
+                }
             }
         }
 
-        // Date reminder badges
-        if (entry.allDates && entry.allDates.length > 0) {
-            for (const dateStr of entry.allDates) {
-                const isToday = this.plugin.index.isDateToday(dateStr);
-                const isPast = this.plugin.index.isDatePast(dateStr);
-
-                const badgeCls = isToday
-                    ? 'pos-date-badge-today'
-                    : isPast
-                    ? 'pos-date-badge-past'
-                    : 'pos-date-badge-future';
-
-                const icon = isToday ? '📅' : isPast ? '⏳' : '📆';
-                const label = isToday ? 'Today' : dateStr;
-
-                const dateBadge = metaLeft.createSpan({
-                    cls: `pos-date-badge ${badgeCls}`,
-                    text: `${icon} ${label}`,
-                    attr: { 'aria-label': `Reminder date: ${dateStr}. Click to snooze or reschedule.` }
-                });
-
-                dateBadge.onclick = (e) => {
-                    e.stopPropagation();
-                    this.openDateActionMenu(e, entry, dateStr);
-                };
-            }
-        }
-
-        // Right meta: Action hover menu
+        // Right meta: Action buttons (Consolidated to Star & More on Mobile)
         const metaRight = metaEl.createDiv({ cls: 'pos-note-actions' });
 
         const starBtn = metaRight.createSpan({
@@ -1506,17 +1511,19 @@ export class DesktopHubView extends ItemView {
             }
         };
 
-        const editBtn = metaRight.createSpan({
-            cls: 'pos-action-icon',
-            text: '✏️',
-            attr: { 'aria-label': 'Edit note' }
-        });
-        editBtn.onclick = (e) => {
-            e.stopPropagation();
-            this._editingEntryId = entry.id;
-            this.updateStreamOnly();
-            this.updateComposerVisibility();
-        };
+        if (!isMobile) {
+            const editBtn = metaRight.createSpan({
+                cls: 'pos-action-icon',
+                text: '✏️',
+                attr: { 'aria-label': 'Edit note' }
+            });
+            editBtn.onclick = (e) => {
+                e.stopPropagation();
+                this._editingEntryId = entry.id;
+                this.updateStreamOnly();
+                this.updateComposerVisibility();
+            };
+        }
 
         const moreBtn = metaRight.createSpan({
             cls: 'pos-action-icon pos-action-more',
@@ -1528,21 +1535,23 @@ export class DesktopHubView extends ItemView {
             this.openNoteActionMenu(e, entry);
         };
 
-        const trashBtn = metaRight.createSpan({
-            cls: 'pos-action-icon',
-            text: '🗑️',
-            attr: { 'aria-label': 'Delete note' }
-        });
-        trashBtn.onclick = async (e) => {
-            e.stopPropagation();
-            if (confirm('Move this note to trash?')) {
-                await this.plugin.capture.deleteNote(entry.filePath);
-                this._selectedEntryIds.delete(entry.id);
-                this.invalidateRenderCacheForFile(entry.filePath);
-                this.updateStreamOnly();
-                this.updateFilterCounts();
-            }
-        };
+        if (!isMobile) {
+            const trashBtn = metaRight.createSpan({
+                cls: 'pos-action-icon',
+                text: '🗑️',
+                attr: { 'aria-label': 'Delete note' }
+            });
+            trashBtn.onclick = async (e) => {
+                e.stopPropagation();
+                if (confirm('Move this note to trash?')) {
+                    await this.plugin.capture.deleteNote(entry.filePath);
+                    this._selectedEntryIds.delete(entry.id);
+                    this.invalidateRenderCacheForFile(entry.filePath);
+                    this.updateStreamOnly();
+                    this.updateFilterCounts();
+                }
+            };
+        }
 
         // Note Body rendered via Obsidian MarkdownRenderer with cache
         const bodyEl = item.createDiv({ cls: 'pos-note-body markdown-rendered' });
@@ -1689,6 +1698,52 @@ export class DesktopHubView extends ItemView {
                 .setIcon('document')
                 .onClick(async () => {
                     await this.app.workspace.openLinkText(entry.filePath, '', false);
+                });
+        });
+
+        menu.addItem((item) => {
+            item.setTitle('🏷️ Set Life Area...')
+                .setIcon('tag')
+                .onClick((evt) => {
+                    const areaMenu = new Menu();
+                    const areas = this.plugin.settings.lifeAreas || [];
+                    for (const area of areas) {
+                        areaMenu.addItem((subItem) => {
+                            subItem.setTitle(`${area.icon || ''} ${area.label}`.trim())
+                                .setChecked(entry.area.toLowerCase() === area.id.toLowerCase())
+                                .onClick(async () => {
+                                    try {
+                                        this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
+                                        await this.plugin.capture.updateNoteContent(entry.filePath, entry.body, area.id);
+                                        new Notice(`Moved to ${area.label}`);
+                                        this.updateStreamOnly();
+                                        this.updateFilterCounts();
+                                    } catch (err) {
+                                        console.error('[DIWA] Update note area error', err);
+                                        new Notice('Failed to update area');
+                                    }
+                                });
+                        });
+                    }
+                    if (entry.area) {
+                        areaMenu.addSeparator();
+                        areaMenu.addItem((subItem) => {
+                            subItem.setTitle('✕ Remove Area (Untagged)')
+                                .onClick(async () => {
+                                    try {
+                                        this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
+                                        await this.plugin.capture.updateNoteContent(entry.filePath, entry.body, '');
+                                        new Notice('Removed area');
+                                        this.updateStreamOnly();
+                                        this.updateFilterCounts();
+                                    } catch (err) {
+                                        console.error('[DIWA] Remove note area error', err);
+                                        new Notice('Failed to remove area');
+                                    }
+                                });
+                        });
+                    }
+                    areaMenu.showAtMouseEvent(e);
                 });
         });
 
