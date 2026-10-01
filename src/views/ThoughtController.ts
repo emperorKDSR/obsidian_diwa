@@ -127,7 +127,6 @@ export class ThoughtController {
             pinned: !!thought.pinned,
             archived: !!thought.archived,
             tags: thought.tags ?? [],
-            journalType: thought.journalType ?? null,
             links,
             topic,
         };
@@ -180,7 +179,7 @@ export class ThoughtController {
         return this.upsertThought(indexed, true);
     }
 
-    async addThought(thought: Partial<ThoughtEntry> & { content?: string; context?: string[]; topic?: string | string[] | null; title?: string; journalType?: string | null }): Promise<ThoughtEntry | null> {
+    async addThought(thought: Partial<ThoughtEntry> & { content?: string; context?: string[]; topic?: string | string[] | null; title?: string }): Promise<ThoughtEntry | null> {
         const content = (thought.content ?? thought.body ?? '').trim();
         const title = String(thought.title || '').trim();
         if (!content && !title) return null;
@@ -193,7 +192,6 @@ export class ThoughtController {
                 thought.topic ?? undefined,
                 {
                     title: title || undefined,
-                    journalType: thought.journalType ?? undefined,
                 },
             );
             await this.plugin.refreshCoordinator.reindexFile(created);
@@ -213,7 +211,7 @@ export class ThoughtController {
         }
     }
 
-    async updateThought(thought: Partial<ThoughtEntry> & { id?: string; filePath?: string; content?: string; topic?: string | string[] | null; title?: string; journalType?: string | null }): Promise<ThoughtEntry | null> {
+    async updateThought(thought: Partial<ThoughtEntry> & { id?: string; filePath?: string; content?: string; topic?: string | string[] | null; title?: string }): Promise<ThoughtEntry | null> {
         const ref = (thought.filePath || thought.id || '').trim();
         if (!ref) return null;
         const existing = this.getThought(ref);
@@ -237,7 +235,6 @@ export class ThoughtController {
                 || thought.context !== undefined
                 || thought.topic !== undefined
                 || thought.title !== undefined
-                || thought.journalType !== undefined
             ) {
                 const body = (merged.content || merged.body || '').trim();
                 await this.plugin.vault.editThought(
@@ -247,7 +244,6 @@ export class ThoughtController {
                     {
                         topic: merged.topic ?? undefined,
                         title: merged.title,
-                        journalType: merged.journalType ?? undefined,
                     },
                 );
             }

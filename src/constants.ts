@@ -1,5 +1,4 @@
 import { DiwaSettings, LifeArea } from './types';
-import { createDefaultGawaLayoutPreferences } from './gawaLayout';
 
 export const DEFAULT_LIFE_AREAS: LifeArea[] = [
     { id: 'work', label: 'Work', icon: '💼' },
@@ -47,11 +46,7 @@ export const NINJA_AVATAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox
     <line x1="17" y1="12" x2="22.5" y2="12"/>
 </svg>`;
 
-export const JOURNAL_ICON_ID = "diwa-journal-icon";
-export const JOURNAL_ICON_SVG = `<g transform="translate(10,10) scale(3.5)">
-    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M15 5l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-</g>`;
+
 
 export const DAILY_ICON_ID = "diwa-daily-icon";
 export const DAILY_ICON_SVG = `<g transform="translate(10,10) scale(3.5)">
@@ -114,12 +109,11 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
     attachmentsFolder: '000 Bin/DIWA Attachments',
     peopleFolder: '000 Bin/DIWA People',
     thoughtsFolder: '000 Bin/DIWA',
-    tasksFolder: '000 Bin/DIWA Gawa',
+    tasksFolder: '000 Bin/DIWA Tasks',
     pfFolder: '000 Bin/DIWA PF',
     reviewsFolder: '000 Bin/DIWA Reviews',
     contexts: [],
     hiddenContexts: [],
     mobileBottomBarHeight: 56,
     legacyMigrated: false,
-    gawaLayoutPreferences: createDefaultGawaLayoutPreferences(),
 };

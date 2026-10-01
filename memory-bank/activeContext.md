@@ -1,17 +1,22 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Natural Inline Task Flow & Alignment Fix Deployed
-- **Natural Inline Text & Link Flow**:
-  - Replaced `display: flex` on `li.task-list-item` with `position: relative` + `padding-left: 24px` and `position: absolute; left: 0; top: 3px;` for the checkbox.
-  - Fixes text scrambling: all words, spaces, and `[[wikilinks]]` within task lines now flow naturally as continuous inline text without disjointed flex breaks or columns.
-- **Flush Task Alignment & Centered Checkmarks**:
-  - Task lists align flush with note margins with zero unwanted 22px padding.
-  - Checkmarks are centered inside the checkbox box across themes and mobile devices.
-- **Ultra-Minimalist Mobile Stream**:
-  - Clean headers on mobile phones with only timestamp (`9:42 AM`) and 2 actions (**`⭐`** and **`⋯`**).
-- **Build & Vault Deployment**:
-  - Clean compile (`npm run build`, 0 errors) and deployed to `/Users/K26/Obsidian/K0000` & `/Users/K26/Obsidian/K0001`.
+## Current State: Journal Dead Code Removal Complete
+- **Deleted Dead Files & Directories**:
+  - Deleted `src/modals/JournalEntryModal.ts` (-65 lines).
+  - Deleted `src/journal/JournalComposer.ts` (-70 lines).
+  - Deleted `src/journal/shared.ts` (-53 lines) and removed `src/journal/` directory.
+- **Relocated General Utilities**:
+  - Moved `getThoughtDisplayTitle()` to `src/utils.ts`.
+- **Cleaned Up Types, Constants & Services**:
+  - Removed `journalType` from `ThoughtEntry` in `src/types.ts`.
+  - Removed `JOURNAL_ICON_ID` and `JOURNAL_ICON_SVG` from `src/constants.ts` and `main.ts`.
+  - Removed `activateJournalInput()`, `consumeJournalInputFocusRequest()`, and `pendingJournalInputFocus` from `src/main.ts`.
+  - Removed `inferJournalType` and `journalType` indexing from `src/services/IndexService.ts`.
+  - Removed `journalType` parameter and frontmatter generation from `src/services/VaultService.ts` (and added auto-scrubbing of legacy frontmatter on edit).
+  - Removed `journalType` handling from `src/views/ThoughtController.ts`.
+- **Verification**:
+  - Clean compile with `npm run build` (0 errors).
 
-## Previous State: Mobile Slide-Up Bottom Filter Sheet (Option 1) Deployed
+## Previous State: Legacy Gawa & Bulsa Dead Code Removal Complete
 - Tapping **🏷️** opens the `MobileFilterSheetModal` with Quick Lenses and Life Areas.
 - Omitted top `.pos-filter-bar` on phones.

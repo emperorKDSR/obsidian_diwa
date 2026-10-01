@@ -48,10 +48,10 @@ export class FolderSettingsModal extends Modal {
         const body = contentEl.createEl('div', { attr: { style: 'padding: 20px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; max-height: 70vh;' } });
 
         new Setting(body)
-            .setName('Gawa Folder')
-            .setDesc('Where gawa files are stored.')
+            .setName('Tasks Folder')
+            .setDesc('Where task notes are stored.')
             .addText(text => {
-                text.setPlaceholder('000 Bin/DIWA Gawa');
+                text.setPlaceholder('000 Bin/DIWA Tasks');
                 this.pendingSettingFlushers.push(this.bindFolderSetting(text, 'tasksFolder', this.plugin.settings.tasksFolder));
             });
 
@@ -64,8 +64,8 @@ export class FolderSettingsModal extends Modal {
             });
 
         new Setting(body)
-            .setName('Bulsa Folder')
-            .setDesc('Scanned for Bulsa recurring payment notes.')
+            .setName('Dues / Obligations Folder')
+            .setDesc('Scanned for recurring payment notes and financial obligations.')
             .addText(text => {
                 text.setPlaceholder('000 Bin/DIWA PF');
                 this.pendingSettingFlushers.push(this.bindFolderSetting(text, 'pfFolder', this.plugin.settings.pfFolder));

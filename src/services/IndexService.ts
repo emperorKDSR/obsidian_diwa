@@ -1,7 +1,7 @@
 import { App, TFile, moment } from 'obsidian';
 import { DiwaSettings, ThoughtEntry, TaskEntry, DueEntry, TaskBucketStatus, CaptureEntry, CaptureTaskItem } from '../types';
 import { extractWikiLinks } from '../utils/wikilinks';
-import { getThoughtDisplayTitle, inferJournalType } from '../journal/shared';
+import { getThoughtDisplayTitle } from '../utils';
 import { normalizeThoughtTopics, toStoredThoughtTopic } from '../utils/topics';
 import { splitTaskBodyAndCommentSuffix } from '../utils/taskComments';
 import { getCanonicalCapturePath, normalizeConfiguredSettingPath } from '../utils/settingsPaths';
@@ -223,7 +223,7 @@ export class IndexService {
     }
 
     private getConfiguredTasksFolder(): string {
-        return this.normalizeConfiguredPath(this.settings.tasksFolder, '000 Bin/DIWA Gawa', 'tasksFolder');
+        return this.normalizeConfiguredPath(this.settings.tasksFolder, '000 Bin/DIWA Tasks', 'tasksFolder');
     }
 
     private getConfiguredThoughtsFolder(): string {
@@ -522,11 +522,6 @@ export class IndexService {
         const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').trim();
         const context = IndexService.normalizeContext(fm.context ?? fm.contexts);
         const tags = IndexService.normalizeStringArray(fm.tags);
-        const journalType = inferJournalType({
-            journalType: fm.journalType,
-            context,
-            tags,
-        });
         const linkedTaskIds = Array.from(new Set([
             ...IndexService.normalizeStringArray(fm.linkedTasks),
             ...IndexService.normalizeLinksArray(fm.links, 'tasks'),
@@ -546,7 +541,6 @@ export class IndexService {
             updatedAt: Number(fm.updatedAt || file.stat.mtime || Date.now()),
             context,
             topic: toStoredThoughtTopic(topics),
-            journalType,
             synthesized: fm.synthesized || false,
             state: fm.state || 'raw',
             pinned: Boolean(fm.pinned),

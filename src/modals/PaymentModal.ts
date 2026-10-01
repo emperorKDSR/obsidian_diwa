@@ -84,7 +84,7 @@ export class PaymentModal extends Modal {
         });
         header.createEl('span', {
             cls: 'diwa-workspace-popup-eyebrow',
-            text: 'Bulsa payment',
+            text: 'Record payment',
         });
 
         const titleRow = header.createEl('div', { cls: 'diwa-workspace-popup-title-row' });

@@ -124,7 +124,7 @@ export class FastTaskCaptureModal extends Modal {
     private renderDesktop(): void {
         const root = this.contentEl.createEl('div', { cls: 'diwa-ftc-root' });
         const header = root.createEl('div', { cls: 'diwa-ftc-header diwa-workspace-popup-header' });
-        header.createEl('span', { cls: 'diwa-workspace-popup-eyebrow', text: 'Gawa capture' });
+        header.createEl('span', { cls: 'diwa-workspace-popup-eyebrow', text: 'Task capture' });
         const titleRow = header.createEl('div', { cls: 'diwa-workspace-popup-title-row' });
         const title = titleRow.createEl('div', {
             cls: 'diwa-workspace-popup-title',
@@ -203,7 +203,7 @@ export class FastTaskCaptureModal extends Modal {
         cancelBtn.addEventListener('click', () => this.close());
 
         const headerCopy = header.createEl('div', { cls: 'diwa-ftc-mobile-header-copy' });
-        headerCopy.createEl('div', { cls: 'diwa-ftc-mobile-kicker', text: 'Gawa capture' });
+        headerCopy.createEl('div', { cls: 'diwa-ftc-mobile-kicker', text: 'Task capture' });
         headerCopy.createEl('div', { cls: 'diwa-ftc-mobile-title', text: 'Add task' });
 
         const body = sheet.createEl('div', { cls: 'diwa-ftc-mobile-body' });
@@ -574,7 +574,7 @@ export class FastTaskCaptureModal extends Modal {
             console.error('[DIWA FastTaskCaptureModal] create failed', error);
             const message = error instanceof Error && error.message
                 ? error.message
-                : 'Failed to add task to Gawa.';
+                : 'Failed to add task.';
             this.setError(message);
             new Notice(message);
         } finally {

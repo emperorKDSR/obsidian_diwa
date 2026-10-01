@@ -1,7 +1,6 @@
 import { App, TFile, Notice, moment } from 'obsidian';
 import type { DiwaSettings, ThoughtEntry, TaskEntry, ReplyEntry } from '../types';
 import { generateTaskId } from '../utils/taskModel';
-import { buildJournalContexts, normalizeJournalType } from '../journal/shared';
 import { normalizeThoughtTopics, toStoredThoughtTopic } from '../utils/topics';
 import { buildAttachmentWikiLink } from '../utils';
 import { buildTaskCommentBlock, parseTaskCommentBlocks, splitTaskBodyAndCommentSuffix } from '../utils/taskComments';
@@ -18,7 +17,6 @@ import { buildYamlFrontmatter, createVaultBinaryFile, createVaultFile, ensureVau
 
 interface ThoughtWriteOptions {
     title?: string;
-    journalType?: string | null;
     day?: string;
     created?: string;
     modified?: string;
@@ -76,7 +74,7 @@ export class VaultService {
             .filter(Boolean);
     }
 
-    private buildFrontmatter(title: string, created: string, modified: string, dayStr: string, contexts: string[], pinned: boolean = false, topic?: string | string[] | null, journalType?: string | null): string {
+    private buildFrontmatter(title: string, created: string, modified: string, dayStr: string, contexts: string[], pinned: boolean = false, topic?: string | string[] | null): string {
         const safeContexts = contexts.map(c => this.sanitizeContext(c));
         const safeTopics = this.normalizeTopics(topic);
         const safeTags = safeTopics.length > 0
@@ -91,7 +89,6 @@ export class VaultService {
             context: safeContexts,
             tags: safeTags,
             pinned,
-            journalType: journalType || undefined,
             topic: safeTopics.length === 0
                 ? undefined
                 : (safeTopics.length === 1 ? safeTopics[0] : safeTopics),
@@ -251,7 +248,6 @@ export class VaultService {
             await this.editThought(file.path, text, contexts, {
                 topic,
                 title: options?.title,
-                journalType: options?.journalType,
                 day: options?.day,
                 modified: options?.modified,
             });
@@ -399,10 +395,8 @@ export class VaultService {
         const created = options?.created?.trim() || this.formatDateTime(now);
         const modified = options?.modified?.trim() || created;
         const dayStr = options?.day?.trim() || this.formatDate(now);
-        const journalType = normalizeJournalType(options?.journalType);
-        const normalizedContexts = journalType ? buildJournalContexts(contexts, journalType) : contexts;
         const title = options?.title?.trim() || this.extractTitle(text) || 'Untitled thought';
-        const fm = this.buildFrontmatter(title, created, modified, dayStr, normalizedContexts, false, topic, journalType);
+        const fm = this.buildFrontmatter(title, created, modified, dayStr, contexts, false, topic);
         const filename = this.generateFilename();
         return await this.createFile(folder, filename, fm + text);
     }
@@ -418,7 +412,7 @@ export class VaultService {
         const folder = this.resolveConfiguredFolder(
             this.taskFolderResolver?.()
                 || this.settings.tasksFolder,
-            '000 Bin/DIWA Gawa',
+            '000 Bin/DIWA Tasks',
         );
         const now = new Date();
         const created = this.formatDateTime(now);
@@ -442,7 +436,7 @@ export class VaultService {
         return await this.createFile(folder, filename, fm + text);
     }
 
-    async editThought(filePath: string, newText: string, contexts: string[], options?: { topic?: string | string[] | null; title?: string; journalType?: string | null; day?: string; modified?: string }): Promise<void> {
+    async editThought(filePath: string, newText: string, contexts: string[], options?: { topic?: string | string[] | null; title?: string; day?: string; modified?: string }): Promise<void> {
         // arch-08: Normalize <br> → newline at service boundary
         newText = newText.replace(/<br>/g, '\n');
         const file = this.app.vault.getAbstractFileByPath(filePath);
@@ -451,10 +445,8 @@ export class VaultService {
             const now = new Date();
             const nowStr = options?.modified?.trim() || this.formatDateTime(now);
             const dayStr = options?.day?.trim() || this.formatDate(now);
-            const journalType = normalizeJournalType(options?.journalType);
             const title = options?.title?.trim() || this.extractTitle(newText) || 'Untitled thought';
-            const normalizedContexts = journalType ? buildJournalContexts(contexts, journalType) : contexts;
-            const safeContexts = normalizedContexts.map(c => this.sanitizeContext(c));
+            const safeContexts = contexts.map(c => this.sanitizeContext(c));
             const safeTopics = this.normalizeTopics(options?.topic);
             const tags = safeTopics.length > 0
                 ? safeContexts.flatMap((context) => safeTopics.map((topic) => `${context}/${topic}`))
@@ -467,8 +459,7 @@ export class VaultService {
                 fm['day'] = `[[${dayStr}]]`;
                 fm['context'] = safeContexts;
                 fm['topic'] = toStoredThoughtTopic(safeTopics);
-                if (journalType) fm['journalType'] = journalType;
-                else delete fm['journalType'];
+                delete fm['journalType'];
                 fm['tags'] = tags;
                 // preserve existing created and pinned
             });

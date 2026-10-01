@@ -1,29 +1,5 @@
 import { TFile } from 'obsidian';
 
-export type GawaPaneId =
-    | 'gawa-inbox'
-    | 'gawa-today'
-    | 'gawa-focus'
-    | 'gawa-active'
-    | 'gawa-backlog';
-
-export type GawaDesktopBucketId = 'left' | 'center' | 'right';
-export type GawaTabletBucketId = 'planning' | 'execution' | 'support';
-
-export interface GawaLayoutBucketPreference {
-    order: GawaPaneId[];
-    hidden: GawaPaneId[];
-}
-
-export interface GawaLayoutPreferences {
-    version: 1;
-    desktop: Record<GawaDesktopBucketId, GawaLayoutBucketPreference>;
-    tablet: Record<GawaTabletBucketId, GawaLayoutBucketPreference>;
-}
-
-export type ResponsiveWorkspaceView = 'home' | 'review' | 'tasks' | 'thoughts' | 'bulsa';
-export type BulsaMode = 'ledger' | 'insights';
-
 export interface LifeArea {
     id: string;
     label: string;
@@ -57,29 +33,6 @@ export interface CaptureEntry {
 
 export type ScratchpadFilterMode = 'all' | 'tasks_only' | 'important' | 'untagged' | string;
 
-export interface BulsaLeafState {
-    mode?: BulsaMode;
-    showAllDues?: boolean;
-}
-
-export interface ResponsiveShellState extends Record<string, unknown> {
-    activeView?: ResponsiveWorkspaceView;
-    activeContexts?: string[];
-    selectedThoughtId?: string | null;
-    selectedBulsaDuePath?: string | null;
-    selectedReviewWeekId?: string | null;
-    reviewDraft?: { wins: string; lessons: string; focus: string[] } | null;
-    reviewDraftWeekId?: string | null;
-    reviewDraftRevision?: number | null;
-    reviewDraftDirty?: boolean;
-    weekPlanDraft?: Record<string, string> | null;
-    weekPlanDraftWeekId?: string | null;
-    weekPlanDraftRevision?: number | null;
-    weekPlanDraftDirty?: boolean;
-    weekPlanTargetMode?: 'next' | 'this';
-    bulsa?: BulsaLeafState;
-}
-
 export interface DiwaSettings {
     captureFolder: string;
     lifeAreas: LifeArea[];
@@ -94,7 +47,6 @@ export interface DiwaSettings {
     hiddenContexts: string[];
     mobileBottomBarHeight: number;
     legacyMigrated?: boolean;
-    gawaLayoutPreferences: GawaLayoutPreferences;
 }
 
 export interface ReplyEntry {
@@ -116,7 +68,6 @@ export interface ThoughtEntry {
     allDates: string[];        // all [[YYYY-MM-DD]] links found in full content
     context: string[];         // from frontmatter context list
     topic?: string | string[] | null; // sub-topic label(s), e.g. "Meeting"
-    journalType?: string | null;
     body: string;              // text before first ## reply header
     content?: string;          // canonical full content alias
     wikilinks: string[];       // derived from [[wikilinks]] in content/body

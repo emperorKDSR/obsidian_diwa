@@ -204,18 +204,18 @@ export class DiwaSettingTab extends PluginSettingTab {
             });
 
         new Setting(containerEl)
-            .setName('Gawa Tasks Folder')
-            .setDesc('Directory for standalone Gawa task notes.')
+            .setName('Tasks Folder')
+            .setDesc('Directory for standalone task notes.')
             .addText(text => {
-                text.setPlaceholder('000 Bin/DIWA Gawa');
+                text.setPlaceholder('000 Bin/DIWA Tasks');
                 bindDeferredTextSetting(text, this.plugin.settings.tasksFolder, async (value) => {
                     await this.plugin.updateSetting('tasksFolder', value);
                 });
             });
 
         new Setting(containerEl)
-            .setName('Bulsa Obligations Folder')
-            .setDesc('Directory for Bulsa recurring dues and obligations.')
+            .setName('Dues / Obligations Folder')
+            .setDesc('Directory for recurring dues and financial obligations.')
             .addText(text => {
                 text.setPlaceholder('000 Bin/DIWA PF');
                 bindDeferredTextSetting(text, this.plugin.settings.pfFolder, async (value) => {

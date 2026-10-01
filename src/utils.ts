@@ -446,3 +446,16 @@ export function createThoughtCaptureWidget(parent: HTMLElement, options: Thought
         }
     });
 }
+
+export function getThoughtDisplayTitle(
+    thought: { title?: string; body?: string },
+    fallback: string = 'Untitled thought',
+): string {
+    if (thought.title && thought.title.trim() && thought.title !== 'Untitled thought') {
+        return thought.title.trim();
+    }
+    const body = (thought.body || '').trim();
+    if (!body) return fallback;
+    const firstLine = body.split('\n')[0].replace(/^[#\s\-*]+/, '').trim();
+    return firstLine.slice(0, 50) || fallback;
+}

@@ -1,8 +1,6 @@
 import { Plugin, TFile, Notice, WorkspaceLeaf, Platform, moment, addIcon, setIcon, MarkdownRenderer, Menu } from 'obsidian';
-import { KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, JOURNAL_ICON_ID, JOURNAL_ICON_SVG, DAILY_ICON_ID, DAILY_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG } from './constants';
-import type { BulsaLeafState, ResponsiveShellState } from './types';
-import { DiwaSettings, GawaLayoutPreferences, TaskEntry, ThoughtEntry } from './types';
-import { sanitizeGawaLayoutPreferences } from './gawaLayout';
+import { KATANA_ICON_ID, KATANA_ICON_SVG, DEFAULT_SETTINGS, DAILY_ICON_ID, DAILY_ICON_SVG, GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG, TASK_ICON_ID, TASK_ICON_SVG, PF_ICON_ID, PF_ICON_SVG, SETTINGS_ICON_ID, SETTINGS_ICON_SVG, REVIEW_ICON_ID, REVIEW_ICON_SVG, VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG } from './constants';
+import { DiwaSettings, TaskEntry, ThoughtEntry } from './types';
 import { isTablet, parseContextString } from './utils';
 import { DesktopHubView } from './views/DesktopHubView';
 import { DiwaSettingTab } from './settings';
@@ -25,25 +23,6 @@ import { ThoughtProcessor } from './views/ThoughtProcessor';
 import { enableImageZoom } from './utils/imageZoom';
 import { getCanonicalCapturePath, getCanonicalLegacyTasksCapturePath } from './utils/settingsPaths';
 import { normalizeVaultRelativePath } from './utils/vaultFiles';
-
-const OPENABLE_DIWA_TAB_IDS = new Set([
-    'review-gawa',
-    'dues',
-    'review',
-    'monthly-review',
-    'settings',
-    'journal',
-    'export',
-    'finance-analytics',
-    'ai-chat',
-]);
-
-const REMOVED_DIWA_TAB_FALLBACKS: Record<string, string> = {
-    manual: 'settings',
-    projects: 'review-gawa',
-};
-
-const DEFAULT_OPENABLE_DIWA_TAB_ID = 'settings';
 
 class TaskIndexCompat {
     constructor(private readonly plugin: DiwaPlugin) {}
@@ -77,7 +56,6 @@ export default class DiwaPlugin extends Plugin {
 	settings: DiwaSettings;
     settingsInitialized: boolean = false;
     zenCaptureDraft: string = '';
-    private pendingJournalInputFocus = false;
     private unloading = false;
     private startupRunToken = 0;
     private legacyMigrationTimer: number | null = null;
@@ -180,7 +158,6 @@ export default class DiwaPlugin extends Plugin {
         this.registerView(VIEW_TYPE_TABLET_HUB, (leaf) => new DesktopHubView(leaf, this));
 
 		addIcon(KATANA_ICON_ID, KATANA_ICON_SVG);
-		addIcon(JOURNAL_ICON_ID, JOURNAL_ICON_SVG);
 		addIcon(DAILY_ICON_ID, DAILY_ICON_SVG);
 		addIcon(GRUNDFOS_ICON_ID, GRUNDFOS_ICON_SVG);
 		addIcon(PF_ICON_ID, PF_ICON_SVG);
@@ -554,22 +531,6 @@ export default class DiwaPlugin extends Plugin {
         // Unified DesktopHubView handles all device sizes
     }
 
-    async activateGawa() {
-        await this.activateWorkspace();
-    }
-
-    async activateBulsa() {
-        await this.activateWorkspace();
-    }
-
-    async activateJournalInput() {
-        await this.activateWorkspace();
-    }
-
-    consumeJournalInputFocusRequest(): boolean {
-        return false;
-    }
-
     async activateView(_tabId?: string, _isDedicated: boolean = false) {
         await this.activateWorkspace();
     }
@@ -613,8 +574,9 @@ export default class DiwaPlugin extends Plugin {
             enableAutoClassification?: boolean;
             ai?: unknown;
             projectsFolder?: string;
+            gawaLayoutPreferences?: unknown;
         };
-        const removedLegacyKeys = ['voiceMemoFolder', 'transcriptionLanguage', 'geminiApiKey', 'geminiModel', 'maxOutputTokens', 'aiChatFolder', 'enableAutoClassification', 'ai', 'projectsFolder'] as const;
+        const removedLegacyKeys = ['voiceMemoFolder', 'transcriptionLanguage', 'geminiApiKey', 'geminiModel', 'maxOutputTokens', 'aiChatFolder', 'enableAutoClassification', 'ai', 'projectsFolder', 'gawaLayoutPreferences'] as const;
         for (const key of removedLegacyKeys) {
             if (Object.prototype.hasOwnProperty.call(legacySettings, key)) {
                 delete legacySettings[key];
@@ -641,11 +603,6 @@ export default class DiwaPlugin extends Plugin {
             shouldPersistSanitizedSettings = true;
         }
         this.settings.mobileBottomBarHeight = sanitizedMobileBottomBarHeight;
-        const sanitizedGawaLayoutPreferences = sanitizeGawaLayoutPreferences(this.settings.gawaLayoutPreferences);
-        if (JSON.stringify(sanitizedGawaLayoutPreferences) !== JSON.stringify(this.settings.gawaLayoutPreferences)) {
-            shouldPersistSanitizedSettings = true;
-        }
-        this.settings.gawaLayoutPreferences = sanitizedGawaLayoutPreferences;
         this.settingsInitialized = true;
         if (shouldPersistSanitizedSettings) {
             await this.saveData(this.settings);
@@ -654,7 +611,6 @@ export default class DiwaPlugin extends Plugin {
 
 	async saveSettings() {
 	    if (!this.settingsInitialized) return;
-        this.settings.gawaLayoutPreferences = sanitizeGawaLayoutPreferences(this.settings.gawaLayoutPreferences);
 	    await this.saveData(this.settings);
 	    if (this.vault) this.vault.updateSettings(this.settings);
 	    if (this.index) this.index.updateSettings(this.settings);
@@ -738,20 +694,6 @@ export default class DiwaPlugin extends Plugin {
         }
         await this.saveSettings();
         if (refreshScope) this.notifyRefresh(refreshScope);
-    }
-
-    async saveGawaLayoutPreferences(preferences: GawaLayoutPreferences): Promise<void> {
-        this.settings.gawaLayoutPreferences = sanitizeGawaLayoutPreferences(preferences);
-        await this.saveSettings();
-        this.forceGawaLayoutRefresh();
-    }
-
-    forceGawaLayoutRefresh(): void {
-        const desktopLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB);
-        for (const leaf of desktopLeaves) {
-            const view = leaf.view as any;
-            if (typeof view?.renderView === 'function') view.renderView();
-        }
     }
 
     private applyMobileCssVars(): void {

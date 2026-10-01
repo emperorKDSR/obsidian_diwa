@@ -1,12 +1,26 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Inline Task Text Flow & Centered Checkmarks Deployed
+## Current Phase: Journal Dead Code Removal Complete
 
 ---
 
 ## Completed Roadmap Checklist
 
-### 0. Task Inline Flow, Flush Alignment & Centered Checkmark Placement
+### 0. Journal Dead Code Removal
+*   [x] **Delete Dead Files & Directory** — Deleted `src/modals/JournalEntryModal.ts` (-65 lines), `src/journal/JournalComposer.ts` (-70 lines), `src/journal/shared.ts` (-53 lines), and removed `src/journal/`.
+*   [x] **Relocate Core Utility** — Moved `getThoughtDisplayTitle` to `src/utils.ts`.
+*   [x] **Clean Up Types & Frontmatter** — Removed `journalType` from `ThoughtEntry` in `src/types.ts`, `IndexService.ts`, `VaultService.ts`, and `ThoughtController.ts`.
+*   [x] **Clean Up Plugin Entrypoint** — Removed `JOURNAL_ICON_ID`, `JOURNAL_ICON_SVG`, `activateJournalInput()`, `consumeJournalInputFocusRequest()`, and `pendingJournalInputFocus` from `src/main.ts` and `src/constants.ts`.
+*   [x] **Zero-Error Compilation** — Verified with `npm run build` (0 errors).
+
+### 0.1. Legacy Gawa & Bulsa Dead Code Removal
+*   [x] **Delete Dead Files** — Deleted `src/gawaLayout.ts` (-186 lines) and `src/modals/GawaLayoutCustomizeModal.ts` (-312 lines).
+*   [x] **Remove Dead Types** — Stripped `GawaPaneId`, `GawaLayoutPreferences`, `BulsaLeafState`, `BulsaMode`, and `ResponsiveShellState` from `src/types.ts`.
+*   [x] **Clean Up Plugin Entrypoint** — Removed `activateGawa()`, `activateBulsa()`, `saveGawaLayoutPreferences()`, `forceGawaLayoutRefresh()`, and unused constants from `src/main.ts`.
+*   [x] **Normalize UI Labels & Fallbacks** — Replaced "Gawa / Bulsa" terminology across `FolderSettingsModal.ts`, `settings.ts`, `PaymentModal.ts`, `FastTaskCaptureModal.ts`, and updated `tasksFolder` default to `'000 Bin/DIWA Tasks'`.
+*   [x] **Zero-Error Compilation** — Verified with `npm run build` (0 TypeScript / bundling errors).
+
+### 0.1. Task Inline Flow, Flush Alignment & Centered Checkmark Placement
 *   [x] **Natural Inline Flow (Shuffled Text Fix)** — Replaced `display: flex` on `li.task-list-item` with `position: relative; padding-left: 24px;` and absolute checkbox positioning (`left: 0; top: 3px;`). All text nodes and `[[wikilinks]]` flow continuously without flex column scrambling.
 *   [x] **Flush Left Alignment** — Set `padding-left: 0 !important` on `ul.contains-task-list` and `ul:has(> .task-list-item)`, aligning task checkboxes flush with note text paragraphs and headings.
 *   [x] **Centered Checkmark Glyphs** — Configured `display: inline-grid; place-content: center; background-position: center; -webkit-mask-position: center;` ensuring SVG checkmarks are centered inside the checkbox box.
