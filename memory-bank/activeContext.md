@@ -1,14 +1,15 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Expandable Inline Floating Composer on ➕ Quick Capture Deployed
-- **Seamless State Transition**:
-  - **Idle State**: Minimal, frosted 4-icon action dock (**➕**, **🔍**, **🏷️**, **📱**).
-  - **Active State (Tap ➕)**: Instantly reveals the exact original floating 2-row composer capsule (`.pos-mobile-sticky-composer`) with full-width textarea, `[ ↑ ]` submit button, `☑️ Task`, `⭐ Important`, Life Area selector pills, and `✕ Close` dismiss pill.
-  - Automatically focuses the input and auto-resizes.
-  - On submit or `✕ Close`, cleans up state and collapses back to the 4-icon dock.
-- **Mobile Header Clean-Up**:
-  - Top header action icons removed on phones.
-  - Filter carousel hidden by default on phones, toggled on demand via 🏷️ Filter button.
+## Current State: Mobile Floating Bottom Search Capsule Deployed
+- **Floating Bottom Search Capsule (`.pos-mobile-floating-search`)**:
+  - Tapping **🔍** on the mobile floating dock transforms it into a sleek bottom search capsule directly above the virtual keyboard.
+  - Automatically focuses the input field, raising the virtual keyboard without any layout jump or top-of-screen reach.
+  - Live real-time stream filtering as the user types with debouncing.
+  - Pressing Return / Search on keyboard dismisses the keyboard while keeping filtered results on screen.
+  - Tapping **✕** clears the query, resets the stream, and collapses back to the 4-icon dock.
+- **Top Header Cleaned**:
+  - Removed top search bar on mobile phones; search is unified into the bottom floating capsule.
+  - Desktop and iPad retain standard top search in `.pos-header-bar`.
 - **Build & Vault Deployment**:
   - Clean compile (`npm run build`, 0 errors) and deployed to `/Users/K26/Obsidian/K0000` & `/Users/K26/Obsidian/K0001`.
 

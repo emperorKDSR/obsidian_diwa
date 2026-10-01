@@ -283,8 +283,8 @@ export class DesktopHubView extends ItemView {
             };
         }
 
-        // Search bar (always on desktop; expandable on mobile)
-        if (!isMobile || this._mobileSearchOpen || this._searchQuery) {
+        // Search bar (Desktop & Tablet only; mobile search is in the floating bottom capsule)
+        if (!isMobile) {
             const searchContainer = header.createDiv({ cls: 'pos-search-container' });
             const searchInput = searchContainer.createEl('input', {
                 type: 'search',
@@ -311,13 +311,6 @@ export class DesktopHubView extends ItemView {
                 }
             };
 
-            searchInput.onfocus = () => {
-                if (isMobile) {
-                    this._mobileSearchOpen = true;
-                    this.updateComposerVisibility();
-                }
-            };
-
             searchInput.oninput = (e) => {
                 const val = (e.target as HTMLInputElement).value;
                 if (this._searchDebounceTimer) clearTimeout(this._searchDebounceTimer);
@@ -329,29 +322,23 @@ export class DesktopHubView extends ItemView {
             searchInput.onkeydown = (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    triggerSearch(searchInput.value, isMobile);
+                    triggerSearch(searchInput.value, false);
                 } else if (e.key === 'Escape') {
                     e.preventDefault();
                     this._searchQuery = '';
-                    if (isMobile) {
-                        this._mobileSearchOpen = false;
-                    }
                     this.renderHeaderBar(header);
                     triggerSearch('', true);
                 }
             };
 
-            if (this._searchQuery || isMobile) {
+            if (this._searchQuery) {
                 const clearBtn = searchContainer.createSpan({
                     cls: 'pos-search-clear',
                     text: '✕',
-                    attr: { 'aria-label': 'Clear or close search' }
+                    attr: { 'aria-label': 'Clear search' }
                 });
                 clearBtn.onclick = () => {
                     this._searchQuery = '';
-                    if (isMobile) {
-                        this._mobileSearchOpen = false;
-                    }
                     this._renderedCount = BATCH_SIZE;
                     this.renderHeaderBar(header);
                     this.updateStreamOnly();
@@ -579,6 +566,83 @@ export class DesktopHubView extends ItemView {
                 this._composerEl.remove();
             }
 
+            // === 1. ACTIVE SEARCH STATE: FLOATING BOTTOM SEARCH CAPSULE ===
+            if (this._mobileSearchOpen || Boolean(this._searchQuery)) {
+                const searchWrapper = parent.createDiv({
+                    cls: 'pos-mobile-floating-search'
+                });
+                this._composerEl = searchWrapper;
+
+                const iconEl = searchWrapper.createDiv({ cls: 'pos-mobile-search-icon' });
+                setIcon(iconEl, 'search');
+
+                const searchInput = searchWrapper.createEl('input', {
+                    type: 'search',
+                    placeholder: 'Search notes, #tags, or tasks...',
+                    cls: 'pos-mobile-search-input',
+                    value: this._searchQuery,
+                    attr: {
+                        enterkeyhint: 'search',
+                        autocomplete: 'off',
+                        autocorrect: 'off',
+                        autocapitalize: 'off',
+                        spellcheck: 'false',
+                    }
+                });
+
+                const triggerSearch = (query: string, dismissKeyboard = false) => {
+                    if (this._searchDebounceTimer) clearTimeout(this._searchDebounceTimer);
+                    this._searchQuery = query;
+                    this._renderedCount = BATCH_SIZE;
+                    this.updateStreamOnly();
+                    this.updateComposerVisibility();
+                    if (dismissKeyboard) {
+                        searchInput.blur();
+                    }
+                };
+
+                searchInput.oninput = (e) => {
+                    const val = (e.target as HTMLInputElement).value;
+                    if (this._searchDebounceTimer) clearTimeout(this._searchDebounceTimer);
+                    this._searchDebounceTimer = setTimeout(() => {
+                        triggerSearch(val, false);
+                    }, 120);
+                };
+
+                searchInput.onkeydown = (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        triggerSearch(searchInput.value, true);
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        this._searchQuery = '';
+                        this._mobileSearchOpen = false;
+                        triggerSearch('', true);
+                        this.renderComposer(parent, true);
+                    }
+                };
+
+                const clearBtn = searchWrapper.createEl('button', {
+                    cls: 'pos-mobile-search-clear',
+                    attr: { 'aria-label': 'Close search', title: 'Close' }
+                });
+                setIcon(clearBtn, 'x');
+                clearBtn.onclick = () => {
+                    this._searchQuery = '';
+                    this._mobileSearchOpen = false;
+                    triggerSearch('', true);
+                    this.renderComposer(parent, true);
+                };
+
+                setTimeout(() => {
+                    if (searchInput.isConnected) {
+                        searchInput.focus();
+                    }
+                }, 60);
+
+                return;
+            }
+
             if (!this._mobileComposerOpen) {
                 // === MOBILE IDLE STATE: 1-ROW FLOATING ACTION BAR ===
                 const actionBar = parent.createDiv({
@@ -594,35 +658,26 @@ export class DesktopHubView extends ItemView {
                 setIcon(newBtn, 'plus');
                 newBtn.onclick = () => {
                     this._mobileComposerOpen = true;
+                    this._mobileSearchOpen = false;
                     this.renderComposer(parent, true);
                 };
 
-                // 2. Search Toggle Action (Icon only)
-                const isSearching = this._mobileSearchOpen || Boolean(this._searchQuery);
+                // 2. Search Toggle Action (Expands bottom search capsule)
                 const searchBtn = actionBar.createEl('button', {
-                    cls: `pos-mobile-action-btn pos-mobile-action-search ${isSearching ? 'is-active' : ''}`,
+                    cls: 'pos-mobile-action-btn pos-mobile-action-search',
                     attr: { 'aria-label': 'Toggle search', title: 'Search' }
                 });
                 setIcon(searchBtn, 'search');
                 searchBtn.onclick = () => {
-                    this._mobileSearchOpen = !this._mobileSearchOpen;
-                    if (!this._mobileSearchOpen) {
-                        this._searchQuery = '';
-                    } else {
-                        this._activeFilter = 'all';
-                        this._filterTasksOnly = false;
-                    }
+                    this._mobileSearchOpen = true;
+                    this._mobileComposerOpen = false;
+                    this._activeFilter = 'all';
+                    this._filterTasksOnly = false;
                     this._renderedCount = BATCH_SIZE;
-                    if (this._headerBarEl) this.renderHeaderBar(this._headerBarEl);
                     this.updateComposerVisibility();
                     this.updateStreamOnly();
                     this.updateFilterActiveStates();
-                    if (this._mobileSearchOpen) {
-                        setTimeout(() => {
-                            const input = this._headerBarEl?.querySelector<HTMLInputElement>('.pos-search-input');
-                            input?.focus();
-                        }, 60);
-                    }
+                    this.renderComposer(parent, true);
                 };
 
                 // 3. Filter Toggle Action (Icon only)

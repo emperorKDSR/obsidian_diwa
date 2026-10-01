@@ -571,6 +571,100 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-action-bar {
     transform: scale(0.92);
 }
 
+/* ── Mobile Floating Bottom Search Bar ── */
+.pos-mobile-floating-search {
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom, 8px) + 12px);
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: calc(100vw - 24px);
+    box-sizing: border-box;
+    z-index: 999;
+    padding: 6px 8px 6px 14px;
+    border-radius: var(--diwa-radius-pill);
+    background: var(--background-secondary-alt);
+    border: 1px solid var(--background-modifier-border-faint);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.38), 0 2px 8px rgba(0, 0, 0, 0.18);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: bottom 0.22s cubic-bezier(0.4, 0, 0.2, 1), transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+}
+
+body:not(.diwa-hide-mobile-navbar) .pos-mobile-floating-search {
+    bottom: calc(var(--mobile-navbar-height, 56px) + env(safe-area-inset-bottom, 8px) + 12px);
+}
+
+.pos-mobile-search-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.pos-mobile-search-icon svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2.2px;
+}
+
+.pos-mobile-search-input {
+    flex: 1;
+    min-width: 0;
+    min-height: 38px;
+    height: 38px;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    color: var(--text-normal) !important;
+    font-size: 16px !important; /* Prevents iOS WebKit auto-zoom */
+    padding: 0 4px !important;
+    margin: 0;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.pos-mobile-search-input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.8;
+    font-size: 15px;
+}
+
+.pos-mobile-search-clear {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: var(--diwa-transition);
+}
+
+.pos-mobile-search-clear svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2.4px;
+}
+
+.pos-mobile-search-clear:active {
+    transform: scale(0.92);
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
 /* ── Mobile Sticky Floating Composer (Expanded Active State) ── */
 .pos-mobile-sticky-composer {
     position: fixed;

@@ -6,12 +6,13 @@
 
 ## Completed Roadmap Checklist
 
-### 0. Mobile Floating Action Dock & Expandable Composer
+### 0. Mobile Floating Action Dock, Expandable Composer & Bottom Search
 *   [x] **Sleek Frosted Floating Dock (`.pos-mobile-action-bar`)** — Compact centered floating island (`backdrop-filter: blur(28px) saturate(180%)`) with 4 icon-only buttons (**➕**, **🔍**, **🏷️**, **📱**).
+*   [x] **Floating Bottom Search Capsule on 🔍** — Tapping **🔍** transforms the dock into an active bottom search pill (`.pos-mobile-floating-search`) docked right above the virtual keyboard with auto-focus, real-time debounced stream filtering, and `✕` dismiss button.
 *   [x] **Expandable Floating Composer on ➕** — Tapping **➕** transitions smoothly into the floating 2-row composer capsule (`.pos-mobile-sticky-composer`) with auto-expanding textarea, `[ ↑ ]` send button, `☑️ Task`, `⭐ Important`, Life Area chips, draft restoration, and `✕ Close` dismiss pill.
-*   [x] **Mobile Top Header Clean-Up** — Removed redundant buttons (Select, Sweeper, Settings, Nav toggle) from `.pos-header-bar` on phones.
+*   [x] **Mobile Top Header Clean-Up** — Removed redundant top search and top action buttons on phones.
 *   [x] **On-Demand Filter Carousel** — Filter carousel hidden by default on phones, expanding smoothly on tap.
-*   [x] **Desktop / iPad Protected** — Desktop and iPad retain full header actions and hero composer intact.
+*   [x] **Desktop / iPad Protected** — Desktop and iPad retain full header search, actions, and hero composer intact.
 *   [x] **Build & Vault Deployed** — Clean compile with `npm run build` (0 errors) and deployed to `/Users/K26/Obsidian/K0000` & `K0001`.
 
 ### 0.1. Star & Filter System (Important Notes)
