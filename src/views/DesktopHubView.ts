@@ -1,10 +1,11 @@
-import { ItemView, WorkspaceLeaf, TFile, MarkdownRenderer, moment, Notice, Platform, Menu, Component } from 'obsidian';
+import { ItemView, WorkspaceLeaf, TFile, MarkdownRenderer, moment, Notice, Platform, Menu, Component, setIcon } from 'obsidian';
 import type DiwaPlugin from '../main';
 import { VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID } from '../constants';
 import { CaptureEntry, ScratchpadFilterMode } from '../types';
 import { MergeNotesModal } from '../modals/MergeNotesModal';
 import { DatePickerModal } from '../modals/DatePickerModal';
 import { WikilinkPeekModal } from '../modals/WikilinkPeekModal';
+import { MobilePostComposerModal } from '../modals/MobilePostComposerModal';
 import { isTablet, attachInlineTriggers, attachMediaPasteHandler } from '../utils';
 import { attachMobileSheetViewportBehavior } from '../utils/mobileSheetViewport';
 
@@ -29,6 +30,8 @@ export class DesktopHubView extends ItemView {
     private _headerBarEl: HTMLElement | null = null;
     private _composerEl: HTMLElement | null = null;
     private _mobileSearchOpen: boolean = false;
+    private _mobileFiltersOpen: boolean = false;
+    private _mobileComposerOpen: boolean = false;
     private _viewportCleanup: (() => void) | null = null;
 
     // Progressive rendering, component lifecycle & LRU caching
@@ -182,6 +185,9 @@ export class DesktopHubView extends ItemView {
         // Filter / Life Area carousel bar
         this._filterBarEl = this._containerEl.createDiv({ cls: 'pos-filter-bar' });
         this.renderFilterBar(this._filterBarEl);
+        if (isMobile) {
+            this._filterBarEl.toggleClass('is-hidden', !this._mobileFiltersOpen);
+        }
 
         // Multi-select bulk action bar (if in selection mode)
         this._selectionBarEl = this._containerEl.createDiv({ cls: 'pos-selection-bar-wrapper' });
@@ -209,12 +215,12 @@ export class DesktopHubView extends ItemView {
         if (!isMobile) return;
         const isSearching = this._mobileSearchOpen || Boolean(this._searchQuery.trim());
         const isEditing = Boolean(this._editingEntryId);
-        const shouldHide = isSearching || isEditing;
+        const shouldHide = isEditing;
         if (this._composerEl) {
             this._composerEl.toggleClass('is-hidden', shouldHide);
         }
         if (this._filterBarEl) {
-            this._filterBarEl.toggleClass('is-hidden', isSearching);
+            this._filterBarEl.toggleClass('is-hidden', !this._mobileFiltersOpen || isEditing);
         }
         if (this._containerEl) {
             this._containerEl.toggleClass('is-searching', isSearching);
@@ -230,91 +236,52 @@ export class DesktopHubView extends ItemView {
         titleSection.createSpan({ cls: 'pos-header-logo', text: 'DIWA' });
         titleSection.createSpan({ cls: 'pos-header-subtitle', text: 'Personal OS' });
 
-        // Actions
-        const actions = header.createDiv({ cls: 'pos-header-actions' });
+        // Actions - Desktop/Tablet only (mobile uses bottom action bar)
+        if (!isMobile) {
+            const actions = header.createDiv({ cls: 'pos-header-actions' });
 
-        // Mobile Search Toggle button
-        if (isMobile) {
-            const searchToggleBtn = actions.createEl('button', {
-                cls: `pos-icon-btn pos-mobile-search-toggle ${this._mobileSearchOpen || this._searchQuery ? 'is-active' : ''}`,
-                attr: { 'aria-label': 'Search notes' }
+            // Select mode toggle button
+            const selectBtn = actions.createEl('button', {
+                cls: `pos-header-text-btn ${this._selectionMode ? 'is-active' : ''}`,
+                text: this._selectionMode ? 'Done' : 'Select',
+                attr: { 'aria-label': this._selectionMode ? 'Exit selection mode' : 'Select notes to merge' }
             });
-            searchToggleBtn.setText('🔍');
-            searchToggleBtn.onclick = () => {
-                this._mobileSearchOpen = !this._mobileSearchOpen;
-                if (this._mobileSearchOpen) {
-                    this._activeFilter = 'all';
-                    this._filterTasksOnly = false;
-                } else {
-                    this._searchQuery = '';
+            selectBtn.onclick = () => {
+                this._selectionMode = !this._selectionMode;
+                if (!this._selectionMode) {
+                    this._selectedEntryIds.clear();
                 }
-                this._renderedCount = BATCH_SIZE;
-                this.renderHeaderBar(header);
-                this.updateComposerVisibility();
+                if (this._headerBarEl) this.renderHeaderBar(this._headerBarEl);
+                this.updateSelectionBar();
                 this.updateStreamOnly();
-                if (this._mobileSearchOpen) {
-                    setTimeout(() => {
-                        const input = header.querySelector<HTMLInputElement>('.pos-search-input');
-                        input?.focus();
-                    }, 60);
-                }
             };
 
-            // Obsidian Mobile Nav Bar Toggle button
-            const isNavHidden = document.body.hasClass('diwa-hide-mobile-navbar');
-            const navToggleBtn = actions.createEl('button', {
-                cls: `pos-icon-btn pos-mobile-nav-toggle ${!isNavHidden ? 'is-active' : ''}`,
-                attr: { 'aria-label': isNavHidden ? 'Show Obsidian navigation bar' : 'Hide Obsidian navigation bar' }
-            });
-            navToggleBtn.setText('📱');
-            navToggleBtn.onclick = () => {
-                document.body.toggleClass('diwa-hide-mobile-navbar', !isNavHidden);
-                new Notice(isNavHidden ? 'Obsidian navigation bar shown' : 'Obsidian navigation bar hidden');
-                this.renderHeaderBar(header);
-            };
-        }
-
-        // Select mode toggle button
-        const selectBtn = actions.createEl('button', {
-            cls: `pos-header-text-btn ${this._selectionMode ? 'is-active' : ''}`,
-            text: this._selectionMode ? 'Done' : 'Select',
-            attr: { 'aria-label': this._selectionMode ? 'Exit selection mode' : 'Select notes to merge' }
-        });
-        selectBtn.onclick = () => {
-            this._selectionMode = !this._selectionMode;
-            if (!this._selectionMode) {
-                this._selectedEntryIds.clear();
+            // Inbox Sweeper button
+            const untaggedCount = this.plugin.index.getUntaggedCount();
+            if (untaggedCount > 0) {
+                const sweeperBtn = actions.createEl('button', {
+                    cls: `pos-sweeper-btn ${this._activeFilter === 'untagged' ? 'is-active' : ''}`,
+                    text: `🧹 ${untaggedCount}`
+                });
+                sweeperBtn.onclick = () => {
+                    this._activeFilter = this._activeFilter === 'untagged' ? 'all' : 'untagged';
+                    this._renderedCount = BATCH_SIZE;
+                    this.updateFilterActiveStates();
+                    this.updateStreamOnly();
+                };
             }
-            if (this._headerBarEl) this.renderHeaderBar(this._headerBarEl);
-            this.updateSelectionBar();
-            this.updateStreamOnly();
-        };
 
-        // Inbox Sweeper button
-        const untaggedCount = this.plugin.index.getUntaggedCount();
-        if (untaggedCount > 0) {
-            const sweeperBtn = actions.createEl('button', {
-                cls: `pos-sweeper-btn ${this._activeFilter === 'untagged' ? 'is-active' : ''}`,
-                text: `🧹 ${untaggedCount}`
+            // Settings trigger
+            const settingsBtn = actions.createEl('button', {
+                cls: 'pos-icon-btn pos-settings-trigger',
+                attr: { 'aria-label': 'Settings' }
             });
-            sweeperBtn.onclick = () => {
-                this._activeFilter = this._activeFilter === 'untagged' ? 'all' : 'untagged';
-                this._renderedCount = BATCH_SIZE;
-                this.updateFilterActiveStates();
-                this.updateStreamOnly();
+            settingsBtn.setText('⚙️');
+            settingsBtn.onclick = () => {
+                (this.app as any).setting?.open();
+                (this.app as any).setting?.openTabById?.(this.plugin.manifest.id);
             };
         }
-
-        // Settings trigger
-        const settingsBtn = actions.createEl('button', {
-            cls: 'pos-icon-btn pos-settings-trigger',
-            attr: { 'aria-label': 'Settings' }
-        });
-        settingsBtn.setText('⚙️');
-        settingsBtn.onclick = () => {
-            (this.app as any).setting?.open();
-            (this.app as any).setting?.openTabById?.(this.plugin.manifest.id);
-        };
 
         // Search bar (always on desktop; expandable on mobile)
         if (!isMobile || this._mobileSearchOpen || this._searchQuery) {
@@ -532,6 +499,15 @@ export class DesktopHubView extends ItemView {
                 chip.toggleClass('is-active', filter === this._activeFilter);
             }
         });
+        const filterBtn = this._composerEl?.querySelector<HTMLElement>('.pos-mobile-action-filter');
+        if (filterBtn) {
+            const hasActiveFilter = this._activeFilter !== 'all' || this._filterTasksOnly;
+            filterBtn.toggleClass('is-active', this._mobileFiltersOpen || hasActiveFilter);
+        }
+        const searchBtn = this._composerEl?.querySelector<HTMLElement>('.pos-mobile-action-search');
+        if (searchBtn) {
+            searchBtn.toggleClass('is-active', this._mobileSearchOpen || Boolean(this._searchQuery));
+        }
     }
 
     public updateFilterCounts(): void {
@@ -598,13 +574,96 @@ export class DesktopHubView extends ItemView {
     }
 
     private renderComposer(parent: HTMLElement, isStickyMobile: boolean): void {
-        const composerWrapper = parent.createDiv({
-            cls: `pos-composer ${isStickyMobile ? 'pos-mobile-sticky-composer' : 'pos-desktop-composer'}`
-        });
-        this._composerEl = composerWrapper;
-
         if (isStickyMobile) {
-            // === MOBILE 2-ROW COMPACT FLOATING COMPOSER ===
+            if (this._composerEl && this._composerEl.parentElement === parent) {
+                this._composerEl.remove();
+            }
+
+            if (!this._mobileComposerOpen) {
+                // === MOBILE IDLE STATE: 1-ROW FLOATING ACTION BAR ===
+                const actionBar = parent.createDiv({
+                    cls: 'pos-mobile-action-bar'
+                });
+                this._composerEl = actionBar;
+
+                // 1. New Note Action (Expands floating composer)
+                const newBtn = actionBar.createEl('button', {
+                    cls: 'pos-mobile-action-btn pos-mobile-action-new is-primary',
+                    attr: { 'aria-label': 'Create new note', title: 'New note' }
+                });
+                setIcon(newBtn, 'plus');
+                newBtn.onclick = () => {
+                    this._mobileComposerOpen = true;
+                    this.renderComposer(parent, true);
+                };
+
+                // 2. Search Toggle Action (Icon only)
+                const isSearching = this._mobileSearchOpen || Boolean(this._searchQuery);
+                const searchBtn = actionBar.createEl('button', {
+                    cls: `pos-mobile-action-btn pos-mobile-action-search ${isSearching ? 'is-active' : ''}`,
+                    attr: { 'aria-label': 'Toggle search', title: 'Search' }
+                });
+                setIcon(searchBtn, 'search');
+                searchBtn.onclick = () => {
+                    this._mobileSearchOpen = !this._mobileSearchOpen;
+                    if (!this._mobileSearchOpen) {
+                        this._searchQuery = '';
+                    } else {
+                        this._activeFilter = 'all';
+                        this._filterTasksOnly = false;
+                    }
+                    this._renderedCount = BATCH_SIZE;
+                    if (this._headerBarEl) this.renderHeaderBar(this._headerBarEl);
+                    this.updateComposerVisibility();
+                    this.updateStreamOnly();
+                    this.updateFilterActiveStates();
+                    if (this._mobileSearchOpen) {
+                        setTimeout(() => {
+                            const input = this._headerBarEl?.querySelector<HTMLInputElement>('.pos-search-input');
+                            input?.focus();
+                        }, 60);
+                    }
+                };
+
+                // 3. Filter Toggle Action (Icon only)
+                const hasActiveFilter = this._activeFilter !== 'all' || this._filterTasksOnly;
+                const filterBtn = actionBar.createEl('button', {
+                    cls: `pos-mobile-action-btn pos-mobile-action-filter ${this._mobileFiltersOpen || hasActiveFilter ? 'is-active' : ''}`,
+                    attr: { 'aria-label': 'Toggle filter carousel', title: 'Filter' }
+                });
+                setIcon(filterBtn, 'sliders-horizontal');
+                filterBtn.onclick = () => {
+                    this._mobileFiltersOpen = !this._mobileFiltersOpen;
+                    if (this._filterBarEl) {
+                        this._filterBarEl.toggleClass('is-hidden', !this._mobileFiltersOpen);
+                    }
+                    filterBtn.toggleClass('is-active', this._mobileFiltersOpen || (this._activeFilter !== 'all' || this._filterTasksOnly));
+                };
+
+                // 4. Nav Bar Toggle Action (Icon only)
+                const isNavHidden = document.body.hasClass('diwa-hide-mobile-navbar');
+                const navBtn = actionBar.createEl('button', {
+                    cls: `pos-mobile-action-btn pos-mobile-action-nav ${!isNavHidden ? 'is-active' : ''}`,
+                    attr: { 'aria-label': isNavHidden ? 'Show Obsidian bottom navigation bar' : 'Hide Obsidian bottom navigation bar', title: 'Navigation' }
+                });
+                setIcon(navBtn, 'panel-bottom');
+                navBtn.onclick = () => {
+                    const nowHidden = !document.body.hasClass('diwa-hide-mobile-navbar');
+                    document.body.toggleClass('diwa-hide-mobile-navbar', nowHidden);
+                    navBtn.toggleClass('is-active', !nowHidden);
+                    navBtn.setAttribute('aria-label', nowHidden ? 'Show Obsidian bottom navigation bar' : 'Hide Obsidian bottom navigation bar');
+                    new Notice(nowHidden ? 'Obsidian navigation hidden' : 'Obsidian navigation shown');
+                };
+
+                return;
+            }
+
+            // === MOBILE ACTIVE STATE: 2-ROW FLOATING COMPOSER CAPSULE ===
+            const composerWrapper = parent.createDiv({
+                cls: 'pos-composer pos-mobile-sticky-composer'
+            });
+            this._composerEl = composerWrapper;
+
             const mainRow = composerWrapper.createDiv({ cls: 'pos-mobile-composer-main-row' });
 
             // 1. Full-Width Input pill container + textarea
@@ -622,17 +681,17 @@ export class DesktopHubView extends ItemView {
             });
             sendBtn.setText('↑');
 
-            // 3. Horizontal swipeable pills row: Task button + Life Areas
+            // 3. Horizontal swipeable pills row: Task button + Life Areas + Close
             const pillsRow = composerWrapper.createDiv({ cls: 'pos-mobile-composer-pills-row' });
 
-            // Task toggle pill in Row 2
+            // Task toggle pill
             const taskBtn = pillsRow.createEl('button', {
                 cls: 'pos-composer-area-pill pos-composer-task-pill',
                 attr: { 'aria-label': 'Insert task checkbox' }
             });
             taskBtn.setText('☑️ Task');
 
-            // Star toggle pill in Row 2
+            // Star toggle pill
             const starPill = pillsRow.createEl('button', {
                 cls: `pos-composer-area-pill pos-composer-star-pill ${this._selectedImportantForNewNote ? 'is-selected' : ''}`,
                 attr: { 'aria-label': 'Toggle important flag' }
@@ -656,6 +715,17 @@ export class DesktopHubView extends ItemView {
                     this.renderComposerPillSelection(composerWrapper);
                 };
             }
+
+            // Dismiss/Close button
+            const closeBtn = pillsRow.createEl('button', {
+                cls: 'pos-composer-area-pill pos-composer-close-pill',
+                attr: { 'aria-label': 'Close composer' }
+            });
+            closeBtn.setText('✕ Close');
+            closeBtn.onclick = () => {
+                this._mobileComposerOpen = false;
+                this.renderComposer(parent, true);
+            };
 
             // Restore draft
             const draft = this.plugin.capture.getDraft();
@@ -734,10 +804,8 @@ export class DesktopHubView extends ItemView {
                     textarea.value = '';
                     this._selectedAreaForNewNote = '';
                     this._selectedImportantForNewNote = false;
-                    starPill.removeClass('is-selected');
-                    starPill.setText('☆ Important');
-                    this.renderComposerPillSelection(composerWrapper);
-                    autoResize();
+                    this._mobileComposerOpen = false;
+                    this.renderComposer(parent, true);
                     new Notice('Note captured!');
                     this.updateFilterCounts();
                     this.updateStreamOnly();
@@ -758,13 +826,27 @@ export class DesktopHubView extends ItemView {
                 }
             };
 
-        } else {
-            // === DESKTOP HERO COMPOSER ===
-            const textarea = composerWrapper.createEl('textarea', {
-                cls: 'pos-composer-textarea pos-desktop-composer-textarea',
-                placeholder: 'What’s on your mind? Capture a thought, task (- [ ]), or note...',
-                attr: { rows: '2' }
-            });
+            setTimeout(() => {
+                if (textarea.isConnected) {
+                    textarea.focus();
+                    autoResize();
+                }
+            }, 60);
+
+            return;
+        }
+
+        // === DESKTOP / TABLET HERO COMPOSER ===
+        const composerWrapper = parent.createDiv({
+            cls: 'pos-composer pos-desktop-composer'
+        });
+        this._composerEl = composerWrapper;
+
+        const textarea = composerWrapper.createEl('textarea', {
+            cls: 'pos-composer-textarea pos-desktop-composer-textarea',
+            placeholder: 'What’s on your mind? Capture a thought, task (- [ ]), or note...',
+            attr: { rows: '2' }
+        });
 
             // Restore draft
             const draft = this.plugin.capture.getDraft();
@@ -916,7 +998,6 @@ export class DesktopHubView extends ItemView {
                     void doSave();
                 }
             };
-        }
     }
 
     private renderComposerPillSelection(container: HTMLElement): void {

@@ -1,12 +1,20 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Star & Filter System (Important Notes) Deployed
+## Current Phase: Mobile Floating Action Bar & Header Clean-Up Deployed
 
 ---
 
 ## Completed Roadmap Checklist
 
-### 0. Star & Filter System (Important Notes)
+### 0. Mobile Floating Action Dock & Expandable Composer
+*   [x] **Sleek Frosted Floating Dock (`.pos-mobile-action-bar`)** — Compact centered floating island (`backdrop-filter: blur(28px) saturate(180%)`) with 4 icon-only buttons (**➕**, **🔍**, **🏷️**, **📱**).
+*   [x] **Expandable Floating Composer on ➕** — Tapping **➕** transitions smoothly into the floating 2-row composer capsule (`.pos-mobile-sticky-composer`) with auto-expanding textarea, `[ ↑ ]` send button, `☑️ Task`, `⭐ Important`, Life Area chips, draft restoration, and `✕ Close` dismiss pill.
+*   [x] **Mobile Top Header Clean-Up** — Removed redundant buttons (Select, Sweeper, Settings, Nav toggle) from `.pos-header-bar` on phones.
+*   [x] **On-Demand Filter Carousel** — Filter carousel hidden by default on phones, expanding smoothly on tap.
+*   [x] **Desktop / iPad Protected** — Desktop and iPad retain full header actions and hero composer intact.
+*   [x] **Build & Vault Deployed** — Clean compile with `npm run build` (0 errors) and deployed to `/Users/K26/Obsidian/K0000` & `K0001`.
+
+### 0.1. Star & Filter System (Important Notes)
 *   [x] **1-Tap Star Marking (`⭐` / `☆`)** — Added `.pos-star-btn` to note stream cards with optimistic UI updating and atomic frontmatter mutation (`toggleNoteImportance()`).
 *   [x] **Immediate In-Memory Synchronous Cache Mutation** — `setCaptureImportance(filePath, newState)` mutates the in-memory cache directly and scrubs `#important`/`#star` tags synchronously, completely eliminating delay or stale rollbacks.
 *   [x] **Authoritative File Read in Indexing** — `IndexService.indexCaptureFile` reads directly from disk via `app.vault.read()` with raw `parseFrontmatterFallback()`, bypassing Obsidian's asynchronous `metadataCache` delay.

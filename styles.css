@@ -481,30 +481,30 @@
     border: none;
 }
 
-/* ── Mobile Sticky Floating Composer ── */
-.pos-mobile-sticky-composer {
+/* ── Mobile 1-Line Floating Action Bar ── */
+.pos-mobile-action-bar {
     position: fixed;
-    bottom: calc(env(safe-area-inset-bottom, 8px) + 8px);
-    left: 10px;
-    right: 10px;
+    bottom: calc(env(safe-area-inset-bottom, 8px) + 14px);
+    left: 50%;
+    transform: translateX(-50%);
     width: auto;
-    max-width: calc(100vw - 20px);
     box-sizing: border-box;
     z-index: 999;
-    padding: 8px 10px 6px 10px;
-    border-radius: 20px;
+    padding: 5px 8px;
+    border-radius: 9999px;
     background: var(--background-secondary-alt);
     border: 1px solid var(--background-modifier-border-faint);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    transition: bottom 0.2s ease, transform 0.2s ease;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.38), 0 2px 8px rgba(0, 0, 0, 0.18);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: bottom 0.22s cubic-bezier(0.4, 0, 0.2, 1), transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
 }
 
-.pos-mobile-sticky-composer.is-hidden {
+.pos-mobile-action-bar.is-hidden {
     display: none !important;
 }
 
@@ -515,9 +515,87 @@ body.diwa-hide-mobile-navbar .mobile-navbar-container {
     pointer-events: none !important;
 }
 
-/* When navigation bar IS visible on mobile, automatically lift the composer above it */
+/* When navigation bar IS visible on mobile, automatically lift the action bar above it */
+body:not(.diwa-hide-mobile-navbar) .pos-mobile-action-bar {
+    bottom: calc(var(--mobile-navbar-height, 56px) + env(safe-area-inset-bottom, 8px) + 14px);
+}
+
+.pos-mobile-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--diwa-transition);
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    padding: 0;
+}
+
+.pos-mobile-action-btn svg {
+    width: 21px;
+    height: 21px;
+    stroke-width: 2.1px;
+    transition: transform 0.15s ease;
+}
+
+.pos-mobile-action-btn:active {
+    transform: scale(0.92);
+    background: var(--background-modifier-hover);
+}
+
+.pos-mobile-action-btn.is-active {
+    color: var(--interactive-accent);
+    background: var(--background-primary);
+    border-color: var(--background-modifier-border);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+
+.pos-mobile-action-btn.is-primary {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: transparent;
+    box-shadow: 0 4px 14px rgba(var(--interactive-accent-rgb), 0.4);
+}
+
+.pos-mobile-action-btn.is-primary:active {
+    background: var(--interactive-accent-hover, var(--interactive-accent));
+    transform: scale(0.92);
+}
+
+/* ── Mobile Sticky Floating Composer (Expanded Active State) ── */
+.pos-mobile-sticky-composer {
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom, 8px) + 12px);
+    left: 10px;
+    right: 10px;
+    width: auto;
+    max-width: calc(100vw - 20px);
+    box-sizing: border-box;
+    z-index: 999;
+    padding: 8px 10px 6px 10px;
+    border-radius: 20px;
+    background: var(--background-secondary-alt);
+    border: 1px solid var(--background-modifier-border-faint);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.38), 0 2px 8px rgba(0, 0, 0, 0.18);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: bottom 0.22s cubic-bezier(0.4, 0, 0.2, 1), transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+}
+
 body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
-    bottom: calc(var(--mobile-navbar-height, 56px) + env(safe-area-inset-bottom, 8px) + 10px);
+    bottom: calc(var(--mobile-navbar-height, 56px) + env(safe-area-inset-bottom, 8px) + 12px);
 }
 
 .pos-mobile-composer-main-row {
@@ -648,6 +726,20 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
     color: #1a1a1a !important;
     border-color: #eab308 !important;
     font-weight: 600 !important;
+}
+
+.pos-composer-close-pill {
+    color: var(--text-muted) !important;
+    background: var(--background-secondary) !important;
+    border: 1px dashed var(--background-modifier-border) !important;
+    margin-left: auto;
+    cursor: pointer;
+}
+
+.pos-composer-close-pill:active {
+    background: var(--background-modifier-hover) !important;
+    color: var(--text-normal) !important;
+    transform: scale(0.95);
 }
 
 /* ── Continuous Document Stream ── */
