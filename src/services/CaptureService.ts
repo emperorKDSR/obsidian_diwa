@@ -395,30 +395,6 @@ export class CaptureService {
         });
     }
 
-    /**
-     * Converts a note line into a task checkbox (- [ ] ...).
-     */
-    async convertLineToTask(filePath: string, lineIndex: number): Promise<void> {
-        const file = this.app.vault.getAbstractFileByPath(filePath);
-        if (!(file instanceof TFile)) {
-            throw new Error(`File not found: ${filePath}`);
-        }
-
-        await this.app.vault.process(file, (content) => {
-            const isCrlf = content.includes('\r\n');
-            const newline = isCrlf ? '\r\n' : '\n';
-            const lines = content.split(/\r?\n/);
-
-            if (lineIndex >= 0 && lineIndex < lines.length) {
-                const line = lines[lineIndex];
-                if (!/^\s*-\s*\[[ xX]\]/.test(line)) {
-                    lines[lineIndex] = `- [ ] ${line.trim()}`;
-                }
-            }
-            return lines.join(newline);
-        });
-    }
-
     private getDraftKey(): string {
         const appId = (this.app as any).appId ?? 'default';
         return `diwa-scratchpad-draft-${appId}`;

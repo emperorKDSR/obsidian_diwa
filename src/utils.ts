@@ -1,22 +1,9 @@
-import { App, Platform, moment, Notice } from 'obsidian';
+import { App, Platform, moment } from 'obsidian';
 import * as chrono from 'chrono-node';
 import { FileSuggestModal } from './modals/FileSuggestModal';
 import { ContextSuggestModal } from './modals/ContextSuggestModal';
 import { PersonSuggestModal } from './modals/PersonSuggestModal';
 import { createVaultBinaryFile, normalizeVaultRelativePath } from './utils/vaultFiles';
-
-/** Convert any locale-specific digit characters to ASCII 0-9.
- *  Covers Arabic-Indic (٠-٩), Persian (۰-۹), Devanagari (०-९),
- *  Bengali (০-৯), and Thai (๐-๙) so stored timestamps are always plain numbers
- *  regardless of the device's locale setting. */
-export function toAsciiDigits(s: string): string {
-    return s
-        .replace(/[\u0660-\u0669]/g, c => String(c.charCodeAt(0) - 0x0660))
-        .replace(/[\u06F0-\u06F9]/g, c => String(c.charCodeAt(0) - 0x06F0))
-        .replace(/[\u0966-\u096F]/g, c => String(c.charCodeAt(0) - 0x0966))
-        .replace(/[\u09E6-\u09EF]/g, c => String(c.charCodeAt(0) - 0x09E6))
-        .replace(/[\u0E50-\u0E59]/g, c => String(c.charCodeAt(0) - 0x0E50));
-}
 
 const TABLET_VIEWPORT_SHORT_EDGE_PX = 768;
 
@@ -61,11 +48,6 @@ export function isTablet(app?: App): boolean {
     if (!isMobile) return false;
     const { width, height } = getWorkspaceViewportSize(app);
     return Math.min(width, height) >= TABLET_VIEWPORT_SHORT_EDGE_PX;
-}
-
-/** Parse a context string like "#work #personal" into ["work", "personal"] */
-export function parseContextString(ctxStr: string): string[] {
-    return ctxStr.split('#').map(c => c.trim()).filter(c => c.length > 0);
 }
 
 export function parseNaturalDate(text: string): string | null {
@@ -327,112 +309,4 @@ function insertAtCursor(textarea: HTMLTextAreaElement | HTMLInputElement, link: 
     const nextPos = start + insertText.length;
     textarea.setSelectionRange(nextPos, nextPos);
     textarea.dispatchEvent(new Event('input'));
-}
-
-export interface ThoughtCaptureOptions {
-    app: App;
-    containerCls: string;
-    textareaCls: string;
-    chipCls: string;
-    placeholder: string;
-    getContexts?: () => string[];
-    initialContexts?: string[];
-    peopleFolder?: string;
-    attachmentsFolder?: () => string;
-    onSave: (text: string, contexts: string[]) => Promise<void>;
-    setPending: (v: number) => void;
-}
-
-export function createThoughtCaptureWidget(parent: HTMLElement, options: ThoughtCaptureOptions): void {
-    const {
-        app, containerCls, textareaCls, chipCls, placeholder,
-        getContexts, initialContexts, peopleFolder, attachmentsFolder, onSave, setPending
-    } = options;
-
-    const chipRow = parent.createEl('div', { cls: `${containerCls}-chip-row` });
-    let contexts: string[] = initialContexts ? [...initialContexts] : [];
-
-    const addChip = (tag: string) => {
-        if (contexts.includes(tag)) return;
-        contexts.push(tag);
-        const chip = chipRow.createEl('span', { cls: chipCls, text: `#${tag}` });
-        chip.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            contexts = contexts.filter(c => c !== tag);
-            chip.remove();
-        });
-    };
-
-    // Pre-render chips for any initial contexts
-    if (initialContexts) {
-        for (const ctx of initialContexts) addChip(ctx);
-    }
-
-    const textarea = parent.createEl('textarea', {
-        cls: textareaCls,
-        attr: { placeholder, rows: '1' }
-    }) as HTMLTextAreaElement;
-
-    const syncHeight = () => {
-        textarea.style.height = 'auto';
-        textarea.style.overflowY = 'hidden';
-        textarea.style.height = `${textarea.scrollHeight}px`;
-    };
-
-    textarea.addEventListener('focus', () => { setPending(1); syncHeight(); });
-    textarea.addEventListener('input', () => {
-        syncHeight();
-        setPending(textarea.value.trim().length > 0 ? 1 : 0);
-    });
-    textarea.addEventListener('keyup', syncHeight);
-
-    attachInlineTriggers(
-        app,
-        textarea,
-        () => {},
-        addChip,
-        getContexts,
-        peopleFolder,
-    );
-    if (attachmentsFolder) {
-        attachMediaPasteHandler(app, textarea, attachmentsFolder);
-    }
-
-    const save = async () => {
-        const raw = textarea.value.trim();
-        if (!raw) return;
-        const ctxSnapshot = [...contexts];
-        setPending(0);
-        textarea.value = '';
-        textarea.style.height = '';
-        textarea.style.overflowY = '';
-        contexts = [];
-        chipRow.empty();
-        await onSave(raw, ctxSnapshot);
-    };
-
-    textarea.addEventListener('keydown', (e: KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); }
-        if (e.key === 'Escape') {
-            textarea.value = '';
-            contexts = [];
-            chipRow.empty();
-            setPending(0);
-            textarea.blur();
-        }
-    });
-}
-
-export function getThoughtDisplayTitle(
-    thought: { title?: string; body?: string },
-    fallback: string = 'Untitled thought',
-): string {
-    if (thought.title && thought.title.trim() && thought.title !== 'Untitled thought') {
-        return thought.title.trim();
-    }
-    const body = (thought.body || '').trim();
-    if (!body) return fallback;
-    const firstLine = body.split('\n')[0].replace(/^[#\s\-*]+/, '').trim();
-    return firstLine.slice(0, 50) || fallback;
 }

@@ -1,4 +1,4 @@
-import { App, Modal, Notice, Setting, TFile } from 'obsidian';
+import { App, Modal, Notice, Setting } from 'obsidian';
 import type DiwaPlugin from '../main';
 import { CaptureEntry } from '../types';
 

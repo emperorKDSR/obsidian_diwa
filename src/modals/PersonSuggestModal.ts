@@ -1,6 +1,5 @@
-import { App, TFile, SuggestModal, Notice } from 'obsidian';
-import { createVaultFile } from '../services/VaultService';
-import { buildYamlFrontmatter } from '../utils/vaultFiles';
+import { App, TFile, SuggestModal } from 'obsidian';
+import { createVaultFile, buildYamlFrontmatter } from '../utils/vaultFiles';
 
 type PersonItem = TFile | { create: true; name: string };
 

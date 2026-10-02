@@ -13,16 +13,6 @@ export function normalizeConfiguredSettingPath(path: string | undefined, fallbac
     }
 }
 
-function joinConfiguredPath(...segments: string[]): string {
-    return normalizeVaultRelativePath(segments.filter(Boolean).join('/'), 'path');
-}
-
 export function getCanonicalCaptureFolder(settings: DiwaSettings): string {
     return normalizeConfiguredSettingPath(settings.captureFolder, DEFAULT_SETTINGS.captureFolder, 'captureFolder');
-}
-
-export function getCanonicalCapturePath(settings: DiwaSettings): string {
-    const folder = getCanonicalCaptureFolder(settings);
-    const file = normalizeConfiguredSettingPath((settings as any).captureFilePath, 'diwa.md', 'captureFilePath');
-    return joinConfiguredPath(folder, file);
 }

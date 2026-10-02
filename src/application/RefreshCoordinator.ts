@@ -1,6 +1,5 @@
 import { App, TFile } from 'obsidian';
 import { VIEW_TYPE_DESKTOP_HUB } from '../constants';
-import type { DiwaSettings } from '../types';
 import { DesktopHubView } from '../views/DesktopHubView';
 import type { IndexService } from '../services/IndexService';
 
@@ -17,23 +16,8 @@ export class RefreshCoordinator {
 
     constructor(
         private app: App,
-        private settings: DiwaSettings,
         private index: IndexService,
     ) {}
-
-    updateSettings(settings: DiwaSettings): void {
-        this.settings = settings;
-    }
-
-    suppressNotifyRefresh(ms = 1200): void {
-        const until = Date.now() + ms;
-        if (until > this._suppressNotifyRefreshUntil) this._suppressNotifyRefreshUntil = until;
-    }
-
-    /** Prevent immediate follow-up reindex calls from stale intermediate vault events. */
-    bumpReindexCooldown(filePath: string): void {
-        this._reindexCooldown.set(filePath, Date.now());
-    }
 
     async reindexFile(file: TFile, isMetadataChange = false): Promise<void> {
         // Deduplicate rapid repeat calls; raw vault 'modify' events within 300ms are coalesced,

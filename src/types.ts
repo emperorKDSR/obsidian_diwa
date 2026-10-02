@@ -39,14 +39,9 @@ export interface DiwaSettings {
     newNoteFolder: string;
     attachmentsFolder: string;
     peopleFolder: string;
-    thoughtsFolder?: string;
-    tasksFolder?: string;
-    pfFolder?: string;
-    reviewsFolder?: string;
     contexts: string[];
     hiddenContexts: string[];
     mobileBottomBarHeight: number;
-    legacyMigrated?: boolean;
 }
 
 export type FileOrCreate = TFile | string;

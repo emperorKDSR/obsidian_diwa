@@ -1,6 +1,6 @@
-import { App, TFile, Notice, SuggestModal } from 'obsidian';
+import { App, TFile, SuggestModal } from 'obsidian';
 import { FileOrCreate } from '../types';
-import { createVaultFile } from '../services/VaultService';
+import { createVaultFile } from '../utils/vaultFiles';
 
 export class FileSuggestModal extends SuggestModal<FileOrCreate> {
     onChoose: (file: TFile) => void;
@@ -49,7 +49,7 @@ export class FileSuggestModal extends SuggestModal<FileOrCreate> {
         }
     }
 
-    async onChooseSuggestion(item: FileOrCreate, evt: MouseEvent | KeyboardEvent) {
+    async onChooseSuggestion(item: FileOrCreate) {
         if (typeof item === 'string') {
             try {
                 const folder = this.newNoteFolder.trim().replace(/\/$/, '');

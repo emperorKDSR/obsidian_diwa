@@ -1,7 +1,7 @@
 import { App, TFile, moment } from 'obsidian';
 import { DiwaSettings, CaptureEntry, CaptureTaskItem } from '../types';
 import { extractWikiLinks } from '../utils/wikilinks';
-import { getCanonicalCapturePath, normalizeConfiguredSettingPath } from '../utils/settingsPaths';
+import { normalizeConfiguredSettingPath } from '../utils/settingsPaths';
 import { normalizeVaultRelativePath } from '../utils/vaultFiles';
 
 export class IndexService {
@@ -10,7 +10,6 @@ export class IndexService {
 
     captureIndex: Map<string, CaptureEntry> = new Map();
     private _lastIndexedCaptureFolderSetting: string = '';
-    private _lastIndexedCapturePath: string = '';
 
     constructor(app: App, settings: DiwaSettings) {
         this.app = app;
@@ -117,10 +116,6 @@ export class IndexService {
         return normalizedPath.toLowerCase().startsWith(`${normalizedFolder.toLowerCase()}/`);
     }
 
-    getConfiguredCapturePath(): string {
-        return getCanonicalCapturePath(this.settings);
-    }
-
     getConfiguredCaptureFolder(): string {
         return this.normalizeConfiguredPath(this.settings.captureFolder, '000 Bin/Diwa');
     }
@@ -135,13 +130,8 @@ export class IndexService {
         }
     }
 
-    async buildCaptureIndex(): Promise<void> {
-        await this.buildCaptureIndexInPlace();
-    }
-
     private async buildCaptureIndexInPlace(): Promise<void> {
         this._lastIndexedCaptureFolderSetting = this.getConfiguredCaptureFolder();
-        this._lastIndexedCapturePath = this.getConfiguredCapturePath();
         this.captureIndex.clear();
         const files = this.app.vault.getMarkdownFiles().filter(f => this.isCaptureFile(f.path));
         // Parallel indexing in chunks of 50 for max speed
@@ -253,10 +243,6 @@ export class IndexService {
 
     captureFolderChanged(): boolean {
         return this.getConfiguredCaptureFolder().toLowerCase() !== this._lastIndexedCaptureFolderSetting.toLowerCase();
-    }
-
-    captureLocationChanged(): boolean {
-        return this.getConfiguredCapturePath().toLowerCase() !== this._lastIndexedCapturePath.toLowerCase();
     }
 
     getAllCaptures(): CaptureEntry[] {

@@ -4,7 +4,6 @@ import { DiwaSettings } from './types';
 import { isTablet } from './utils';
 import { DesktopHubView } from './views/DesktopHubView';
 import { DiwaSettingTab } from './settings';
-import { VaultService } from './services/VaultService';
 import { IndexService } from './services/IndexService';
 import { CaptureService } from './services/CaptureService';
 import { RefreshCoordinator, type RefreshScope } from './application/RefreshCoordinator';
@@ -21,7 +20,6 @@ export default class DiwaPlugin extends Plugin {
     private initialBodyHadDesktopClass = false;
 
     // Services
-    vault: VaultService;
     index: IndexService;
     capture: CaptureService;
     refreshCoordinator: RefreshCoordinator;
@@ -38,10 +36,9 @@ export default class DiwaPlugin extends Plugin {
         this.applyDeviceBodyClasses();
 
         // Initialize Services
-        this.vault = new VaultService(this.app, this.settings);
         this.index = new IndexService(this.app, this.settings);
         this.capture = new CaptureService(this.app, this.settings);
-        this.refreshCoordinator = new RefreshCoordinator(this.app, this.settings, this.index);
+        this.refreshCoordinator = new RefreshCoordinator(this.app, this.index);
 
         this.app.workspace.onLayoutReady(async () => {
             if (this.unloading) return;
@@ -179,18 +176,6 @@ export default class DiwaPlugin extends Plugin {
         }
     }
 
-    async activateDesktopHub() {
-        await this.activateWorkspace();
-    }
-
-    async activateMobileHub() {
-        await this.activateWorkspace();
-    }
-
-    async activateTabletHub() {
-        await this.activateWorkspace();
-    }
-
     private async runStartupIndexBuild(startupToken: number): Promise<void> {
         try {
             await this.index.buildIndices();
@@ -275,10 +260,6 @@ export default class DiwaPlugin extends Plugin {
         });
     }
 
-    async activateView(_tabId?: string, _isDedicated: boolean = false) {
-        await this.activateWorkspace();
-    }
-
     async scanForContexts(startupToken?: number) {
         const foundContexts = await this.index.scanForContexts();
         if (startupToken !== undefined && !this.isStartupRunActive(startupToken)) return;
@@ -348,10 +329,8 @@ export default class DiwaPlugin extends Plugin {
     async saveSettings() {
         if (!this.settingsInitialized) return;
         await this.saveData(this.settings);
-        if (this.vault) this.vault.updateSettings(this.settings);
         if (this.index) this.index.updateSettings(this.settings);
         if (this.capture) this.capture.updateSettings(this.settings);
-        if (this.refreshCoordinator) this.refreshCoordinator.updateSettings(this.settings);
         this.applyMobileCssVars();
 
         const shouldRefreshCaptures = this.index?.captureFolderChanged() ?? false;

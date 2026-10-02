@@ -4,7 +4,12 @@
 
 ---
 
-## Completed Roadmap Checklist
+### 0. Deep Dead and Unused Code Pruning (Complete)
+*   [x] **Delete Dead Files & Services (3 Files / -426 Lines)** — Deleted `src/services/VaultService.ts` (-79 lines), `src/utils/imageZoom.ts` (-79 lines), and `src/modals/ImageLightboxModal.ts` (-268 lines). Routed `createVaultFile` directly through `src/utils/vaultFiles.ts`.
+*   [x] **Prune Dead Functions & Legacy Helpers** — Removed `createThoughtCaptureWidget`, `ThoughtCaptureOptions`, `getThoughtDisplayTitle`, `toAsciiDigits`, and `parseContextString` from `src/utils.ts`.
+*   [x] **Prune Unused Class Methods & Aliases** — Removed `activateDesktopHub`, `activateMobileHub`, `activateTabletHub`, `activateView` from `src/main.ts`; `convertLineToTask` from `src/services/CaptureService.ts`; `buildCaptureIndex`, `captureLocationChanged`, and `_lastIndexedCapturePath` from `src/services/IndexService.ts`; `suppressNotifyRefresh`, `bumpReindexCooldown`, and unread `settings` from `src/application/RefreshCoordinator.ts`; `refreshTasks`, `updateTaskPaneFromIndex`, and unused `hint` from `src/views/DesktopHubView.ts`.
+*   [x] **Clean Up Imports, Parameters & Obsolete Types** — Removed unused `Notice` / `TFile` imports and unreferenced modal parameters across `ContextSuggestModal`, `FileSuggestModal`, `MergeNotesModal`, `PersonSuggestModal`, and `WikilinkPeekModal`. Cleaned up `DiwaSettings` interface in `src/types.ts`.
+*   [x] **Zero Build & Lint Errors** — Verified with `npx tsc --noUnusedLocals --noUnusedParameters --noEmit --skipLibCheck` (0 errors) and `npm run build` (0 errors).
 
 ### 0. Comprehensive Legacy & Obsolete Code Pruning (Complete)
 *   [x] **Delete Dead Modals (18 Files / -5,202 Lines)** — Deleted `EditTaskModal.ts`, `EditEntryModal.ts`, `EditThoughtModal.ts`, `FastTaskCaptureModal.ts`, `MobilePostComposerModal.ts`, `PaymentModal.ts`, `InlineContextPickerModal.ts`, `CommentModal.ts`, `ZenCaptureModal.ts`, `FolderSettingsModal.ts`, `RenameNoteModal.ts`, `ViewCommentsModal.ts`, `NewDueModal.ts`, `ChooseNoteModal.ts`, `ConvertToTaskModal.ts`, `ThoughtPickerModal.ts`, `ConfirmModal.ts`, `NotePickerModal.ts`.

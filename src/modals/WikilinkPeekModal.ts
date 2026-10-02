@@ -2,24 +2,21 @@ import { App, Modal, TFile, MarkdownRenderer, Platform, setIcon, Notice, Compone
 import type DiwaPlugin from '../main';
 
 export class WikilinkPeekModal extends Modal {
-    private plugin: DiwaPlugin;
     private linkText: string;
     private sourcePath: string;
     private onFilterStream?: (target: string) => void;
     private targetFile: TFile | null = null;
     private cleanLinkName: string;
-    private subpath: string;
     private _renderComponent: Component = new Component();
 
     constructor(
         app: App,
-        plugin: DiwaPlugin,
+        _plugin: DiwaPlugin,
         linkText: string,
         sourcePath: string,
         onFilterStream?: (target: string) => void
     ) {
         super(app);
-        this.plugin = plugin;
         this.linkText = linkText;
         this.sourcePath = sourcePath;
         this.onFilterStream = onFilterStream;
@@ -28,10 +25,8 @@ export class WikilinkPeekModal extends Modal {
         const subIndex = linkText.indexOf('#');
         if (subIndex !== -1) {
             this.cleanLinkName = linkText.substring(0, subIndex);
-            this.subpath = linkText.substring(subIndex);
         } else {
             this.cleanLinkName = linkText;
-            this.subpath = '';
         }
 
         this.targetFile = this.app.metadataCache.getFirstLinkpathDest(this.cleanLinkName, this.sourcePath);

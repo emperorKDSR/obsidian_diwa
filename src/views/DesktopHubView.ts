@@ -170,16 +170,6 @@ export class DesktopHubView extends ItemView {
         this.renderView(false);
     }
 
-    refreshTasks(): void {
-        this.updateStreamOnly();
-        this.updateFilterCounts();
-    }
-
-    updateTaskPaneFromIndex(): void {
-        this.updateStreamOnly();
-        this.updateFilterCounts();
-    }
-
     refreshCapture(): void {
         this.updateStreamOnly();
         this.updateFilterCounts();
@@ -1045,7 +1035,7 @@ export class DesktopHubView extends ItemView {
             // Right controls: Save button & Shortcut hint
             const rightControls = toolbar.createDiv({ cls: 'pos-composer-right' });
             
-            const hint = rightControls.createSpan({
+            rightControls.createSpan({
                 cls: 'pos-composer-hint',
                 text: '⌘ Enter'
             });
@@ -1703,7 +1693,7 @@ export class DesktopHubView extends ItemView {
         menu.addItem((item) => {
             item.setTitle('🏷️ Set Life Area...')
                 .setIcon('tag')
-                .onClick((evt) => {
+                .onClick(() => {
                     const areaMenu = new Menu();
                     const areas = this.plugin.settings.lifeAreas || [];
                     for (const area of areas) {

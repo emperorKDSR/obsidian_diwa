@@ -41,7 +41,7 @@ export class ContextSuggestModal extends SuggestModal<string> {
         }
     }
 
-    onChooseSuggestion(item: string, evt: MouseEvent | KeyboardEvent) {
+    onChooseSuggestion(item: string) {
         if (item.startsWith('＋ Create "')) {
             const newContext = item.substring('＋ Create "'.length, item.length - 1);
             this.onChoose(newContext);
