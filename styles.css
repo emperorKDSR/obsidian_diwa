@@ -941,6 +941,23 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
     opacity: 0.8;
 }
 
+/* Autohide Life Area, Tag & Date reminder pills by default on idle */
+.pos-note-meta-left .pos-area-badge,
+.pos-note-meta-left .pos-tag-badge,
+.pos-note-meta-left .pos-date-badge {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform var(--diwa-transition), background var(--diwa-transition);
+}
+
+/* Reveal smoothly when hovering over the card */
+.pos-note-stream-item:hover .pos-note-meta-left .pos-area-badge,
+.pos-note-stream-item:hover .pos-note-meta-left .pos-tag-badge,
+.pos-note-stream-item:hover .pos-note-meta-left .pos-date-badge {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 .pos-area-badge {
     font-weight: 600;
     padding: 2px 7px;

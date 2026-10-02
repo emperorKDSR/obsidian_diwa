@@ -1,12 +1,18 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Journal Dead Code Removal Complete
+## Current Phase: Desktop Stream Autohide Pills Deployed
 
 ---
 
 ## Completed Roadmap Checklist
 
-### 0. Journal Dead Code Removal
+### 0. Desktop Stream Autohide Pills (Minimalist Stream)
+*   [x] **Autohide Badges on Idle** — Styled `.pos-area-badge`, `.pos-tag-badge`, and `.pos-date-badge` with `opacity: 0; pointer-events: none;` on idle.
+*   [x] **Hover Reveal Animation** — Smooth fade-in transition (`opacity: 1; pointer-events: auto;`) on `.pos-note-stream-item:hover`.
+*   [x] **Compact Minimalist Timeline** — Stream cards default to clean timestamp and body text without visual metadata clutter.
+*   [x] **Zero-Error Compilation** — Verified with `npm run build` (0 errors).
+
+### 0.1. Journal Dead Code Removal
 *   [x] **Delete Dead Files & Directory** — Deleted `src/modals/JournalEntryModal.ts` (-65 lines), `src/journal/JournalComposer.ts` (-70 lines), `src/journal/shared.ts` (-53 lines), and removed `src/journal/`.
 *   [x] **Relocate Core Utility** — Moved `getThoughtDisplayTitle` to `src/utils.ts`.
 *   [x] **Clean Up Types & Frontmatter** — Removed `journalType` from `ThoughtEntry` in `src/types.ts`, `IndexService.ts`, `VaultService.ts`, and `ThoughtController.ts`.
