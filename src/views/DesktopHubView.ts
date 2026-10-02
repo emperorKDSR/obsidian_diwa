@@ -5,7 +5,6 @@ import { CaptureEntry, ScratchpadFilterMode } from '../types';
 import { MergeNotesModal } from '../modals/MergeNotesModal';
 import { DatePickerModal } from '../modals/DatePickerModal';
 import { WikilinkPeekModal } from '../modals/WikilinkPeekModal';
-import { MobilePostComposerModal } from '../modals/MobilePostComposerModal';
 import { MobileFilterSheetModal } from '../modals/MobileFilterSheetModal';
 import { isTablet, attachInlineTriggers, attachMediaPasteHandler } from '../utils';
 import { attachMobileSheetViewportBehavior } from '../utils/mobileSheetViewport';

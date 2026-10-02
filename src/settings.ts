@@ -88,6 +88,16 @@ export class DiwaSettingTab extends PluginSettingTab {
                 });
             });
 
+        new Setting(containerEl)
+            .setName('People Folder')
+            .setDesc('Directory for people contact notes (triggered via `/` in composer).')
+            .addText(text => {
+                text.setPlaceholder('000 Bin/DIWA People');
+                bindDeferredTextSetting(text, this.plugin.settings.peopleFolder ?? '000 Bin/DIWA People', async (value) => {
+                    await this.plugin.updateSetting('peopleFolder', value);
+                });
+            });
+
         // ── 2. Life Areas Taxonomy ──
         containerEl.createEl('h3', { text: 'Life Areas Taxonomy' });
         const currentAreas = [...(this.plugin.settings.lifeAreas || [])];
@@ -189,58 +199,5 @@ export class DiwaSettingTab extends PluginSettingTab {
                     this.display();
                 }
             }));
-
-        // ── 5. Advanced Vault Folders ──
-        containerEl.createEl('h3', { text: 'Legacy & Advanced Folders' });
-
-        new Setting(containerEl)
-            .setName('Thoughts Folder')
-            .setDesc('Directory for standalone thought notes.')
-            .addText(text => {
-                text.setPlaceholder('000 Bin/DIWA');
-                bindDeferredTextSetting(text, this.plugin.settings.thoughtsFolder, async (value) => {
-                    await this.plugin.updateSetting('thoughtsFolder', value);
-                });
-            });
-
-        new Setting(containerEl)
-            .setName('Tasks Folder')
-            .setDesc('Directory for standalone task notes.')
-            .addText(text => {
-                text.setPlaceholder('000 Bin/DIWA Tasks');
-                bindDeferredTextSetting(text, this.plugin.settings.tasksFolder, async (value) => {
-                    await this.plugin.updateSetting('tasksFolder', value);
-                });
-            });
-
-        new Setting(containerEl)
-            .setName('Dues / Obligations Folder')
-            .setDesc('Directory for recurring dues and financial obligations.')
-            .addText(text => {
-                text.setPlaceholder('000 Bin/DIWA PF');
-                bindDeferredTextSetting(text, this.plugin.settings.pfFolder, async (value) => {
-                    await this.plugin.updateSetting('pfFolder', value);
-                });
-            });
-
-        new Setting(containerEl)
-            .setName('People Folder')
-            .setDesc('Directory for contact notes.')
-            .addText(text => {
-                text.setPlaceholder('000 Bin/DIWA People');
-                bindDeferredTextSetting(text, this.plugin.settings.peopleFolder ?? '000 Bin/DIWA People', async (value) => {
-                    await this.plugin.updateSetting('peopleFolder', value);
-                });
-            });
-
-        new Setting(containerEl)
-            .setName('Reviews Folder')
-            .setDesc('Root directory for periodic review notes.')
-            .addText(text => {
-                text.setPlaceholder('000 Bin/DIWA Reviews');
-                bindDeferredTextSetting(text, this.plugin.settings.reviewsFolder ?? '000 Bin/DIWA Reviews', async (value) => {
-                    await this.plugin.updateSetting('reviewsFolder', value);
-                });
-            });
     }
 }

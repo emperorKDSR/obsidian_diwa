@@ -3,11 +3,9 @@ import { VIEW_TYPE_DESKTOP_HUB } from '../constants';
 import type { DiwaSettings } from '../types';
 import { DesktopHubView } from '../views/DesktopHubView';
 import type { IndexService } from '../services/IndexService';
-import { getCanonicalCapturePath } from '../utils/settingsPaths';
 
-export type RefreshScope = 'all' | 'tasks' | 'thoughts' | 'capture';
+export type RefreshScope = 'all' | 'tasks' | 'capture';
 
-const TASK_ONLY_REFRESH_DEBOUNCE_MS = 400;
 const CAPTURE_REFRESH_DEBOUNCE_MS = 250;
 const DEFAULT_REFRESH_DEBOUNCE_MS = 400;
 
@@ -45,23 +43,12 @@ export class RefreshCoordinator {
         if (!isMetadataChange && (now - last < 300)) return;
         this._reindexCooldown.set(file.path, now);
 
-        const capPath = getCanonicalCapturePath(this.settings);
-
         if (this.index.isCaptureFile(file.path)) {
             await this.index.indexCaptureFile(file);
             this.notifyRefresh('capture');
-        } else if (this.index.isThoughtFile(file.path)) {
-            await this.index.indexThoughtFile(file);
-            this.notifyRefresh('thoughts');
-        } else if (this.index.isTaskFile(file.path)) {
-            await this.index.indexTaskFile(file);
-            this.notifyRefresh('tasks');
-        } else if (this.index.isDueFile(file.path)) {
-            this.index.indexDueFile(file);
+        } else {
             this.notifyRefresh('all');
         }
-
-        if (file.path === capPath) await this.index.buildChecklistIndex();
     }
 
     notifyRefresh(scope: RefreshScope = 'all'): void {
@@ -79,7 +66,7 @@ export class RefreshCoordinator {
 
         const debounceMs = this._pendingRefreshScope === 'capture'
             ? CAPTURE_REFRESH_DEBOUNCE_MS
-            : (this._pendingRefreshScope === 'tasks' ? TASK_ONLY_REFRESH_DEBOUNCE_MS : DEFAULT_REFRESH_DEBOUNCE_MS);
+            : DEFAULT_REFRESH_DEBOUNCE_MS;
         this._indexDebounceTimer = setTimeout(() => {
             this._indexDebounceTimer = null;
             this._dispatchRefresh();
@@ -104,10 +91,6 @@ export class RefreshCoordinator {
         for (const leaf of hubLeaves) {
             const view = leaf.view as DesktopHubView;
             if (view && typeof view.renderView === 'function') {
-                if (scope === 'tasks' && typeof view.refreshTasks === 'function') {
-                    view.refreshTasks();
-                    continue;
-                }
                 if (view._capturePending > 0 || view._taskPending > 0) continue;
                 if (scope === 'all' && typeof view.refreshAll === 'function') {
                     view.refreshAll();
@@ -122,7 +105,6 @@ export class RefreshCoordinator {
 
     private mergeRefreshScope(current: RefreshScope | null, next: RefreshScope): RefreshScope {
         if (!current || current === next) return next;
-        if (current === 'all' || next === 'all') return 'all';
         return 'all';
     }
 

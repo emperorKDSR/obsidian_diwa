@@ -26,25 +26,3 @@ export function getCanonicalCapturePath(settings: DiwaSettings): string {
     const file = normalizeConfiguredSettingPath((settings as any).captureFilePath, 'diwa.md', 'captureFilePath');
     return joinConfiguredPath(folder, file);
 }
-
-export function getCanonicalLegacyTasksCapturePath(settings: DiwaSettings): string {
-    const folder = getCanonicalCaptureFolder(settings);
-    const file = normalizeConfiguredSettingPath((settings as any).tasksFilePath, 'diwa_tasks.md', 'tasksFilePath');
-    return joinConfiguredPath(folder, file);
-}
-
-export function getCanonicalReviewsFolder(settings: DiwaSettings): string {
-    return normalizeConfiguredSettingPath(settings.reviewsFolder, DEFAULT_SETTINGS.reviewsFolder, 'reviewsFolder');
-}
-
-export function getCanonicalWeeklyReviewsFolder(settings: DiwaSettings): string {
-    return joinConfiguredPath(getCanonicalReviewsFolder(settings), 'Weekly');
-}
-
-export function getCanonicalWeeklyReviewPath(settings: DiwaSettings, weekId: string): string {
-    return joinConfiguredPath(getCanonicalWeeklyReviewsFolder(settings), `${weekId}.md`);
-}
-
-export function getCanonicalMonthlyGoalsPath(settings: DiwaSettings, monthId: string): string {
-    return joinConfiguredPath(getCanonicalReviewsFolder(settings), 'Monthly', `${monthId}.md`);
-}

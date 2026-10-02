@@ -3,19 +3,7 @@ import * as chrono from 'chrono-node';
 import { FileSuggestModal } from './modals/FileSuggestModal';
 import { ContextSuggestModal } from './modals/ContextSuggestModal';
 import { PersonSuggestModal } from './modals/PersonSuggestModal';
-import type { RecurrenceRule, TaskEntry } from './types';
 import { createVaultBinaryFile, normalizeVaultRelativePath } from './utils/vaultFiles';
-
-export function computeNextDue(currentDue: string, rule: RecurrenceRule): string {
-    const m = moment(currentDue, 'YYYY-MM-DD', true);
-    if (!m.isValid()) return moment().format('YYYY-MM-DD');
-    switch (rule) {
-        case 'daily':    return m.add(1, 'day').format('YYYY-MM-DD');
-        case 'weekly':   return m.add(1, 'week').format('YYYY-MM-DD');
-        case 'biweekly': return m.add(2, 'weeks').format('YYYY-MM-DD');
-        case 'monthly':  return m.add(1, 'month').format('YYYY-MM-DD');
-    }
-}
 
 /** Convert any locale-specific digit characters to ASCII 0-9.
  *  Covers Arabic-Indic (٠-٩), Persian (۰-۹), Devanagari (०-९),
@@ -89,17 +77,6 @@ export function parseNaturalDate(text: string): string | null {
     return null;
 }
 
-export function isTaskDone(task: TaskEntry): boolean {
-    const status = String(task.status || '').toLowerCase();
-    const state = String(task.state || '').toLowerCase();
-    const bucket = String(task.bucketStatus || '').toLowerCase();
-    const lifecycle = String(task.lifecycleStatus || '').toLowerCase();
-    return status === 'done'
-        || state === 'done'
-        || bucket === 'done'
-        || lifecycle === 'done'
-        || !!task.completedAt;
-}
 
 /**
  * Attach inline smart triggers to a capture textarea:

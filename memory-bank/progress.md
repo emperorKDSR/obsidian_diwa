@@ -1,12 +1,20 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Desktop Stream Autohide Pills Deployed
+## Current Phase: Comprehensive Legacy & Obsolete Code Pruning Complete
 
 ---
 
 ## Completed Roadmap Checklist
 
-### 0. Desktop Stream Autohide Pills (Minimalist Stream)
+### 0. Comprehensive Legacy & Obsolete Code Pruning (Complete)
+*   [x] **Delete Dead Modals (18 Files / -5,202 Lines)** — Deleted `EditTaskModal.ts`, `EditEntryModal.ts`, `EditThoughtModal.ts`, `FastTaskCaptureModal.ts`, `MobilePostComposerModal.ts`, `PaymentModal.ts`, `InlineContextPickerModal.ts`, `CommentModal.ts`, `ZenCaptureModal.ts`, `FolderSettingsModal.ts`, `RenameNoteModal.ts`, `ViewCommentsModal.ts`, `NewDueModal.ts`, `ChooseNoteModal.ts`, `ConvertToTaskModal.ts`, `ThoughtPickerModal.ts`, `ConfirmModal.ts`, `NotePickerModal.ts`.
+*   [x] **Delete Dead Utils (13 Files / -2,600 Lines)** — Deleted `editorFormatting.ts`, `weeklyReview.ts`, `taskScheduler.ts`, `taskEngine.ts`, `focusEngine.ts`, `taskComments.ts`, `canvasBuilder.ts`, `InlineTopicInput.ts`, `taskModel.ts`, `taskReflection.ts`, `taskAdapter.ts`, `base64.ts`, `topics.ts`.
+*   [x] **Delete Dead Services & Legacy Controllers (7 Files / -1,936 Lines)** — Deleted `TaskController.ts`, `ThoughtController.ts`, `ThoughtIndex.ts`, `ThoughtProcessor.ts`, `TaskLinkService.ts`, `TaskReflectionService.ts`, `FocusService.ts`.
+*   [x] **Streamline Core Services (`VaultService` & `IndexService`)** — Stripped obsolete Bulsa (dues), weekly reviews, comment blocks, and legacy task management methods. Focused `IndexService` strictly on fast `CaptureEntry` indexing and facet counts.
+*   [x] **Streamline Plugin Entrypoint & Settings (`main.ts`, `settings.ts`, `constants.ts`, `types.ts`)** — Stripped markdown table migration logic, `TaskIndexCompat` shim, unused icon registrations, legacy folder settings (`pfFolder`, `reviewsFolder`, `thoughtsFolder`, `tasksFolder`), and dead types.
+*   [x] **Zero Build Errors & Vault Deployed** — `npm run build` passed cleanly (0 errors); bundle deployed to `/Users/K26/Obsidian/K0000` & `K0001`.
+
+### 0.1. Desktop Stream Autohide Pills (Minimalist Stream)
 *   [x] **Autohide Badges on Idle** — Styled `.pos-area-badge`, `.pos-tag-badge`, and `.pos-date-badge` with `opacity: 0; pointer-events: none;` on idle.
 *   [x] **Hover Reveal Animation** — Smooth fade-in transition (`opacity: 1; pointer-events: auto;`) on `.pos-note-stream-item:hover`.
 *   [x] **Compact Minimalist Timeline** — Stream cards default to clean timestamp and body text without visual metadata clutter.
