@@ -1,4 +1,4 @@
-import { App, Modal, Notice } from 'obsidian';
+import { App, Modal, Notice, MarkdownRenderer } from 'obsidian';
 import type DiwaPlugin from '../main';
 import { DigestibleBlock } from '../types';
 import { FileSuggestModal } from './FileSuggestModal';
@@ -63,9 +63,15 @@ export class PreFlightDigestModal extends Modal {
                 });
             }
 
-            // Card Snippet
-            const snippet = card.createDiv({ cls: 'pos-preflight-snippet' });
-            snippet.setText(block.cleanText);
+            // Card Snippet (Render Markdown)
+            const snippet = card.createDiv({ cls: 'pos-preflight-snippet markdown-rendered' });
+            MarkdownRenderer.render(
+                this.app,
+                block.cleanText,
+                snippet,
+                block.sourceFilePath,
+                this.plugin
+            );
 
             // Routing Selector
             const routingRow = card.createDiv({ cls: 'pos-preflight-routing-row' });

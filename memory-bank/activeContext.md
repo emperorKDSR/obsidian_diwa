@@ -65,6 +65,7 @@
   - Interactive triage review displaying each block, task vs log pills, and destination pill selector (`[ 🟢 Primary Target ]`, candidate alternative links, `[ 🔍 Pick Note... ]` via `FileSuggestModal`, and `[ 📁 Keep in Scratchpad ]`).
   - Supports task routing to `## Tasks`, `Gawa Inbox`, or custom destination.
   - Keyboard shortcut: `Enter` executes digest.
+  - **Rich Markdown Rendering**: Block snippet previews render with `MarkdownRenderer.render(this.app, block.cleanText, snippet, block.sourceFilePath, this.plugin)`, showing pictures, embedded media (`![[...]]`), wikilinks, and formatting visually during triage review. Styled with `max-height: 260px` image containment.
 - **IndexService & Gawa Synergy (`IndexService.ts`)**:
   - `dateIndex: Map<string, Set<string>>`: In-memory secondary index for $O(1)$ daily note lookups.
   - `getDayDigestSummary` & `getMonthDigestSummary`: Fast summaries calculating digested vs pending counts and status dots.
