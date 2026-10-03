@@ -268,7 +268,9 @@ export class DesktopHubView extends ItemView {
 
         const titleSection = header.createDiv({ cls: 'pos-header-title-section' });
         titleSection.createSpan({ cls: 'pos-header-logo', text: 'DIWA' });
-        titleSection.createSpan({ cls: 'pos-header-subtitle', text: 'Personal OS' });
+        const horizonLabel = this.plugin.index?.getScratchpadHorizonLabel?.();
+        const subtitleText = horizonLabel && horizonLabel !== 'All Notes' ? `Personal OS · ${horizonLabel}` : 'Personal OS';
+        titleSection.createSpan({ cls: 'pos-header-subtitle', text: subtitleText });
 
         // Actions - Desktop/Tablet only (mobile uses bottom action bar)
         if (!isMobile) {
@@ -1120,10 +1122,11 @@ export class DesktopHubView extends ItemView {
     }
 
     private getFilteredCaptures(): CaptureEntry[] {
-        let entries = this.plugin.index?.getAllCaptures?.() || [];
+        const isSearching = Boolean(this._searchQuery.trim());
+        let entries = this.plugin.index?.getAllCaptures?.(isSearching) || [];
 
-        // 1. Search query filter (searches across all notes in workspace)
-        if (this._searchQuery.trim()) {
+        // 1. Search query filter (searches across all notes in workspace archive)
+        if (isSearching) {
             const query = this._searchQuery.toLowerCase().trim();
             if (query === 'is:important' || query === '!important' || query === '⭐') {
                 return entries.filter(e => this.plugin.index?.isImportant(e));
@@ -1138,11 +1141,11 @@ export class DesktopHubView extends ItemView {
             });
         }
 
-        // Exclude digested notes from continuous feed unless explicitly filtering by 'all' or 'digested'
-        if (this._activeFilter !== 'all' && this._activeFilter !== 'digested') {
-            entries = entries.filter(e => !e.digested);
-        } else if (this._activeFilter === 'digested') {
+        // Exclude digested notes from continuous scratchpad feed by default (Inbox Zero)
+        if (this._activeFilter === 'digested') {
             entries = entries.filter(e => Boolean(e.digested));
+        } else {
+            entries = entries.filter(e => !e.digested);
         }
 
         // 2. Task modifier filter (active when tasksOnly toggle is ON)
@@ -1207,8 +1210,11 @@ export class DesktopHubView extends ItemView {
             });
             emptyEl.createDiv({ cls: 'pos-empty-icon', text: trimmedQuery ? '🔍' : (this._filterTasksOnly ? '☑️' : '📝') });
 
+            const horizonLabel = this.plugin.index?.getScratchpadHorizonLabel?.();
             let emptyTitle = 'Your workspace is clean and ready';
-            let emptySubtitle = 'Type above to capture thoughts, ideas, or to-dos instantly.';
+            let emptySubtitle = (horizonLabel && horizonLabel !== 'All Notes')
+                ? `No notes captured in ${horizonLabel.toLowerCase()}. Type above to capture thoughts or to-dos.`
+                : 'Type above to capture thoughts, ideas, or to-dos instantly.';
 
             if (trimmedQuery) {
                 emptyTitle = `No notes matching "${trimmedQuery}"`;

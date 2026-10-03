@@ -1,8 +1,19 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Calendar Digest & Review View Built & Verified
+## Current Phase: Scratchpad Note Horizon (Rolling Window & Minimal Feed) Built & Verified
 
 ---
+
+### 0. Scratchpad Note Horizon & Rolling Window (Complete)
+*   [x] **Rolling Horizon Data Model (`src/types.ts` & `src/constants.ts`)** — Added `scratchpadHorizon: 'today' | '3d' | '7d' | '14d' | '30d' | 'all' | 'custom'` (default `'7d'`), `keepImportantInScratchpad: boolean` (default `true`), and `scratchpadCustomDate?: string`.
+*   [x] **Natural Language & ISO Date Parser (`src/utils/dateParsing.ts`)** — Created flexible date parser supporting `YYYY-MM-DD`, `August 1, 2026`, `Aug 1 2026`, and localized date formats via `moment` and `chrono-node`.
+*   [x] **Settings Tab UI (`src/settings.ts`)** — Added horizon dropdown selector in "Storage & Workspace", dynamic custom start date input with `📅 Pick Date` button (`DatePickerModal`) and `✕ Clear` button, and "Always Show Important Notes (⭐)" toggle.
+*   [x] **Index Horizon Filtering (`src/services/IndexService.ts`)** — Implemented `getScratchpadCutoffTimestamp()`, `getScratchpadHorizonLabel()`, and `isEntryInScratchpad()`. Automatically filters notes and synchronizes filter badge counts (`All Notes`, `Open Tasks`, `Important`, `Today`, `Upcoming`, `Untagged`, Life Areas).
+*   [x] **Global Search Archive Access (`DesktopHubView.ts`)** — Browsing feed respects rolling horizon; typing a search query automatically searches the entire vault archive (`getAllCaptures(true)`) so older notes are instantly searchable.
+*   [x] **Header Horizon Indicator & Empty State (`DesktopHubView.ts`)** — Displays active horizon in the header subtitle (e.g. `Personal OS · Last 7 Days`) and updates empty state messaging.
+*   [x] **Digested Note Exclusion Fix (`DesktopHubView.ts` & `IndexService.ts`)** — Corrected stream filter logic so `digested: true` notes are strictly hidden from the default `All Notes` feed, achieving true Inbox Zero upon note digestion.
+*   [x] **Zero Build & Lint Errors** — Passes `tsc --noEmit --skipLibCheck` and `npm run build` with zero errors.
+*   [x] **Vault Deployment** — Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin folders.
 
 ### 0. Calendar Digest & Review View (Complete)
 *   [x] **Master-Detail Calendar View (`CalendarDigestView.ts`)** — Implemented dedicated workspace leaf (`VIEW_TYPE_CALENDAR_DIGEST = 'diwa-calendar-digest'`) with interactive left calendar rail (~280px) and center stage note stream.

@@ -1,5 +1,8 @@
 import { App, PluginSettingTab, Setting, TextComponent } from 'obsidian';
 import type DiwaPlugin from './main';
+import { DatePickerModal } from './modals/DatePickerModal';
+import { parseDateToIso, formatDateForDisplay } from './utils/dateParsing';
+import { ScratchpadHorizon } from './types';
 
 export function bindDeferredTextSetting(
     text: TextComponent,
@@ -96,6 +99,78 @@ export class DiwaSettingTab extends PluginSettingTab {
                 bindDeferredTextSetting(text, this.plugin.settings.peopleFolder ?? '000 Bin/DIWA People', async (value) => {
                     await this.plugin.updateSetting('peopleFolder', value);
                 });
+            });
+
+        // Scratchpad Note Horizon
+        const currentHorizon = this.plugin.settings.scratchpadHorizon || '7d';
+        new Setting(containerEl)
+            .setName('Scratchpad Note Horizon')
+            .setDesc('Time window of notes displayed in the DIWA Workspace / Scratchpad. Global search continues to search across all notes.')
+            .addDropdown(drop => {
+                drop
+                    .addOption('today', '📅 Today only')
+                    .addOption('3d', '🗓️ Last 3 days')
+                    .addOption('7d', '⚡ Last 7 days (Recommended)')
+                    .addOption('14d', '📆 Last 14 days')
+                    .addOption('30d', '🗓️ Last 30 days')
+                    .addOption('all', '📋 All notes (No time limit)')
+                    .addOption('custom', '🎯 Specific date onwards...')
+                    .setValue(currentHorizon)
+                    .onChange(async (val) => {
+                        await this.plugin.updateSetting('scratchpadHorizon', val as ScratchpadHorizon, 'all');
+                        this.display();
+                    });
+            });
+
+        if (currentHorizon === 'custom') {
+            const customDateSetting = new Setting(containerEl)
+                .setName('Custom Start Date')
+                .setDesc('Only display notes created on or after this date (e.g. August 1, 2026 or 2026-08-01).');
+
+            customDateSetting.addText(text => {
+                text.setPlaceholder('YYYY-MM-DD or August 1, 2026');
+                const rawVal = this.plugin.settings.scratchpadCustomDate || '';
+                text.setValue(rawVal);
+                bindDeferredTextSetting(text, rawVal, async (val) => {
+                    const parsed = parseDateToIso(val);
+                    const toSave = parsed || val.trim();
+                    await this.plugin.updateSetting('scratchpadCustomDate', toSave, 'all');
+                    this.display();
+                });
+            });
+
+            customDateSetting.addButton(btn => {
+                btn.setButtonText('📅 Pick Date')
+                    .onClick(() => {
+                        const initialIso = parseDateToIso(this.plugin.settings.scratchpadCustomDate) || '';
+                        new DatePickerModal(this.app, initialIso, async (chosen) => {
+                            await this.plugin.updateSetting('scratchpadCustomDate', chosen, 'all');
+                            this.display();
+                        }).open();
+                    });
+            });
+
+            if (this.plugin.settings.scratchpadCustomDate) {
+                customDateSetting.addButton(btn => {
+                    btn.setButtonText('✕ Clear')
+                        .setWarning()
+                        .onClick(async () => {
+                            await this.plugin.updateSetting('scratchpadCustomDate', '', 'all');
+                            this.display();
+                        });
+                });
+            }
+        }
+
+        new Setting(containerEl)
+            .setName('Always Show Important Notes (⭐)')
+            .setDesc('Keep notes marked with ⭐ Important visible in the workspace stream regardless of their age.')
+            .addToggle(toggle => {
+                toggle
+                    .setValue(this.plugin.settings.keepImportantInScratchpad !== false)
+                    .onChange(async (val) => {
+                        await this.plugin.updateSetting('keepImportantInScratchpad', val, 'all');
+                    });
             });
 
         // ── 2. Life Areas Taxonomy ──

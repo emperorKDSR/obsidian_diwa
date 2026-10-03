@@ -3,6 +3,7 @@ import { DiwaSettings, CaptureEntry, CaptureTaskItem, GawaTaskRecord, GawaSubtas
 import { extractWikiLinks } from '../utils/wikilinks';
 import { normalizeConfiguredSettingPath } from '../utils/settingsPaths';
 import { normalizeVaultRelativePath } from '../utils/vaultFiles';
+import { parseDateToIso, formatDateForDisplay } from '../utils/dateParsing';
 
 export class IndexService {
     app: App;
@@ -166,7 +167,31 @@ export class IndexService {
         const cache = this.app.metadataCache.getFileCache(file);
         const fm = fallbackFm ?? (cache?.frontmatter as Record<string, unknown> | undefined) ?? {};
 
-        const createdStr = String(fm.created || '');
+        let createdStr = String(fm.created || '').trim();
+        if (!createdStr && fm.createdAt && Number.isFinite(Number(fm.createdAt))) {
+            createdStr = moment(Number(fm.createdAt)).format('YYYY-MM-DDTHH:mm:ss');
+        }
+        if (!createdStr && fm.day) {
+            const rawDay = String(fm.day).replace(/\[\[|\]\]/g, '').trim();
+            if (moment(rawDay, 'YYYY-MM-DD', true).isValid()) {
+                createdStr = `${rawDay}T00:00:00`;
+            }
+        }
+        if (!createdStr) {
+            const dateIsoMatch = file.basename.match(/^(\d{4}-\d{2}-\d{2})/);
+            if (dateIsoMatch && moment(dateIsoMatch[1], 'YYYY-MM-DD', true).isValid()) {
+                createdStr = `${dateIsoMatch[1]}T00:00:00`;
+            } else {
+                const compactMatch = file.basename.match(/^(\d{4})(\d{2})(\d{2})/);
+                if (compactMatch) {
+                    const formatted = `${compactMatch[1]}-${compactMatch[2]}-${compactMatch[3]}`;
+                    if (moment(formatted, 'YYYY-MM-DD', true).isValid()) {
+                        createdStr = `${formatted}T00:00:00`;
+                    }
+                }
+            }
+        }
+
         const modifiedStr = String(fm.modified || '');
         let createdAtMs = createdStr ? moment(createdStr).valueOf() : file.stat.ctime;
         if (isNaN(createdAtMs) || createdAtMs === 0) {
@@ -416,8 +441,88 @@ export class IndexService {
         return this.getConfiguredCaptureFolder().toLowerCase() !== this._lastIndexedCaptureFolderSetting.toLowerCase();
     }
 
-    getAllCaptures(): CaptureEntry[] {
-        return Array.from(this.captureIndex.values()).sort((a, b) => b.createdAtMs - a.createdAtMs);
+    getScratchpadCutoffTimestamp(): number | null {
+        const horizon = this.settings.scratchpadHorizon || '7d';
+        if (horizon === 'all') return null;
+
+        if (horizon === 'custom') {
+            const customIso = parseDateToIso(this.settings.scratchpadCustomDate);
+            if (!customIso) return null;
+            return moment(customIso, 'YYYY-MM-DD').startOf('day').valueOf();
+        }
+
+        const now = moment().startOf('day');
+        switch (horizon) {
+            case 'today':
+                return now.valueOf();
+            case '3d':
+                return now.subtract(3, 'days').valueOf();
+            case '7d':
+                return now.subtract(7, 'days').valueOf();
+            case '14d':
+                return now.subtract(14, 'days').valueOf();
+            case '30d':
+                return now.subtract(30, 'days').valueOf();
+            default:
+                return now.subtract(7, 'days').valueOf();
+        }
+    }
+
+    getScratchpadHorizonLabel(): string {
+        const horizon = this.settings.scratchpadHorizon || '7d';
+        switch (horizon) {
+            case 'today': return 'Today';
+            case '3d': return 'Last 3 Days';
+            case '7d': return 'Last 7 Days';
+            case '14d': return 'Last 14 Days';
+            case '30d': return 'Last 30 Days';
+            case 'all': return 'All Notes';
+            case 'custom': {
+                const customIso = parseDateToIso(this.settings.scratchpadCustomDate);
+                return customIso ? `From ${formatDateForDisplay(customIso)}` : 'Custom Date';
+            }
+            default: return 'Last 7 Days';
+        }
+    }
+
+    isEntryInScratchpad(entry: CaptureEntry | null | undefined): boolean {
+        if (!entry) return false;
+
+        // Digested notes leave the continuous scratchpad inbox (Inbox Zero)
+        if (entry.digested) {
+            return false;
+        }
+
+        // Important / Starred notes always stay in scratchpad if keepImportantInScratchpad is enabled
+        if (this.settings.keepImportantInScratchpad !== false && this.isImportant(entry)) {
+            return true;
+        }
+
+        const cutoffMs = this.getScratchpadCutoffTimestamp();
+        if (cutoffMs === null) return true;
+
+        if (entry.createdAtMs && entry.createdAtMs >= cutoffMs) {
+            return true;
+        }
+
+        if (entry.created) {
+            const entryMs = moment(entry.created).valueOf();
+            if (!isNaN(entryMs) && entryMs >= cutoffMs) {
+                return true;
+            }
+            const cutoffDateStr = moment(cutoffMs).format('YYYY-MM-DD');
+            if (entry.created.slice(0, 10) >= cutoffDateStr) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    getAllCaptures(ignoreHorizon: boolean = false): CaptureEntry[] {
+        const all = Array.from(this.captureIndex.values()).sort((a, b) => b.createdAtMs - a.createdAtMs);
+        if (ignoreHorizon) return all;
+        return all.filter(e => this.isEntryInScratchpad(e));
     }
 
     hasOpenTasks(entry: CaptureEntry | null | undefined): boolean {
@@ -688,6 +793,7 @@ export class IndexService {
     getOpenTaskCount(): number {
         let count = 0;
         for (const entry of this.captureIndex.values()) {
+            if (!this.isEntryInScratchpad(entry)) continue;
             const tasks = Array.isArray(entry?.tasks) ? entry.tasks : [];
             for (const t of tasks) {
                 if (t && !t.completed) count++;
@@ -699,6 +805,7 @@ export class IndexService {
     getOpenTaskNoteCount(): number {
         let count = 0;
         for (const entry of this.captureIndex.values()) {
+            if (!this.isEntryInScratchpad(entry)) continue;
             if (this.hasOpenTasks(entry)) count++;
         }
         return count;
@@ -729,7 +836,7 @@ export class IndexService {
     getImportantCount(tasksOnly: boolean = false): number {
         let count = 0;
         for (const entry of this.captureIndex.values()) {
-            if (!entry) continue;
+            if (!entry || !this.isEntryInScratchpad(entry)) continue;
             if (tasksOnly && !this.hasOpenTasks(entry)) continue;
             if (this.isImportant(entry)) count++;
         }
@@ -739,7 +846,7 @@ export class IndexService {
     getUntaggedCount(tasksOnly: boolean = false): number {
         let count = 0;
         for (const entry of this.captureIndex.values()) {
-            if (!entry) continue;
+            if (!entry || !this.isEntryInScratchpad(entry)) continue;
             if (tasksOnly && !this.hasOpenTasks(entry)) continue;
             const area = String(entry.area || '').trim();
             const tags = Array.isArray(entry.tags) ? entry.tags : [];
@@ -753,7 +860,7 @@ export class IndexService {
     getAreaCounts(tasksOnly: boolean = false): Record<string, number> {
         const counts: Record<string, number> = {};
         for (const entry of this.captureIndex.values()) {
-            if (!entry) continue;
+            if (!entry || !this.isEntryInScratchpad(entry)) continue;
             if (tasksOnly && !this.hasOpenTasks(entry)) continue;
             const area = String(entry.area || '').toLowerCase().trim();
             if (area) {
@@ -797,6 +904,7 @@ export class IndexService {
         const todayStr = this.getTodayDateStr();
         let count = 0;
         for (const entry of this.captureIndex.values()) {
+            if (!entry || !this.isEntryInScratchpad(entry)) continue;
             if (tasksOnly && !this.hasOpenTasks(entry)) continue;
             const dates = Array.isArray(entry?.allDates) ? entry.allDates : [];
             if (dates.includes(todayStr)) {
@@ -809,6 +917,7 @@ export class IndexService {
     getUpcomingCapturesCount(tasksOnly: boolean = false): number {
         let count = 0;
         for (const entry of this.captureIndex.values()) {
+            if (!entry || !this.isEntryInScratchpad(entry)) continue;
             if (tasksOnly && !this.hasOpenTasks(entry)) continue;
             const dates = Array.isArray(entry?.allDates) ? entry.allDates : [];
             if (dates.some(d => this.isDateFuture(d))) {

@@ -381,6 +381,21 @@ export default class DiwaPlugin extends Plugin {
             shouldPersistSanitizedSettings = true;
         }
         this.settings.mobileBottomBarHeight = sanitizedMobileBottomBarHeight;
+
+        const validHorizons = ['today', '3d', '7d', '14d', '30d', 'all', 'custom'];
+        if (!validHorizons.includes(this.settings.scratchpadHorizon)) {
+            this.settings.scratchpadHorizon = '7d';
+            shouldPersistSanitizedSettings = true;
+        }
+        if (typeof this.settings.keepImportantInScratchpad !== 'boolean') {
+            this.settings.keepImportantInScratchpad = true;
+            shouldPersistSanitizedSettings = true;
+        }
+        if (typeof this.settings.scratchpadCustomDate !== 'string') {
+            this.settings.scratchpadCustomDate = '';
+            shouldPersistSanitizedSettings = true;
+        }
+
         this.settingsInitialized = true;
         if (shouldPersistSanitizedSettings) {
             await this.saveData(this.settings);

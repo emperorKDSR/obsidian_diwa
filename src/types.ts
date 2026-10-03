@@ -80,6 +80,8 @@ export interface DayDigestSummary {
     status: 'empty' | 'raw' | 'partial' | 'digested';
 }
 
+export type ScratchpadHorizon = 'today' | '3d' | '7d' | '14d' | '30d' | 'all' | 'custom';
+
 export interface DiwaSettings {
     captureFolder: string;
     lifeAreas: LifeArea[];
@@ -89,6 +91,9 @@ export interface DiwaSettings {
     contexts: string[];
     mobileBottomBarHeight: number;
     trackedTaskFiles?: string[];
+    scratchpadHorizon: ScratchpadHorizon;
+    scratchpadCustomDate?: string;
+    keepImportantInScratchpad: boolean;
 }
 
 export type FileOrCreate = TFile | string;

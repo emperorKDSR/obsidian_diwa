@@ -1,6 +1,20 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Calendar Digest & Review View Deployed
+## Current State: Scratchpad Note Horizon (Rolling Window & Minimal Feed) Deployed
+- **Scratchpad Note Horizon Setting**:
+  - Implemented configurable rolling retention windows in `DiwaSettings`: `'today'`, `'3d'`, `'7d'` (default/recommended), `'14d'`, `'30d'`, `'all'`, and `'custom'`.
+  - Added "Always Show Important Notes (⭐)" toggle (default: `true`), keeping starred thoughts and tasks visible in the scratchpad regardless of note age.
+  - Added flexible date parser in `src/utils/dateParsing.ts` supporting standard ISO dates (`YYYY-MM-DD`) and natural language phrases (`August 1, 2026`, `Aug 1 2026`) via `moment` and `chrono-node`.
+  - Settings UI (`DiwaSettingTab`): Dropdown horizon selector, custom start date text input, `📅 Pick Date` modal trigger (`DatePickerModal`), `✕ Clear` reset button, and live filter description.
+- **Index & Horizon Filtering (`IndexService.ts`)**:
+  - `getScratchpadCutoffTimestamp()` computes rolling start-of-day timestamps automatically.
+  - `isEntryInScratchpad(entry)` evaluates entries against cutoff timestamp while respecting `keepImportantInScratchpad`.
+  - `getAllCaptures(ignoreHorizon?: boolean)`: Browsing respects rolling horizon; global search (`ignoreHorizon: true`) searches the entire vault capture archive so older notes are never lost.
+  - Scratchpad count badges (`All Notes`, `Open Tasks`, `Important`, `Today`, `Upcoming`, `Untagged`, Life Areas) accurately reflect notes within the active horizon.
+- **Workspace Feed & Empty State (`DesktopHubView.ts`)**:
+  - Header displays active horizon badge (e.g. `Personal OS · Last 7 Days`).
+  - Empty state informs user when no notes were captured within the active horizon window.
+  - **Digested Notes Inbox Zero Fix**: Enforced strict exclusion of `digested: true` notes from the default continuous scratchpad feed (`All Notes`). Digested notes immediately leave the scratchpad upon digestion and remain accessible in Calendar Digest history or when explicitly filtering by `digested`.
 - **Calendar Digest & Review Architecture Deployed (`VIEW_TYPE_CALENDAR_DIGEST = 'diwa-calendar-digest'`)**:
   - Created `src/views/CalendarDigestView.ts` implementing the master-detail split-pane layout:
     - Left Rail (~280px–300px): Month grid navigation (`< Prev`, `Next >`, `Today`), 7-column calendar cells with daily status dots (🟢 Digested, 🟡 Partial/Raw, ⚪ Empty), and quick horizon filters (`Today`, `Yesterday`).
