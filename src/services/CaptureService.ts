@@ -909,20 +909,50 @@ export class CaptureService {
         return `${before}${sectionHeader}${formattedBlocks}\n\n${after.trimStart()}`;
     }
 
+    wrapBlockAsDigested(content: string, block: DigestibleBlock): string {
+        const raw = block.rawContent.trim();
+        if (!raw) return content;
+
+        // Check if raw is already wrapped in %% ... %%
+        const escaped = raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const commentedRegex = new RegExp(`%%[\\s\\S]*?${escaped}[\\s\\S]*?%%`);
+        if (commentedRegex.test(content)) {
+            return content;
+        }
+
+        const dest = block.primaryTarget ? `[[${block.primaryTarget}]]` : (block.actionRoute === 'gawa_inbox' ? 'gawa_inbox' : 'archive');
+        const wrapped = `%%\ndiwa-digested:dest=${dest}\n${block.rawContent}\n%%`;
+
+        if (content.includes(block.rawContent)) {
+            return content.replace(block.rawContent, wrapped);
+        }
+
+        if (content.includes(raw)) {
+            return content.replace(raw, wrapped);
+        }
+
+        return content;
+    }
+
     /**
      * Executes a two-phase batch transaction of digested blocks to destination notes.
      */
     async executeBatchDigest(dateStr: string, blocks: DigestibleBlock[]): Promise<{ modifiedFiles: string[]; digestedSourceCount: number }> {
         const modifiedFiles: string[] = [];
         const filesWithKeptBlocks = new Set<string>();
-        const filesWithDigestedBlocks = new Set<string>();
+        const digestedBlocksBySource = new Map<string, DigestibleBlock[]>();
 
         const targetMap = new Map<string, DigestibleBlock[]>();
         for (const block of blocks) {
             if (block.actionRoute === 'keep_scratchpad') {
                 filesWithKeptBlocks.add(block.sourceFilePath);
             } else {
-                filesWithDigestedBlocks.add(block.sourceFilePath);
+                let list = digestedBlocksBySource.get(block.sourceFilePath);
+                if (!list) {
+                    list = [];
+                    digestedBlocksBySource.set(block.sourceFilePath, list);
+                }
+                list.push(block);
             }
 
             if ((block.actionRoute === 'target_tasks' || block.actionRoute === 'target_log') && block.primaryTarget) {
@@ -936,6 +966,7 @@ export class CaptureService {
             }
         }
 
+        // Phase 1: Reconcile and write to destination notes
         for (const [targetName, targetBlocks] of targetMap.entries()) {
             let targetFile = this.app.metadataCache.getFirstLinkpathDest(targetName, '');
             if (!targetFile) {
@@ -958,12 +989,29 @@ export class CaptureService {
             }
         }
 
+        // Phase 2: Wrap digested blocks in source notes with non-destructive %% ... %% comments
+        for (const [sourcePath, digestedBlocks] of digestedBlocksBySource.entries()) {
+            const sourceFile = this.app.vault.getAbstractFileByPath(sourcePath);
+            if (sourceFile instanceof TFile) {
+                await this.app.vault.process(sourceFile, (content) => {
+                    let updated = content;
+                    for (const b of digestedBlocks) {
+                        updated = this.wrapBlockAsDigested(updated, b);
+                    }
+                    return updated;
+                });
+                modifiedFiles.push(sourceFile.path);
+            }
+        }
+
+        // Phase 3: Stamp frontmatter digested: true ONLY if all blocks in the note were digested
         let digestedCount = 0;
-        for (const sourcePath of filesWithDigestedBlocks) {
+        for (const sourcePath of digestedBlocksBySource.keys()) {
             if (!filesWithKeptBlocks.has(sourcePath)) {
                 await this.markCaptureAsDigested(sourcePath);
-                modifiedFiles.push(sourcePath);
                 digestedCount++;
+            } else {
+                await this.unmarkCaptureAsDigested(sourcePath);
             }
         }
 

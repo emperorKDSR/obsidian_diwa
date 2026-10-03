@@ -12,6 +12,8 @@
 *   [x] **Global Search Archive Access (`DesktopHubView.ts`)** — Browsing feed respects rolling horizon; typing a search query automatically searches the entire vault archive (`getAllCaptures(true)`) so older notes are instantly searchable.
 *   [x] **Header Horizon Indicator & Empty State (`DesktopHubView.ts`)** — Displays active horizon in the header subtitle (e.g. `Personal OS · Last 7 Days`) and updates empty state messaging.
 *   [x] **Digested Note Exclusion Fix (`DesktopHubView.ts` & `IndexService.ts`)** — Corrected stream filter logic so `digested: true` notes are strictly hidden from the default `All Notes` feed, achieving true Inbox Zero upon note digestion.
+*   [x] **Block-Level Comment Hiding on Digestion (Option B)** — Implemented non-destructive comment wrapping (`%% diwa-digested:dest=[[Target]]\n<content>\n%%`) in `CaptureService.ts`. Allows notes with both digested and "Keep in Scratchpad" blocks to retain only the kept blocks in the scratchpad stream with 0% data loss.
+*   [x] **Comment Stripping in Indexing (`IndexService.ts`)** — Excluded `%% ... %%` comment blocks from visible body, tasks, and wikilink parsing, ensuring digested blocks are hidden from the stream while raw files preserve complete text history.
 *   [x] **Zero Build & Lint Errors** — Passes `tsc --noEmit --skipLibCheck` and `npm run build` with zero errors.
 *   [x] **Vault Deployment** — Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin folders.
 

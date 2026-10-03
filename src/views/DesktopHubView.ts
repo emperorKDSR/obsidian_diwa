@@ -1179,6 +1179,9 @@ export class DesktopHubView extends ItemView {
             });
         }
 
+        // Omit entries where visible body is completely empty and there are no tasks
+        entries = entries.filter(e => e && (Boolean(e.body && e.body.trim()) || (Array.isArray(e.tasks) && e.tasks.length > 0)));
+
         return entries;
     }
 

@@ -201,8 +201,9 @@ export class IndexService {
         const area = String(fm.area || '').toLowerCase();
         const tags = IndexService.normalizeContext(fm.tags ?? fm.tag);
 
-        // Parse body (strip frontmatter)
-        const body = content.replace(/^---[\s\S]*?---\r?\n*/, '').trim();
+        // Parse visible body (strip frontmatter and %% ... %% comments)
+        const rawBody = content.replace(/^---[\s\S]*?---\r?\n*/, '').trim();
+        const visibleBody = rawBody.replace(/%%[\s\S]*?%%/g, '').trim();
 
         // Parse tasks & Gawa records
         const tasks: CaptureTaskItem[] = [];
@@ -212,8 +213,21 @@ export class IndexService {
         const todayStr = moment().format('YYYY-MM-DD');
         const tomorrowStr = moment().add(1, 'day').format('YYYY-MM-DD');
 
+        let inComment = false;
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
+
+            // Track %% comment blocks
+            if (line.includes('%%')) {
+                const count = (line.match(/%%/g) || []).length;
+                if (count % 2 === 1) {
+                    inComment = !inComment;
+                    continue;
+                }
+            }
+            if (inComment) {
+                continue;
+            }
 
             // Ignore indented lines (2+ spaces or tabs) as top-level tasks
             if (/^\s{2,}|\t/.test(line)) {
@@ -367,8 +381,8 @@ export class IndexService {
         }
 
         const hasTasks = tasks.length > 0 || String(fm.hasTasks).toLowerCase() === 'true';
-        const wikilinks = extractWikiLinks(body);
-        const dateMatches = body.match(/\[\[\d{4}-\d{2}-\d{2}\]\]/g) || [];
+        const wikilinks = extractWikiLinks(visibleBody);
+        const dateMatches = visibleBody.match(/\[\[\d{4}-\d{2}-\d{2}\]\]/g) || [];
         const allDates = dateMatches.map(d => d.replace(/\[\[|\]\]/g, ''));
 
         const important = Boolean(
@@ -395,7 +409,7 @@ export class IndexService {
             createdAtMs,
             area,
             tags,
-            body,
+            body: visibleBody,
             hasTasks,
             tasks,
             gawaTasks,

@@ -15,6 +15,13 @@
   - Header displays active horizon badge (e.g. `Personal OS · Last 7 Days`).
   - Empty state informs user when no notes were captured within the active horizon window.
   - **Digested Notes Inbox Zero Fix**: Enforced strict exclusion of `digested: true` notes from the default continuous scratchpad feed (`All Notes`). Digested notes immediately leave the scratchpad upon digestion and remain accessible in Calendar Digest history or when explicitly filtering by `digested`.
+- **Block-Level Digestion with Non-Destructive Comment Hiding (Option B)**:
+  - Preserves 100% zero data loss while solving multi-block scratchpad retention.
+  - Digested blocks inside source notes are wrapped in native Markdown comments: `%%\ndiwa-digested:dest=[[Target]]\n<content>\n%%`.
+  - Blocks routed to "Keep in Scratchpad" remain uncommented and rendered in the scratchpad feed.
+  - `IndexService.ts`: Strips `%% ... %%` comment blocks when calculating `visibleBody`, tasks, and wikilinks, hiding digested blocks from the scratchpad stream while keeping raw file text 100% intact.
+  - `CaptureService.ts`: `wrapBlockAsDigested()` non-destructively wraps digested blocks in source notes during Phase 2 of `executeBatchDigest()`. Frontmatter `digested: true` is stamped only when all blocks in a note are digested; if any block was kept, `digested: true` is unmarked so the kept blocks remain in the feed.
+  - `DesktopHubView.ts`: Automatically filters out notes whose visible body is completely empty and taskless.
 - **Calendar Digest & Review Architecture Deployed (`VIEW_TYPE_CALENDAR_DIGEST = 'diwa-calendar-digest'`)**:
   - Created `src/views/CalendarDigestView.ts` implementing the master-detail split-pane layout:
     - Left Rail (~280px–300px): Month grid navigation (`< Prev`, `Next >`, `Today`), 7-column calendar cells with daily status dots (🟢 Digested, 🟡 Partial/Raw, ⚪ Empty), and quick horizon filters (`Today`, `Yesterday`).
