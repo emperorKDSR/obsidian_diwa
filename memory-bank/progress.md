@@ -24,6 +24,7 @@
     *   [x] **Table Progress Pill**: Displayed `[ ☑ 1/3 ]` (and green `[ ✓ 3/3 ]`) in table title column with 1-click Inspector navigation.
     *   [x] **Inspector Subtasks Section**: Added completion count `(N/M)`, progress rail, interactive checkbox checklist, individual delete buttons (`🗑️`), and quick-add input (`Enter`).
     *   [x] **Atomic Persistence & Cascade**: `CaptureService.updateTaskDetailsInFile` atomically writes `    - [x]` lines, and parent completion cascades to child subtasks.
+    *   [x] **Bug Fix: Subtask Deletion & Toggling Duplication**: Corrected `IndexService.ts` line indexing so parent task line index is preserved (`parentLineIdx = i`) rather than overwritten with child line index. Enforced parent task validation in `CaptureService.ts` and in-place re-synchronization in `GawaCockpitView.ts`. Removed duplicates in test vault note.
 *   [x] **Atomic Disk Persistence (`CaptureService.updateTaskDetailsInFile`)** — Atomically updates task titles, due dates, frontmatter life areas, subtasks, and child remark lines via `app.vault.process()` with line index drift protection.
 *   [x] **0ms Bi-Directional Interoperability** — Integrated `RefreshCoordinator` to broadcast `'tasks'` refresh events to both `DesktopHubView` and `GawaCockpitView`. Toggling in either view updates the other in 0ms without scroll jumping.
 *   [x] **Zero Build & Lint Errors** — Passes `npx tsc --noUnusedLocals --noUnusedParameters --noEmit --skipLibCheck` (0 errors) and `npm run build` (0 errors).

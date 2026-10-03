@@ -927,7 +927,15 @@ export class GawaCockpitView extends ItemView {
                 await this.plugin.index.indexCaptureFile(file);
             }
 
-            task.subtasks = [...updatedSubtasks];
+            const freshTasks = this.plugin.index.getGawaTasks(false);
+            const updatedRecord = freshTasks.find(t => t.filePath === task.filePath && (t.rawTitle === task.rawTitle || t.cleanTitle === task.cleanTitle));
+            if (updatedRecord) {
+                this._selectedTask = updatedRecord;
+                Object.assign(task, updatedRecord);
+            } else {
+                task.subtasks = [...updatedSubtasks];
+            }
+
             this.renderInspector();
             this.refreshTasks();
             this.plugin.notifyRefresh('tasks');
@@ -971,7 +979,15 @@ export class GawaCockpitView extends ItemView {
                 await this.plugin.index.indexCaptureFile(file);
             }
 
-            task.remarks = [...updatedRemarks];
+            const freshTasks = this.plugin.index.getGawaTasks(false);
+            const updatedRecord = freshTasks.find(t => t.filePath === task.filePath && (t.rawTitle === task.rawTitle || t.cleanTitle === task.cleanTitle));
+            if (updatedRecord) {
+                this._selectedTask = updatedRecord;
+                Object.assign(task, updatedRecord);
+            } else {
+                task.remarks = [...updatedRemarks];
+            }
+
             this.renderInspector();
             this.refreshTasks();
             this.plugin.notifyRefresh('tasks');
@@ -1010,15 +1026,21 @@ export class GawaCockpitView extends ItemView {
                 await this.plugin.index.indexCaptureFile(file);
             }
 
-            // Update local task object
-            task.rawTitle = changes.title;
-            task.cleanTitle = changes.title;
-            task.dueDate = changes.dueDate;
-            task.areaId = changes.areaId;
-            const matchedArea = this.plugin.settings.lifeAreas.find(a => a.id.toLowerCase() === (changes.areaId || '').toLowerCase());
-            task.areaLabel = matchedArea ? matchedArea.label : (changes.areaId ? changes.areaId.charAt(0).toUpperCase() + changes.areaId.slice(1) : '—');
-            task.areaIcon = matchedArea ? matchedArea.icon : '—';
-            task.remarks = finalRemarks;
+            const freshTasks = this.plugin.index.getGawaTasks(false);
+            const updatedRecord = freshTasks.find(t => t.filePath === task.filePath && (t.cleanTitle === changes.title || t.rawTitle.includes(changes.title)));
+            if (updatedRecord) {
+                this._selectedTask = updatedRecord;
+                Object.assign(task, updatedRecord);
+            } else {
+                task.rawTitle = changes.title;
+                task.cleanTitle = changes.title;
+                task.dueDate = changes.dueDate;
+                task.areaId = changes.areaId;
+                const matchedArea = this.plugin.settings.lifeAreas.find(a => a.id.toLowerCase() === (changes.areaId || '').toLowerCase());
+                task.areaLabel = matchedArea ? matchedArea.label : (changes.areaId ? changes.areaId.charAt(0).toUpperCase() + changes.areaId.slice(1) : '—');
+                task.areaIcon = matchedArea ? matchedArea.icon : '—';
+                task.remarks = finalRemarks;
+            }
 
             new Notice('Task details saved ✓');
             this.renderInspector();

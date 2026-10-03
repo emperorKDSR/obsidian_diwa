@@ -147,14 +147,30 @@ export class CaptureService {
             const lines = content.split(/\r?\n/);
 
             let targetLineIdx = -1;
-            const taskRegex = /^(\s*-\s*\[)([ xX])(\]\s+.*)$/;
-            if (lineIndex >= 0 && lineIndex < lines.length && taskRegex.test(lines[lineIndex])) {
-                targetLineIdx = lineIndex;
-            } else if (taskTitleFallback) {
+            const parentTaskRegex = /^[ \t]{0,1}-\s*\[([ xX])\]\s+(.*)$/;
+            const anyTaskRegex = /^(\s*-\s*\[)([ xX])(\]\s+.*)$/;
+
+            if (lineIndex >= 0 && lineIndex < lines.length && anyTaskRegex.test(lines[lineIndex])) {
+                const candidateLine = lines[lineIndex];
+                if (!taskTitleFallback || candidateLine.includes(taskTitleFallback)) {
+                    targetLineIdx = lineIndex;
+                }
+            }
+
+            if (targetLineIdx === -1 && taskTitleFallback) {
+                const cleanFallback = taskTitleFallback.replace(/📅\s*\d{4}-\d{2}-\d{2}/g, '').trim();
                 for (let i = 0; i < lines.length; i++) {
-                    if (taskRegex.test(lines[i]) && lines[i].includes(taskTitleFallback)) {
+                    if (parentTaskRegex.test(lines[i]) && (lines[i].includes(taskTitleFallback) || (cleanFallback && lines[i].includes(cleanFallback)))) {
                         targetLineIdx = i;
                         break;
+                    }
+                }
+                if (targetLineIdx === -1) {
+                    for (let i = 0; i < lines.length; i++) {
+                        if (anyTaskRegex.test(lines[i]) && (lines[i].includes(taskTitleFallback) || (cleanFallback && lines[i].includes(cleanFallback)))) {
+                            targetLineIdx = i;
+                            break;
+                        }
                     }
                 }
             }
@@ -221,14 +237,30 @@ export class CaptureService {
             const lines = content.split(/\r?\n/);
 
             let targetLineIdx = -1;
-            const taskRegex = /^(\s*-\s*\[)([ xX])(\]\s+.*)$/;
-            if (options.lineIndex >= 0 && options.lineIndex < lines.length && taskRegex.test(lines[options.lineIndex])) {
-                targetLineIdx = options.lineIndex;
-            } else if (options.taskTitleFallback) {
+            const parentTaskRegex = /^[ \t]{0,1}-\s*\[([ xX])\]\s+(.*)$/;
+            const anyTaskRegex = /^(\s*-\s*\[)([ xX])(\]\s+.*)$/;
+
+            if (options.lineIndex >= 0 && options.lineIndex < lines.length && anyTaskRegex.test(lines[options.lineIndex])) {
+                const candidateLine = lines[options.lineIndex];
+                if (!options.taskTitleFallback || candidateLine.includes(options.taskTitleFallback)) {
+                    targetLineIdx = options.lineIndex;
+                }
+            }
+
+            if (targetLineIdx === -1 && options.taskTitleFallback) {
+                const cleanFallback = options.taskTitleFallback.replace(/📅\s*\d{4}-\d{2}-\d{2}/g, '').trim();
                 for (let i = 0; i < lines.length; i++) {
-                    if (taskRegex.test(lines[i]) && lines[i].includes(options.taskTitleFallback)) {
+                    if (parentTaskRegex.test(lines[i]) && (lines[i].includes(options.taskTitleFallback) || (cleanFallback && lines[i].includes(cleanFallback)))) {
                         targetLineIdx = i;
                         break;
+                    }
+                }
+                if (targetLineIdx === -1) {
+                    for (let i = 0; i < lines.length; i++) {
+                        if (anyTaskRegex.test(lines[i]) && (lines[i].includes(options.taskTitleFallback) || (cleanFallback && lines[i].includes(cleanFallback)))) {
+                            targetLineIdx = i;
+                            break;
+                        }
                     }
                 }
             }

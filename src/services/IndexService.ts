@@ -267,6 +267,7 @@ export class IndexService {
                 const areaIcon = matchedArea ? matchedArea.icon : '—';
 
                 // --- 3. Indented Child Subtasks & Remarks ---
+                const parentLineIdx = i;
                 const subtasks: GawaSubtaskItem[] = [];
                 const remarks: string[] = [];
                 let nextIdx = i + 1;
@@ -288,9 +289,6 @@ export class IndexService {
                         break;
                     }
                 }
-
-                // Advance outer loop index past consumed child lines so they are not indexed as standalone tasks
-                i = nextIdx - 1;
 
                 const taskWikilinks = extractWikiLinks(taskTitle);
                 const taskTags = areaTags.map(t => t.replace(/^#/, ''));
@@ -318,7 +316,7 @@ export class IndexService {
                 gawaTasks.push({
                     filePath: file.path,
                     noteTitle: file.basename,
-                    lineIndex: i,
+                    lineIndex: parentLineIdx,
                     rawTitle: taskTitle,
                     cleanTitle,
                     completed: isDone,
@@ -332,6 +330,9 @@ export class IndexService {
                     subtasks,
                     remarks,
                 });
+
+                // Advance outer loop index past consumed child lines so they are not indexed as standalone tasks
+                i = nextIdx - 1;
             }
         }
 
