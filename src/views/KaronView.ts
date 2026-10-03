@@ -268,7 +268,13 @@ export class KaronView extends ItemView {
             e.stopPropagation();
             const newStatus = !task.completed;
             try {
-                await this.plugin.capture.toggleTaskInFile(task.filePath, task.lineIndex, newStatus);
+                await this.plugin.capture.toggleTaskInFile(
+                    task.filePath,
+                    task.lineIndex,
+                    newStatus,
+                    task.rawTitle,
+                    task.shadowedLocations
+                );
                 task.completed = newStatus;
                 rowEl.toggleClass('is-completed', newStatus);
                 // Trigger refresh via coordinator for zero-lag sync across views

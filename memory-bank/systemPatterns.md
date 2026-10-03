@@ -199,3 +199,14 @@ The **Continuous Scratchpad** is the primary interactive hub:
     *   Detects file mutations in `additionalTaskFolders` or `trackedTaskFiles`.
     *   Selectively re-indexes only the modified file and dispatches a lightweight `tasks` refresh scope (refreshing Gawa and Karon without unnecessary scratchpad churn).
 
+## 10. Smart Task Deduplication Architecture
+*   **Signature Normalization (`normalizeTaskSignature`)**:
+    *   Strips markdown formatting (`*`, `_`, `~`, `\``), wikilink brackets (`[[...]]`), area tags (`#tag`), and punctuation to generate a canonical comparison fingerprint.
+*   **Project Precedence Rule**:
+    *   Permanent project notes in `projectTaskIndex` take precedence over capture notes in `captureIndex`.
+    *   If a capture task matches a permanent project task (compatible due dates or untargeted dates), it is marked as shadowed and excluded from Gawa Cockpit and Karon Horizon.
+    *   Ghost task prevention: Completed project tasks continue to shadow open capture duplicates, preventing stale checkboxes from resurrecting.
+*   **Bi-Directional Sync Toggling (`CaptureService.ts`)**:
+    *   Canonical tasks record `shadowedLocations: { filePath, lineIndex, title }[]`.
+    *   When checked or unchecked in Gawa or Karon, `toggleTaskInFile` updates the canonical project note and automatically sync-toggles all shadowed occurrences in the source capture notes.
+

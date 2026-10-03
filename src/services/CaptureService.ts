@@ -134,7 +134,13 @@ export class CaptureService {
     /**
      * Toggles an inline checkbox inside a capture file atomically without full page reloads.
      */
-    async toggleTaskInFile(filePath: string, lineIndex: number, completed: boolean, taskTitleFallback?: string): Promise<void> {
+    async toggleTaskInFile(
+        filePath: string,
+        lineIndex: number,
+        completed: boolean,
+        taskTitleFallback?: string,
+        shadowedLocations?: { filePath: string; lineIndex: number; title?: string }[]
+    ): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) {
             throw new Error(`[CaptureService] File not found for path: ${filePath}`);
@@ -209,6 +215,18 @@ export class CaptureService {
 
         if (!toggleSucceeded) {
             throw new Error(`[CaptureService] Could not locate task line in ${filePath}`);
+        }
+
+        // Sync-toggle any shadowed duplicate locations (e.g. source capture note)
+        if (shadowedLocations && shadowedLocations.length > 0) {
+            for (const loc of shadowedLocations) {
+                if (loc.filePath === filePath && loc.lineIndex === lineIndex) continue;
+                try {
+                    await this.toggleTaskInFile(loc.filePath, loc.lineIndex, completed, loc.title || taskTitleFallback);
+                } catch (err) {
+                    console.warn('[CaptureService] Could not sync-toggle shadowed task in', loc.filePath, err);
+                }
+            }
         }
     }
 

@@ -632,23 +632,100 @@ export class IndexService {
         return entry.tasks.some(t => t && !t.completed);
     }
 
+    /**
+     * Normalize task title into a canonical signature for deduplication
+     * between capture inbox notes and permanent project notes.
+     */
+    static normalizeTaskSignature(title: string): string {
+        return (title || '')
+            .toLowerCase()
+            .replace(/\[\[.*?\]\]/g, (m) => m.replace(/\[\[|\]\]/g, ''))
+            .replace(/#[a-zA-Z0-9_\-]+/g, '')
+            .replace(/[*_~`]/g, '')
+            .replace(/[^\w\s]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
     getGawaTasks(openOnly: boolean = true): GawaTaskRecord[] {
-        const results: GawaTaskRecord[] = [];
+        // 1. Index project tasks by signature (Permanent project notes take precedence)
+        const canonicalProjectTasks: Map<string, GawaTaskRecord> = new Map();
+        const projectTasksBySig: Map<string, GawaTaskRecord[]> = new Map();
+
+        for (const tasks of this.projectTaskIndex.values()) {
+            for (const pt of tasks) {
+                const key = `${pt.filePath}:${pt.lineIndex}`;
+                const cloned: GawaTaskRecord = {
+                    ...pt,
+                    shadowedLocations: pt.shadowedLocations ? [...pt.shadowedLocations] : undefined,
+                };
+                canonicalProjectTasks.set(key, cloned);
+
+                const sig = IndexService.normalizeTaskSignature(pt.cleanTitle);
+                if (sig) {
+                    let list = projectTasksBySig.get(sig);
+                    if (!list) {
+                        list = [];
+                        projectTasksBySig.set(sig, list);
+                    }
+                    list.push(cloned);
+                }
+            }
+        }
+
+        // 2. Iterate through capture notes (ephemeral inbox) and deduplicate
+        const activeCaptureTasks: GawaTaskRecord[] = [];
+
         for (const entry of this.captureIndex.values()) {
             const gTasks = Array.isArray(entry?.gawaTasks) ? entry.gawaTasks : [];
-            for (const t of gTasks) {
-                if (!openOnly || !t.completed) {
-                    results.push(t);
+            for (const ct of gTasks) {
+                const cSig = IndexService.normalizeTaskSignature(ct.cleanTitle);
+                let isShadowed = false;
+
+                if (cSig && projectTasksBySig.has(cSig)) {
+                    const candidates = projectTasksBySig.get(cSig)!;
+                    for (const cand of candidates) {
+                        // Due date compatibility: same date, or either is undated
+                        const datesCompatible = (!cand.dueDate || !ct.dueDate) || (cand.dueDate === ct.dueDate);
+                        if (datesCompatible) {
+                            isShadowed = true;
+                            if (!cand.shadowedLocations) {
+                                cand.shadowedLocations = [];
+                            }
+                            if (!cand.shadowedLocations.some(l => l.filePath === ct.filePath && l.lineIndex === ct.lineIndex)) {
+                                cand.shadowedLocations.push({
+                                    filePath: ct.filePath,
+                                    lineIndex: ct.lineIndex,
+                                    title: ct.rawTitle,
+                                });
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                // If shadowed by a permanent project task, suppress from Gawa and Karon
+                if (isShadowed) {
+                    continue;
+                }
+
+                if (!openOnly || !ct.completed) {
+                    activeCaptureTasks.push(ct);
                 }
             }
         }
-        for (const tasks of this.projectTaskIndex.values()) {
-            for (const t of tasks) {
-                if (!openOnly || !t.completed) {
-                    results.push(t);
-                }
+
+        // 3. Assemble results: permanent project tasks + unshadowed capture tasks
+        const results: GawaTaskRecord[] = [];
+
+        for (const pt of canonicalProjectTasks.values()) {
+            if (!openOnly || !pt.completed) {
+                results.push(pt);
             }
         }
+
+        results.push(...activeCaptureTasks);
+
         return results;
     }
 

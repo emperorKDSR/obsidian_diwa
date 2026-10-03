@@ -1,6 +1,18 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Configurable Additional Task Folders Built & Deployed
+## Current State: Smart Task Deduplication with Project Precedence Built & Deployed
+- **Smart Task Deduplication (`IndexService.ts`)**:
+  - Implemented `normalizeTaskSignature(title)` stripping markdown emphasis, wikilink wrappers, area `#tags`, and punctuation.
+  - Rewrote `getGawaTasks(openOnly)` to give permanent project notes (`projectTaskIndex`) precedence over capture notes (`captureIndex`).
+  - Capture tasks matching a permanent project task are marked as `shadowed` and suppressed from Gawa and Karon.
+  - Ghost resurrection prevention: even if a project task is completed, its capture duplicate remains suppressed.
+- **Bi-Directional Task Synchronization (`CaptureService.ts` & Views)**:
+  - `GawaTaskRecord.shadowedLocations` tracks all shadowed capture locations for a canonical task.
+  - `CaptureService.toggleTaskInFile()` sync-toggles any `shadowedLocations` alongside the canonical project file, ensuring both notes remain in 100% synchronization.
+  - Updated checkbox toggles in `GawaCockpitView` and `KaronView` to pass `task.shadowedLocations`.
+  - Added transparency in Gawa Inspector: displays `🔗 Synced with: <Note>` metadata indicator.
+
+## Previous Phase: Configurable Additional Task Folders Built & Deployed
 - **Additional Task Folders Setting (`DiwaSettings.additionalTaskFolders`)**:
   - Configurable multi-folder whitelist in Settings (`DiwaSettingTab`) under **Storage & Workspace** (comma or newline separated).
   - Normalizes paths and excludes `/trash/` or accidental root matches.

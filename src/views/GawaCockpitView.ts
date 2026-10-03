@@ -741,7 +741,8 @@ export class GawaCockpitView extends ItemView {
                 task.filePath,
                 task.lineIndex,
                 newCompleted,
-                task.rawTitle
+                task.rawTitle,
+                task.shadowedLocations
             );
             new Notice(newCompleted ? 'Task completed ✓' : 'Task reopened');
 
@@ -1110,6 +1111,11 @@ export class GawaCockpitView extends ItemView {
         // Metadata footer
         const metaInfo = inspBody.createDiv({ cls: 'pos-gawa-insp-meta' });
         metaInfo.createDiv({ text: `Source: ${task.noteTitle}.md (line ${task.lineIndex + 1})` });
+        if (task.shadowedLocations && task.shadowedLocations.length > 0) {
+            const syncWrap = metaInfo.createDiv({ cls: 'pos-gawa-insp-sync' });
+            const names = task.shadowedLocations.map(l => l.filePath.split('/').pop()?.replace(/\.md$/, '') || l.filePath);
+            syncWrap.createSpan({ text: `🔗 Synced with: ${names.join(', ')}` });
+        }
 
         // Save Button Footer
         const inspFooter = this._inspectorEl.createDiv({ cls: 'pos-gawa-insp-footer' });

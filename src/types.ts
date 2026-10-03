@@ -33,6 +33,7 @@ export interface GawaTaskRecord {
     wikilinks: string[];
     subtasks: GawaSubtaskItem[];  // Indented child task lines
     remarks: string[];            // Indented child remark lines
+    shadowedLocations?: { filePath: string; lineIndex: number; title?: string }[];
 }
 
 export interface CaptureEntry {

@@ -1,10 +1,20 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Configurable Additional Task Folders (Complete)
+## Current Phase: Smart Task Deduplication with Project Precedence (Complete)
 
 ---
 
-### 0. Configurable Additional Task Folders (Complete)
+### 0. Smart Task Deduplication with Project Precedence (Complete)
+*   [x] **Signature Normalization (`src/services/IndexService.ts`)** — Added `normalizeTaskSignature()` stripping markdown emphasis, wikilinks, `#tags`, and punctuation.
+*   [x] **Precedence & Shadowing Engine (`src/services/IndexService.ts`)** — Updated `getGawaTasks()` so permanent project tasks take priority over capture inbox tasks. Shadowed tasks are suppressed from Gawa and Karon, and ghost resurrection is eliminated.
+*   [x] **Bi-Directional Sync Toggling (`src/services/CaptureService.ts`)** — Enhanced `toggleTaskInFile()` to accept `shadowedLocations` and atomically sync-toggle matching checkboxes in source capture notes.
+*   [x] **View Wiring (`GawaCockpitView.ts` & `KaronView.ts`)** — Wired checkbox toggles in Gawa and Karon to propagate `shadowedLocations`, and added `🔗 Synced with: <Note>` transparency in Gawa Slide-Over Inspector.
+*   [x] **Zero Build & Lint Errors** — Strict `tsc --noEmit --skipLibCheck` and `npm run build` both passed with 0 errors.
+*   [x] **Production Vault Deployment** — Deployed `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin directories.
+
+---
+
+### 0.1. Configurable Additional Task Folders (Complete)
 *   [x] **Settings & Data Types (`src/types.ts` & `src/constants.ts`)** — Added `additionalTaskFolders?: string[]` to `DiwaSettings` with default `[]`.
 *   [x] **Settings Tab UI (`src/settings.ts`)** — Added `Additional Task Folders` textarea input in **Storage & Workspace** supporting comma- or newline-separated folder paths, with live sanitization and instant index rebuild.
 *   [x] **Unified Multi-Folder Task Indexing (`src/services/IndexService.ts`)** — Implemented `getConfiguredAdditionalTaskFolders()`, `isAdditionalTaskFile()`, `isTrackedProjectFile()`, and expanded `indexTrackedProjectTaskFiles()` to index files across all specified folders in parallel chunks of 50 with `_taskFileMtime` caching.
