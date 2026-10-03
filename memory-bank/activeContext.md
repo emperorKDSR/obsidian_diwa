@@ -31,12 +31,13 @@
   - **Obsidian Mobile Navigation Bar Toggle (Default Hidden)**:
     - Automatically adds `diwa-hide-mobile-navbar` to `document.body` on mobile mount so Obsidian's bottom navigation bar is hidden by default.
     - Added 5th action button (`pos-mobile-action-nav` with `panel-bottom` icon) to the 1-row floating action bar to toggle visibility on demand with notice feedback.
-  - **Pinned Mobile Task Inspector (Locked Position)**:
+  - **Pinned Mobile Task Inspector (Locked Position & Unblurred Interactivity)**:
     - Fixed inspector drifting horizontally by enforcing `width: 100vw !important`, `min-width: 0 !important`, `max-width: 100vw !important`, `left: 0 !important`, `right: 0 !important`, and `box-sizing: border-box !important`.
-    - Added `.pos-gawa-inspector-backdrop` (`position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 999; backdrop-filter: blur(2px)`) with tap-to-close behavior.
-    - Set `touch-action: pan-y !important` and `overscroll-behavior: contain !important` to eliminate horizontal gesture panning.
-    - Changed mobile opening animation to pure vertical sheet slide `gawaSlideUp` (`translateY(100%)` -> `translateY(0)`).
-    - Added mobile drag handle pill (`pos-sheet-drag-handle-wrap`) at the top of the inspector.
+    - Resolved mobile blur and unresponsiveness: moved backdrop creation into `_mainStageEl` right before `_inspectorEl` (z-index 998 vs inspector z-index 1000) instead of `document.body`, eliminating stacking context inversion where backdrop covered the inspector.
+    - Replaced `backdrop-filter: blur(2px)` with standard `rgba(0, 0, 0, 0.5)` overlay to prevent WebKit compositing blur bugs on mobile browsers.
+    - Enforced `pointer-events: auto !important;`, `overflow-y: auto !important;`, and `-webkit-overflow-scrolling: touch !important;` on `.pos-gawa-inspector` so all controls, fields, checklists, and scrolling are fully interactive.
+    - Temporarily hides floating action bar (`is-hidden`) while inspector is open to prevent touch conflicts.
+    - Added tap-to-close on backdrop, drag handle pill (`pos-sheet-drag-handle-wrap`), and vertical slide-up animation (`gawaSlideUp`).
   - **Floating Action Bar & Capsule**:
     - **Idle State**: 1-row floating capsule (`.pos-gawa-mobile-action-bar`) with:
       1. Primary `+` FAB: opens `GawaQuickTaskModal` for rapid task capture with due date chips and life area selection.

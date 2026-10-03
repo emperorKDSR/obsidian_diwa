@@ -34,6 +34,7 @@ export class GawaCockpitView extends ItemView {
     private _searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     // DOM containers
+    private _mainStageEl: HTMLElement | null = null;
     private _tableBodyEl: HTMLElement | null = null;
     private _inspectorEl: HTMLElement | null = null;
     private _chipsContainerEl: HTMLElement | null = null;
@@ -198,6 +199,7 @@ export class GawaCockpitView extends ItemView {
 
         // --- 3. Split Main Stage (Data Grid + Inspector) ---
         const mainStage = container.createDiv({ cls: 'pos-gawa-main-stage' });
+        this._mainStageEl = mainStage;
 
         // Left/Center: Table Container
         const tableContainer = mainStage.createDiv({ cls: 'pos-gawa-table-container' });
@@ -772,14 +774,21 @@ export class GawaCockpitView extends ItemView {
         this._selectedTask = task;
 
         const isMobile = Platform.isMobile && !isTablet(this.app);
-        if (isMobile) {
-            if (!this._mobileBackdropEl) {
-                this._mobileBackdropEl = document.body.createDiv({ cls: 'pos-gawa-inspector-backdrop' });
-                this._mobileBackdropEl.addEventListener('click', () => {
-                    this.closeInspector();
-                });
-            } else {
-                this._mobileBackdropEl.style.display = 'block';
+        if (isMobile && this._mainStageEl) {
+            // Remove any rogue backdrops across DOM
+            document.querySelectorAll('.pos-gawa-inspector-backdrop').forEach(el => el.remove());
+            const backdrop = this._mainStageEl.createDiv({ cls: 'pos-gawa-inspector-backdrop' });
+            this._mobileBackdropEl = backdrop;
+            if (this._inspectorEl) {
+                this._mainStageEl.insertBefore(backdrop, this._inspectorEl);
+            }
+            backdrop.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.closeInspector();
+            });
+
+            if (this._mobileActionBarEl) {
+                this._mobileActionBarEl.addClass('is-hidden');
             }
         }
 
@@ -799,6 +808,10 @@ export class GawaCockpitView extends ItemView {
         if (this._mobileBackdropEl) {
             this._mobileBackdropEl.remove();
             this._mobileBackdropEl = null;
+        }
+        document.querySelectorAll('.pos-gawa-inspector-backdrop').forEach(el => el.remove());
+        if (this._mobileActionBarEl) {
+            this._mobileActionBarEl.removeClass('is-hidden');
         }
         if (this._inspectorEl) {
             this._inspectorEl.style.display = 'none';
