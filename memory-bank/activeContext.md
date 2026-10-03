@@ -28,12 +28,22 @@
   - **Concise 2-Column Mobile Table**: On mobile (`Platform.isMobile && !isTablet`), the table displays strictly `Status` and `Title`. Non-essential columns (`Due Date`, `Life Area`, `Remarks`, `Source`, `Actions`) are hidden.
   - **Subtle Inline Due Info**: When a task has a due date, renders subtle typography `(Due: YYYY-MM-DD)` inline with the title (`color: var(--text-muted); font-size: 0.82em; font-weight: 400;`), with non-imposing overdue tint if overdue.
   - **Clean Mobile Header**: Removed top search box, life area select, and horizontal horizon pill filter bar on mobile, leaving a clean `📋 Gawa (N open)` header.
+  - **Obsidian Mobile Navigation Bar Toggle (Default Hidden)**:
+    - Automatically adds `diwa-hide-mobile-navbar` to `document.body` on mobile mount so Obsidian's bottom navigation bar is hidden by default.
+    - Added 5th action button (`pos-mobile-action-nav` with `panel-bottom` icon) to the 1-row floating action bar to toggle visibility on demand with notice feedback.
+  - **Pinned Mobile Task Inspector (Locked Position)**:
+    - Fixed inspector drifting horizontally by enforcing `width: 100vw !important`, `min-width: 0 !important`, `max-width: 100vw !important`, `left: 0 !important`, `right: 0 !important`, and `box-sizing: border-box !important`.
+    - Added `.pos-gawa-inspector-backdrop` (`position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 999; backdrop-filter: blur(2px)`) with tap-to-close behavior.
+    - Set `touch-action: pan-y !important` and `overscroll-behavior: contain !important` to eliminate horizontal gesture panning.
+    - Changed mobile opening animation to pure vertical sheet slide `gawaSlideUp` (`translateY(100%)` -> `translateY(0)`).
+    - Added mobile drag handle pill (`pos-sheet-drag-handle-wrap`) at the top of the inspector.
   - **Floating Action Bar & Capsule**:
     - **Idle State**: 1-row floating capsule (`.pos-gawa-mobile-action-bar`) with:
       1. Primary `+` FAB: opens `GawaQuickTaskModal` for rapid task capture with due date chips and life area selection.
       2. `search` button: toggles floating bottom search capsule (`.pos-mobile-floating-search`) with real-time debounced filtering.
       3. `sliders-horizontal` filter button: opens `GawaFilterSheetModal` bottom sheet with quick horizon chips and life area grid.
       4. `rotate-cw` refresh button: 1-tap refresh.
+      5. `panel-bottom` nav toggle: hides/shows Obsidian bottom navigation bar.
 - **Zero Build & Lint Errors**:
   - `npx tsc --noUnusedLocals --noUnusedParameters --noEmit --skipLibCheck` passed with 0 errors.
   - `npm run build` compiled cleanly into production `main.js`.

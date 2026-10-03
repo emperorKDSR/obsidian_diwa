@@ -30,6 +30,7 @@ export class GawaCockpitView extends ItemView {
     private _containerEl: HTMLElement | null = null;
     private _mobileSearchOpen: boolean = false;
     private _mobileActionBarEl: HTMLElement | null = null;
+    private _mobileBackdropEl: HTMLElement | null = null;
     private _searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     // DOM containers
@@ -63,6 +64,10 @@ export class GawaCockpitView extends ItemView {
     }
 
     async onClose(): Promise<void> {
+        if (this._mobileBackdropEl) {
+            this._mobileBackdropEl.remove();
+            this._mobileBackdropEl = null;
+        }
         this.containerEl.empty();
     }
 
@@ -170,6 +175,7 @@ export class GawaCockpitView extends ItemView {
         root.addClass('diwa-workspace-root', 'pos-gawa-workspace-root');
         if (isMobile) {
             root.addClass('is-mobile-device');
+            document.body.addClass('diwa-hide-mobile-navbar');
         }
 
         this.loadTasksFromIndex();
@@ -706,6 +712,21 @@ export class GawaCockpitView extends ItemView {
             this.refreshTasks();
             new Notice('Tasks refreshed');
         };
+
+        // Button 5: Toggle Obsidian Mobile Navigation Bar
+        const isNavHidden = document.body.hasClass('diwa-hide-mobile-navbar');
+        const navBtn = actionBar.createEl('button', {
+            cls: `pos-mobile-action-btn pos-mobile-action-nav ${!isNavHidden ? 'is-active' : ''}`,
+            attr: { 'aria-label': isNavHidden ? 'Show Obsidian bottom navigation bar' : 'Hide Obsidian bottom navigation bar', title: 'Navigation' }
+        });
+        setIcon(navBtn, 'panel-bottom');
+        navBtn.onclick = () => {
+            const nowHidden = !document.body.hasClass('diwa-hide-mobile-navbar');
+            document.body.toggleClass('diwa-hide-mobile-navbar', nowHidden);
+            navBtn.toggleClass('is-active', !nowHidden);
+            navBtn.setAttribute('aria-label', nowHidden ? 'Show Obsidian bottom navigation bar' : 'Hide Obsidian bottom navigation bar');
+            new Notice(nowHidden ? 'Obsidian navigation hidden' : 'Obsidian navigation shown');
+        };
     }
 
     private async handleTaskToggle(task: GawaTaskRecord, row: HTMLElement, checkbox: HTMLInputElement): Promise<void> {
@@ -750,6 +771,18 @@ export class GawaCockpitView extends ItemView {
     private openInspector(task: GawaTaskRecord): void {
         this._selectedTask = task;
 
+        const isMobile = Platform.isMobile && !isTablet(this.app);
+        if (isMobile) {
+            if (!this._mobileBackdropEl) {
+                this._mobileBackdropEl = document.body.createDiv({ cls: 'pos-gawa-inspector-backdrop' });
+                this._mobileBackdropEl.addEventListener('click', () => {
+                    this.closeInspector();
+                });
+            } else {
+                this._mobileBackdropEl.style.display = 'block';
+            }
+        }
+
         // Highlight selected row in table
         if (this._tableBodyEl) {
             this._tableBodyEl.querySelectorAll('tr').forEach(r => r.removeClass('is-selected'));
@@ -763,6 +796,10 @@ export class GawaCockpitView extends ItemView {
 
     private closeInspector(): void {
         this._selectedTask = null;
+        if (this._mobileBackdropEl) {
+            this._mobileBackdropEl.remove();
+            this._mobileBackdropEl = null;
+        }
         if (this._inspectorEl) {
             this._inspectorEl.style.display = 'none';
             this._inspectorEl.empty();
@@ -778,6 +815,12 @@ export class GawaCockpitView extends ItemView {
         const task = this._selectedTask;
         this._inspectorEl.empty();
         this._inspectorEl.style.display = 'flex';
+
+        const isMobile = Platform.isMobile && !isTablet(this.app);
+        if (isMobile) {
+            const dragWrap = this._inspectorEl.createDiv({ cls: 'pos-sheet-drag-handle-wrap' });
+            dragWrap.createDiv({ cls: 'pos-sheet-drag-handle' });
+        }
 
         // 1. Inspector Header
         const inspHeader = this._inspectorEl.createDiv({ cls: 'pos-gawa-insp-header' });
