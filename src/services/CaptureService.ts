@@ -1,5 +1,5 @@
 import { App, TFile, moment, normalizePath } from 'obsidian';
-import { DiwaSettings } from '../types';
+import { DiwaSettings, DigestibleBlock } from '../types';
 
 export class CaptureService {
     private app: App;
@@ -664,6 +664,332 @@ export class CaptureService {
         const exists = await this.app.vault.adapter.exists(normalized);
         if (!exists) {
             await this.app.vault.createFolder(normalized);
+        }
+    }
+
+    /**
+     * Extracts non-date target wikilinks from a markdown block, stripping aliases and headings.
+     */
+    extractTargetWikiLinks(content: string): { primary: string | null; all: string[] } {
+        // 1. Explicit destination arrow: -> [[Target]]
+        const arrowMatch = content.match(/->\s*\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]/);
+        const explicitTarget = arrowMatch ? arrowMatch[1].trim() : null;
+
+        // 2. Extract all [[links]]
+        const regex = /\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]/g;
+        const candidates: string[] = [];
+        let m: RegExpExecArray | null;
+        while ((m = regex.exec(content)) !== null) {
+            const link = m[1]?.trim();
+            if (!link) continue;
+            // Exclude dates (YYYY-MM-DD)
+            if (/^\d{4}-\d{2}-\d{2}$/.test(link)) continue;
+            if (!candidates.includes(link)) candidates.push(link);
+        }
+
+        if (explicitTarget && !/^\d{4}-\d{2}-\d{2}$/.test(explicitTarget)) {
+            return {
+                primary: explicitTarget,
+                all: candidates.includes(explicitTarget) ? candidates : [explicitTarget, ...candidates]
+            };
+        }
+
+        return {
+            primary: candidates.length > 0 ? candidates[0] : null,
+            all: candidates
+        };
+    }
+
+    /**
+     * Parses a capture note into coherent structural blocks (preserving tasks with indented children).
+     */
+    parseDigestibleBlocks(content: string, filePath: string, createdAtMs: number): DigestibleBlock[] {
+        const body = content.replace(/^---[\s\S]*?---\r?\n*/, '').trim();
+        if (!body) return [];
+
+        const lines = body.split('\n');
+        const rawBlocks: string[] = [];
+        let currentBlockLines: string[] = [];
+        let inCodeFence = false;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            if (/^```/.test(line.trim())) {
+                inCodeFence = !inCodeFence;
+                currentBlockLines.push(line);
+                if (!inCodeFence) {
+                    rawBlocks.push(currentBlockLines.join('\n'));
+                    currentBlockLines = [];
+                }
+                continue;
+            }
+
+            if (inCodeFence) {
+                currentBlockLines.push(line);
+                continue;
+            }
+
+            const isTopLevelTask = /^[ \t]{0,1}-\s*\[[ xX]\]/.test(line);
+            const isTopLevelBullet = /^[ \t]{0,1}-\s+(?!\[[ xX]\])/.test(line);
+            const isHeading = /^#{1,6}\s+/.test(line);
+
+            if (isTopLevelTask || isTopLevelBullet || isHeading) {
+                if (currentBlockLines.length > 0) {
+                    rawBlocks.push(currentBlockLines.join('\n'));
+                    currentBlockLines = [];
+                }
+                currentBlockLines.push(line);
+            } else if (/^\s{2,}|\t/.test(line) && currentBlockLines.length > 0) {
+                currentBlockLines.push(line);
+            } else if (!line.trim()) {
+                if (currentBlockLines.length > 0) {
+                    rawBlocks.push(currentBlockLines.join('\n'));
+                    currentBlockLines = [];
+                }
+            } else {
+                if (currentBlockLines.length === 0) {
+                    currentBlockLines.push(line);
+                } else if (/^[ \t]{0,1}-\s*/.test(currentBlockLines[0])) {
+                    rawBlocks.push(currentBlockLines.join('\n'));
+                    currentBlockLines = [line];
+                } else {
+                    currentBlockLines.push(line);
+                }
+            }
+        }
+
+        if (currentBlockLines.length > 0) {
+            rawBlocks.push(currentBlockLines.join('\n'));
+        }
+
+        const fileHash = Math.abs(filePath.split('').reduce((acc, c) => (acc << 5) - acc + c.charCodeAt(0), 0)).toString(36).slice(0, 6);
+
+        const results: DigestibleBlock[] = [];
+        for (let idx = 0; idx < rawBlocks.length; idx++) {
+            const raw = rawBlocks[idx].trim();
+            if (!raw) continue;
+
+            const blockIndex = idx + 1;
+            const deterministicId = `dw-${fileHash}-b${blockIndex}`;
+            const isTask = /^[ \t]*-[ \t]+\[[ xX]\]/.test(raw);
+            const isCompletedTask = /^[ \t]*-[ \t]+\[[xX]\]/.test(raw);
+
+            let dueDate: string | null = null;
+            if (isTask) {
+                const dateMatches = raw.match(/@(\d{4}-\d{2}-\d{2})|\[\[(\d{4}-\d{2}-\d{2})\]\]|📅\s*(\d{4}-\d{2}-\d{2})|\[due::\s*(\d{4}-\d{2}-\d{2})\]/);
+                if (dateMatches) {
+                    dueDate = dateMatches[1] || dateMatches[2] || dateMatches[3] || dateMatches[4] || null;
+                }
+            }
+
+            const { primary, all } = this.extractTargetWikiLinks(raw);
+            const cleanText = raw.replace(/->\s*\[\[[^\]]+\]\]/, '').trim();
+
+            let actionRoute: DigestibleBlock['actionRoute'] = 'keep_scratchpad';
+            if (isTask && !isCompletedTask && primary) {
+                actionRoute = 'target_tasks';
+            } else if (primary) {
+                actionRoute = 'target_log';
+            } else if (isTask && !isCompletedTask) {
+                actionRoute = 'gawa_inbox';
+            }
+
+            results.push({
+                sourceFilePath: filePath,
+                sourceCreatedMs: createdAtMs,
+                blockIndex,
+                deterministicId,
+                rawContent: raw,
+                cleanText,
+                isTask,
+                isCompletedTask,
+                dueDate,
+                primaryTarget: primary,
+                alternativeTargets: all.filter(t => t !== primary),
+                actionRoute,
+            });
+        }
+
+        return results;
+    }
+
+    /**
+     * Reconciles target note content with newly digested blocks using reverse-chronological
+     * top-insertion beneath section headers and guard comments for idempotency.
+     */
+    reconcileTargetNoteContent(existingContent: string, newBlocks: DigestibleBlock[], dateStr: string): string {
+        let content = existingContent;
+        const blocksToInsertTasks: DigestibleBlock[] = [];
+        const blocksToInsertLog: DigestibleBlock[] = [];
+
+        for (const block of newBlocks) {
+            const timeStr = moment(block.sourceCreatedMs).format('HH:mm');
+            let blockPayload: string;
+            if (block.actionRoute === 'target_tasks') {
+                blockPayload = `${block.cleanText} ^${block.deterministicId}`;
+            } else {
+                blockPayload = `#### [[${dateStr}]] ${timeStr}\n${block.cleanText} ^${block.deterministicId}`;
+            }
+
+            const startTag = `<!-- diwa-digest:src=${block.sourceFilePath}:idx=${block.blockIndex} -->`;
+            const endTag = `<!-- diwa-digest:end -->`;
+            const fullWrapped = `${startTag}\n${blockPayload}\n${endTag}`;
+
+            const escapeReg = (s: string) => s.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+            const guardPattern = new RegExp(`${escapeReg(startTag)}[\\s\\S]*?${escapeReg(endTag)}`);
+
+            if (guardPattern.test(content)) {
+                content = content.replace(guardPattern, fullWrapped);
+            } else {
+                if (block.actionRoute === 'target_tasks') {
+                    blocksToInsertTasks.push(block);
+                } else {
+                    blocksToInsertLog.push(block);
+                }
+            }
+        }
+
+        if (blocksToInsertTasks.length > 0) {
+            content = this.insertBlocksUnderSection(content, blocksToInsertTasks, 'Tasks', dateStr);
+        }
+
+        if (blocksToInsertLog.length > 0) {
+            content = this.insertBlocksUnderSection(content, blocksToInsertLog, 'Log', dateStr);
+        }
+
+        return content;
+    }
+
+    private insertBlocksUnderSection(
+        content: string,
+        blocks: DigestibleBlock[],
+        sectionName: 'Tasks' | 'Log',
+        dateStr: string
+    ): string {
+        const timeStr = blocks.length > 0 ? moment(blocks[0].sourceCreatedMs).format('HH:mm') : moment().format('HH:mm');
+        const formattedBlocks = blocks.map(b => {
+            const startTag = `<!-- diwa-digest:src=${b.sourceFilePath}:idx=${b.blockIndex} -->`;
+            const endTag = `<!-- diwa-digest:end -->`;
+            let payload: string;
+            if (sectionName === 'Tasks') {
+                payload = `${b.cleanText} ^${b.deterministicId}`;
+            } else {
+                payload = `#### [[${dateStr}]] ${timeStr}\n${b.cleanText} ^${b.deterministicId}`;
+            }
+            return `${startTag}\n${payload}\n${endTag}`;
+        }).join('\n\n');
+
+        const sectionRegex = new RegExp(`(^|\\n)(##\\s+${sectionName}\\b[^\\n]*\\n)`, 'i');
+        const match = content.match(sectionRegex);
+
+        if (match && match.index !== undefined) {
+            const insertIdx = match.index + match[1].length + match[2].length;
+            const before = content.slice(0, insertIdx);
+            const after = content.slice(insertIdx);
+            return `${before}\n${formattedBlocks}\n${after.startsWith('\n') ? after : '\n' + after}`;
+        }
+
+        let anchorIdx = 0;
+        const fmMatch = content.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/);
+        if (fmMatch) {
+            anchorIdx = fmMatch[0].length;
+        }
+
+        const rest = content.slice(anchorIdx);
+        const titleMatch = rest.match(/^[ \t]*#[ \t]+[^\n]+\n+/);
+        if (titleMatch) {
+            anchorIdx += titleMatch[0].length;
+        }
+
+        const before = content.slice(0, anchorIdx);
+        const after = content.slice(anchorIdx);
+        const sectionHeader = `\n## ${sectionName}\n\n`;
+
+        return `${before}${sectionHeader}${formattedBlocks}\n\n${after.trimStart()}`;
+    }
+
+    /**
+     * Executes a two-phase batch transaction of digested blocks to destination notes.
+     */
+    async executeBatchDigest(dateStr: string, blocks: DigestibleBlock[]): Promise<{ modifiedFiles: string[]; digestedSourceCount: number }> {
+        const modifiedFiles: string[] = [];
+        const sourceFilePaths = new Set<string>();
+
+        const targetMap = new Map<string, DigestibleBlock[]>();
+        for (const block of blocks) {
+            sourceFilePaths.add(block.sourceFilePath);
+            if ((block.actionRoute === 'target_tasks' || block.actionRoute === 'target_log') && block.primaryTarget) {
+                const targetKey = block.primaryTarget.trim();
+                let list = targetMap.get(targetKey);
+                if (!list) {
+                    list = [];
+                    targetMap.set(targetKey, list);
+                }
+                list.push(block);
+            }
+        }
+
+        for (const [targetName, targetBlocks] of targetMap.entries()) {
+            let targetFile = this.app.metadataCache.getFirstLinkpathDest(targetName, '');
+            if (!targetFile) {
+                const folder = this.settings.newNoteFolder || '';
+                await this.ensureFolder(folder);
+                const targetPath = normalizePath(`${folder ? folder + '/' : ''}${targetName}.md`);
+                targetFile = await this.app.vault.create(targetPath, `# ${targetName}\n\n`);
+            }
+
+            if (targetFile instanceof TFile) {
+                await this.app.vault.process(targetFile, (existing) => {
+                    return this.reconcileTargetNoteContent(existing, targetBlocks, dateStr);
+                });
+                modifiedFiles.push(targetFile.path);
+
+                const hasTasks = targetBlocks.some(b => b.actionRoute === 'target_tasks');
+                if (hasTasks) {
+                    this.registerTrackedTaskFile(targetFile.path);
+                }
+            }
+        }
+
+        for (const sourcePath of sourceFilePaths) {
+            await this.markCaptureAsDigested(sourcePath);
+            modifiedFiles.push(sourcePath);
+        }
+
+        return {
+            modifiedFiles,
+            digestedSourceCount: sourceFilePaths.size,
+        };
+    }
+
+    async markCaptureAsDigested(filePath: string, digestedAtIso?: string): Promise<void> {
+        const file = this.app.vault.getAbstractFileByPath(filePath);
+        if (!(file instanceof TFile)) return;
+
+        const now = digestedAtIso || moment().format('YYYY-MM-DDTHH:mm:ss');
+        await this.app.fileManager.processFrontMatter(file, (fm) => {
+            fm.digested = true;
+            fm.digestedAt = now;
+            fm.modified = now;
+        });
+    }
+
+    async unmarkCaptureAsDigested(filePath: string): Promise<void> {
+        const file = this.app.vault.getAbstractFileByPath(filePath);
+        if (!(file instanceof TFile)) return;
+
+        await this.app.fileManager.processFrontMatter(file, (fm) => {
+            delete fm.digested;
+            delete fm.digestedAt;
+            fm.modified = moment().format('YYYY-MM-DDTHH:mm:ss');
+        });
+    }
+
+    private registerTrackedTaskFile(filePath: string): void {
+        const current = this.settings.trackedTaskFiles || [];
+        if (!current.includes(filePath)) {
+            this.settings.trackedTaskFiles = [...current, filePath];
         }
     }
 }

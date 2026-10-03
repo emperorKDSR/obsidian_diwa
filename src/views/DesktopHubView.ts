@@ -316,6 +316,17 @@ export class DesktopHubView extends ItemView {
                 void this.plugin.activateGawaCockpit();
             };
 
+            // Daily Digest quick-launcher button
+            const todayDigestSummary = this.plugin.index.getDayDigestSummary(moment().format('YYYY-MM-DD'));
+            const digestBtn = actions.createEl('button', {
+                cls: 'pos-header-text-btn pos-digest-header-trigger',
+                text: todayDigestSummary.status === 'digested' ? '📅 Digest ✓' : '📅 Digest',
+                attr: { 'aria-label': 'Open Daily Digest & Review' }
+            });
+            digestBtn.onclick = () => {
+                void this.plugin.activateCalendarDigest();
+            };
+
             // Settings trigger
             const settingsBtn = actions.createEl('button', {
                 cls: 'pos-icon-btn pos-settings-trigger',
@@ -1125,6 +1136,13 @@ export class DesktopHubView extends ItemView {
                 if (tags.some(t => String(t || '').toLowerCase().includes(query))) return true;
                 return false;
             });
+        }
+
+        // Exclude digested notes from continuous feed unless explicitly filtering by 'all' or 'digested'
+        if (this._activeFilter !== 'all' && this._activeFilter !== 'digested') {
+            entries = entries.filter(e => !e.digested);
+        } else if (this._activeFilter === 'digested') {
+            entries = entries.filter(e => Boolean(e.digested));
         }
 
         // 2. Task modifier filter (active when tasksOnly toggle is ON)

@@ -11,6 +11,7 @@ export const VIEW_TYPE_DESKTOP_HUB = "diwa-desktop-hub";
 export const VIEW_TYPE_MOBILE_HUB  = "diwa-mobile-hub";
 export const VIEW_TYPE_TABLET_HUB  = "diwa-tablet-hub";
 export const VIEW_TYPE_GAWA_COCKPIT = "diwa-gawa-cockpit";
+export const VIEW_TYPE_CALENDAR_DIGEST = "diwa-calendar-digest";
 
 // Desktop Hub ribbon icon — three-pane cockpit layout
 export const DESKTOP_HUB_ICON_ID = "diwa-desktop-hub-icon";
@@ -34,6 +35,20 @@ export const GAWA_COCKPIT_ICON_SVG = `<g transform="translate(8,8) scale(3.3)">
     <polyline points="4,16.5 5,17.5 7,15.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
     <line x1="10" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
     <line x1="10" y1="16.5" x2="18" y2="16.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+</g>`;
+
+// Calendar Digest icon — calendar with checkmark
+export const CALENDAR_DIGEST_ICON_ID = "diwa-calendar-digest-icon";
+export const CALENDAR_DIGEST_ICON_SVG = `<g transform="translate(8,8) scale(3.3)">
+    <rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <line x1="3" y1="9" x2="21" y2="9" stroke="currentColor" stroke-width="1.2"/>
+    <line x1="8" y1="2" x2="8" y2="5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="16" y1="2" x2="16" y2="5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="8" cy="13" r="1.2" fill="currentColor"/>
+    <circle cx="12" cy="13" r="1.2" fill="currentColor"/>
+    <circle cx="16" cy="13" r="1.2" fill="currentColor"/>
+    <circle cx="8" cy="16.5" r="1.2" fill="currentColor"/>
+    <polyline points="11.5,16.5 13,18 16.5,15" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>`;
 
 export const DEFAULT_SETTINGS: DiwaSettings = {

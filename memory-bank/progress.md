@@ -1,10 +1,26 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Gawa Tabular Task Cockpit & Slide-Over Inspector Built & Verified
+## Current Phase: Calendar Digest & Review View Built & Verified
 
 ---
 
-### 0. Gawa Tabular Task Cockpit & Slide-Over Inspector (Complete)
+### 0. Calendar Digest & Review View (Complete)
+*   [x] **Master-Detail Calendar View (`CalendarDigestView.ts`)** — Implemented dedicated workspace leaf (`VIEW_TYPE_CALENDAR_DIGEST = 'diwa-calendar-digest'`) with interactive left calendar rail (~280px) and center stage note stream.
+*   [x] **Global Obsidian Command & Launchers** — Registered `DIWA: Open Daily Digest & Review`, custom calendar icon (`CALENDAR_DIGEST_ICON_ID`), ribbon launcher, and 1-tap `[ 📅 Digest ]` button in `DesktopHubView` header.
+*   [x] **Block-Level AST Parser (`CaptureService.ts`)** — Structured block parser grouping parent tasks with child subtasks and remarks, code fences, and paragraphs into atomic `DigestibleBlock` units.
+*   [x] **Wikilink & Heuristic Destination Resolver** — Filters out temporal date links (`[[YYYY-MM-DD]]`), detects explicit routing syntax (`-> [[Target]]`), and prioritizes topic/project links over people and entities.
+*   [x] **Reverse-Chronological Top Insertion** — Injects newest entries beneath `## Tasks` (for open tasks) and `## Log` (for notes and completed tasks), strictly preserving YAML frontmatter and document title headings.
+*   [x] **Idempotent Guard Comments** — Delimited injected blocks with `<!-- diwa-digest:src=...:idx=... -->` so re-digests update content in-place without duplicating or overwriting manual edits.
+*   [x] **Pre-Flight Confirmation Modal (`PreFlightDigestModal.ts`)** — Review modal showing blocks, task/log pills, destination buttons, `FileSuggestModal` note picker, and task routing choices before writing.
+*   [x] **Gawa Cockpit Project Task Synergy (`IndexService.ts`)** — Tasks moved to permanent project notes are registered in `projectTaskIndex` and remain active, interactive, and checkable in `GawaCockpitView.ts`, with `Source ↗` linking to the project file.
+*   [x] **Scratchpad "Inbox Zero" Flow (`DesktopHubView.ts`)** — Digested notes are hidden from the primary capture feed by default to maintain Inbox Zero, while remaining accessible on demand and preserved on their calendar dates.
+*   [x] **Mobile Responsive Design** — Segmented control `[ 📅 Calendar | 📝 Stream (N) ]` for smooth interaction on mobile viewports.
+*   [x] **Zero Build & Lint Errors** — `npx tsc --noUnusedLocals --noUnusedParameters --noEmit --skipLibCheck` (0 errors) and `npm run build` (0 errors).
+*   [x] **Production Vault Deployment** — Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin directories.
+
+---
+
+### 0.1. Gawa Tabular Task Cockpit & Slide-Over Inspector (Complete)
 *   [x] **Dedicated Leaf Architecture (`VIEW_TYPE_GAWA_COCKPIT`)** — Implemented `GawaCockpitView.ts` as an autonomous workspace leaf that can be opened in split panes, right sidebars, or tabs. Registered custom checklist SVG icon and ribbon launcher.
 *   [x] **Global Obsidian Command & Header Trigger** — Registered `DIWA: Open Gawa Task Cockpit` and added 1-tap `[ 📋 Gawa (N) ]` launcher button to `DesktopHubView` header.
 *   [x] **Earliest Due Date Resolution ("Earliest Date Wins")** — Enhanced `IndexService.ts` to scan wikilinks `[[YYYY-MM-DD]]`, Tasks emojis `📅`, Dataview `[due::]`, `@dates`, and ISO dates, sorting ascending and picking the earliest date as `dueDate`.

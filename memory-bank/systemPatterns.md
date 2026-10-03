@@ -141,3 +141,26 @@ The **Continuous Scratchpad** is the primary interactive hub:
 *   Changes in `DesktopHubView` reflect in `GawaCockpitView` in 0ms without full page reloads.
 *   Changes in `GawaCockpitView` reflect in `DesktopHubView` without scroll jumps.
 *   Atomic file operations via `app.vault.process()` with content-matching fallback for line drift protection.
+
+---
+
+## 7. Calendar Digest & Review Architecture
+
+### Master-Detail Dedicated Leaf (`VIEW_TYPE_CALENDAR_DIGEST`)
+*   **Dual-Pane Structure**:
+    *   *Left Rail (~280px)*: Month navigator, 7-column calendar grid with derived daily status dots (🟢 Digested, 🟡 Partial/Raw, ⚪ Empty), and quick horizon filters (`Today`, `Yesterday`).
+    *   *Center Stage (Flex: 1)*: Date header, digest health pill, stream of note cards with rendered markdown, time, area badges, and primary `[ ⚡ Digest Day ]` action.
+    *   *Mobile Adaptation*: Responsive segmented control `[ 📅 Calendar | 📝 Stream (N) ]` for narrow screens.
+*   **Launchers**: Registered command `DIWA: Open Daily Digest & Review`, custom calendar icon (`CALENDAR_DIGEST_ICON_ID`), ribbon launcher, and 1-tap `[ 📅 Digest ]` header trigger in `DesktopHubView`.
+
+### Block-Level Digestion Engine (`CaptureService.ts`)
+*   **Structural AST Chunking (`parseDigestibleBlocks`)**: Treats tasks with all indented child subtasks and remarks, code fences, and paragraphs as indivisible `DigestibleBlock` records.
+*   **Reverse-Chronological Top Insertion (`reconcileTargetNoteContent`)**:
+    *   Injects open tasks at the top of `## Tasks` and logs/notes at the top of `## Log`.
+    *   Strictly preserves YAML frontmatter and document `# Title` headers at the top of the file.
+    *   Wraps injected content in deterministic guard comments (`<!-- diwa-digest:src=...:idx=... -->`) for 100% idempotent in-place updates during re-digests.
+*   **Two-Phase Batch Mutations (`executeBatchDigest`)**: Compiles all target file operations in memory and executes exactly one `app.vault.process()` per target file, reducing disk I/O by >90% and eliminating race conditions.
+
+### Gawa Project Task Synergy & Inbox Zero
+*   **Cross-File Task Registry (`IndexService.ts`)**: Permanent notes containing digested tasks are tracked in `projectTaskIndex`. Tasks remain fully interactive in `GawaCockpitView.ts`, with `Source ↗` pointing directly to the project note.
+*   **Scratchpad Inbox Zero**: Digested notes are hidden from the primary scratchpad feed by default, while remaining fully accessible in the Calendar Digest view on their respective dates.

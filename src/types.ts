@@ -51,9 +51,34 @@ export interface CaptureEntry {
     wikilinks: string[];
     pinned?: boolean;
     important?: boolean;
+    digested?: boolean;
+    digestedAt?: string;
 }
 
-export type ScratchpadFilterMode = 'all' | 'tasks_only' | 'important' | 'untagged' | string;
+export type ScratchpadFilterMode = 'all' | 'unprocessed' | 'digested' | 'tasks_only' | 'important' | 'untagged' | string;
+
+export interface DigestibleBlock {
+    sourceFilePath: string;
+    sourceCreatedMs: number;
+    blockIndex: number;
+    deterministicId: string;
+    rawContent: string;
+    cleanText: string;
+    isTask: boolean;
+    isCompletedTask: boolean;
+    dueDate: string | null;
+    primaryTarget: string | null;
+    alternativeTargets: string[];
+    actionRoute: 'target_log' | 'target_tasks' | 'keep_scratchpad' | 'gawa_inbox';
+}
+
+export interface DayDigestSummary {
+    dateStr: string;
+    totalCount: number;
+    digestedCount: number;
+    hasOpenTasks: boolean;
+    status: 'empty' | 'raw' | 'partial' | 'digested';
+}
 
 export interface DiwaSettings {
     captureFolder: string;
@@ -63,6 +88,7 @@ export interface DiwaSettings {
     peopleFolder: string;
     contexts: string[];
     mobileBottomBarHeight: number;
+    trackedTaskFiles?: string[];
 }
 
 export type FileOrCreate = TFile | string;

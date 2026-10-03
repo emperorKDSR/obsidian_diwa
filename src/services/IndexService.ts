@@ -1,5 +1,5 @@
 import { App, TFile, moment } from 'obsidian';
-import { DiwaSettings, CaptureEntry, CaptureTaskItem, GawaTaskRecord, GawaSubtaskItem } from '../types';
+import { DiwaSettings, CaptureEntry, CaptureTaskItem, GawaTaskRecord, GawaSubtaskItem, DayDigestSummary } from '../types';
 import { extractWikiLinks } from '../utils/wikilinks';
 import { normalizeConfiguredSettingPath } from '../utils/settingsPaths';
 import { normalizeVaultRelativePath } from '../utils/vaultFiles';
@@ -9,6 +9,8 @@ export class IndexService {
     settings: DiwaSettings;
 
     captureIndex: Map<string, CaptureEntry> = new Map();
+    dateIndex: Map<string, Set<string>> = new Map();
+    projectTaskIndex: Map<string, GawaTaskRecord[]> = new Map();
     private _lastIndexedCaptureFolderSetting: string = '';
 
     constructor(app: App, settings: DiwaSettings) {
@@ -122,17 +124,20 @@ export class IndexService {
 
     async buildIndices(): Promise<void> {
         await this.buildCaptureIndexInPlace();
+        await this.indexTrackedProjectTaskFiles();
     }
 
     async rebuildSelectedIndices(selection: { captures?: boolean } = { captures: true }): Promise<void> {
         if (selection.captures) {
             await this.buildCaptureIndexInPlace();
+            await this.indexTrackedProjectTaskFiles();
         }
     }
 
     private async buildCaptureIndexInPlace(): Promise<void> {
         this._lastIndexedCaptureFolderSetting = this.getConfiguredCaptureFolder();
         this.captureIndex.clear();
+        this.dateIndex.clear();
         const files = this.app.vault.getMarkdownFiles().filter(f => this.isCaptureFile(f.path));
         // Parallel indexing in chunks of 50 for max speed
         const CHUNK_SIZE = 50;
@@ -351,6 +356,12 @@ export class IndexService {
             tags.includes('starred')
         );
 
+        const digested = Boolean(
+            fm.digested === true ||
+            String(fm.digested).toLowerCase() === 'true'
+        );
+        const digestedAt = fm.digestedAt ? String(fm.digestedAt) : undefined;
+
         const entry: CaptureEntry = {
             id: file.path,
             filePath: file.path,
@@ -367,14 +378,29 @@ export class IndexService {
             wikilinks,
             important,
             pinned: important,
+            digested,
+            digestedAt,
         };
         (entry as any)._mtime = file.stat.mtime;
 
         this.captureIndex.set(file.path, entry);
+
+        // Update dateIndex
+        const dateKey = (createdStr || moment(createdAtMs).format('YYYY-MM-DDTHH:mm:ss')).slice(0, 10);
+        let dateSet = this.dateIndex.get(dateKey);
+        if (!dateSet) {
+            dateSet = new Set();
+            this.dateIndex.set(dateKey, dateSet);
+        }
+        dateSet.add(file.path);
+
         return entry;
     }
 
     removeCaptureFile(path: string): boolean {
+        for (const set of this.dateIndex.values()) {
+            set.delete(path);
+        }
         return this.captureIndex.delete(path);
     }
 
@@ -409,7 +435,254 @@ export class IndexService {
                 }
             }
         }
+        for (const tasks of this.projectTaskIndex.values()) {
+            for (const t of tasks) {
+                if (!openOnly || !t.completed) {
+                    results.push(t);
+                }
+            }
+        }
         return results;
+    }
+
+    parseGawaTasksFromContent(
+        content: string,
+        filePath: string,
+        noteTitle: string,
+        fallbackArea: string = ''
+    ): { tasks: CaptureTaskItem[]; gawaTasks: GawaTaskRecord[] } {
+        const tasks: CaptureTaskItem[] = [];
+        const gawaTasks: GawaTaskRecord[] = [];
+        const lines = content.split('\n');
+        const taskRegex = /^(\s*-\s*\[)([ xX])(\]\s+.*)$/;
+        const todayStr = moment().format('YYYY-MM-DD');
+        const tomorrowStr = moment().add(1, 'day').format('YYYY-MM-DD');
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            if (/^\s{2,}|\t/.test(line)) {
+                continue;
+            }
+
+            const match = line.match(taskRegex);
+            if (match) {
+                const isDone = match[2].toLowerCase() === 'x';
+                const taskTitle = match[3].replace(/^\]\s+/, '').trim();
+                const parentLineIdx = i;
+                tasks.push({
+                    lineIndex: parentLineIdx,
+                    title: taskTitle,
+                    completed: isDone,
+                });
+
+                const dateTokens: string[] = [];
+                const wikiDateMatches = taskTitle.match(/\[\[(\d{4}-\d{2}-\d{2})\]\]/g) || [];
+                for (const m of wikiDateMatches) {
+                    const d = m.replace(/\[\[|\]\]/g, '');
+                    if (moment(d, 'YYYY-MM-DD', true).isValid()) dateTokens.push(d);
+                }
+                const emojiDateMatches = taskTitle.match(/📅\s*(\d{4}-\d{2}-\d{2})/g) || [];
+                for (const m of emojiDateMatches) {
+                    const d = m.replace(/📅\s*/, '');
+                    if (moment(d, 'YYYY-MM-DD', true).isValid()) dateTokens.push(d);
+                }
+                const dvDateMatches = taskTitle.match(/\[due::\s*(\d{4}-\d{2}-\d{2})\]/g) || [];
+                for (const m of dvDateMatches) {
+                    const d = m.replace(/\[due::\s*|\]/g, '');
+                    if (moment(d, 'YYYY-MM-DD', true).isValid()) dateTokens.push(d);
+                }
+                const atDateMatches = taskTitle.match(/@(\d{4}-\d{2}-\d{2})/g) || [];
+                for (const m of atDateMatches) {
+                    const d = m.replace(/^@/, '');
+                    if (moment(d, 'YYYY-MM-DD', true).isValid()) dateTokens.push(d);
+                }
+                const isoMatches = taskTitle.match(/\b(\d{4}-\d{2}-\d{2})\b/g) || [];
+                for (const d of isoMatches) {
+                    if (moment(d, 'YYYY-MM-DD', true).isValid() && !dateTokens.includes(d)) dateTokens.push(d);
+                }
+
+                const uniqueDates = Array.from(new Set(dateTokens)).sort();
+                const earliestDueDate = uniqueDates.length > 0 ? uniqueDates[0] : null;
+
+                let dueDateRelative = '—';
+                if (earliestDueDate) {
+                    if (earliestDueDate < todayStr) {
+                        const daysDiff = moment(todayStr).diff(moment(earliestDueDate), 'days');
+                        dueDateRelative = daysDiff === 1 ? '1d overdue' : `${daysDiff}d overdue`;
+                    } else if (earliestDueDate === todayStr) {
+                        dueDateRelative = 'Today';
+                    } else if (earliestDueDate === tomorrowStr) {
+                        dueDateRelative = 'Tomorrow';
+                    } else {
+                        const daysDiff = moment(earliestDueDate).diff(moment(todayStr), 'days');
+                        dueDateRelative = daysDiff === 1 ? 'Tomorrow' : `In ${daysDiff}d`;
+                    }
+                }
+
+                let cleanTitle = taskTitle
+                    .replace(/\[\[\d{4}-\d{2}-\d{2}\]\]/g, '')
+                    .replace(/📅\s*\d{4}-\d{2}-\d{2}/g, '')
+                    .replace(/\[due::\s*\d{4}-\d{2}-\d{2}\]/g, '')
+                    .replace(/@\d{4}-\d{2}-\d{2}/g, '')
+                    .trim();
+
+                let resolvedAreaId = fallbackArea;
+                const matchedArea = this.settings.lifeAreas.find(a => {
+                    const tagRegex = new RegExp(`#${a.id}\\b`, 'i');
+                    return tagRegex.test(taskTitle);
+                });
+                if (matchedArea) {
+                    resolvedAreaId = matchedArea.id;
+                }
+                if (!resolvedAreaId) {
+                    const fallbacks = ['work', 'health', 'wealth', 'growth', 'personal', 'adventure', 'hustle', 'grundfos'];
+                    for (const fb of fallbacks) {
+                        if (new RegExp(`#${fb}\\b`, 'i').test(taskTitle)) {
+                            resolvedAreaId = fb;
+                            break;
+                        }
+                    }
+                }
+
+                const areaObj = this.settings.lifeAreas.find(a => a.id.toLowerCase() === (resolvedAreaId || '').toLowerCase());
+                const areaLabel = areaObj ? areaObj.label : (resolvedAreaId ? resolvedAreaId.charAt(0).toUpperCase() + resolvedAreaId.slice(1) : '—');
+                const areaIcon = areaObj ? areaObj.icon : '—';
+
+                const subtasks: GawaSubtaskItem[] = [];
+                const remarks: string[] = [];
+                let nextIdx = i + 1;
+                while (nextIdx < lines.length) {
+                    const nextLine = lines[nextIdx];
+                    if (/^\s+/.test(nextLine)) {
+                        const subtaskMatch = nextLine.match(/^\s*-\s*\[([ xX])\]\s+(.*)$/);
+                        if (subtaskMatch) {
+                            subtasks.push({
+                                completed: /[xX]/.test(subtaskMatch[1]),
+                                title: subtaskMatch[2].trim(),
+                            });
+                        } else {
+                            const trimmed = nextLine.trim();
+                            if (trimmed) remarks.push(trimmed);
+                        }
+                        nextIdx++;
+                    } else {
+                        break;
+                    }
+                }
+
+                const taskTags = (taskTitle.match(/#([a-zA-Z0-9_\-]+)/g) || []).map(t => t.replace(/^#/, ''));
+                const taskWikilinks = extractWikiLinks(taskTitle);
+
+                const knownAreas = this.settings.lifeAreas.map(a => a.id.toLowerCase());
+                for (const fallback of ['work', 'health', 'wealth', 'growth', 'personal', 'adventure', 'hustle', 'grundfos']) {
+                    if (!knownAreas.includes(fallback)) knownAreas.push(fallback);
+                }
+                cleanTitle = cleanTitle.replace(/#([a-zA-Z0-9_\-]+)/g, (match, tag) => {
+                    return knownAreas.includes(tag.toLowerCase()) ? '' : match;
+                }).replace(/\s+/g, ' ').trim();
+
+                gawaTasks.push({
+                    filePath,
+                    noteTitle,
+                    lineIndex: parentLineIdx,
+                    rawTitle: taskTitle,
+                    cleanTitle,
+                    completed: isDone,
+                    dueDate: earliestDueDate,
+                    dueDateRelative,
+                    areaId: resolvedAreaId,
+                    areaLabel,
+                    areaIcon,
+                    tags: taskTags,
+                    wikilinks: taskWikilinks,
+                    subtasks,
+                    remarks,
+                });
+
+                i = nextIdx - 1;
+            }
+        }
+
+        return { tasks, gawaTasks };
+    }
+
+    async indexTrackedProjectTaskFiles(): Promise<void> {
+        this.projectTaskIndex.clear();
+        const tracked = this.settings.trackedTaskFiles || [];
+        for (const path of tracked) {
+            const file = this.app.vault.getAbstractFileByPath(path);
+            if (file instanceof TFile) {
+                await this.indexProjectTaskFile(file);
+            }
+        }
+    }
+
+    async indexProjectTaskFile(file: TFile): Promise<void> {
+        if (!file.path.endsWith('.md')) return;
+        const content = await this.app.vault.read(file);
+        const { gawaTasks } = this.parseGawaTasksFromContent(content, file.path, file.basename);
+        this.projectTaskIndex.set(file.path, gawaTasks);
+    }
+
+    getCapturesForDate(dateStr: string): CaptureEntry[] {
+        const paths = this.dateIndex.get(dateStr);
+        if (!paths || paths.size === 0) return [];
+        const entries: CaptureEntry[] = [];
+        for (const p of paths) {
+            const entry = this.captureIndex.get(p);
+            if (entry) entries.push(entry);
+        }
+        return entries.sort((a, b) => b.createdAtMs - a.createdAtMs);
+    }
+
+    getDayDigestSummary(dateStr: string): DayDigestSummary {
+        const entries = this.getCapturesForDate(dateStr);
+        if (entries.length === 0) {
+            return {
+                dateStr,
+                totalCount: 0,
+                digestedCount: 0,
+                hasOpenTasks: false,
+                status: 'empty',
+            };
+        }
+
+        const totalCount = entries.length;
+        let digestedCount = 0;
+        let hasOpenTasks = false;
+
+        for (const e of entries) {
+            if (e.digested) digestedCount++;
+            if (e.tasks && e.tasks.some(t => !t.completed)) {
+                hasOpenTasks = true;
+            }
+        }
+
+        let status: DayDigestSummary['status'] = 'raw';
+        if (digestedCount === totalCount) {
+            status = 'digested';
+        } else if (digestedCount > 0) {
+            status = 'partial';
+        }
+
+        return {
+            dateStr,
+            totalCount,
+            digestedCount,
+            hasOpenTasks,
+            status,
+        };
+    }
+
+    getMonthDigestSummary(yearMonth: string): Map<string, DayDigestSummary> {
+        const result = new Map<string, DayDigestSummary>();
+        const daysInMonth = moment(yearMonth, 'YYYY-MM').daysInMonth();
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dayStr = `${yearMonth}-${String(d).padStart(2, '0')}`;
+            result.set(dayStr, this.getDayDigestSummary(dayStr));
+        }
+        return result;
     }
 
     getOpenTaskCount(): number {

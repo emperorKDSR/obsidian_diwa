@@ -1,5 +1,5 @@
 import { App, TFile } from 'obsidian';
-import { VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_GAWA_COCKPIT } from '../constants';
+import { VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_GAWA_COCKPIT, VIEW_TYPE_CALENDAR_DIGEST } from '../constants';
 import { DesktopHubView } from '../views/DesktopHubView';
 import type { IndexService } from '../services/IndexService';
 
@@ -74,6 +74,15 @@ export class RefreshCoordinator {
             if (view && typeof view.refreshTasks === 'function') {
                 if (view._taskPending > 0) continue;
                 view.refreshTasks();
+            }
+        }
+
+        // Refresh all open Calendar Digest views
+        const digestLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_CALENDAR_DIGEST);
+        for (const leaf of digestLeaves) {
+            const view = leaf.view as any;
+            if (view && typeof view.refreshView === 'function') {
+                view.refreshView();
             }
         }
     }
