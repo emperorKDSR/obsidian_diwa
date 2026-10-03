@@ -101,6 +101,28 @@ export class DiwaSettingTab extends PluginSettingTab {
                 });
             });
 
+        new Setting(containerEl)
+            .setName('Additional Task Folders')
+            .setDesc('Extra folders to scan for tasks displayed in Gawa Task Cockpit and Karon Horizon (e.g. "Projects, Areas, Tasks"). Separate multiple folders with commas or newlines.')
+            .addTextArea(text => {
+                text.setPlaceholder('Projects, Areas, Tasks');
+                const initialVal = (this.plugin.settings.additionalTaskFolders || []).join(', ');
+                text.setValue(initialVal);
+                text.inputEl.rows = 2;
+                text.inputEl.style.width = '100%';
+                text.inputEl.style.resize = 'vertical';
+                text.inputEl.addEventListener('blur', async () => {
+                    const raw = text.getValue();
+                    const parsed = Array.from(new Set(
+                        raw
+                            .split(/[\n,]/)
+                            .map(s => s.trim().replace(/^['"]|['"]$/g, ''))
+                            .filter(Boolean)
+                    ));
+                    await this.plugin.updateSetting('additionalTaskFolders', parsed, 'tasks');
+                });
+            });
+
         // Scratchpad Note Horizon
         const currentHorizon = this.plugin.settings.scratchpadHorizon || '7d';
         new Setting(containerEl)

@@ -70,6 +70,8 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
     peopleFolder: '000 Bin/DIWA People',
     contexts: [],
     mobileBottomBarHeight: 56,
+    trackedTaskFiles: [],
+    additionalTaskFolders: [],
     scratchpadHorizon: '7d',
     scratchpadCustomDate: '',
     keepImportantInScratchpad: true,

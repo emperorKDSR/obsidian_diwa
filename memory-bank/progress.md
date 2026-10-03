@@ -1,10 +1,21 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Karon (Today & Horizon View) Built & Deployed
+## Current Phase: Configurable Additional Task Folders (Complete)
 
 ---
 
-### 0. Karon: Today & Horizon View (Complete)
+### 0. Configurable Additional Task Folders (Complete)
+*   [x] **Settings & Data Types (`src/types.ts` & `src/constants.ts`)** — Added `additionalTaskFolders?: string[]` to `DiwaSettings` with default `[]`.
+*   [x] **Settings Tab UI (`src/settings.ts`)** — Added `Additional Task Folders` textarea input in **Storage & Workspace** supporting comma- or newline-separated folder paths, with live sanitization and instant index rebuild.
+*   [x] **Unified Multi-Folder Task Indexing (`src/services/IndexService.ts`)** — Implemented `getConfiguredAdditionalTaskFolders()`, `isAdditionalTaskFile()`, `isTrackedProjectFile()`, and expanded `indexTrackedProjectTaskFiles()` to index files across all specified folders in parallel chunks of 50 with `_taskFileMtime` caching.
+*   [x] **Granular Refresh Coordination (`RefreshCoordinator.ts` & `src/main.ts`)** — Updated `RefreshCoordinator.reindexFile()` to detect modifications in additional task folders and tracked files, indexing only the modified file and dispatching targeted `tasks` refresh. Wired `create`, `delete`, and `rename` vault events.
+*   [x] **Gawa & Karon Multi-Folder Integration** — Verified that tasks across additional folders appear in Gawa Cockpit (table, search, filters) and Karon Horizon (Today, upcoming days, overdue alerts), while keeping continuous scratchpad inbox strictly scoped to `captureFolder`.
+*   [x] **Zero Build & Lint Errors** — Strict `tsc --noEmit --skipLibCheck` and `npm run build` both passed with 0 errors.
+*   [x] **Production Vault Deployment** — Deployed `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin directories.
+
+---
+
+### 0.1. Karon: Today & Horizon View (Complete)
 *   [x] **Target Date Secondary Index (`src/services/IndexService.ts`)** — Added in-memory `targetDateIndex: Map<string, Set<string>>` for $O(1)$ retrieval of notes intended for any date via `[[YYYY-MM-DD]]` wikilinks, frontmatter `due`/`scheduled`/`day`, or task due dates.
 *   [x] **Query Methods & Snippet Extraction (`src/services/IndexService.ts`)** — Implemented `getCapturesForTargetDate`, `getTasksForDueDate`, `getOverdueTasks`, and `extractTargetDateSnippets`.
 *   [x] **Dedicated Leaf View (`src/views/KaronView.ts`)** — Built Option A (Chronological Agenda Stream):

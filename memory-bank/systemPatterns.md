@@ -188,3 +188,14 @@ The **Continuous Scratchpad** is the primary interactive hub:
 *   **Task List**: Interactive checkboxes backed by `CaptureService.toggleTaskInFile`, area badges, and file peek links.
 *   **Note Cards**: Rendered markdown snippets with `MarkdownRenderer` and internal link peek handling (`WikilinkPeekModal`).
 
+## 9. Multi-Folder Task Indexing Architecture
+*   **Dual-Scope Index Separation**:
+    *   **Capture Inbox Scope**: The continuous scratchpad stream (`DesktopHubView`) and Daily Digest (`CalendarDigestView`) remain strictly scoped to `captureFolder` (`000 Bin/Diwa`).
+    *   **Task Cockpit & Horizon Scope**: Gawa Cockpit (`VIEW_TYPE_GAWA_COCKPIT`) and Karon (`VIEW_TYPE_KARON`) aggregate tasks from `captureFolder`, user-configured `additionalTaskFolders`, and individual `trackedTaskFiles`.
+*   **Parallel Chunked Ingestion (`IndexService.ts`)**:
+    *   Scans markdown files in `additionalTaskFolders` in parallel chunks (`CHUNK_SIZE = 50`).
+    *   Caches modification timestamps in `_taskFileMtime: Map<string, number>`, avoiding disk re-reads for unchanged files.
+*   **Granular Reactive Reindexing (`RefreshCoordinator.ts`)**:
+    *   Detects file mutations in `additionalTaskFolders` or `trackedTaskFiles`.
+    *   Selectively re-indexes only the modified file and dispatches a lightweight `tasks` refresh scope (refreshing Gawa and Karon without unnecessary scratchpad churn).
+

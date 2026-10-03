@@ -29,8 +29,9 @@ export class RefreshCoordinator {
         if (this.index.isCaptureFile(file.path)) {
             await this.index.indexCaptureFile(file);
             this.notifyRefresh('capture');
-        } else {
-            this.notifyRefresh('all');
+        } else if (this.index.isAdditionalTaskFile(file.path) || this.index.isTrackedProjectFile(file.path)) {
+            await this.index.indexProjectTaskFile(file);
+            this.notifyRefresh('tasks');
         }
     }
 
@@ -59,7 +60,7 @@ export class RefreshCoordinator {
                 if (view._capturePending > 0 || view._taskPending > 0) continue;
                 if (scope === 'all' && typeof view.refreshAll === 'function') {
                     view.refreshAll();
-                } else if (scope === 'capture' && typeof view.refreshCapture === 'function') {
+                } else if ((scope === 'capture' || scope === 'tasks') && typeof view.refreshCapture === 'function') {
                     view.refreshCapture();
                 } else {
                     view.renderView();
@@ -77,12 +78,14 @@ export class RefreshCoordinator {
             }
         }
 
-        // Refresh all open Calendar Digest views
-        const digestLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_CALENDAR_DIGEST);
-        for (const leaf of digestLeaves) {
-            const view = leaf.view as any;
-            if (view && typeof view.refreshView === 'function') {
-                view.refreshView();
+        // Refresh all open Calendar Digest views (only for all or capture)
+        if (scope === 'all' || scope === 'capture') {
+            const digestLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_CALENDAR_DIGEST);
+            for (const leaf of digestLeaves) {
+                const view = leaf.view as any;
+                if (view && typeof view.refreshView === 'function') {
+                    view.refreshView();
+                }
             }
         }
 

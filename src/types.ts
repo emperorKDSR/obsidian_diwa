@@ -92,6 +92,7 @@ export interface DiwaSettings {
     contexts: string[];
     mobileBottomBarHeight: number;
     trackedTaskFiles?: string[];
+    additionalTaskFolders?: string[];
     scratchpadHorizon: ScratchpadHorizon;
     scratchpadCustomDate?: string;
     keepImportantInScratchpad: boolean;

@@ -14,6 +14,8 @@ export class IndexService {
     targetDateIndex: Map<string, Set<string>> = new Map();
     projectTaskIndex: Map<string, GawaTaskRecord[]> = new Map();
     private _lastIndexedCaptureFolderSetting: string = '';
+    private _lastIndexedAdditionalTaskFolders: string = '';
+    private _taskFileMtime: Map<string, number> = new Map();
 
     constructor(app: App, settings: DiwaSettings) {
         this.app = app;
@@ -129,9 +131,11 @@ export class IndexService {
         await this.indexTrackedProjectTaskFiles();
     }
 
-    async rebuildSelectedIndices(selection: { captures?: boolean } = { captures: true }): Promise<void> {
+    async rebuildSelectedIndices(selection: { captures?: boolean; tasks?: boolean } = { captures: true }): Promise<void> {
         if (selection.captures) {
             await this.buildCaptureIndexInPlace();
+            await this.indexTrackedProjectTaskFiles();
+        } else if (selection.tasks) {
             await this.indexTrackedProjectTaskFiles();
         }
     }
@@ -495,6 +499,50 @@ export class IndexService {
         return this.getConfiguredCaptureFolder().toLowerCase() !== this._lastIndexedCaptureFolderSetting.toLowerCase();
     }
 
+    getConfiguredAdditionalTaskFolders(): string[] {
+        const folders = this.settings.additionalTaskFolders || [];
+        const result: string[] = [];
+        for (const f of folders) {
+            const raw = String(f || '').trim();
+            if (!raw || raw === '/' || raw === '.') continue;
+            try {
+                const norm = this.normalizeConfiguredPath(raw, '');
+                if (norm && !result.includes(norm)) {
+                    result.push(norm);
+                }
+            } catch {
+                // ignore invalid folder path
+            }
+        }
+        return result;
+    }
+
+    isAdditionalTaskFile(path: string): boolean {
+        const normalizedPath = this.normalizeVaultPath(path);
+        if (!normalizedPath.toLowerCase().endsWith('.md')) return false;
+        if (normalizedPath.toLowerCase().includes('/trash/')) return false;
+        if (this.isCaptureFile(normalizedPath)) return false;
+
+        const folders = this.getConfiguredAdditionalTaskFolders();
+        for (const folder of folders) {
+            if (this.pathIsInFolder(normalizedPath, folder)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    isTrackedProjectFile(path: string): boolean {
+        const normalizedPath = this.normalizeVaultPath(path).toLowerCase();
+        const tracked = this.settings.trackedTaskFiles || [];
+        return tracked.some(t => this.normalizeVaultPath(t).toLowerCase() === normalizedPath);
+    }
+
+    additionalTaskFoldersChanged(): boolean {
+        const current = this.getConfiguredAdditionalTaskFolders().slice().sort().join('|');
+        return current.toLowerCase() !== this._lastIndexedAdditionalTaskFolders.toLowerCase();
+    }
+
     getScratchpadCutoffTimestamp(): number | null {
         const horizon = this.settings.scratchpadHorizon || '7d';
         if (horizon === 'all') return null;
@@ -767,21 +815,68 @@ export class IndexService {
     }
 
     async indexTrackedProjectTaskFiles(): Promise<void> {
+        this._lastIndexedAdditionalTaskFolders = this.getConfiguredAdditionalTaskFolders().slice().sort().join('|');
         this.projectTaskIndex.clear();
+        this._taskFileMtime.clear();
+
+        const candidatePaths = new Set<string>();
+
+        // 1. Explicitly tracked files
         const tracked = this.settings.trackedTaskFiles || [];
-        for (const path of tracked) {
-            const file = this.app.vault.getAbstractFileByPath(path);
-            if (file instanceof TFile) {
-                await this.indexProjectTaskFile(file);
+        for (const p of tracked) {
+            const norm = this.normalizeVaultPath(p);
+            if (norm) candidatePaths.add(norm);
+        }
+
+        // 2. Files in additionalTaskFolders
+        const additionalFolders = this.getConfiguredAdditionalTaskFolders();
+        if (additionalFolders.length > 0) {
+            const allMdFiles = this.app.vault.getMarkdownFiles();
+            for (const file of allMdFiles) {
+                if (this.isAdditionalTaskFile(file.path)) {
+                    candidatePaths.add(this.normalizeVaultPath(file.path));
+                }
             }
+        }
+
+        // 3. Parallel indexing in chunks of 50
+        const filesToIndex: TFile[] = [];
+        for (const path of candidatePaths) {
+            const file = this.app.vault.getAbstractFileByPath(path);
+            if (file instanceof TFile && file.path.toLowerCase().endsWith('.md')) {
+                filesToIndex.push(file);
+            }
+        }
+
+        const CHUNK_SIZE = 50;
+        for (let i = 0; i < filesToIndex.length; i += CHUNK_SIZE) {
+            const chunk = filesToIndex.slice(i, i + CHUNK_SIZE);
+            await Promise.all(chunk.map(f => this.indexProjectTaskFile(f).catch(err => {
+                console.warn('[DIWA IndexService] error indexing project task file', { path: f.path, err });
+                return null;
+            })));
         }
     }
 
     async indexProjectTaskFile(file: TFile): Promise<void> {
-        if (!file.path.endsWith('.md')) return;
+        if (!file.path.toLowerCase().endsWith('.md')) return;
+        const normPath = this.normalizeVaultPath(file.path);
+        const mtime = file.stat.mtime;
+        const cachedMtime = this._taskFileMtime.get(normPath);
+        if (cachedMtime && mtime <= cachedMtime && this.projectTaskIndex.has(normPath)) {
+            return;
+        }
+
         const content = await this.app.vault.read(file);
-        const { gawaTasks } = this.parseGawaTasksFromContent(content, file.path, file.basename);
-        this.projectTaskIndex.set(file.path, gawaTasks);
+        const { gawaTasks } = this.parseGawaTasksFromContent(content, normPath, file.basename);
+        this.projectTaskIndex.set(normPath, gawaTasks);
+        this._taskFileMtime.set(normPath, mtime);
+    }
+
+    removeProjectTaskFile(path: string): boolean {
+        const normPath = this.normalizeVaultPath(path);
+        this._taskFileMtime.delete(normPath);
+        return this.projectTaskIndex.delete(normPath);
     }
 
     getCapturesForDate(dateStr: string): CaptureEntry[] {

@@ -1,6 +1,21 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Karon (Today & Horizon View) Built & Deployed
+## Current State: Configurable Additional Task Folders Built & Deployed
+- **Additional Task Folders Setting (`DiwaSettings.additionalTaskFolders`)**:
+  - Configurable multi-folder whitelist in Settings (`DiwaSettingTab`) under **Storage & Workspace** (comma or newline separated).
+  - Normalizes paths and excludes `/trash/` or accidental root matches.
+- **Unified Task Indexing (`IndexService.ts`)**:
+  - `getConfiguredAdditionalTaskFolders()`, `isAdditionalTaskFile(path)`, and `isTrackedProjectFile(path)`.
+  - Expanded `projectTaskIndex` to index both explicitly tracked task files and files located in `additionalTaskFolders`.
+  - Added parallel chunked indexing (`CHUNK_SIZE = 50`) and `file.stat.mtime` caching via `_taskFileMtime` to avoid redundant file I/O.
+  - Tasks from these additional folders automatically populate **Gawa Task Cockpit** and **Karon Horizon** (Today & Horizon agenda / overdue alerts).
+- **Reactive Watcher & Refresh Coordination (`RefreshCoordinator.ts` & `src/main.ts`)**:
+  - `RefreshCoordinator.reindexFile()` now detects modifications in `additionalTaskFolders` and tracked files, indexing only the modified file and dispatching targeted `tasks` refresh scope.
+  - Vault `create`, `delete`, `rename`, and `metadataCache` events update `projectTaskIndex` dynamically.
+- **Scratchpad Inviolability**:
+  - Continuous scratchpad stream (`DesktopHubView`) remains strictly scoped to `captureFolder` (`000 Bin/Diwa`), preventing inbox clutter.
+
+## Previous Phase: Karon (Today & Horizon View) Built & Deployed
 - **Karon Dedicated Leaf View (`VIEW_TYPE_KARON = 'diwa-karon'`)**:
   - Created `src/views/KaronView.ts` implementing Option A (Chronological Stream / Agenda with collapsible date sections):
     - **Header & Horizon Switcher**: Supports `[ ☀️ Today ]`, `[ 📅 3 Days ]`, and `[ 🗓️ 7 Days ]` horizons with 1-click toggling.

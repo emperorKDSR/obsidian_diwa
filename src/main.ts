@@ -292,6 +292,9 @@ export default class DiwaPlugin extends Plugin {
             if (this.index.isCaptureFile(f.path)) {
                 await this.index.indexCaptureFile(f);
                 this.notifyRefresh('capture');
+            } else if (this.index.isAdditionalTaskFile(f.path)) {
+                await this.index.indexProjectTaskFile(f);
+                this.notifyRefresh('tasks');
             }
         }));
 
@@ -304,27 +307,44 @@ export default class DiwaPlugin extends Plugin {
             if (this.index.isCaptureFile(f.path)) {
                 this.index.removeCaptureFile(f.path);
                 this.notifyRefresh('capture');
+            } else if (this.index.isAdditionalTaskFile(f.path) || this.index.isTrackedProjectFile(f.path)) {
+                this.index.removeProjectTaskFile(f.path);
+                this.notifyRefresh('tasks');
             }
         }));
 
         this.registerEvent(this.app.vault.on('rename', async (f, oldPath) => {
             if (!(f instanceof TFile)) return;
-            let changed = false;
+            let changedCapture = false;
+            let changedTask = false;
+
             if (this.index.isCaptureFile(oldPath)) {
                 this.index.removeCaptureFile(oldPath);
-                changed = true;
+                changedCapture = true;
             }
             if (this.index.isCaptureFile(f.path)) {
                 await this.index.indexCaptureFile(f);
-                changed = true;
+                changedCapture = true;
             }
-            if (changed) {
+
+            if (this.index.isAdditionalTaskFile(oldPath) || this.index.isTrackedProjectFile(oldPath)) {
+                this.index.removeProjectTaskFile(oldPath);
+                changedTask = true;
+            }
+            if (this.index.isAdditionalTaskFile(f.path) || this.index.isTrackedProjectFile(f.path)) {
+                await this.index.indexProjectTaskFile(f);
+                changedTask = true;
+            }
+
+            if (changedCapture) {
                 this.notifyRefresh('capture');
+            } else if (changedTask) {
+                this.notifyRefresh('tasks');
             }
         }));
 
         this.registerEvent(this.app.metadataCache.on('changed', async (file) => {
-            if (this.index.isCaptureFile(file.path)) {
+            if (this.index.isCaptureFile(file.path) || this.index.isAdditionalTaskFile(file.path) || this.index.isTrackedProjectFile(file.path)) {
                 await this.refreshCoordinator.reindexFile(file, true);
             }
         }));
@@ -439,9 +459,13 @@ export default class DiwaPlugin extends Plugin {
         this.applyMobileCssVars();
 
         const shouldRefreshCaptures = this.index?.captureFolderChanged() ?? false;
+        const shouldRefreshTasks = this.index?.additionalTaskFoldersChanged() ?? false;
         if (shouldRefreshCaptures && this.index) {
             await this.index.rebuildSelectedIndices({ captures: true });
             this.notifyRefresh('capture');
+        } else if (shouldRefreshTasks && this.index) {
+            await this.index.rebuildSelectedIndices({ tasks: true });
+            this.notifyRefresh('tasks');
         }
     }
 
