@@ -914,11 +914,17 @@ export class CaptureService {
      */
     async executeBatchDigest(dateStr: string, blocks: DigestibleBlock[]): Promise<{ modifiedFiles: string[]; digestedSourceCount: number }> {
         const modifiedFiles: string[] = [];
-        const sourceFilePaths = new Set<string>();
+        const filesWithKeptBlocks = new Set<string>();
+        const filesWithDigestedBlocks = new Set<string>();
 
         const targetMap = new Map<string, DigestibleBlock[]>();
         for (const block of blocks) {
-            sourceFilePaths.add(block.sourceFilePath);
+            if (block.actionRoute === 'keep_scratchpad') {
+                filesWithKeptBlocks.add(block.sourceFilePath);
+            } else {
+                filesWithDigestedBlocks.add(block.sourceFilePath);
+            }
+
             if ((block.actionRoute === 'target_tasks' || block.actionRoute === 'target_log') && block.primaryTarget) {
                 const targetKey = block.primaryTarget.trim();
                 let list = targetMap.get(targetKey);
@@ -952,14 +958,18 @@ export class CaptureService {
             }
         }
 
-        for (const sourcePath of sourceFilePaths) {
-            await this.markCaptureAsDigested(sourcePath);
-            modifiedFiles.push(sourcePath);
+        let digestedCount = 0;
+        for (const sourcePath of filesWithDigestedBlocks) {
+            if (!filesWithKeptBlocks.has(sourcePath)) {
+                await this.markCaptureAsDigested(sourcePath);
+                modifiedFiles.push(sourcePath);
+                digestedCount++;
+            }
         }
 
         return {
             modifiedFiles,
-            digestedSourceCount: sourceFilePaths.size,
+            digestedSourceCount: digestedCount,
         };
     }
 
