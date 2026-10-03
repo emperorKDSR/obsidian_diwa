@@ -183,7 +183,14 @@ export class IndexService {
         const tomorrowStr = moment().add(1, 'day').format('YYYY-MM-DD');
 
         for (let i = 0; i < lines.length; i++) {
-            const match = lines[i].match(taskRegex);
+            const line = lines[i];
+
+            // Ignore indented lines (2+ spaces or tabs) as top-level tasks
+            if (/^\s{2,}|\t/.test(line)) {
+                continue;
+            }
+
+            const match = line.match(taskRegex);
             if (match) {
                 const isDone = match[2].toLowerCase() === 'x';
                 const taskTitle = match[3].replace(/^\]\s+/, '').trim();
@@ -281,6 +288,9 @@ export class IndexService {
                         break;
                     }
                 }
+
+                // Advance outer loop index past consumed child lines so they are not indexed as standalone tasks
+                i = nextIdx - 1;
 
                 const taskWikilinks = extractWikiLinks(taskTitle);
                 const taskTags = areaTags.map(t => t.replace(/^#/, ''));
