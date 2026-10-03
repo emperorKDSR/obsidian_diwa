@@ -25,6 +25,13 @@
     *   [x] **Inspector Subtasks Section**: Added completion count `(N/M)`, progress rail, interactive checkbox checklist, individual delete buttons (`🗑️`), and quick-add input (`Enter`).
     *   [x] **Atomic Persistence & Cascade**: `CaptureService.updateTaskDetailsInFile` atomically writes `    - [x]` lines, and parent completion cascades to child subtasks.
     *   [x] **Bug Fix: Subtask Deletion & Toggling Duplication**: Corrected `IndexService.ts` line indexing so parent task line index is preserved (`parentLineIdx = i`) rather than overwritten with child line index. Enforced parent task validation in `CaptureService.ts` and in-place re-synchronization in `GawaCockpitView.ts`. Removed duplicates in test vault note.
+*   [x] **Gawa Mobile Stream-Aligned Experience**:
+    *   [x] **Concise 2-Column Table**: Condensed mobile view to `Status` and `Title` only. Non-essential desktop columns are hidden seamlessly on mobile.
+    *   [x] **Subtle Typography Due Date**: Appended non-imposing `(Due: YYYY-MM-DD)` directly inline with task titles using muted secondary color (`--text-muted`, 0.82em).
+    *   [x] **Minimalist Mobile Header**: Stripped top search box, area select dropdown, and horizon chips on mobile.
+    *   [x] **1-Row Floating Action Bar**: Rendered floating bottom action bar with `+` New Task FAB, `search` toggle, `sliders-horizontal` filter lenses, and `rotate-cw` refresh.
+    *   [x] **Gawa Filter Bottom Sheet (`GawaFilterSheetModal`)**: Bottom sheet with drag handle, horizon filter chips (`All`, `Overdue`, `Today`, `Upcoming`, `Undated`), and life area selector grid.
+    *   [x] **Gawa Quick Task Modal (`GawaQuickTaskModal`)**: Rapid task entry modal with quick due date chips (`Today`, `Tomorrow`, `+7 Days`) and life area selector.
 *   [x] **Atomic Disk Persistence (`CaptureService.updateTaskDetailsInFile`)** — Atomically updates task titles, due dates, frontmatter life areas, subtasks, and child remark lines via `app.vault.process()` with line index drift protection.
 *   [x] **0ms Bi-Directional Interoperability** — Integrated `RefreshCoordinator` to broadcast `'tasks'` refresh events to both `DesktopHubView` and `GawaCockpitView`. Toggling in either view updates the other in 0ms without scroll jumping.
 *   [x] **Zero Build & Lint Errors** — Passes `npx tsc --noUnusedLocals --noUnusedParameters --noEmit --skipLibCheck` (0 errors) and `npm run build` (0 errors).

@@ -24,6 +24,16 @@
     - `GawaCockpitView`'s `persistSubtasks`, `persistRemarks`, and `saveInspectorChanges` immediately sync the selected task with the freshly re-indexed record from `IndexService.getGawaTasks(false)`.
     - `RefreshCoordinator.ts` broadcasts `'tasks'` refresh events to both `DesktopHubView` and `GawaCockpitView` leaves.
     - Toggling in Gawa reflects in DIWA Scratchpad without scroll jumping; capturing in DIWA reflects in Gawa instantly.
+- **Gawa Mobile Stream-Aligned Experience Deployed**:
+  - **Concise 2-Column Mobile Table**: On mobile (`Platform.isMobile && !isTablet`), the table displays strictly `Status` and `Title`. Non-essential columns (`Due Date`, `Life Area`, `Remarks`, `Source`, `Actions`) are hidden.
+  - **Subtle Inline Due Info**: When a task has a due date, renders subtle typography `(Due: YYYY-MM-DD)` inline with the title (`color: var(--text-muted); font-size: 0.82em; font-weight: 400;`), with non-imposing overdue tint if overdue.
+  - **Clean Mobile Header**: Removed top search box, life area select, and horizontal horizon pill filter bar on mobile, leaving a clean `📋 Gawa (N open)` header.
+  - **Floating Action Bar & Capsule**:
+    - **Idle State**: 1-row floating capsule (`.pos-gawa-mobile-action-bar`) with:
+      1. Primary `+` FAB: opens `GawaQuickTaskModal` for rapid task capture with due date chips and life area selection.
+      2. `search` button: toggles floating bottom search capsule (`.pos-mobile-floating-search`) with real-time debounced filtering.
+      3. `sliders-horizontal` filter button: opens `GawaFilterSheetModal` bottom sheet with quick horizon chips and life area grid.
+      4. `rotate-cw` refresh button: 1-tap refresh.
 - **Zero Build & Lint Errors**:
   - `npx tsc --noUnusedLocals --noUnusedParameters --noEmit --skipLibCheck` passed with 0 errors.
   - `npm run build` compiled cleanly into production `main.js`.

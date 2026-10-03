@@ -3070,3 +3070,149 @@ body.is-phone .pos-inline-textarea,
     }
 }
 
+/* ── Gawa Mobile Subtle Inline Due Info ── */
+.pos-gawa-mobile-due {
+    display: none;
+    font-size: 0.82em;
+    color: var(--text-muted);
+    font-weight: 400;
+    margin-left: 6px;
+    opacity: 0.85;
+    white-space: nowrap;
+}
+
+.pos-gawa-mobile-due.is-overdue {
+    color: var(--text-error, #eb5757);
+    opacity: 0.9;
+}
+
+.pos-gawa-mobile-container {
+    padding-bottom: 96px !important;
+    position: relative;
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+    .pos-gawa-mobile-due {
+        display: inline !important;
+    }
+
+    .pos-gawa-table.pos-gawa-table-concise th.th-date,
+    .pos-gawa-table.pos-gawa-table-concise td.td-date,
+    .pos-gawa-table.pos-gawa-table-concise th.th-area,
+    .pos-gawa-table.pos-gawa-table-concise td.td-area,
+    .pos-gawa-table.pos-gawa-table-concise th.th-remarks,
+    .pos-gawa-table.pos-gawa-table-concise td.td-remarks,
+    .pos-gawa-table.pos-gawa-table-concise th.th-source,
+    .pos-gawa-table.pos-gawa-table-concise td.td-source,
+    .pos-gawa-table.pos-gawa-table-concise th.th-action,
+    .pos-gawa-table.pos-gawa-table-concise td.td-action,
+    .pos-gawa-workspace-root.is-mobile-device .pos-gawa-table th.th-date,
+    .pos-gawa-workspace-root.is-mobile-device .pos-gawa-table td.td-date,
+    .pos-gawa-workspace-root.is-mobile-device .pos-gawa-table th.th-area,
+    .pos-gawa-workspace-root.is-mobile-device .pos-gawa-table td.td-area,
+    .pos-gawa-workspace-root.is-mobile-device .pos-gawa-table th.th-remarks,
+    .pos-gawa-workspace-root.is-mobile-device .pos-gawa-table td.td-remarks,
+    .pos-gawa-workspace-root.is-mobile-device .pos-gawa-table th.th-source,
+    .pos-gawa-workspace-root.is-mobile-device .pos-gawa-table td.td-source,
+    .pos-gawa-workspace-root.is-mobile-device .pos-gawa-table th.th-action,
+    .pos-gawa-workspace-root.is-mobile-device .pos-gawa-table td.td-action {
+        display: none !important;
+    }
+
+    .pos-gawa-table td.td-title {
+        max-width: none !important;
+        width: 100% !important;
+    }
+}
+
+/* ── Gawa Quick Task Modal ── */
+.pos-quick-task-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px 8px;
+    border-bottom: 1px solid var(--background-modifier-border-faint);
+}
+
+.pos-quick-task-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+.pos-quick-task-body {
+    padding: 14px 18px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.pos-quick-task-input {
+    width: 100%;
+    min-height: 60px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--diwa-radius-sm);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    padding: 10px 12px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.pos-quick-task-input:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+}
+
+.pos-quick-task-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+    display: block;
+}
+
+.pos-quick-task-chips-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.pos-quick-task-chip {
+    font-size: 0.8rem;
+    padding: 5px 12px;
+    border-radius: var(--diwa-radius-pill);
+    background: var(--background-secondary-alt);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--diwa-transition);
+}
+
+.pos-quick-task-chip.is-active {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+    font-weight: 600;
+}
+
+.pos-quick-task-chip.pos-chip-clear {
+    color: var(--text-error, #eb5757);
+}
+
+.pos-quick-task-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 6px;
+}
+
+.pos-quick-task-submit {
+    padding: 8px 18px;
+    font-weight: 600;
+    border-radius: var(--diwa-radius-sm);
+}
+
+

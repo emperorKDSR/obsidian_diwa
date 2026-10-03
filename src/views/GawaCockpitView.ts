@@ -1,11 +1,14 @@
-import { ItemView, WorkspaceLeaf, setIcon, Notice, moment, TFile, MarkdownRenderer } from 'obsidian';
+import { ItemView, WorkspaceLeaf, setIcon, Notice, moment, TFile, MarkdownRenderer, Platform } from 'obsidian';
 import type DiwaPlugin from '../main';
 import { GawaTaskRecord, GawaSubtaskItem } from '../types';
 import { VIEW_TYPE_GAWA_COCKPIT, GAWA_COCKPIT_ICON_ID } from '../constants';
 import { WikilinkPeekModal } from '../modals/WikilinkPeekModal';
+import { GawaFilterSheetModal } from '../modals/GawaFilterSheetModal';
+import { GawaQuickTaskModal } from '../modals/GawaQuickTaskModal';
+import { isTablet } from '../utils';
 
-type DateFilterType = 'all' | 'overdue' | 'today' | 'upcoming' | 'undated';
-type SortColumnType = 'dueDate' | 'title' | 'area';
+export type DateFilterType = 'all' | 'overdue' | 'today' | 'upcoming' | 'undated';
+export type SortColumnType = 'dueDate' | 'title' | 'area';
 
 export class GawaCockpitView extends ItemView {
     plugin: DiwaPlugin;
@@ -18,6 +21,16 @@ export class GawaCockpitView extends ItemView {
     private _sortColumn: SortColumnType = 'dueDate';
     private _sortAscending: boolean = true;
     private _selectedTask: GawaTaskRecord | null = null;
+
+    // Mobile state & getters
+    public get rawTasks(): GawaTaskRecord[] { return this._tasks; }
+    public get activeDateFilter(): DateFilterType { return this._activeDateFilter; }
+    public get activeAreaFilter(): string { return this._activeAreaFilter; }
+
+    private _containerEl: HTMLElement | null = null;
+    private _mobileSearchOpen: boolean = false;
+    private _mobileActionBarEl: HTMLElement | null = null;
+    private _searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     // DOM containers
     private _tableBodyEl: HTMLElement | null = null;
@@ -61,6 +74,9 @@ export class GawaCockpitView extends ItemView {
         this.renderTableRows();
         this.updateFilterChips();
         this.updateSummaryText();
+        if (this._containerEl && Platform.isMobile && !isTablet(this.app)) {
+            this.renderMobileActionBar(this._containerEl);
+        }
         if (this._selectedTask) {
             // Keep inspector in sync if the selected task was modified
             const updated = this._tasks.find(
@@ -72,6 +88,17 @@ export class GawaCockpitView extends ItemView {
             } else {
                 this.closeInspector();
             }
+        }
+    }
+
+    public applyFiltersFromSheet(dateFilter: DateFilterType, areaFilter: string): void {
+        this._activeDateFilter = dateFilter;
+        this._activeAreaFilter = areaFilter;
+        this.renderTableRows();
+        this.updateFilterChips();
+        this.updateSummaryText();
+        if (this._containerEl) {
+            this.renderMobileActionBar(this._containerEl);
         }
     }
 
@@ -137,30 +164,47 @@ export class GawaCockpitView extends ItemView {
     }
 
     public renderView(): void {
+        const isMobile = Platform.isMobile && !isTablet(this.app);
         const root = this.contentEl;
         root.empty();
         root.addClass('diwa-workspace-root', 'pos-gawa-workspace-root');
+        if (isMobile) {
+            root.addClass('is-mobile-device');
+        }
 
         this.loadTasksFromIndex();
 
         const container = root.createDiv({ cls: 'pos-gawa-cockpit-container' });
+        this._containerEl = container;
+        if (isMobile) {
+            container.addClass('pos-gawa-mobile-container');
+        }
 
         // --- 1. Top Header Bar ---
-        this.renderHeader(container);
+        this.renderHeader(container, isMobile);
 
-        // --- 2. Filter Horizon Chips ---
-        this.renderHorizonChips(container);
+        // --- 2. Filter Horizon Chips (Desktop/Tablet only) ---
+        if (!isMobile) {
+            this.renderHorizonChips(container);
+        } else {
+            this._chipsContainerEl = null;
+        }
 
         // --- 3. Split Main Stage (Data Grid + Inspector) ---
         const mainStage = container.createDiv({ cls: 'pos-gawa-main-stage' });
 
         // Left/Center: Table Container
         const tableContainer = mainStage.createDiv({ cls: 'pos-gawa-table-container' });
-        this.renderTable(tableContainer);
+        this.renderTable(tableContainer, isMobile);
 
         // Right/Side: Slide-Over Inspector Container
         this._inspectorEl = mainStage.createDiv({ cls: 'pos-gawa-inspector' });
         this._inspectorEl.style.display = 'none';
+
+        // --- 4. Mobile Floating Action Bar / Search Capsule ---
+        if (isMobile) {
+            this.renderMobileActionBar(container);
+        }
 
         // Initial Data Populate
         this.renderTableRows();
@@ -168,61 +212,63 @@ export class GawaCockpitView extends ItemView {
         this.updateSummaryText();
     }
 
-    private renderHeader(parent: HTMLElement): void {
+    private renderHeader(parent: HTMLElement, isMobile: boolean): void {
         const header = parent.createDiv({ cls: 'pos-gawa-header-bar' });
 
         // Left Branding & Counters
         const leftGroup = header.createDiv({ cls: 'pos-gawa-header-left' });
         const logo = leftGroup.createSpan({ cls: 'pos-gawa-logo' });
         setIcon(logo, GAWA_COCKPIT_ICON_ID);
-        leftGroup.createSpan({ text: 'Gawa Cockpit', cls: 'pos-gawa-title' });
+        leftGroup.createSpan({ text: 'Gawa', cls: 'pos-gawa-title' });
 
         this._countSummaryEl = leftGroup.createSpan({ cls: 'pos-gawa-badge-counter' });
 
-        // Right Controls: Search, Area Dropdown, Refresh
-        const rightGroup = header.createDiv({ cls: 'pos-gawa-header-right' });
+        if (!isMobile) {
+            // Right Controls: Search, Area Dropdown, Refresh (Desktop only)
+            const rightGroup = header.createDiv({ cls: 'pos-gawa-header-right' });
 
-        // Search Input
-        const searchBox = rightGroup.createDiv({ cls: 'pos-gawa-search-box' });
-        const searchInput = searchBox.createEl('input', {
-            type: 'search',
-            placeholder: 'Search tasks, #tags, or remarks...',
-            cls: 'pos-gawa-search-input',
-            value: this._searchQuery,
-        });
-        searchInput.addEventListener('input', () => {
-            this._searchQuery = searchInput.value;
-            this.renderTableRows();
-            this.updateSummaryText();
-        });
+            // Search Input
+            const searchBox = rightGroup.createDiv({ cls: 'pos-gawa-search-box' });
+            const searchInput = searchBox.createEl('input', {
+                type: 'search',
+                placeholder: 'Search tasks, #tags, or remarks...',
+                cls: 'pos-gawa-search-input',
+                value: this._searchQuery,
+            });
+            searchInput.addEventListener('input', () => {
+                this._searchQuery = searchInput.value;
+                this.renderTableRows();
+                this.updateSummaryText();
+            });
 
-        // Life Area Filter Dropdown
-        const areaSelect = rightGroup.createEl('select', { cls: 'pos-gawa-area-select' });
-        areaSelect.createEl('option', { value: 'all', text: 'All Areas' });
-        for (const area of this.plugin.settings.lifeAreas) {
-            areaSelect.createEl('option', {
-                value: area.id,
-                text: `${area.icon} ${area.label}`,
+            // Life Area Filter Dropdown
+            const areaSelect = rightGroup.createEl('select', { cls: 'pos-gawa-area-select' });
+            areaSelect.createEl('option', { value: 'all', text: 'All Areas' });
+            for (const area of this.plugin.settings.lifeAreas) {
+                areaSelect.createEl('option', {
+                    value: area.id,
+                    text: `${area.icon} ${area.label}`,
+                });
+            }
+            areaSelect.value = this._activeAreaFilter;
+            areaSelect.addEventListener('change', () => {
+                this._activeAreaFilter = areaSelect.value;
+                this.renderTableRows();
+                this.updateFilterChips();
+                this.updateSummaryText();
+            });
+
+            // Refresh Button
+            const refreshBtn = rightGroup.createEl('button', {
+                cls: 'pos-btn pos-btn-icon pos-gawa-refresh-btn',
+                attr: { 'aria-label': 'Refresh Tasks' },
+            });
+            setIcon(refreshBtn, 'rotate-cw');
+            refreshBtn.addEventListener('click', () => {
+                this.refreshTasks();
+                new Notice('Gawa tasks refreshed');
             });
         }
-        areaSelect.value = this._activeAreaFilter;
-        areaSelect.addEventListener('change', () => {
-            this._activeAreaFilter = areaSelect.value;
-            this.renderTableRows();
-            this.updateFilterChips();
-            this.updateSummaryText();
-        });
-
-        // Refresh Button
-        const refreshBtn = rightGroup.createEl('button', {
-            cls: 'pos-btn pos-btn-icon pos-gawa-refresh-btn',
-            attr: { 'aria-label': 'Refresh Tasks' },
-        });
-        setIcon(refreshBtn, 'rotate-cw');
-        refreshBtn.addEventListener('click', () => {
-            this.refreshTasks();
-            new Notice('Gawa tasks refreshed');
-        });
     }
 
     private renderHorizonChips(parent: HTMLElement): void {
@@ -280,8 +326,10 @@ export class GawaCockpitView extends ItemView {
         this._countSummaryEl.setText(`${filteredCount} tasks`);
     }
 
-    private renderTable(parent: HTMLElement): void {
-        const table = parent.createEl('table', { cls: 'pos-gawa-table' });
+    private renderTable(parent: HTMLElement, isMobile: boolean): void {
+        const table = parent.createEl('table', {
+            cls: `pos-gawa-table ${isMobile ? 'pos-gawa-table-concise' : ''}`,
+        });
 
         // Table Header
         const thead = table.createEl('thead');
@@ -352,10 +400,11 @@ export class GawaCockpitView extends ItemView {
         this._tableBodyEl.empty();
 
         const tasks = this.getFilteredAndSortedTasks();
+        const isMobile = Platform.isMobile && !isTablet(this.app);
 
         if (tasks.length === 0) {
             const emptyRow = this._tableBodyEl.createEl('tr', { cls: 'pos-gawa-empty-row' });
-            const cell = emptyRow.createEl('td', { attr: { colspan: '7' } });
+            const cell = emptyRow.createEl('td', { attr: { colspan: isMobile ? '2' : '7' } });
             cell.createDiv({
                 cls: 'pos-gawa-empty-state',
                 text: '✨ No open tasks matching current filters. All caught up!',
@@ -411,6 +460,17 @@ export class GawaCockpitView extends ItemView {
                     });
                 });
             });
+
+            // Subtle inline due date for mobile & concise table
+            if (task.dueDate) {
+                const dueSpan = titleWrap.createSpan({
+                    cls: 'pos-gawa-mobile-due',
+                    text: `(Due: ${task.dueDate})`,
+                });
+                if (task.dueDate < todayStr) {
+                    dueSpan.addClass('is-overdue');
+                }
+            }
 
             // Render subtask progress badge if present
             if (task.subtasks && task.subtasks.length > 0) {
@@ -516,6 +576,136 @@ export class GawaCockpitView extends ItemView {
                 this.openInspector(task);
             });
         }
+    }
+
+    private renderMobileActionBar(parent: HTMLElement): void {
+        const isMobile = Platform.isMobile && !isTablet(this.app);
+        if (!isMobile) return;
+
+        if (this._mobileActionBarEl && this._mobileActionBarEl.parentElement === parent) {
+            this._mobileActionBarEl.remove();
+        }
+
+        // 1. ACTIVE SEARCH STATE: Bottom search capsule
+        if (this._mobileSearchOpen) {
+            const searchWrapper = parent.createDiv({ cls: 'pos-mobile-floating-search pos-gawa-mobile-search' });
+            this._mobileActionBarEl = searchWrapper;
+
+            const iconEl = searchWrapper.createDiv({ cls: 'pos-mobile-search-icon' });
+            setIcon(iconEl, 'search');
+
+            const searchInput = searchWrapper.createEl('input', {
+                type: 'search',
+                placeholder: 'Search tasks, #tags, or remarks...',
+                cls: 'pos-mobile-search-input',
+                value: this._searchQuery,
+                attr: {
+                    enterkeyhint: 'search',
+                    autocomplete: 'off',
+                    autocorrect: 'off',
+                    autocapitalize: 'off',
+                    spellcheck: 'false',
+                },
+            });
+
+            const triggerSearch = (query: string, dismissKeyboard = false) => {
+                if (this._searchDebounceTimer) clearTimeout(this._searchDebounceTimer);
+                this._searchQuery = query;
+                this.renderTableRows();
+                this.updateSummaryText();
+                if (dismissKeyboard) {
+                    searchInput.blur();
+                }
+            };
+
+            searchInput.oninput = (e) => {
+                const val = (e.target as HTMLInputElement).value;
+                if (this._searchDebounceTimer) clearTimeout(this._searchDebounceTimer);
+                this._searchDebounceTimer = setTimeout(() => {
+                    triggerSearch(val, false);
+                }, 120);
+            };
+
+            searchInput.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    triggerSearch(searchInput.value, true);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    this._searchQuery = '';
+                    this._mobileSearchOpen = false;
+                    triggerSearch('', true);
+                    this.renderMobileActionBar(parent);
+                }
+            };
+
+            const clearBtn = searchWrapper.createEl('button', {
+                cls: 'pos-mobile-search-clear',
+                attr: { 'aria-label': 'Close search', title: 'Close' },
+            });
+            setIcon(clearBtn, 'x');
+            clearBtn.onclick = () => {
+                this._searchQuery = '';
+                this._mobileSearchOpen = false;
+                triggerSearch('', true);
+                this.renderMobileActionBar(parent);
+            };
+
+            setTimeout(() => {
+                if (searchInput.isConnected) {
+                    searchInput.focus();
+                }
+            }, 50);
+
+            return;
+        }
+
+        // 2. IDLE STATE: 1-row Floating Action Bar
+        const actionBar = parent.createDiv({ cls: 'pos-mobile-action-bar pos-gawa-mobile-action-bar' });
+        this._mobileActionBarEl = actionBar;
+
+        // Button 1: Add New Task (+) - Primary
+        const newBtn = actionBar.createEl('button', {
+            cls: 'pos-mobile-action-btn pos-mobile-action-new is-primary',
+            attr: { 'aria-label': 'Create new task', title: 'New Task' },
+        });
+        setIcon(newBtn, 'plus');
+        newBtn.onclick = () => {
+            new GawaQuickTaskModal(this.app, this.plugin, this).open();
+        };
+
+        // Button 2: Search (Toggle search capsule)
+        const searchBtn = actionBar.createEl('button', {
+            cls: `pos-mobile-action-btn pos-mobile-action-search ${this._searchQuery ? 'is-active' : ''}`,
+            attr: { 'aria-label': 'Search tasks', title: 'Search' },
+        });
+        setIcon(searchBtn, 'search');
+        searchBtn.onclick = () => {
+            this._mobileSearchOpen = true;
+            this.renderMobileActionBar(parent);
+        };
+
+        // Button 3: Filter Lenses (Bottom sheet)
+        const hasActiveFilter = this._activeDateFilter !== 'all' || this._activeAreaFilter !== 'all';
+        const filterBtn = actionBar.createEl('button', {
+            cls: `pos-mobile-action-btn pos-mobile-action-filter ${hasActiveFilter ? 'is-active' : ''}`,
+            attr: { 'aria-label': 'Filter tasks & horizons', title: 'Filters' },
+        });
+        setIcon(filterBtn, 'sliders-horizontal');
+        filterBtn.onclick = () => {
+            new GawaFilterSheetModal(this.app, this.plugin, this).open();
+        };
+
+        // Button 4: Refresh (1-tap refresh)
+        const refreshBtn = actionBar.createEl('button', {
+            cls: 'pos-mobile-action-btn pos-mobile-action-refresh',
+            attr: { 'aria-label': 'Refresh tasks', title: 'Refresh' },
+        });
+        setIcon(refreshBtn, 'rotate-cw');
+        refreshBtn.onclick = () => {
+            this.refreshTasks();
+            new Notice('Tasks refreshed');
+        };
     }
 
     private async handleTaskToggle(task: GawaTaskRecord, row: HTMLElement, checkbox: HTMLInputElement): Promise<void> {
