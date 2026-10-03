@@ -1,15 +1,13 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Smart Task Deduplication with Project Precedence Built & Deployed
-- **Smart Task Deduplication (`IndexService.ts`)**:
-  - Implemented `normalizeTaskSignature(title)` stripping markdown emphasis, wikilink wrappers, area `#tags`, and punctuation.
-  - Rewrote `getGawaTasks(openOnly)` to give permanent project notes (`projectTaskIndex`) precedence over capture notes (`captureIndex`).
-  - Capture tasks matching a permanent project task are marked as `shadowed` and suppressed from Gawa and Karon.
-  - Ghost resurrection prevention: even if a project task is completed, its capture duplicate remains suppressed.
+## Current State: Universal Task Deduplication & Block ID Cleaning Deployed
+- **Universal Task Deduplication (`IndexService.ts`)**:
+  - Automatically deduplicates tasks across ALL scanned sources: across multiple project notes in `additionalTaskFolders`, within the same file, and between capture notes and permanent notes.
+  - Strips Obsidian block reference IDs (`\s*\^[a-zA-Z0-9_-]+$`, e.g. `^dw-2ppuu4-b1`) from `cleanTitle` and normalization signatures, preventing block IDs from polluting task titles in Karon or breaking deduplication matching.
+  - Compatible due date matching: tasks with identical text collapse into a single canonical task while preserving date and area metadata.
 - **Bi-Directional Task Synchronization (`CaptureService.ts` & Views)**:
-  - `GawaTaskRecord.shadowedLocations` tracks all shadowed capture locations for a canonical task.
-  - `CaptureService.toggleTaskInFile()` sync-toggles any `shadowedLocations` alongside the canonical project file, ensuring both notes remain in 100% synchronization.
-  - Updated checkbox toggles in `GawaCockpitView` and `KaronView` to pass `task.shadowedLocations`.
+  - `GawaTaskRecord.shadowedLocations` tracks all duplicate occurrences across the vault.
+  - Toggling in Gawa or Karon atomically checks/unchecks the task in every note where it exists.
   - Added transparency in Gawa Inspector: displays `🔗 Synced with: <Note>` metadata indicator.
 
 ## Previous Phase: Configurable Additional Task Folders Built & Deployed

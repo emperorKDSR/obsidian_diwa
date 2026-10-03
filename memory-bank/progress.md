@@ -1,14 +1,13 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Smart Task Deduplication with Project Precedence (Complete)
+## Current Phase: Universal Task Deduplication & Block ID Cleaning (Complete)
 
 ---
 
-### 0. Smart Task Deduplication with Project Precedence (Complete)
-*   [x] **Signature Normalization (`src/services/IndexService.ts`)** — Added `normalizeTaskSignature()` stripping markdown emphasis, wikilinks, `#tags`, and punctuation.
-*   [x] **Precedence & Shadowing Engine (`src/services/IndexService.ts`)** — Updated `getGawaTasks()` so permanent project tasks take priority over capture inbox tasks. Shadowed tasks are suppressed from Gawa and Karon, and ghost resurrection is eliminated.
-*   [x] **Bi-Directional Sync Toggling (`src/services/CaptureService.ts`)** — Enhanced `toggleTaskInFile()` to accept `shadowedLocations` and atomically sync-toggle matching checkboxes in source capture notes.
-*   [x] **View Wiring (`GawaCockpitView.ts` & `KaronView.ts`)** — Wired checkbox toggles in Gawa and Karon to propagate `shadowedLocations`, and added `🔗 Synced with: <Note>` transparency in Gawa Slide-Over Inspector.
+### 0. Universal Task Deduplication & Block ID Cleaning (Complete)
+*   [x] **Block ID Sanitization (`src/services/IndexService.ts`)** — Stripped Obsidian block reference IDs (`\s*\^[a-zA-Z0-9_-]+$`, e.g. `^dw-2ppuu4-b1`) from `cleanTitle` and task signatures, keeping Karon and Gawa clean and ensuring identical tasks match.
+*   [x] **Universal Deduplication Engine (`src/services/IndexService.ts`)** — Extended `getGawaTasks()` to deduplicate tasks across all sources: multiple project notes, within the same file, and between capture notes and permanent notes.
+*   [x] **Multi-Location Sync Toggling (`src/services/CaptureService.ts`)** — Tracks every duplicate location in `shadowedLocations` and checks/unchecks all copies simultaneously when toggled.
 *   [x] **Zero Build & Lint Errors** — Strict `tsc --noEmit --skipLibCheck` and `npm run build` both passed with 0 errors.
 *   [x] **Production Vault Deployment** — Deployed `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin directories.
 

@@ -361,7 +361,7 @@ export class IndexService {
                 }
                 cleanTitle = cleanTitle.replace(/#([a-zA-Z0-9_\-]+)/g, (match, tag) => {
                     return knownAreas.includes(tag.toLowerCase()) ? '' : match;
-                }).replace(/\s+/g, ' ').trim();
+                }).replace(/\s*\^[a-zA-Z0-9_-]+$/g, '').replace(/\s+/g, ' ').trim();
 
                 gawaTasks.push({
                     filePath: file.path,
@@ -634,12 +634,13 @@ export class IndexService {
 
     /**
      * Normalize task title into a canonical signature for deduplication
-     * between capture inbox notes and permanent project notes.
+     * across notes in the vault.
      */
     static normalizeTaskSignature(title: string): string {
         return (title || '')
             .toLowerCase()
-            .replace(/\[\[.*?\]\]/g, (m) => m.replace(/\[\[|\]\]/g, ''))
+            .replace(/\s*\^[a-zA-Z0-9_-]+$/g, '')
+            .replace(/\[\[(.*?)\]\]/g, '$1')
             .replace(/#[a-zA-Z0-9_\-]+/g, '')
             .replace(/[*_~`]/g, '')
             .replace(/[^\w\s]/g, ' ')
@@ -648,83 +649,109 @@ export class IndexService {
     }
 
     getGawaTasks(openOnly: boolean = true): GawaTaskRecord[] {
-        // 1. Index project tasks by signature (Permanent project notes take precedence)
-        const canonicalProjectTasks: Map<string, GawaTaskRecord> = new Map();
-        const projectTasksBySig: Map<string, GawaTaskRecord[]> = new Map();
+        // Collect all candidate tasks: project tasks first (higher precedence), then capture tasks
+        const allCandidates: { task: GawaTaskRecord; isProject: boolean }[] = [];
 
         for (const tasks of this.projectTaskIndex.values()) {
             for (const pt of tasks) {
-                const key = `${pt.filePath}:${pt.lineIndex}`;
-                const cloned: GawaTaskRecord = {
-                    ...pt,
-                    shadowedLocations: pt.shadowedLocations ? [...pt.shadowedLocations] : undefined,
-                };
-                canonicalProjectTasks.set(key, cloned);
-
-                const sig = IndexService.normalizeTaskSignature(pt.cleanTitle);
-                if (sig) {
-                    let list = projectTasksBySig.get(sig);
-                    if (!list) {
-                        list = [];
-                        projectTasksBySig.set(sig, list);
-                    }
-                    list.push(cloned);
-                }
+                allCandidates.push({ task: pt, isProject: true });
             }
         }
-
-        // 2. Iterate through capture notes (ephemeral inbox) and deduplicate
-        const activeCaptureTasks: GawaTaskRecord[] = [];
 
         for (const entry of this.captureIndex.values()) {
             const gTasks = Array.isArray(entry?.gawaTasks) ? entry.gawaTasks : [];
             for (const ct of gTasks) {
-                const cSig = IndexService.normalizeTaskSignature(ct.cleanTitle);
-                let isShadowed = false;
+                allCandidates.push({ task: ct, isProject: false });
+            }
+        }
 
-                if (cSig && projectTasksBySig.has(cSig)) {
-                    const candidates = projectTasksBySig.get(cSig)!;
-                    for (const cand of candidates) {
-                        // Due date compatibility: same date, or either is undated
-                        const datesCompatible = (!cand.dueDate || !ct.dueDate) || (cand.dueDate === ct.dueDate);
-                        if (datesCompatible) {
-                            isShadowed = true;
-                            if (!cand.shadowedLocations) {
-                                cand.shadowedLocations = [];
-                            }
-                            if (!cand.shadowedLocations.some(l => l.filePath === ct.filePath && l.lineIndex === ct.lineIndex)) {
-                                cand.shadowedLocations.push({
-                                    filePath: ct.filePath,
-                                    lineIndex: ct.lineIndex,
-                                    title: ct.rawTitle,
-                                });
-                            }
-                            break;
-                        }
+        // Deduplication map: signature -> list of canonical task records (separated only if due dates are incompatible)
+        const canonicalBySig: Map<string, GawaTaskRecord[]> = new Map();
+        const completedTaskSignatures: Set<string> = new Set();
+
+        for (const item of allCandidates) {
+            const t = item.task;
+            const sig = IndexService.normalizeTaskSignature(t.cleanTitle);
+            if (!sig) continue;
+
+            if (t.completed) {
+                completedTaskSignatures.add(sig);
+            }
+
+            let candidates = canonicalBySig.get(sig);
+            if (!candidates) {
+                candidates = [];
+                canonicalBySig.set(sig, candidates);
+            }
+
+            // Find an existing canonical task with compatible due date
+            // (compatible if both have same date, or either is undated)
+            let match = candidates.find(c => (!c.dueDate || !t.dueDate) || (c.dueDate === t.dueDate));
+
+            if (!match) {
+                // First occurrence for this task signature & date
+                const cloned: GawaTaskRecord = {
+                    ...t,
+                    shadowedLocations: t.shadowedLocations ? [...t.shadowedLocations] : [],
+                };
+                candidates.push(cloned);
+            } else {
+                // Duplicate occurrence!
+                // 1. If match is in capture file and t is in project file, upgrade canonical to project file
+                const matchIsCapture = !this.isAdditionalTaskFile(match.filePath) && !this.isTrackedProjectFile(match.filePath);
+                if (matchIsCapture && item.isProject) {
+                    match.shadowedLocations = match.shadowedLocations || [];
+                    if (!match.shadowedLocations.some(l => l.filePath === match.filePath && l.lineIndex === match.lineIndex)) {
+                        match.shadowedLocations.push({
+                            filePath: match.filePath,
+                            lineIndex: match.lineIndex,
+                            title: match.rawTitle,
+                        });
                     }
+                    match.filePath = t.filePath;
+                    match.noteTitle = t.noteTitle;
+                    match.lineIndex = t.lineIndex;
+                    match.rawTitle = t.rawTitle;
+                    match.cleanTitle = t.cleanTitle;
                 }
 
-                // If shadowed by a permanent project task, suppress from Gawa and Karon
-                if (isShadowed) {
-                    continue;
+                // 2. Adopt dueDate if match was undated but t has one
+                if (!match.dueDate && t.dueDate) {
+                    match.dueDate = t.dueDate;
+                    match.dueDateRelative = t.dueDateRelative;
                 }
 
-                if (!openOnly || !ct.completed) {
-                    activeCaptureTasks.push(ct);
+                // 3. Adopt area if match was unassigned
+                if ((!match.areaId || match.areaId === '—') && t.areaId && t.areaId !== '—') {
+                    match.areaId = t.areaId;
+                    match.areaLabel = t.areaLabel;
+                    match.areaIcon = t.areaIcon;
+                }
+
+                // 4. Record this duplicate's location for sync-toggling
+                match.shadowedLocations = match.shadowedLocations || [];
+                if (!match.shadowedLocations.some(l => l.filePath === t.filePath && l.lineIndex === t.lineIndex)) {
+                    match.shadowedLocations.push({
+                        filePath: t.filePath,
+                        lineIndex: t.lineIndex,
+                        title: t.rawTitle,
+                    });
                 }
             }
         }
 
-        // 3. Assemble results: permanent project tasks + unshadowed capture tasks
+        // Assemble final deduplicated output
         const results: GawaTaskRecord[] = [];
-
-        for (const pt of canonicalProjectTasks.values()) {
-            if (!openOnly || !pt.completed) {
-                results.push(pt);
+        for (const [sig, candidates] of canonicalBySig.entries()) {
+            for (const c of candidates) {
+                if (completedTaskSignatures.has(sig)) {
+                    c.completed = true;
+                }
+                if (!openOnly || !c.completed) {
+                    results.push(c);
+                }
             }
         }
-
-        results.push(...activeCaptureTasks);
 
         return results;
     }
@@ -809,6 +836,7 @@ export class IndexService {
                     .replace(/📅\s*\d{4}-\d{2}-\d{2}/g, '')
                     .replace(/\[due::\s*\d{4}-\d{2}-\d{2}\]/g, '')
                     .replace(/@\d{4}-\d{2}-\d{2}/g, '')
+                    .replace(/\s*\^[a-zA-Z0-9_-]+$/g, '')
                     .trim();
 
                 let resolvedAreaId = fallbackArea;
