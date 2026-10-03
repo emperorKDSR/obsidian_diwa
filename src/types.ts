@@ -4,14 +4,29 @@ export interface LifeArea {
     id: string;
     label: string;
     icon: string;
-    color?: string;
 }
 
 export interface CaptureTaskItem {
     lineIndex: number;
-    rawLine: string;
     title: string;
     completed: boolean;
+}
+
+export interface GawaTaskRecord {
+    filePath: string;
+    noteTitle: string;
+    lineIndex: number;
+    rawTitle: string;
+    cleanTitle: string;
+    completed: boolean;
+    dueDate: string | null;       // "YYYY-MM-DD" (earliest date)
+    dueDateRelative?: string;     // "Overdue", "Today", "Tomorrow", "In 3d", etc.
+    areaId: string;
+    areaLabel: string;
+    areaIcon: string;
+    tags: string[];
+    wikilinks: string[];
+    remarks: string[];            // Indented child remark lines
 }
 
 export interface CaptureEntry {
@@ -25,6 +40,7 @@ export interface CaptureEntry {
     body: string;
     hasTasks: boolean;
     tasks: CaptureTaskItem[];
+    gawaTasks?: GawaTaskRecord[];
     allDates: string[];
     wikilinks: string[];
     pinned?: boolean;
@@ -40,7 +56,6 @@ export interface DiwaSettings {
     attachmentsFolder: string;
     peopleFolder: string;
     contexts: string[];
-    hiddenContexts: string[];
     mobileBottomBarHeight: number;
 }
 

@@ -1,8 +1,19 @@
 import { Plugin, TFile, Notice, Platform, addIcon } from 'obsidian';
-import { DEFAULT_SETTINGS, VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB, DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG } from './constants';
+import {
+    DEFAULT_SETTINGS,
+    VIEW_TYPE_DESKTOP_HUB,
+    VIEW_TYPE_MOBILE_HUB,
+    VIEW_TYPE_TABLET_HUB,
+    VIEW_TYPE_GAWA_COCKPIT,
+    DESKTOP_HUB_ICON_ID,
+    DESKTOP_HUB_ICON_SVG,
+    GAWA_COCKPIT_ICON_ID,
+    GAWA_COCKPIT_ICON_SVG,
+} from './constants';
 import { DiwaSettings } from './types';
 import { isTablet } from './utils';
 import { DesktopHubView } from './views/DesktopHubView';
+import { GawaCockpitView } from './views/GawaCockpitView';
 import { DiwaSettingTab } from './settings';
 import { IndexService } from './services/IndexService';
 import { CaptureService } from './services/CaptureService';
@@ -50,11 +61,16 @@ export default class DiwaPlugin extends Plugin {
         this.registerView(VIEW_TYPE_DESKTOP_HUB, (leaf) => new DesktopHubView(leaf, this));
         this.registerView(VIEW_TYPE_MOBILE_HUB, (leaf) => new DesktopHubView(leaf, this));
         this.registerView(VIEW_TYPE_TABLET_HUB, (leaf) => new DesktopHubView(leaf, this));
+        this.registerView(VIEW_TYPE_GAWA_COCKPIT, (leaf) => new GawaCockpitView(leaf, this));
 
         addIcon(DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG);
+        addIcon(GAWA_COCKPIT_ICON_ID, GAWA_COCKPIT_ICON_SVG);
 
         this.addRibbonIcon(DESKTOP_HUB_ICON_ID, 'DIWA Workspace', () => {
             void this.activateWorkspace();
+        });
+        this.addRibbonIcon(GAWA_COCKPIT_ICON_ID, 'Gawa Task Cockpit', () => {
+            void this.activateGawaCockpit();
         });
 
         this.addCommand({
@@ -62,6 +78,12 @@ export default class DiwaPlugin extends Plugin {
             name: 'Open DIWA Workspace',
             icon: DESKTOP_HUB_ICON_ID,
             callback: () => { void this.activateWorkspace(); }
+        });
+        this.addCommand({
+            id: 'diwa-open-gawa-cockpit',
+            name: 'Open Gawa Task Cockpit',
+            icon: GAWA_COCKPIT_ICON_ID,
+            callback: () => { void this.activateGawaCockpit(); }
         });
         this.addCommand({
             id: 'diwa-surface-important-notes',
@@ -137,7 +159,7 @@ export default class DiwaPlugin extends Plugin {
     }
 
     private detachRegisteredLeaves(): void {
-        const viewTypes = [VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB];
+        const viewTypes = [VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB, VIEW_TYPE_GAWA_COCKPIT];
         for (const vt of viewTypes) {
             for (const leaf of this.app.workspace.getLeavesOfType(vt)) {
                 try {
@@ -146,6 +168,20 @@ export default class DiwaPlugin extends Plugin {
                     console.warn('[DIWA] failed to detach leaf during unload', error);
                 }
             }
+        }
+    }
+
+    async activateGawaCockpit(): Promise<void> {
+        const { workspace } = this.app;
+        const existing = workspace.getLeavesOfType(VIEW_TYPE_GAWA_COCKPIT);
+        if (existing.length > 0) {
+            workspace.revealLeaf(existing[0]);
+            return;
+        }
+        const leaf = Platform.isDesktop ? workspace.getLeaf('split', 'vertical') : workspace.getLeaf(false);
+        if (leaf) {
+            await leaf.setViewState({ type: VIEW_TYPE_GAWA_COCKPIT, active: true });
+            workspace.revealLeaf(leaf);
         }
     }
 
@@ -308,10 +344,6 @@ export default class DiwaPlugin extends Plugin {
             }
             this.settings.contexts = sanitizedContexts;
         }
-        if (!Array.isArray(this.settings.hiddenContexts)) {
-            this.settings.hiddenContexts = [];
-            shouldPersistSanitizedSettings = true;
-        }
         const mobileBottomBarHeight = Number(this.settings.mobileBottomBarHeight);
         const sanitizedMobileBottomBarHeight = Number.isFinite(mobileBottomBarHeight)
             ? Math.max(0, Math.min(100, mobileBottomBarHeight))
@@ -346,28 +378,6 @@ export default class DiwaPlugin extends Plugin {
         refreshScope?: RefreshScope,
     ): Promise<void> {
         this.settings[key] = value;
-        await this.saveSettings();
-        if (refreshScope) this.notifyRefresh(refreshScope);
-    }
-
-    async updateSettingsBatch(
-        patch: Partial<DiwaSettings>,
-        refreshScope?: RefreshScope,
-    ): Promise<void> {
-        let changed = false;
-        const applySetting = <K extends keyof DiwaSettings>(key: K, value: DiwaSettings[K]): void => {
-            this.settings[key] = value;
-            changed = true;
-        };
-        for (const key of Object.keys(patch) as Array<keyof DiwaSettings>) {
-            const value = patch[key];
-            if (value === undefined || this.settings[key] === value) continue;
-            applySetting(key, value);
-        }
-        if (!changed) {
-            if (refreshScope) this.notifyRefresh(refreshScope);
-            return;
-        }
         await this.saveSettings();
         if (refreshScope) this.notifyRefresh(refreshScope);
     }

@@ -185,6 +185,154 @@ export class CaptureService {
         }
     }
 
+    /**
+     * Updates a task's title, due date, life area, or indented remarks atomically in the file.
+     */
+    async updateTaskDetailsInFile(options: {
+        filePath: string;
+        lineIndex: number;
+        taskTitleFallback?: string;
+        newTitle?: string;
+        newDueDate?: string | null;
+        newAreaId?: string;
+        newRemarks?: string[];
+    }): Promise<void> {
+        const file = this.app.vault.getAbstractFileByPath(options.filePath);
+        if (!(file instanceof TFile)) {
+            throw new Error(`[CaptureService] File not found for path: ${options.filePath}`);
+        }
+
+        let updateSucceeded = false;
+        await this.app.vault.process(file, (content) => {
+            const isCrlf = content.includes('\r\n');
+            const newline = isCrlf ? '\r\n' : '\n';
+            const lines = content.split(/\r?\n/);
+
+            let targetLineIdx = -1;
+            const taskRegex = /^(\s*-\s*\[)([ xX])(\]\s+.*)$/;
+            if (options.lineIndex >= 0 && options.lineIndex < lines.length && taskRegex.test(lines[options.lineIndex])) {
+                targetLineIdx = options.lineIndex;
+            } else if (options.taskTitleFallback) {
+                for (let i = 0; i < lines.length; i++) {
+                    if (taskRegex.test(lines[i]) && lines[i].includes(options.taskTitleFallback)) {
+                        targetLineIdx = i;
+                        break;
+                    }
+                }
+            }
+
+            if (targetLineIdx === -1) {
+                return content;
+            }
+
+            const currentLine = lines[targetLineIdx];
+            const checkMatch = currentLine.match(/^(\s*-\s*\[)([ xX])(\]\s+)(.*)$/);
+            if (!checkMatch) return content;
+
+            const prefix = `${checkMatch[1]}${checkMatch[2]}${checkMatch[3]}`;
+            let titleText = options.newTitle !== undefined ? options.newTitle.trim() : checkMatch[4].trim();
+
+            // Handle due date update if provided
+            if (options.newDueDate !== undefined) {
+                titleText = titleText
+                    .replace(/📅\s*\d{4}-\d{2}-\d{2}/g, '')
+                    .replace(/\[\[\d{4}-\d{2}-\d{2}\]\]/g, '')
+                    .replace(/\[due::\s*\d{4}-\d{2}-\d{2}\]/g, '')
+                    .replace(/@\d{4}-\d{2}-\d{2}/g, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+
+                if (options.newDueDate) {
+                    titleText += ` 📅 ${options.newDueDate}`;
+                }
+            }
+
+            // Handle life area update if provided (never add tag to task title; update frontmatter 'area' instead)
+            if (options.newAreaId !== undefined) {
+                const targetArea = (options.newAreaId && options.newAreaId !== '—')
+                    ? options.newAreaId.toLowerCase().trim()
+                    : '';
+
+                // Strip any existing life area hashtags matching configured life areas from the task title
+                const knownAreas = this.settings.lifeAreas.map(a => a.id.toLowerCase());
+                for (const fallback of ['work', 'health', 'wealth', 'growth', 'personal', 'adventure', 'hustle', 'grundfos']) {
+                    if (!knownAreas.includes(fallback)) knownAreas.push(fallback);
+                }
+
+                titleText = titleText.replace(/#([a-zA-Z0-9_\-]+)/g, (match, tag) => {
+                    return knownAreas.includes(tag.toLowerCase()) ? '' : match;
+                }).replace(/\s+/g, ' ').trim();
+
+                // Update area in frontmatter
+                let foundAreaLine = false;
+                let inFrontmatter = false;
+                for (let i = 0; i < Math.min(lines.length, 30); i++) {
+                    if (lines[i].trim() === '---') {
+                        if (!inFrontmatter) {
+                            inFrontmatter = true;
+                            continue;
+                        } else {
+                            // End of frontmatter reached
+                            if (!foundAreaLine && targetArea) {
+                                lines.splice(i, 0, `area: ${JSON.stringify(targetArea)}`);
+                            }
+                            break;
+                        }
+                    }
+                    if (inFrontmatter && /^area\s*:/i.test(lines[i])) {
+                        foundAreaLine = true;
+                        if (targetArea) {
+                            lines[i] = `area: ${JSON.stringify(targetArea)}`;
+                        } else {
+                            lines.splice(i, 1);
+                            i--;
+                        }
+                    }
+                }
+            }
+
+            lines[targetLineIdx] = `${prefix}${titleText}`;
+
+            // Handle remarks (indented child lines)
+            if (options.newRemarks !== undefined) {
+                let childCount = 0;
+                let nextIdx = targetLineIdx + 1;
+                while (nextIdx < lines.length) {
+                    if (/^\s+/.test(lines[nextIdx]) && !taskRegex.test(lines[nextIdx])) {
+                        childCount++;
+                        nextIdx++;
+                    } else {
+                        break;
+                    }
+                }
+                lines.splice(targetLineIdx + 1, childCount);
+
+                const newRemarkLines = options.newRemarks
+                    .map(r => r.trim().replace(/^[-*]\s*/, '').trim())
+                    .filter(r => r.length > 0)
+                    .map(r => `    - ${r}`);
+
+                lines.splice(targetLineIdx + 1, 0, ...newRemarkLines);
+            }
+
+            // Update modified timestamp in frontmatter
+            const nowIso = moment().format('YYYY-MM-DDTHH:mm:ss');
+            for (let i = 0; i < Math.min(lines.length, 30); i++) {
+                if (/^modified\s*:/i.test(lines[i])) {
+                    lines[i] = `modified: ${nowIso}`;
+                    break;
+                }
+            }
+
+            updateSucceeded = true;
+            return lines.join(newline);
+        });
+
+        if (!updateSucceeded) {
+            throw new Error(`[CaptureService] Could not locate task line in ${options.filePath}`);
+        }
+    }
+
     async updateNoteContent(filePath: string, newBody: string, area?: string, tags?: string[]): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) {

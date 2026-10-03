@@ -3,7 +3,7 @@ import * as chrono from 'chrono-node';
 import { FileSuggestModal } from './modals/FileSuggestModal';
 import { ContextSuggestModal } from './modals/ContextSuggestModal';
 import { PersonSuggestModal } from './modals/PersonSuggestModal';
-import { createVaultBinaryFile, normalizeVaultRelativePath } from './utils/vaultFiles';
+import { createVaultBinaryFile, ensureVaultFolder } from './utils/vaultFiles';
 
 const TABLET_VIEWPORT_SHORT_EDGE_PX = 768;
 
@@ -217,24 +217,6 @@ export function attachMediaPasteHandler(
         de.preventDefault();
         await insertFilesAtCursor(app, textarea, Array.from(files), getFolder, options);
     });
-}
-
-export async function ensureVaultFolder(app: App, folder: string): Promise<void> {
-    const normalizedFolder = normalizeVaultRelativePath(folder, 'folder');
-    if (!normalizedFolder) return;
-
-    const parts = normalizedFolder.split('/').filter(Boolean);
-    let pathSoFar = '';
-    for (const part of parts) {
-        pathSoFar = pathSoFar ? `${pathSoFar}/${part}` : part;
-        if (app.vault.getAbstractFileByPath(pathSoFar)) continue;
-        try {
-            await app.vault.createFolder(pathSoFar);
-        } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : String(error);
-            if (!message.includes('already exists')) throw error;
-        }
-    }
 }
 
 export function buildAttachmentWikiLink(path: string, file: Pick<File, 'type' | 'name'>): string {

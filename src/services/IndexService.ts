@@ -1,5 +1,5 @@
 import { App, TFile, moment } from 'obsidian';
-import { DiwaSettings, CaptureEntry, CaptureTaskItem } from '../types';
+import { DiwaSettings, CaptureEntry, CaptureTaskItem, GawaTaskRecord } from '../types';
 import { extractWikiLinks } from '../utils/wikilinks';
 import { normalizeConfiguredSettingPath } from '../utils/settingsPaths';
 import { normalizeVaultRelativePath } from '../utils/vaultFiles';
@@ -174,10 +174,14 @@ export class IndexService {
         // Parse body (strip frontmatter)
         const body = content.replace(/^---[\s\S]*?---\r?\n*/, '').trim();
 
-        // Parse tasks
+        // Parse tasks & Gawa records
         const tasks: CaptureTaskItem[] = [];
+        const gawaTasks: GawaTaskRecord[] = [];
         const lines = content.split('\n');
         const taskRegex = /^(\s*-\s*\[)([ xX])(\]\s+.*)$/;
+        const todayStr = moment().format('YYYY-MM-DD');
+        const tomorrowStr = moment().add(1, 'day').format('YYYY-MM-DD');
+
         for (let i = 0; i < lines.length; i++) {
             const match = lines[i].match(taskRegex);
             if (match) {
@@ -185,9 +189,128 @@ export class IndexService {
                 const taskTitle = match[3].replace(/^\]\s+/, '').trim();
                 tasks.push({
                     lineIndex: i,
-                    rawLine: lines[i],
                     title: taskTitle,
                     completed: isDone,
+                });
+
+                // --- 1. Earliest Due Date Extraction ---
+                const dateTokens: string[] = [];
+                // Wikilink dates: [[YYYY-MM-DD]]
+                const wikiDateMatches = taskTitle.match(/\[\[(\d{4}-\d{2}-\d{2})\]\]/g) || [];
+                for (const m of wikiDateMatches) {
+                    const d = m.replace(/\[\[|\]\]/g, '');
+                    if (moment(d, 'YYYY-MM-DD', true).isValid()) dateTokens.push(d);
+                }
+                // Tasks emoji dates: 📅 YYYY-MM-DD
+                const emojiDateMatches = taskTitle.match(/📅\s*(\d{4}-\d{2}-\d{2})/g) || [];
+                for (const m of emojiDateMatches) {
+                    const d = m.replace(/📅\s*/, '');
+                    if (moment(d, 'YYYY-MM-DD', true).isValid()) dateTokens.push(d);
+                }
+                // Dataview inline dates: [due:: YYYY-MM-DD]
+                const dvDateMatches = taskTitle.match(/\[due::\s*(\d{4}-\d{2}-\d{2})\]/g) || [];
+                for (const m of dvDateMatches) {
+                    const d = m.replace(/\[due::\s*|\]/g, '');
+                    if (moment(d, 'YYYY-MM-DD', true).isValid()) dateTokens.push(d);
+                }
+                // At-dates: @YYYY-MM-DD
+                const atDateMatches = taskTitle.match(/@(\d{4}-\d{2}-\d{2})/g) || [];
+                for (const m of atDateMatches) {
+                    const d = m.replace(/^@/, '');
+                    if (moment(d, 'YYYY-MM-DD', true).isValid()) dateTokens.push(d);
+                }
+                // Standalone ISO dates on the task line: YYYY-MM-DD
+                const isoMatches = taskTitle.match(/\b(\d{4}-\d{2}-\d{2})\b/g) || [];
+                for (const d of isoMatches) {
+                    if (moment(d, 'YYYY-MM-DD', true).isValid() && !dateTokens.includes(d)) dateTokens.push(d);
+                }
+
+                // Deduplicate and sort ascending (earliest date wins!)
+                const uniqueDates = Array.from(new Set(dateTokens)).sort();
+                const earliestDueDate = uniqueDates.length > 0 ? uniqueDates[0] : null;
+
+                // Relative due date computation
+                let dueDateRelative = '—';
+                if (earliestDueDate) {
+                    if (earliestDueDate < todayStr) {
+                        const daysDiff = moment(todayStr).diff(moment(earliestDueDate), 'days');
+                        dueDateRelative = daysDiff === 1 ? '1d overdue' : `${daysDiff}d overdue`;
+                    } else if (earliestDueDate === todayStr) {
+                        dueDateRelative = 'Today';
+                    } else if (earliestDueDate === tomorrowStr) {
+                        dueDateRelative = 'Tomorrow';
+                    } else {
+                        const daysDiff = moment(earliestDueDate).diff(moment(todayStr), 'days');
+                        dueDateRelative = daysDiff <= 7 ? `In ${daysDiff}d` : moment(earliestDueDate).format('MMM D');
+                    }
+                }
+
+                // --- 2. Life Area Resolution ---
+                let resolvedAreaId = area; // parent note frontmatter fallback
+                const areaTags = taskTitle.match(/#([a-zA-Z0-9_\-]+)/g) || [];
+                for (const tagWithHash of areaTags) {
+                    const tagName = tagWithHash.replace(/^#/, '').toLowerCase();
+                    if (this.settings.lifeAreas.some(a => a.id.toLowerCase() === tagName)) {
+                        resolvedAreaId = tagName;
+                        break;
+                    }
+                }
+                const matchedArea = this.settings.lifeAreas.find(a => a.id.toLowerCase() === resolvedAreaId.toLowerCase());
+                const areaLabel = matchedArea ? matchedArea.label : (resolvedAreaId ? resolvedAreaId.charAt(0).toUpperCase() + resolvedAreaId.slice(1) : '—');
+                const areaIcon = matchedArea ? matchedArea.icon : '—';
+
+                // --- 3. Indented Child Remarks ---
+                const remarks: string[] = [];
+                let nextIdx = i + 1;
+                while (nextIdx < lines.length) {
+                    const nextLine = lines[nextIdx];
+                    if (/^\s+/.test(nextLine) && !taskRegex.test(nextLine)) {
+                        const cleaned = nextLine.replace(/^\s+[-*]?\s*/, '').trim();
+                        if (cleaned) remarks.push(cleaned);
+                        nextIdx++;
+                    } else {
+                        break;
+                    }
+                }
+
+                const taskWikilinks = extractWikiLinks(taskTitle);
+                const taskTags = areaTags.map(t => t.replace(/^#/, ''));
+
+                // Strip redundant parsed date emojis/tokens from display title while preserving all wikilinks
+                let cleanTitle = taskTitle;
+                if (earliestDueDate) {
+                    cleanTitle = cleanTitle
+                        .replace(new RegExp(`📅\\s*${earliestDueDate}`, 'g'), '')
+                        .replace(new RegExp(`\\[due::\\s*${earliestDueDate}\\]`, 'g'), '')
+                        .replace(new RegExp(`@${earliestDueDate}`, 'g'), '')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                }
+
+                // Strip known life area tags from cleanTitle so they do not clutter the title column or inspector input
+                const knownAreas = this.settings.lifeAreas.map(a => a.id.toLowerCase());
+                for (const fallback of ['work', 'health', 'wealth', 'growth', 'personal', 'adventure', 'hustle', 'grundfos']) {
+                    if (!knownAreas.includes(fallback)) knownAreas.push(fallback);
+                }
+                cleanTitle = cleanTitle.replace(/#([a-zA-Z0-9_\-]+)/g, (match, tag) => {
+                    return knownAreas.includes(tag.toLowerCase()) ? '' : match;
+                }).replace(/\s+/g, ' ').trim();
+
+                gawaTasks.push({
+                    filePath: file.path,
+                    noteTitle: file.basename,
+                    lineIndex: i,
+                    rawTitle: taskTitle,
+                    cleanTitle,
+                    completed: isDone,
+                    dueDate: earliestDueDate,
+                    dueDateRelative,
+                    areaId: resolvedAreaId,
+                    areaLabel,
+                    areaIcon,
+                    tags: taskTags,
+                    wikilinks: taskWikilinks,
+                    remarks,
                 });
             }
         }
@@ -218,6 +341,7 @@ export class IndexService {
             body,
             hasTasks,
             tasks,
+            gawaTasks,
             allDates,
             wikilinks,
             important,
@@ -252,6 +376,19 @@ export class IndexService {
     hasOpenTasks(entry: CaptureEntry | null | undefined): boolean {
         if (!entry || !entry.hasTasks || !Array.isArray(entry.tasks)) return false;
         return entry.tasks.some(t => t && !t.completed);
+    }
+
+    getGawaTasks(openOnly: boolean = true): GawaTaskRecord[] {
+        const results: GawaTaskRecord[] = [];
+        for (const entry of this.captureIndex.values()) {
+            const gTasks = Array.isArray(entry?.gawaTasks) ? entry.gawaTasks : [];
+            for (const t of gTasks) {
+                if (!openOnly || !t.completed) {
+                    results.push(t);
+                }
+            }
+        }
+        return results;
     }
 
     getOpenTaskCount(): number {

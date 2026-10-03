@@ -1,5 +1,3 @@
-import { DEFAULT_SETTINGS } from '../constants';
-import type { DiwaSettings } from '../types';
 import { normalizeVaultRelativePath } from './vaultFiles';
 
 export function normalizeConfiguredSettingPath(path: string | undefined, fallback: string, label: string): string {
@@ -13,6 +11,3 @@ export function normalizeConfiguredSettingPath(path: string | undefined, fallbac
     }
 }
 
-export function getCanonicalCaptureFolder(settings: DiwaSettings): string {
-    return normalizeConfiguredSettingPath(settings.captureFolder, DEFAULT_SETTINGS.captureFolder, 'captureFolder');
-}

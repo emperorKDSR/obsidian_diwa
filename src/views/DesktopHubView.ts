@@ -305,6 +305,17 @@ export class DesktopHubView extends ItemView {
                 };
             }
 
+            // Gawa Cockpit quick-launcher button
+            const openTaskCount = this.plugin.index.getOpenTaskCount();
+            const gawaBtn = actions.createEl('button', {
+                cls: 'pos-header-text-btn pos-gawa-header-trigger',
+                text: `📋 Gawa (${openTaskCount})`,
+                attr: { 'aria-label': 'Open Gawa Task Cockpit in Split View' }
+            });
+            gawaBtn.onclick = () => {
+                void this.plugin.activateGawaCockpit();
+            };
+
             // Settings trigger
             const settingsBtn = actions.createEl('button', {
                 cls: 'pos-icon-btn pos-settings-trigger',

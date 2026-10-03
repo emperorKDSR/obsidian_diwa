@@ -1,15 +1,39 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Comprehensive Legacy & Obsolete Code Pruning Complete
+## Current Phase: Gawa Tabular Task Cockpit & Slide-Over Inspector Built & Verified
 
 ---
 
-### 0. Deep Dead and Unused Code Pruning (Complete)
-*   [x] **Delete Dead Files & Services (3 Files / -426 Lines)** — Deleted `src/services/VaultService.ts` (-79 lines), `src/utils/imageZoom.ts` (-79 lines), and `src/modals/ImageLightboxModal.ts` (-268 lines). Routed `createVaultFile` directly through `src/utils/vaultFiles.ts`.
-*   [x] **Prune Dead Functions & Legacy Helpers** — Removed `createThoughtCaptureWidget`, `ThoughtCaptureOptions`, `getThoughtDisplayTitle`, `toAsciiDigits`, and `parseContextString` from `src/utils.ts`.
-*   [x] **Prune Unused Class Methods & Aliases** — Removed `activateDesktopHub`, `activateMobileHub`, `activateTabletHub`, `activateView` from `src/main.ts`; `convertLineToTask` from `src/services/CaptureService.ts`; `buildCaptureIndex`, `captureLocationChanged`, and `_lastIndexedCapturePath` from `src/services/IndexService.ts`; `suppressNotifyRefresh`, `bumpReindexCooldown`, and unread `settings` from `src/application/RefreshCoordinator.ts`; `refreshTasks`, `updateTaskPaneFromIndex`, and unused `hint` from `src/views/DesktopHubView.ts`.
-*   [x] **Clean Up Imports, Parameters & Obsolete Types** — Removed unused `Notice` / `TFile` imports and unreferenced modal parameters across `ContextSuggestModal`, `FileSuggestModal`, `MergeNotesModal`, `PersonSuggestModal`, and `WikilinkPeekModal`. Cleaned up `DiwaSettings` interface in `src/types.ts`.
+### 0. Gawa Tabular Task Cockpit & Slide-Over Inspector (Complete)
+*   [x] **Dedicated Leaf Architecture (`VIEW_TYPE_GAWA_COCKPIT`)** — Implemented `GawaCockpitView.ts` as an autonomous workspace leaf that can be opened in split panes, right sidebars, or tabs. Registered custom checklist SVG icon and ribbon launcher.
+*   [x] **Global Obsidian Command & Header Trigger** — Registered `DIWA: Open Gawa Task Cockpit` and added 1-tap `[ 📋 Gawa (N) ]` launcher button to `DesktopHubView` header.
+*   [x] **Earliest Due Date Resolution ("Earliest Date Wins")** — Enhanced `IndexService.ts` to scan wikilinks `[[YYYY-MM-DD]]`, Tasks emojis `📅`, Dataview `[due::]`, `@dates`, and ISO dates, sorting ascending and picking the earliest date as `dueDate`.
+*   [x] **Life Area Resolution** — Auto-detects `#tags` matching configured life areas (`#work`, `#health`, etc.) with fallback to parent note frontmatter `area`.
+*   [x] **Data Grid Tabular View** — Built high-density table with interactive sortable columns (`Status`, `Task Title ↕`, `Due Date ↕`, `Life Area ↕`, `Remarks`, `Source ↗`).
+*   [x] **Horizon Filter Chips** — Dynamic chips for `[ All Open ]`, `[ 🔴 Overdue ]`, `[ 🟡 Today ]`, `[ 🟢 Upcoming ]`, and `[ ⚪ Undated ]` with real-time counts.
+*   [x] **UX Option 2: Slide-Over Task Inspector** — 440px desktop slide-over panel / mobile bottom sheet for in-place title editing, 1-tap due date popover (`Today`, `Tomorrow`, `+7d`, `Clear`), interactive Life Area chips, and indented child remarks editor.
+*   [x] **Indented Child Remarks Storage** — Parses and stores remarks as standard Markdown indented child lines (`    - remark`), preserving 100% Obsidian ecosystem compatibility.
+*   [x] **4 User Enhancements & 2 Bug Fixes**:
+    *   [x] **Wikilink Rendering in Titles**: Titles render live markdown and `[[wikilinks]]` via `MarkdownRenderer`, peeking notes with `WikilinkPeekModal`.
+    *   [x] **Icon-Only Source Column**: Converted source column to compact icon button (`file-text`) with tooltip showing note title.
+    *   [x] **Inspector Sizing & Life Area Chips**: Expanded inspector width and replaced tiny dropdown with large interactive selector chips.
+    *   [x] **Interactive Notes & Comments List in Inspector**: Full notes & comments list with rendered markdown, internal link peeking, individual delete buttons (`🗑️`), dedicated note composer (`+ Add Note` / `⌘Enter`), and instant in-place re-rendering.
+    *   [x] **Bug Fix: Never Add Life Area Tag to Task Title**: Fixed `CaptureService.updateTaskDetailsInFile` to never append `#<areaId>` to the task title line. Life Area updates now strictly update the parent note's frontmatter `area: "<areaId>"`. Stripped redundant life area tags from `cleanTitle`.
+*   [x] **Atomic Disk Persistence (`CaptureService.updateTaskDetailsInFile`)** — Atomically updates task titles, due dates, frontmatter life areas, and child remark lines via `app.vault.process()` with line index drift protection.
+*   [x] **0ms Bi-Directional Interoperability** — Integrated `RefreshCoordinator` to broadcast `'tasks'` refresh events to both `DesktopHubView` and `GawaCockpitView`. Toggling in either view updates the other in 0ms without scroll jumping.
+*   [x] **Zero Build & Lint Errors** — Passes `npx tsc --noUnusedLocals --noUnusedParameters --noEmit --skipLibCheck` (0 errors) and `npm run build` (0 errors).
+*   [x] **Production Vault Deployment** — Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000/.obsidian/plugins/Obsidian_diwa/` and `/Users/K26/Obsidian/K0001/.obsidian/plugins/Obsidian_diwa/`.
+
+---
+
+### 0.1. Complete Dead Code Cleanup & Production Deployment (Complete)
+*   [x] **Prune Unreachable Branches in `RefreshCoordinator.ts`** — Removed unused `_suppressNotifyRefreshUntil` and unreachable deferral checks in `notifyRefresh()` and `_dispatchRefresh()`.
+*   [x] **Prune Unused Methods in `main.ts`** — Removed uncalled `updateSettingsBatch()` and unused `hiddenContexts` sanitization.
+*   [x] **Deduplicate Core Utilities** — Removed redundant `ensureVaultFolder` in `src/utils.ts` and imported canonical implementation from `src/utils/vaultFiles.ts`.
+*   [x] **Remove Dead Functions** — Removed unreferenced `getCanonicalCaptureFolder` and unused imports from `src/utils/settingsPaths.ts`.
+*   [x] **Prune Unused Types & Attributes** — Stripped `color` from `LifeArea`, `rawLine` from `CaptureTaskItem` (and `IndexService.ts`), and `hiddenContexts` from `DiwaSettings` and `DEFAULT_SETTINGS`.
 *   [x] **Zero Build & Lint Errors** — Verified with `npx tsc --noUnusedLocals --noUnusedParameters --noEmit --skipLibCheck` (0 errors) and `npm run build` (0 errors).
+*   [x] **Production Vault Deployment** — Deployed fresh `main.js`, `manifest.json`, and `styles.css` to `/Users/K26/Obsidian/K0000/.obsidian/plugins/obsidian_DIWA/` and `/Users/K26/Obsidian/K0001/.obsidian/plugins/obsidian_DIWA/`.
 
 ### 0. Comprehensive Legacy & Obsolete Code Pruning (Complete)
 *   [x] **Delete Dead Modals (18 Files / -5,202 Lines)** — Deleted `EditTaskModal.ts`, `EditEntryModal.ts`, `EditThoughtModal.ts`, `FastTaskCaptureModal.ts`, `MobilePostComposerModal.ts`, `PaymentModal.ts`, `InlineContextPickerModal.ts`, `CommentModal.ts`, `ZenCaptureModal.ts`, `FolderSettingsModal.ts`, `RenameNoteModal.ts`, `ViewCommentsModal.ts`, `NewDueModal.ts`, `ChooseNoteModal.ts`, `ConvertToTaskModal.ts`, `ThoughtPickerModal.ts`, `ConfirmModal.ts`, `NotePickerModal.ts`.

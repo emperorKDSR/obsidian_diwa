@@ -26,6 +26,7 @@ flowchart TD
 
     subgraph User Interface Layer
         Hub[src/views/DesktopHubView.ts - Continuous Scratchpad View]
+        Gawa[src/views/GawaCockpitView.ts - Tabular Task Cockpit & Inspector]
         MergeModal[src/modals/MergeNotesModal.ts - Merge & Promote Modal]
         Settings[src/settings.ts - DiwaSettingTab]
     end
@@ -35,14 +36,18 @@ flowchart TD
     Main --> Index
     Main --> Ref
     Main --> Hub
+    Main --> Gawa
     Main --> Settings
 
     Cap --> Vault
     Index --> Vault
     Ref --> Hub
+    Ref --> Gawa
     Hub --> Cap
     Hub --> Index
     Hub --> MergeModal
+    Gawa --> Cap
+    Gawa --> Index
 ```
 
 ### Capture Service (`src/services/CaptureService.ts`)
@@ -108,3 +113,31 @@ The **Continuous Scratchpad** is the primary interactive hub:
     *   Context Menu (`openWikilinkActionMenu`): Right-click (or long press on mobile) provides instant options: *Quick Preview*, *Filter Stream for [[...]]*, *Open in Adjacent Split*, *Open in New Tab*, and *Copy Wikilink*.
 *   **Stream Pivot Query (`filterStreamByWikilink`)**:
     *   Instantly targets DIWA search input to `[[Note]]` or note title, recalibrating the continuous stream and filter counters to display all related inbox captures.
+
+---
+
+## 6. Gawa Task Cockpit & Interoperability Architecture
+
+### Autonomous Dedicated Leaf (`VIEW_TYPE_GAWA_COCKPIT`)
+*   **Registration**: Registered alongside `VIEW_TYPE_DESKTOP_HUB` in `main.ts` with dedicated ribbon icon and command `DIWA: Open Gawa Task Cockpit`.
+*   **Dual View Synergy**: Can be opened side-by-side in vertical split or docked in right sidebar without evicting the continuous scratchpad.
+*   **Header Quick Launcher**: `DesktopHubView` header contains a 1-tap `[ 📋 Gawa (N) ]` launcher.
+
+### In-Memory Task Model & Resolution (`GawaTaskRecord`)
+*   **Earliest Due Date Resolution ("Earliest Date Wins")**: Scans `[[YYYY-MM-DD]]`, `📅 YYYY-MM-DD`, `[due:: YYYY-MM-DD]`, `@YYYY-MM-DD`, and raw ISO dates on task lines. Deduplicates and sorts ascending; earliest date becomes primary sortable `dueDate`.
+*   **Life Area Resolution**: Detects inline area tags (`#work`, `#health`, etc.) or falls back to parent note frontmatter `area`.
+*   **Indented Remarks & Notes**: Parses child indented lines beneath `- [ ]` tasks as structured remarks.
+
+### Tabular Grid & Slide-Over Inspector
+*   **Data Grid**: High-density sortable columns (`Status`, `Task Title`, `Due Date ↕`, `Life Area ↕`, `Remarks`, `Source ↗`).
+*   **Horizon Filter Chips**: `[ All Open ]`, `[ 🔴 Overdue ]`, `[ 🟡 Today ]`, `[ 🟢 Upcoming ]`, `[ ⚪ Undated ]`.
+*   **Slide-Over Inspector**:
+    *   Desktop: 360px slide-in panel on row click.
+    *   Mobile: Slide-up bottom sheet.
+    *   Features: In-place title edit, quick date buttons (`Today`, `Tomorrow`, `+7d`, `Clear`), life area selector, live remarks textarea, and `CaptureService.updateTaskDetailsInFile` atomic persistence.
+
+### Real-Time Bi-Directional Synchronization
+*   Shared in-memory `IndexService` and event broker `RefreshCoordinator`.
+*   Changes in `DesktopHubView` reflect in `GawaCockpitView` in 0ms without full page reloads.
+*   Changes in `GawaCockpitView` reflect in `DesktopHubView` without scroll jumps.
+*   Atomic file operations via `app.vault.process()` with content-matching fallback for line drift protection.

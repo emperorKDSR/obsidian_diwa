@@ -1,5 +1,5 @@
 import { App, TFile } from 'obsidian';
-import { VIEW_TYPE_DESKTOP_HUB } from '../constants';
+import { VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_GAWA_COCKPIT } from '../constants';
 import { DesktopHubView } from '../views/DesktopHubView';
 import type { IndexService } from '../services/IndexService';
 
@@ -11,7 +11,6 @@ const DEFAULT_REFRESH_DEBOUNCE_MS = 400;
 export class RefreshCoordinator {
     private _indexDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private _reindexCooldown: Map<string, number> = new Map();
-    private _suppressNotifyRefreshUntil: number = 0;
     private _pendingRefreshScope: RefreshScope | null = null;
 
     constructor(
@@ -39,15 +38,6 @@ export class RefreshCoordinator {
         this._pendingRefreshScope = this.mergeRefreshScope(this._pendingRefreshScope, scope);
         if (this._indexDebounceTimer) clearTimeout(this._indexDebounceTimer);
 
-        if (Date.now() < this._suppressNotifyRefreshUntil) {
-            const deferMs = Math.max(50, this._suppressNotifyRefreshUntil - Date.now() + 50);
-            this._indexDebounceTimer = setTimeout(() => {
-                this._indexDebounceTimer = null;
-                this._dispatchRefresh();
-            }, deferMs);
-            return;
-        }
-
         const debounceMs = this._pendingRefreshScope === 'capture'
             ? CAPTURE_REFRESH_DEBOUNCE_MS
             : DEFAULT_REFRESH_DEBOUNCE_MS;
@@ -58,15 +48,6 @@ export class RefreshCoordinator {
     }
 
     private _dispatchRefresh(): void {
-        if (Date.now() < this._suppressNotifyRefreshUntil) {
-            const deferMs = Math.max(50, this._suppressNotifyRefreshUntil - Date.now() + 50);
-            this._indexDebounceTimer = setTimeout(() => {
-                this._indexDebounceTimer = null;
-                this._dispatchRefresh();
-            }, deferMs);
-            return;
-        }
-
         const scope = this._pendingRefreshScope ?? 'all';
         this._pendingRefreshScope = null;
 
@@ -83,6 +64,16 @@ export class RefreshCoordinator {
                 } else {
                     view.renderView();
                 }
+            }
+        }
+
+        // Refresh all open Gawa Cockpit views
+        const gawaLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_GAWA_COCKPIT);
+        for (const leaf of gawaLeaves) {
+            const view = leaf.view as any;
+            if (view && typeof view.refreshTasks === 'function') {
+                if (view._taskPending > 0) continue;
+                view.refreshTasks();
             }
         }
     }
