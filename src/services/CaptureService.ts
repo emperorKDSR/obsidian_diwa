@@ -167,6 +167,17 @@ export class CaptureService {
             const newCheck = completed ? 'x' : ' ';
             lines[targetLineIdx] = currentLine.replace(/^(\s*-\s*\[)[ xX](\]\s+.*)$/, `$1${newCheck}$2`);
 
+            if (completed) {
+                // If parent task is completed, also check off its child subtasks
+                let childIdx = targetLineIdx + 1;
+                while (childIdx < lines.length && /^\s+/.test(lines[childIdx])) {
+                    if (/^\s*-\s*\[[ ]\]/.test(lines[childIdx])) {
+                        lines[childIdx] = lines[childIdx].replace(/^(\s*-\s*\[)[ ](\]\s+.*)$/, `$1x$2`);
+                    }
+                    childIdx++;
+                }
+            }
+
             // Update modified timestamp in frontmatter (first 30 lines)
             const nowIso = moment().format('YYYY-MM-DDTHH:mm:ss');
             for (let i = 0; i < Math.min(lines.length, 30); i++) {
@@ -186,7 +197,7 @@ export class CaptureService {
     }
 
     /**
-     * Updates a task's title, due date, life area, or indented remarks atomically in the file.
+     * Updates a task's title, due date, life area, subtasks, or indented remarks atomically in the file.
      */
     async updateTaskDetailsInFile(options: {
         filePath: string;
@@ -195,6 +206,7 @@ export class CaptureService {
         newTitle?: string;
         newDueDate?: string | null;
         newAreaId?: string;
+        newSubtasks?: { title: string; completed: boolean }[];
         newRemarks?: string[];
     }): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(options.filePath);
@@ -293,26 +305,54 @@ export class CaptureService {
 
             lines[targetLineIdx] = `${prefix}${titleText}`;
 
-            // Handle remarks (indented child lines)
-            if (options.newRemarks !== undefined) {
+            // Handle subtasks and remarks (indented child lines)
+            if (options.newSubtasks !== undefined || options.newRemarks !== undefined) {
+                const existingSubtasks: { title: string; completed: boolean }[] = [];
+                const existingRemarks: string[] = [];
+
                 let childCount = 0;
                 let nextIdx = targetLineIdx + 1;
                 while (nextIdx < lines.length) {
-                    if (/^\s+/.test(lines[nextIdx]) && !taskRegex.test(lines[nextIdx])) {
+                    const nextLine = lines[nextIdx];
+                    if (/^\s+/.test(nextLine)) {
+                        const subMatch = nextLine.match(/^\s*-\s*\[([ xX])\]\s+(.*)$/);
+                        if (subMatch) {
+                            existingSubtasks.push({
+                                completed: /[xX]/.test(subMatch[1]),
+                                title: subMatch[2].trim(),
+                            });
+                        } else {
+                            const cleaned = nextLine.replace(/^\s+[-*]?\s*/, '').trim();
+                            if (cleaned) existingRemarks.push(cleaned);
+                        }
                         childCount++;
                         nextIdx++;
                     } else {
                         break;
                     }
                 }
+
+                const finalSubtasks = options.newSubtasks !== undefined ? options.newSubtasks : existingSubtasks;
+                const finalRemarks = options.newRemarks !== undefined ? options.newRemarks : existingRemarks;
+
+                // Remove existing child lines
                 lines.splice(targetLineIdx + 1, childCount);
 
-                const newRemarkLines = options.newRemarks
-                    .map(r => r.trim().replace(/^[-*]\s*/, '').trim())
-                    .filter(r => r.length > 0)
-                    .map(r => `    - ${r}`);
+                // Build replacement lines: subtasks first, then remarks
+                const replacementLines: string[] = [];
+                for (const sub of finalSubtasks) {
+                    if (sub.title && sub.title.trim()) {
+                        replacementLines.push(`    - [${sub.completed ? 'x' : ' '}] ${sub.title.trim()}`);
+                    }
+                }
+                for (const rem of finalRemarks) {
+                    const cleanRem = rem.trim().replace(/^[-*]\s*/, '').trim();
+                    if (cleanRem) {
+                        replacementLines.push(`    - ${cleanRem}`);
+                    }
+                }
 
-                lines.splice(targetLineIdx + 1, 0, ...newRemarkLines);
+                lines.splice(targetLineIdx + 1, 0, ...replacementLines);
             }
 
             // Update modified timestamp in frontmatter

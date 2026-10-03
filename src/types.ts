@@ -12,6 +12,11 @@ export interface CaptureTaskItem {
     completed: boolean;
 }
 
+export interface GawaSubtaskItem {
+    title: string;
+    completed: boolean;
+}
+
 export interface GawaTaskRecord {
     filePath: string;
     noteTitle: string;
@@ -26,6 +31,7 @@ export interface GawaTaskRecord {
     areaIcon: string;
     tags: string[];
     wikilinks: string[];
+    subtasks: GawaSubtaskItem[];  // Indented child task lines
     remarks: string[];            // Indented child remark lines
 }
 

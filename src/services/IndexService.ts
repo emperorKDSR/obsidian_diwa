@@ -1,5 +1,5 @@
 import { App, TFile, moment } from 'obsidian';
-import { DiwaSettings, CaptureEntry, CaptureTaskItem, GawaTaskRecord } from '../types';
+import { DiwaSettings, CaptureEntry, CaptureTaskItem, GawaTaskRecord, GawaSubtaskItem } from '../types';
 import { extractWikiLinks } from '../utils/wikilinks';
 import { normalizeConfiguredSettingPath } from '../utils/settingsPaths';
 import { normalizeVaultRelativePath } from '../utils/vaultFiles';
@@ -259,14 +259,23 @@ export class IndexService {
                 const areaLabel = matchedArea ? matchedArea.label : (resolvedAreaId ? resolvedAreaId.charAt(0).toUpperCase() + resolvedAreaId.slice(1) : '—');
                 const areaIcon = matchedArea ? matchedArea.icon : '—';
 
-                // --- 3. Indented Child Remarks ---
+                // --- 3. Indented Child Subtasks & Remarks ---
+                const subtasks: GawaSubtaskItem[] = [];
                 const remarks: string[] = [];
                 let nextIdx = i + 1;
                 while (nextIdx < lines.length) {
                     const nextLine = lines[nextIdx];
-                    if (/^\s+/.test(nextLine) && !taskRegex.test(nextLine)) {
-                        const cleaned = nextLine.replace(/^\s+[-*]?\s*/, '').trim();
-                        if (cleaned) remarks.push(cleaned);
+                    if (/^\s+/.test(nextLine)) {
+                        const subtaskMatch = nextLine.match(/^\s*-\s*\[([ xX])\]\s+(.*)$/);
+                        if (subtaskMatch) {
+                            subtasks.push({
+                                completed: /[xX]/.test(subtaskMatch[1]),
+                                title: subtaskMatch[2].trim(),
+                            });
+                        } else {
+                            const cleaned = nextLine.replace(/^\s+[-*]?\s*/, '').trim();
+                            if (cleaned) remarks.push(cleaned);
+                        }
                         nextIdx++;
                     } else {
                         break;
@@ -310,6 +319,7 @@ export class IndexService {
                     areaIcon,
                     tags: taskTags,
                     wikilinks: taskWikilinks,
+                    subtasks,
                     remarks,
                 });
             }

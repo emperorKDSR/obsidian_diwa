@@ -1,6 +1,6 @@
 import { ItemView, WorkspaceLeaf, setIcon, Notice, moment, TFile, MarkdownRenderer } from 'obsidian';
 import type DiwaPlugin from '../main';
-import { GawaTaskRecord } from '../types';
+import { GawaTaskRecord, GawaSubtaskItem } from '../types';
 import { VIEW_TYPE_GAWA_COCKPIT, GAWA_COCKPIT_ICON_ID } from '../constants';
 import { WikilinkPeekModal } from '../modals/WikilinkPeekModal';
 
@@ -412,6 +412,25 @@ export class GawaCockpitView extends ItemView {
                 });
             });
 
+            // Render subtask progress badge if present
+            if (task.subtasks && task.subtasks.length > 0) {
+                const doneCount = task.subtasks.filter(s => s.completed).length;
+                const totalCount = task.subtasks.length;
+                const allDone = doneCount === totalCount;
+                const subtaskPill = titleWrap.createSpan({
+                    cls: `pos-gawa-subtask-progress-pill ${allDone ? 'is-all-done' : ''}`,
+                    text: allDone ? `✓ ${doneCount}/${totalCount}` : `☑ ${doneCount}/${totalCount}`,
+                    attr: {
+                        'aria-label': `${doneCount} of ${totalCount} subtasks completed`,
+                        title: `${doneCount} of ${totalCount} subtasks completed`,
+                    },
+                });
+                subtaskPill.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.openInspector(task);
+                });
+            }
+
             // Render tags on title if present
             if (task.tags.length > 0) {
                 const tagsWrapper = titleWrap.createSpan({ cls: 'pos-gawa-tags-wrap' });
@@ -655,6 +674,111 @@ export class GawaCockpitView extends ItemView {
             });
         }
 
+        // Field: Subtasks (Checklist, Progress Bar, & Quick Add)
+        const subtasksField = inspBody.createDiv({ cls: 'pos-gawa-insp-field pos-gawa-insp-subtasks-field' });
+        const subtasksCount = task.subtasks ? task.subtasks.length : 0;
+        const subtasksDone = task.subtasks ? task.subtasks.filter(s => s.completed).length : 0;
+
+        const subtaskHeader = subtasksField.createDiv({ cls: 'pos-gawa-insp-subtasks-header' });
+        subtaskHeader.createEl('label', {
+            text: `Subtasks (${subtasksDone}/${subtasksCount})`,
+        });
+
+        if (subtasksCount > 0) {
+            const percent = Math.round((subtasksDone / subtasksCount) * 100);
+            const progressRail = subtasksField.createDiv({ cls: 'pos-gawa-subtask-progress-rail' });
+            const progressFill = progressRail.createDiv({ cls: 'pos-gawa-subtask-progress-fill' });
+            progressFill.style.width = `${percent}%`;
+            if (percent === 100) progressFill.addClass('is-complete');
+        }
+
+        // Subtasks List
+        const subtasksList = subtasksField.createDiv({ cls: 'pos-gawa-subtask-list' });
+        if (subtasksCount > 0) {
+            task.subtasks.forEach((sub, idx) => {
+                const subItem = subtasksList.createDiv({ cls: `pos-gawa-subtask-item ${sub.completed ? 'is-completed' : ''}` });
+
+                // Checkbox
+                const subCheckbox = subItem.createEl('input', {
+                    type: 'checkbox',
+                    cls: 'pos-gawa-subtask-checkbox task-list-item-checkbox',
+                });
+                subCheckbox.checked = sub.completed;
+                subCheckbox.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    await this.toggleSubtask(task, idx, subCheckbox.checked);
+                });
+
+                // Title
+                const subTitle = subItem.createDiv({ cls: `pos-gawa-subtask-title ${sub.completed ? 'is-completed' : ''} markdown-rendered` });
+                void MarkdownRenderer.render(this.app, sub.title, subTitle, task.filePath, this).then(() => {
+                    subTitle.querySelectorAll<HTMLAnchorElement>('a.internal-link').forEach(link => {
+                        link.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            const href = link.getAttribute('data-href') || link.textContent || '';
+                            const cleanTarget = href.split('#')[0];
+                            const destFile = this.app.metadataCache.getFirstLinkpathDest(cleanTarget, task.filePath);
+                            if (destFile) {
+                                new WikilinkPeekModal(this.app, this.plugin, cleanTarget, task.filePath).open();
+                            } else {
+                                new Notice(`Note not found: ${cleanTarget}`);
+                            }
+                        });
+                    });
+                });
+
+                // Delete Button
+                const delSubBtn = subItem.createEl('button', {
+                    cls: 'pos-btn-icon pos-gawa-subtask-delete-btn',
+                    attr: { 'aria-label': 'Delete subtask' },
+                });
+                setIcon(delSubBtn, 'trash-2');
+                delSubBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    await this.deleteSubtask(task, idx);
+                });
+            });
+        } else {
+            subtasksList.createDiv({
+                cls: 'pos-gawa-subtasks-empty',
+                text: 'No subtasks yet. Add step-by-step actions below.',
+            });
+        }
+
+        // Add Subtask Composer
+        const addSubtaskWrap = subtasksField.createDiv({ cls: 'pos-gawa-add-subtask-wrap' });
+        const subtaskInput = addSubtaskWrap.createEl('input', {
+            type: 'text',
+            cls: 'pos-gawa-add-subtask-input',
+            attr: {
+                placeholder: 'Add a subtask... (Enter to save)',
+            },
+        });
+
+        const addSubtaskBtn = addSubtaskWrap.createEl('button', {
+            cls: 'pos-btn pos-btn-sm pos-gawa-add-subtask-btn',
+            text: '+ Add',
+        });
+
+        const handleAddSubtask = async () => {
+            const text = subtaskInput.value.trim();
+            if (!text) return;
+            await this.addSubtask(task, text);
+            subtaskInput.value = '';
+        };
+
+        addSubtaskBtn.addEventListener('click', () => {
+            void handleAddSubtask();
+        });
+
+        subtaskInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                void handleAddSubtask();
+            }
+        });
+
         // Field: Notes & Comments (Interactive List + Add Composer)
         const commentsField = inspBody.createDiv({ cls: 'pos-gawa-insp-field' });
         commentsField.createEl('label', {
@@ -756,6 +880,63 @@ export class GawaCockpitView extends ItemView {
                 pendingCommentText: commentInput.value.trim(),
             });
         });
+    }
+
+    private async addSubtask(task: GawaTaskRecord, title: string): Promise<void> {
+        const clean = title.trim();
+        if (!clean) return;
+        const updatedSubtasks = [...(task.subtasks || []), { title: clean, completed: false }];
+        await this.persistSubtasks(task, updatedSubtasks);
+        new Notice('Subtask added ✓');
+    }
+
+    private async toggleSubtask(task: GawaTaskRecord, index: number, completed: boolean): Promise<void> {
+        const updatedSubtasks = [...(task.subtasks || [])];
+        if (index >= 0 && index < updatedSubtasks.length) {
+            updatedSubtasks[index] = { ...updatedSubtasks[index], completed };
+            await this.persistSubtasks(task, updatedSubtasks);
+
+            const allDone = updatedSubtasks.every(s => s.completed);
+            if (allDone && updatedSubtasks.length > 0 && !task.completed) {
+                new Notice('All subtasks completed! ✓');
+            }
+        }
+    }
+
+    private async deleteSubtask(task: GawaTaskRecord, index: number): Promise<void> {
+        const updatedSubtasks = [...(task.subtasks || [])];
+        if (index >= 0 && index < updatedSubtasks.length) {
+            updatedSubtasks.splice(index, 1);
+            await this.persistSubtasks(task, updatedSubtasks);
+            new Notice('Subtask deleted');
+        }
+    }
+
+    private async persistSubtasks(task: GawaTaskRecord, updatedSubtasks: GawaSubtaskItem[]): Promise<void> {
+        this._taskPending++;
+        try {
+            await this.plugin.capture.updateTaskDetailsInFile({
+                filePath: task.filePath,
+                lineIndex: task.lineIndex,
+                taskTitleFallback: task.rawTitle,
+                newSubtasks: updatedSubtasks,
+            });
+
+            const file = this.app.vault.getAbstractFileByPath(task.filePath);
+            if (file instanceof TFile) {
+                await this.plugin.index.indexCaptureFile(file);
+            }
+
+            task.subtasks = [...updatedSubtasks];
+            this.renderInspector();
+            this.refreshTasks();
+            this.plugin.notifyRefresh('tasks');
+        } catch (err) {
+            console.error('[GawaCockpitView] Failed to update subtasks:', err);
+            new Notice('Failed to update subtasks');
+        } finally {
+            this._taskPending--;
+        }
     }
 
     private async addComment(task: GawaTaskRecord, text: string): Promise<void> {

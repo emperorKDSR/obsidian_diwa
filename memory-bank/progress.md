@@ -19,7 +19,12 @@
     *   [x] **Inspector Sizing & Life Area Chips**: Expanded inspector width and replaced tiny dropdown with large interactive selector chips.
     *   [x] **Interactive Notes & Comments List in Inspector**: Full notes & comments list with rendered markdown, internal link peeking, individual delete buttons (`🗑️`), dedicated note composer (`+ Add Note` / `⌘Enter`), and instant in-place re-rendering.
     *   [x] **Bug Fix: Never Add Life Area Tag to Task Title**: Fixed `CaptureService.updateTaskDetailsInFile` to never append `#<areaId>` to the task title line. Life Area updates now strictly update the parent note's frontmatter `area: "<areaId>"`. Stripped redundant life area tags from `cleanTitle`.
-*   [x] **Atomic Disk Persistence (`CaptureService.updateTaskDetailsInFile`)** — Atomically updates task titles, due dates, frontmatter life areas, and child remark lines via `app.vault.process()` with line index drift protection.
+*   [x] **Subtasks Enhancement (Option A: Inspector-Centric Management)**:
+    *   [x] **Data Model & Parsing**: Added `GawaSubtaskItem` and parsed indented `- [ ]` lines into `subtasks: GawaSubtaskItem[]` in `IndexService.ts`.
+    *   [x] **Table Progress Pill**: Displayed `[ ☑ 1/3 ]` (and green `[ ✓ 3/3 ]`) in table title column with 1-click Inspector navigation.
+    *   [x] **Inspector Subtasks Section**: Added completion count `(N/M)`, progress rail, interactive checkbox checklist, individual delete buttons (`🗑️`), and quick-add input (`Enter`).
+    *   [x] **Atomic Persistence & Cascade**: `CaptureService.updateTaskDetailsInFile` atomically writes `    - [x]` lines, and parent completion cascades to child subtasks.
+*   [x] **Atomic Disk Persistence (`CaptureService.updateTaskDetailsInFile`)** — Atomically updates task titles, due dates, frontmatter life areas, subtasks, and child remark lines via `app.vault.process()` with line index drift protection.
 *   [x] **0ms Bi-Directional Interoperability** — Integrated `RefreshCoordinator` to broadcast `'tasks'` refresh events to both `DesktopHubView` and `GawaCockpitView`. Toggling in either view updates the other in 0ms without scroll jumping.
 *   [x] **Zero Build & Lint Errors** — Passes `npx tsc --noUnusedLocals --noUnusedParameters --noEmit --skipLibCheck` (0 errors) and `npm run build` (0 errors).
 *   [x] **Production Vault Deployment** — Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000/.obsidian/plugins/Obsidian_diwa/` and `/Users/K26/Obsidian/K0001/.obsidian/plugins/Obsidian_diwa/`.

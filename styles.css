@@ -2401,6 +2401,31 @@ body.is-phone .pos-inline-textarea,
     border-radius: 4px;
 }
 
+.pos-gawa-subtask-progress-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 7px;
+    border-radius: var(--diwa-radius-pill);
+    font-size: 0.73rem;
+    font-weight: 600;
+    background: rgba(var(--accent-rgb), 0.1);
+    color: var(--text-accent);
+    border: 1px solid rgba(var(--accent-rgb), 0.25);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: var(--diwa-transition);
+}
+
+.pos-gawa-subtask-progress-pill:hover {
+    background: rgba(var(--accent-rgb), 0.2);
+}
+
+.pos-gawa-subtask-progress-pill.is-all-done {
+    background: rgba(39, 174, 96, 0.12);
+    color: #27ae60;
+    border-color: rgba(39, 174, 96, 0.3);
+}
+
 /* ── Date Pills ── */
 .pos-gawa-date-pill {
     display: inline-flex;
@@ -2698,6 +2723,167 @@ body.is-phone .pos-inline-textarea,
     border-color: var(--interactive-accent);
     font-weight: 600;
     box-shadow: 0 2px 8px rgba(var(--accent-rgb), 0.25);
+}
+
+/* ── Task Inspector Subtasks ── */
+.pos-gawa-insp-subtasks-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.pos-gawa-subtask-progress-rail {
+    width: 100%;
+    height: 5px;
+    background: var(--background-modifier-border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+.pos-gawa-subtask-progress-fill {
+    height: 100%;
+    background: var(--interactive-accent);
+    border-radius: 3px;
+    transition: width 0.25s ease-out;
+}
+
+.pos-gawa-subtask-progress-fill.is-complete {
+    background: #27ae60;
+}
+
+.pos-gawa-subtask-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 2px;
+}
+
+.pos-gawa-subtask-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--diwa-radius-sm);
+    transition: var(--diwa-transition);
+}
+
+.pos-gawa-subtask-item:hover {
+    border-color: var(--background-modifier-border-hover, var(--interactive-accent));
+}
+
+.pos-gawa-subtask-item.is-completed {
+    opacity: 0.65;
+}
+
+.pos-gawa-subtask-checkbox {
+    cursor: pointer;
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+}
+
+.pos-gawa-subtask-title {
+    flex: 1;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: var(--text-normal);
+    word-break: break-word;
+}
+
+.pos-gawa-subtask-title.is-completed {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.pos-gawa-subtask-title p {
+    margin: 0;
+}
+
+.pos-gawa-subtask-title a.internal-link {
+    color: var(--text-accent);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.pos-gawa-subtask-delete-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: var(--diwa-transition);
+}
+
+.pos-gawa-subtask-delete-btn:hover {
+    color: var(--text-error, #eb5757);
+    background: rgba(235, 87, 87, 0.1);
+}
+
+.pos-gawa-subtasks-empty {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 10px 12px;
+    background: var(--background-primary);
+    border: 1px dashed var(--background-modifier-border);
+    border-radius: var(--diwa-radius-sm);
+    text-align: center;
+}
+
+.pos-gawa-add-subtask-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.pos-gawa-add-subtask-input {
+    flex: 1;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--diwa-radius-sm);
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    color: var(--text-normal);
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.pos-gawa-add-subtask-input:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.15);
+}
+
+.pos-gawa-add-subtask-btn {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+    border-radius: var(--diwa-radius-sm);
+    background: var(--background-secondary-alt);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-normal);
+    cursor: pointer;
+    font-weight: 500;
+    transition: var(--diwa-transition);
+    white-space: nowrap;
+}
+
+.pos-gawa-add-subtask-btn:hover {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
 }
 
 /* ── Task Inspector Notes & Comments List ── */
