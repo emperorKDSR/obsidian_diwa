@@ -707,7 +707,23 @@ export class CaptureService {
         const body = content.replace(/^---[\s\S]*?---\r?\n*/, '').trim();
         if (!body) return [];
 
-        const lines = body.split('\n');
+        // Normalize previously digested blocks wrapped in %% diwa-digested:dest=... %%
+        let cleanBody = body;
+        if (cleanBody.includes('diwa-digested:')) {
+            cleanBody = cleanBody.replace(/%%\r?\n(?:diwa-digested:dest=([^\r\n]*)\r?\n)?([\s\S]*?)\r?\n%%/g, (_m, dest, inner) => {
+                const target = (dest || '').trim();
+                const trimmedInner = inner.trim();
+                if (target && target !== 'archive' && target !== 'gawa_inbox' && !trimmedInner.includes('->')) {
+                    return `${trimmedInner}\n-> ${target}`;
+                }
+                return trimmedInner;
+            });
+        }
+        // Also strip any empty/standalone %% comments
+        cleanBody = cleanBody.replace(/%%[\s\S]*?%%/g, '').trim();
+        if (!cleanBody) return [];
+
+        const lines = cleanBody.split('\n');
         const rawBlocks: string[] = [];
         let currentBlockLines: string[] = [];
         let inCodeFence = false;
@@ -1033,6 +1049,16 @@ export class CaptureService {
         });
     }
 
+    unwrapDigestedComments(content: string): string {
+        return content
+            .replace(/%%\r?\n(?:diwa-digested:dest=[^\r\n]*\r?\n)?([\s\S]*?)\r?\n%%[ \t]*/g, '$1\n')
+            .replace(/%%[\s\S]*?diwa-digested:dest=[^\r\n]*[\s\S]*?%%[ \t]*/g, (match) => {
+                const inner = match.replace(/^%%/, '').replace(/%%$/, '').trim();
+                return inner.replace(/^diwa-digested:dest=[^\r\n]*\r?\n?/, '').trim() + '\n';
+            })
+            .trim();
+    }
+
     async unmarkCaptureAsDigested(filePath: string): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) return;
@@ -1041,6 +1067,10 @@ export class CaptureService {
             delete fm.digested;
             delete fm.digestedAt;
             fm.modified = moment().format('YYYY-MM-DDTHH:mm:ss');
+        });
+
+        await this.app.vault.process(file, (content) => {
+            return this.unwrapDigestedComments(content);
         });
     }
 

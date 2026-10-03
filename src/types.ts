@@ -44,6 +44,7 @@ export interface CaptureEntry {
     area: string;
     tags: string[];
     body: string;
+    rawBody?: string;
     hasTasks: boolean;
     tasks: CaptureTaskItem[];
     gawaTasks?: GawaTaskRecord[];

@@ -19,8 +19,9 @@
   - Preserves 100% zero data loss while solving multi-block scratchpad retention.
   - Digested blocks inside source notes are wrapped in native Markdown comments: `%%\ndiwa-digested:dest=[[Target]]\n<content>\n%%`.
   - Blocks routed to "Keep in Scratchpad" remain uncommented and rendered in the scratchpad feed.
-  - `IndexService.ts`: Strips `%% ... %%` comment blocks when calculating `visibleBody`, tasks, and wikilinks, hiding digested blocks from the scratchpad stream while keeping raw file text 100% intact.
-  - `CaptureService.ts`: `wrapBlockAsDigested()` non-destructively wraps digested blocks in source notes during Phase 2 of `executeBatchDigest()`. Frontmatter `digested: true` is stamped only when all blocks in a note are digested; if any block was kept, `digested: true` is unmarked so the kept blocks remain in the feed.
+  - `IndexService.ts`: Strips `%% ... %%` comment blocks when calculating `visibleBody`, tasks, and wikilinks, hiding digested blocks from the scratchpad stream while keeping raw file text 100% intact. Exposes `rawBody` on `CaptureEntry` so Calendar Digest and re-digesting engines access full note content.
+  - `CaptureService.ts`: `wrapBlockAsDigested()` non-destructively wraps digested blocks in source notes. `parseDigestibleBlocks()` normalizes previously digested `%% diwa-digested:dest=... %%` blocks for re-digestion. `unmarkCaptureAsDigested()` strips `diwa-digested` comments when resetting status.
+  - `CalendarDigestView.ts`: Uses `rawBody` for rendering and block parsing, preventing empty-body digest lockouts and displaying clean note markdown in daily reviews.
   - `DesktopHubView.ts`: Automatically filters out notes whose visible body is completely empty and taskless.
 - **Calendar Digest & Review Architecture Deployed (`VIEW_TYPE_CALENDAR_DIGEST = 'diwa-calendar-digest'`)**:
   - Created `src/views/CalendarDigestView.ts` implementing the master-detail split-pane layout:

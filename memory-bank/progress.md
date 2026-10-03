@@ -13,7 +13,8 @@
 *   [x] **Header Horizon Indicator & Empty State (`DesktopHubView.ts`)** — Displays active horizon in the header subtitle (e.g. `Personal OS · Last 7 Days`) and updates empty state messaging.
 *   [x] **Digested Note Exclusion Fix (`DesktopHubView.ts` & `IndexService.ts`)** — Corrected stream filter logic so `digested: true` notes are strictly hidden from the default `All Notes` feed, achieving true Inbox Zero upon note digestion.
 *   [x] **Block-Level Comment Hiding on Digestion (Option B)** — Implemented non-destructive comment wrapping (`%% diwa-digested:dest=[[Target]]\n<content>\n%%`) in `CaptureService.ts`. Allows notes with both digested and "Keep in Scratchpad" blocks to retain only the kept blocks in the scratchpad stream with 0% data loss.
-*   [x] **Comment Stripping in Indexing (`IndexService.ts`)** — Excluded `%% ... %%` comment blocks from visible body, tasks, and wikilink parsing, ensuring digested blocks are hidden from the stream while raw files preserve complete text history.
+*   [x] **Comment Stripping & RawBody Dual-Pipeline (`IndexService.ts` & `CalendarDigestView.ts`)** — Strips comments for scratchpad feed while preserving `rawBody` for Calendar Review and digest parsing, preventing empty-body digest lockouts.
+*   [x] **Clean Reset Status Unwrapping (`CaptureService.ts`)** — Added `unwrapDigestedComments()` to cleanly unwrap comments and restore notes when resetting status.
 *   [x] **Zero Build & Lint Errors** — Passes `tsc --noEmit --skipLibCheck` and `npm run build` with zero errors.
 *   [x] **Vault Deployment** — Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin folders.
 

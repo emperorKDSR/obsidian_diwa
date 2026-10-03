@@ -397,7 +397,8 @@ export class IndexService {
 
         const digested = Boolean(
             fm.digested === true ||
-            String(fm.digested).toLowerCase() === 'true'
+            String(fm.digested).toLowerCase() === 'true' ||
+            (!visibleBody && rawBody.includes('diwa-digested:'))
         );
         const digestedAt = fm.digestedAt ? String(fm.digestedAt) : undefined;
 
@@ -410,6 +411,7 @@ export class IndexService {
             area,
             tags,
             body: visibleBody,
+            rawBody,
             hasTasks,
             tasks,
             gawaTasks,

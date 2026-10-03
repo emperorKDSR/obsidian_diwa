@@ -265,6 +265,7 @@ export class CalendarDigestView extends ItemView {
                     for (const entry of entries) {
                         await this.plugin.capture.unmarkCaptureAsDigested(entry.filePath);
                     }
+                    await this.plugin.index.buildIndices();
                     new Notice(`Digest status cleared for ${this._selectedDate}`);
                     this.renderView();
                 };
@@ -305,9 +306,10 @@ export class CalendarDigestView extends ItemView {
 
             // Card Body (Render Markdown)
             const bodyEl = card.createDiv({ cls: 'pos-card-body markdown-rendered' });
+            const displayBody = (entry.rawBody ? this.plugin.capture.unwrapDigestedComments(entry.rawBody) : entry.body) || entry.body;
             MarkdownRenderer.render(
                 this.app,
-                entry.body,
+                displayBody,
                 bodyEl,
                 entry.filePath,
                 this
@@ -343,8 +345,9 @@ export class CalendarDigestView extends ItemView {
         // Compile all digestible blocks across all notes for this date
         const allBlocks: DigestibleBlock[] = [];
         for (const entry of entries) {
+            const contentToParse = entry.rawBody || entry.body;
             const blocks = this.plugin.capture.parseDigestibleBlocks(
-                entry.body,
+                contentToParse,
                 entry.filePath,
                 entry.createdAtMs
             );
