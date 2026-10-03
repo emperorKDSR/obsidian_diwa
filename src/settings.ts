@@ -1,7 +1,7 @@
 import { App, PluginSettingTab, Setting, TextComponent } from 'obsidian';
 import type DiwaPlugin from './main';
 import { DatePickerModal } from './modals/DatePickerModal';
-import { parseDateToIso, formatDateForDisplay } from './utils/dateParsing';
+import { parseDateToIso } from './utils/dateParsing';
 import { ScratchpadHorizon } from './types';
 
 export function bindDeferredTextSetting(

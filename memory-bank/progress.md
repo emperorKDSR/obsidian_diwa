@@ -1,6 +1,23 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Scratchpad Note Horizon (Rolling Window & Minimal Feed) Built & Verified
+## Current Phase: Karon (Today & Horizon View) Built & Deployed
+
+---
+
+### 0. Karon: Today & Horizon View (Complete)
+*   [x] **Target Date Secondary Index (`src/services/IndexService.ts`)** — Added in-memory `targetDateIndex: Map<string, Set<string>>` for $O(1)$ retrieval of notes intended for any date via `[[YYYY-MM-DD]]` wikilinks, frontmatter `due`/`scheduled`/`day`, or task due dates.
+*   [x] **Query Methods & Snippet Extraction (`src/services/IndexService.ts`)** — Implemented `getCapturesForTargetDate`, `getTasksForDueDate`, `getOverdueTasks`, and `extractTargetDateSnippets`.
+*   [x] **Dedicated Leaf View (`src/views/KaronView.ts`)** — Built Option A (Chronological Agenda Stream):
+    *   Top Header with active date, subtitle, and horizon switcher (`[ ☀️ Today ]`, `[ 📅 3 Days ]`, `[ 🗓️ 7 Days ]`).
+    *   Collapsible **Overdue Tasks Banner** with red accent and instant checkbox completion.
+    *   Chronological Day Accordions (`Today`, `Tomorrow`, `D+2` through `D+7`) with task/note summary pills and collapsible sections.
+    *   **Tasks Due** list with interactive checkboxes updating via `CaptureService.toggleTaskInFile`, area tags, and source jump buttons.
+    *   **Notes Intended for Day** cards rendering extracted date-relevant snippets via `MarkdownRenderer` and internal link peeking via `WikilinkPeekModal`.
+*   [x] **Constants & Custom Icon (`src/constants.ts`)** — Registered `VIEW_TYPE_KARON = 'diwa-karon'`, custom sunrise SVG icon (`KARON_ICON_ID`, `KARON_ICON_SVG`).
+*   [x] **Plugin Registration & Synergies (`src/main.ts`, `DesktopHubView.ts`, `RefreshCoordinator.ts`)** — Registered view, icon, ribbon launcher, and command `DIWA: Open Karon (Today & Horizon)`. Added 1-tap `[ ☀️ Karon ]` header trigger in `DesktopHubView`. Connected to `RefreshCoordinator` for 0ms multi-view reactivity.
+*   [x] **Clean Styles (`styles.css`)** — Namespaced `.pos-karon-*` CSS classes with smooth hover effects, checkbox styling, and Obsidian theme variables.
+*   [x] **Zero Build & Lint Errors** — Passed strict `tsc --noUnusedLocals --noUnusedParameters --noEmit --skipLibCheck` (0 errors) and `npm run build` (0 errors).
+*   [x] **Production Vault Deployment** — Deployed `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin directories.
 
 ---
 

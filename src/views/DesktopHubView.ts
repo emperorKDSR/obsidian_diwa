@@ -329,6 +329,16 @@ export class DesktopHubView extends ItemView {
                 void this.plugin.activateCalendarDigest();
             };
 
+            // Karon (Today & Horizon) quick-launcher button
+            const karonBtn = actions.createEl('button', {
+                cls: 'pos-header-text-btn pos-karon-header-trigger',
+                text: '☀️ Karon',
+                attr: { 'aria-label': 'Open Karon (Today & Horizon)' }
+            });
+            karonBtn.onclick = () => {
+                void this.plugin.activateKaron();
+            };
+
             // Settings trigger
             const settingsBtn = actions.createEl('button', {
                 cls: 'pos-icon-btn pos-settings-trigger',

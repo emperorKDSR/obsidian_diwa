@@ -164,3 +164,27 @@ The **Continuous Scratchpad** is the primary interactive hub:
 ### Gawa Project Task Synergy & Inbox Zero
 *   **Cross-File Task Registry (`IndexService.ts`)**: Permanent notes containing digested tasks are tracked in `projectTaskIndex`. Tasks remain fully interactive in `GawaCockpitView.ts`, with `Source ↗` pointing directly to the project note.
 *   **Scratchpad Inbox Zero**: Digested notes are hidden from the primary scratchpad feed by default, while remaining fully accessible in the Calendar Digest view on their respective dates.
+
+---
+
+## 8. Karon Today & Horizon Architecture (`VIEW_TYPE_KARON`)
+
+### Autonomous Dedicated Leaf (`VIEW_TYPE_KARON = "diwa-karon"`)
+*   **Registration**: Registered in `src/main.ts` with custom sunrise SVG icon (`KARON_ICON_ID`), dedicated ribbon launcher, and command `DIWA: Open Karon (Today & Horizon)`.
+*   **Desktop Hub Integration**: 1-tap `[ ☀️ Karon ]` trigger in `DesktopHubView` header alongside `[ 📋 Gawa ]` and `[ 📅 Digest ]`.
+*   **Reactive Event Coordination**: Subscribed to `RefreshCoordinator` so changes to tasks or notes reflect across all open views in 0ms.
+
+### In-Memory Target Date Indexing (`IndexService.ts`)
+*   **`targetDateIndex: Map<string, Set<string>>`**: Fast secondary index mapping each ISO date (`YYYY-MM-DD`) to files that reference that date:
+    *   Explicit wikilinks in body: `[[YYYY-MM-DD]]`
+    *   Frontmatter date properties: `due`, `scheduled`, `day`, `targetDate`
+    *   Task-level due dates: `gawaTasks.dueDate`
+*   **Snippet Extraction Engine (`extractTargetDateSnippets`)**: Extracts the exact paragraphs or blocks mentioning the target date for long notes, while rendering full notes when brief.
+
+### Chronological Stream Layout (Option A)
+*   **Horizon Switcher**: Dynamic selector (`[ ☀️ Today ]`, `[ 📅 3 Days ]`, `[ 🗓️ 7 Days ]`).
+*   **Overdue Tasks Banner**: High-priority alert displaying overdue tasks with live checkboxes and relative overdue days (`1d overdue`, etc.).
+*   **Collapsible Day Accordions**: Chronological sections from Today (`D+0`) to horizon end (`D+7`) with task and note summary pills.
+*   **Task List**: Interactive checkboxes backed by `CaptureService.toggleTaskInFile`, area badges, and file peek links.
+*   **Note Cards**: Rendered markdown snippets with `MarkdownRenderer` and internal link peek handling (`WikilinkPeekModal`).
+

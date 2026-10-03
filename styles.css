@@ -3843,3 +3843,451 @@ body.is-phone .pos-inline-textarea,
     gap: 10px;
     margin-top: 18px;
 }
+
+/* ==========================================================================
+   Karon (Today & Horizon View) Styles
+   ========================================================================== */
+
+.pos-karon-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 20px 60px 20px;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+/* Header */
+.pos-karon-header {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.pos-karon-title-area {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pos-karon-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pos-karon-header-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-orange, #f2994a);
+}
+
+.pos-karon-title {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-normal);
+}
+
+.pos-karon-subtitle {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.pos-karon-actions-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.pos-karon-horizon-group {
+    display: flex;
+    align-items: center;
+    background: var(--background-secondary);
+    border-radius: var(--diwa-radius-pill, 20px);
+    padding: 3px;
+    border: 1px solid var(--background-modifier-border);
+}
+
+.pos-karon-horizon-btn {
+    background: transparent;
+    border: none;
+    padding: 5px 14px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    border-radius: var(--diwa-radius-pill, 20px);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: none;
+}
+
+.pos-karon-horizon-btn:hover {
+    color: var(--text-normal);
+}
+
+.pos-karon-horizon-btn.is-active {
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.pos-karon-action-btn {
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--diwa-radius-sm, 6px);
+    color: var(--text-muted);
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.pos-karon-action-btn:hover {
+    color: var(--text-normal);
+    border-color: var(--interactive-accent);
+}
+
+/* Main Stream Stage */
+.pos-karon-stage {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Day Accordion Sections */
+.pos-karon-day-section {
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--diwa-radius-md, 10px);
+    overflow: hidden;
+    transition: border-color 0.15s ease;
+}
+
+.pos-karon-day-section.is-today {
+    border-color: rgba(var(--interactive-accent-rgb), 0.35);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.pos-karon-day-section.pos-karon-overdue-section {
+    border-color: rgba(235, 87, 87, 0.35);
+    background: rgba(235, 87, 87, 0.02);
+}
+
+.pos-karon-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--background-secondary);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.12s ease;
+}
+
+.pos-karon-section-header:hover {
+    background: var(--background-secondary-alt);
+}
+
+.pos-karon-sec-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pos-karon-collapse-icon {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+}
+
+.pos-karon-sec-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-normal);
+}
+
+.pos-karon-overdue-title {
+    color: #eb5757;
+}
+
+.pos-karon-sec-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pos-karon-pill {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--diwa-radius-pill, 12px);
+    background: var(--background-primary);
+    color: var(--text-muted);
+    border: 1px solid var(--background-modifier-border);
+}
+
+.pos-karon-pill-today {
+    background: rgba(var(--interactive-accent-rgb), 0.12);
+    color: var(--interactive-accent);
+    border-color: rgba(var(--interactive-accent-rgb), 0.25);
+}
+
+.pos-karon-pill-danger {
+    background: rgba(235, 87, 87, 0.12);
+    color: #eb5757;
+    border-color: rgba(235, 87, 87, 0.25);
+}
+
+.pos-karon-pill-muted {
+    opacity: 0.6;
+}
+
+/* Section Content */
+.pos-karon-section-content {
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.pos-karon-empty-day {
+    padding: 12px 8px;
+    color: var(--text-faint);
+    font-size: 0.84rem;
+    font-style: italic;
+}
+
+.pos-karon-subsection-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: -4px;
+}
+
+.pos-karon-sub-icon {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+}
+
+.pos-karon-sub-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+}
+
+/* Tasks Due List */
+.pos-karon-task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pos-karon-task-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: var(--diwa-radius-sm, 6px);
+    background: var(--background-secondary);
+    border: 1px solid transparent;
+    transition: all 0.12s ease;
+}
+
+.pos-karon-task-row:hover {
+    border-color: var(--background-modifier-border);
+    background: var(--background-secondary-alt);
+}
+
+.pos-karon-task-row.is-completed {
+    opacity: 0.55;
+}
+
+.pos-karon-task-row.is-completed .pos-karon-task-title {
+    text-decoration: line-through;
+}
+
+.pos-karon-checkbox {
+    cursor: pointer;
+    margin: 0;
+}
+
+.pos-karon-task-body {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pos-karon-task-title {
+    font-size: 0.88rem;
+    color: var(--text-normal);
+}
+
+.pos-karon-task-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.pos-karon-meta-badge {
+    font-size: 0.72rem;
+    padding: 1px 6px;
+    border-radius: var(--diwa-radius-pill, 10px);
+    background: var(--background-primary);
+    color: var(--text-muted);
+    border: 1px solid var(--background-modifier-border);
+}
+
+.pos-karon-area-badge {
+    font-weight: 500;
+}
+
+.pos-karon-due-overdue {
+    background: rgba(235, 87, 87, 0.12);
+    color: #eb5757;
+    border-color: rgba(235, 87, 87, 0.25);
+    font-weight: 600;
+}
+
+.pos-karon-source-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-faint);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: color 0.12s ease;
+    box-shadow: none;
+}
+
+.pos-karon-source-btn:hover {
+    color: var(--text-accent);
+}
+
+/* Notes Intended List */
+.pos-karon-note-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.pos-karon-note-card {
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--diwa-radius-sm, 8px);
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: border-color 0.12s ease;
+}
+
+.pos-karon-note-card:hover {
+    border-color: rgba(var(--interactive-accent-rgb), 0.35);
+}
+
+.pos-karon-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.pos-karon-card-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.pos-karon-card-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-accent);
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pos-karon-card-title:hover {
+    text-decoration: underline;
+}
+
+.pos-karon-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.pos-karon-card-action {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 4px;
+    box-shadow: none;
+}
+
+.pos-karon-card-action:hover {
+    color: var(--text-normal);
+}
+
+.pos-karon-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pos-karon-snippet {
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: var(--text-normal);
+    background: var(--background-primary);
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+}
+
+.pos-karon-snippet p {
+    margin: 0;
+}
+
+/* Header Trigger button in DesktopHubView */
+.pos-karon-header-trigger {
+    background: rgba(var(--color-orange-rgb, 242, 153, 74), 0.12);
+    color: var(--color-orange, #f2994a);
+    border-color: rgba(var(--color-orange-rgb, 242, 153, 74), 0.25);
+    font-weight: 600;
+}
+
+.pos-karon-header-trigger:hover {
+    background: rgba(var(--color-orange-rgb, 242, 153, 74), 0.2);
+}

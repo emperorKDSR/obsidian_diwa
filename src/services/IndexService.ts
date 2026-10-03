@@ -11,6 +11,7 @@ export class IndexService {
 
     captureIndex: Map<string, CaptureEntry> = new Map();
     dateIndex: Map<string, Set<string>> = new Map();
+    targetDateIndex: Map<string, Set<string>> = new Map();
     projectTaskIndex: Map<string, GawaTaskRecord[]> = new Map();
     private _lastIndexedCaptureFolderSetting: string = '';
 
@@ -139,6 +140,7 @@ export class IndexService {
         this._lastIndexedCaptureFolderSetting = this.getConfiguredCaptureFolder();
         this.captureIndex.clear();
         this.dateIndex.clear();
+        this.targetDateIndex.clear();
         const files = this.app.vault.getMarkdownFiles().filter(f => this.isCaptureFile(f.path));
         // Parallel indexing in chunks of 50 for max speed
         const CHUNK_SIZE = 50;
@@ -435,11 +437,47 @@ export class IndexService {
         }
         dateSet.add(file.path);
 
+        // Update targetDateIndex (Intended dates: wikilinks, frontmatter, task due dates)
+        for (const set of this.targetDateIndex.values()) {
+            set.delete(file.path);
+        }
+        const targetDates = new Set<string>();
+        for (const d of allDates) {
+            if (moment(d, 'YYYY-MM-DD', true).isValid()) {
+                targetDates.add(d);
+            }
+        }
+        const candidateFmDates = [fm.due, fm.scheduled, fm.day, fm.targetDate];
+        for (const candidate of candidateFmDates) {
+            if (candidate) {
+                const cleaned = String(candidate).replace(/\[\[|\]\]/g, '').trim();
+                if (moment(cleaned, 'YYYY-MM-DD', true).isValid()) {
+                    targetDates.add(cleaned);
+                }
+            }
+        }
+        for (const gt of gawaTasks) {
+            if (gt.dueDate && moment(gt.dueDate, 'YYYY-MM-DD', true).isValid()) {
+                targetDates.add(gt.dueDate);
+            }
+        }
+        for (const tDate of targetDates) {
+            let tSet = this.targetDateIndex.get(tDate);
+            if (!tSet) {
+                tSet = new Set();
+                this.targetDateIndex.set(tDate, tSet);
+            }
+            tSet.add(file.path);
+        }
+
         return entry;
     }
 
     removeCaptureFile(path: string): boolean {
         for (const set of this.dateIndex.values()) {
+            set.delete(path);
+        }
+        for (const set of this.targetDateIndex.values()) {
             set.delete(path);
         }
         return this.captureIndex.delete(path);
@@ -755,6 +793,57 @@ export class IndexService {
             if (entry) entries.push(entry);
         }
         return entries.sort((a, b) => b.createdAtMs - a.createdAtMs);
+    }
+
+    getCapturesForTargetDate(dateStr: string): CaptureEntry[] {
+        const paths = this.targetDateIndex.get(dateStr);
+        if (!paths || paths.size === 0) return [];
+        const entries: CaptureEntry[] = [];
+        for (const p of paths) {
+            const entry = this.captureIndex.get(p);
+            if (entry) entries.push(entry);
+        }
+        return entries.sort((a, b) => b.createdAtMs - a.createdAtMs);
+    }
+
+    getTasksForDueDate(dateStr: string): GawaTaskRecord[] {
+        const allTasks = this.getGawaTasks(true);
+        return allTasks.filter(t => t.dueDate === dateStr);
+    }
+
+    getOverdueTasks(todayStr?: string): GawaTaskRecord[] {
+        const today = todayStr || moment().format('YYYY-MM-DD');
+        const allTasks = this.getGawaTasks(true);
+        return allTasks.filter(t => t.dueDate && t.dueDate < today).sort((a, b) => {
+            if (a.dueDate! < b.dueDate!) return -1;
+            if (a.dueDate! > b.dueDate!) return 1;
+            return 0;
+        });
+    }
+
+    extractTargetDateSnippets(entry: CaptureEntry, targetDate: string): string[] {
+        if (!entry.body) return [];
+        if (entry.body.length < 250) {
+            return [entry.body];
+        }
+
+        const paragraphs = entry.body.split(/\n\s*\n/);
+        const matchingSnippets: string[] = [];
+        const targetWikilink = `[[${targetDate}]]`;
+
+        for (const p of paragraphs) {
+            const trimmed = p.trim();
+            if (!trimmed) continue;
+            if (trimmed.includes(targetWikilink) || trimmed.includes(targetDate)) {
+                matchingSnippets.push(trimmed);
+            }
+        }
+
+        if (matchingSnippets.length === 0) {
+            return [paragraphs[0] || entry.body];
+        }
+
+        return matchingSnippets;
     }
 
     getDayDigestSummary(dateStr: string): DayDigestSummary {

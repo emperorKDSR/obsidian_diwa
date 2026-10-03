@@ -1,6 +1,29 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Scratchpad Note Horizon (Rolling Window & Minimal Feed) Deployed
+## Current State: Karon (Today & Horizon View) Built & Deployed
+- **Karon Dedicated Leaf View (`VIEW_TYPE_KARON = 'diwa-karon'`)**:
+  - Created `src/views/KaronView.ts` implementing Option A (Chronological Stream / Agenda with collapsible date sections):
+    - **Header & Horizon Switcher**: Supports `[ ☀️ Today ]`, `[ 📅 3 Days ]`, and `[ 🗓️ 7 Days ]` horizons with 1-click toggling.
+    - **Overdue Tasks Banner**: High-priority alert banner rendering all incomplete overdue tasks with direct checkbox resolution and relative overdue day badges.
+    - **Day-by-Day Accordion Sections**:
+      - Chronological sections for Today (`D+0`), Tomorrow (`D+1`), and upcoming days (`D+2` through `D+7`).
+      - Summary pills displaying task count and note reference count.
+      - Collapsible day headers with chevron toggles.
+    - **Tasks Due Sub-Section**: Interactive checkboxes tied to `CaptureService.toggleTaskInFile`, area badges, due badges, remarks count, and source note peek buttons.
+    - **Notes Intended for Day Sub-Section**: Previews notes referencing target date `[[YYYY-MM-DD]]` or frontmatter due/day, rendering extracted markdown snippets with `MarkdownRenderer` and internal link peeking (`WikilinkPeekModal`).
+- **Target Date Indexing & Queries (`IndexService.ts`)**:
+  - Added `targetDateIndex: Map<string, Set<string>>` for $O(1)$ lookup of notes intended for any target date.
+  - Automatically indexes dates from `allDates` (`[[YYYY-MM-DD]]`), frontmatter `due`/`scheduled`/`day`/`targetDate`, and `gawaTasks` due dates.
+  - Query methods: `getCapturesForTargetDate()`, `getTasksForDueDate()`, `getOverdueTasks()`, and `extractTargetDateSnippets()`.
+- **Plugin Integration & Launchers (`src/main.ts`, `src/constants.ts`, `src/views/DesktopHubView.ts`)**:
+  - Registered view `VIEW_TYPE_KARON`, custom sunrise/horizon SVG icon (`KARON_ICON_ID`), ribbon launcher, and command `DIWA: Open Karon (Today & Horizon)`.
+  - Added 1-tap `[ ☀️ Karon ]` quick launcher button to `DesktopHubView` header.
+  - Wired `VIEW_TYPE_KARON` into `RefreshCoordinator.ts` for instant 0ms bi-directional refresh on task toggling or note edits.
+- **Styling (`styles.css`)**:
+  - Added namespaced styles `.pos-karon-*` adhering to Obsidian CSS variables.
+- **Zero Build Errors & Production Deployment**:
+  - Clean `tsc --noUnusedLocals --noUnusedParameters --noEmit --skipLibCheck` and `npm run build`.
+  - Deployed `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` and `/Users/K26/Obsidian/K0001` vault plugin directories.
 - **Scratchpad Note Horizon Setting**:
   - Implemented configurable rolling retention windows in `DiwaSettings`: `'today'`, `'3d'`, `'7d'` (default/recommended), `'14d'`, `'30d'`, `'all'`, and `'custom'`.
   - Added "Always Show Important Notes (⭐)" toggle (default: `true`), keeping starred thoughts and tasks visible in the scratchpad regardless of note age.

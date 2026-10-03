@@ -12,6 +12,7 @@ export const VIEW_TYPE_MOBILE_HUB  = "diwa-mobile-hub";
 export const VIEW_TYPE_TABLET_HUB  = "diwa-tablet-hub";
 export const VIEW_TYPE_GAWA_COCKPIT = "diwa-gawa-cockpit";
 export const VIEW_TYPE_CALENDAR_DIGEST = "diwa-calendar-digest";
+export const VIEW_TYPE_KARON = "diwa-karon";
 
 // Desktop Hub ribbon icon — three-pane cockpit layout
 export const DESKTOP_HUB_ICON_ID = "diwa-desktop-hub-icon";
@@ -49,6 +50,16 @@ export const CALENDAR_DIGEST_ICON_SVG = `<g transform="translate(8,8) scale(3.3)
     <circle cx="16" cy="13" r="1.2" fill="currentColor"/>
     <circle cx="8" cy="16.5" r="1.2" fill="currentColor"/>
     <polyline points="11.5,16.5 13,18 16.5,15" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>`;
+
+// Karon icon — sunrise over the horizon
+export const KARON_ICON_ID = "diwa-karon-icon";
+export const KARON_ICON_SVG = `<g transform="translate(8,8) scale(3.3)">
+    <path d="M3 18h18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M6 18a6 6 0 0 1 12 0" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <line x1="12" y1="6" x2="12" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="5.64" y1="11.64" x2="7.76" y2="13.76" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="18.36" y1="11.64" x2="16.24" y2="13.76" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
 </g>`;
 
 export const DEFAULT_SETTINGS: DiwaSettings = {

@@ -6,18 +6,22 @@ import {
     VIEW_TYPE_TABLET_HUB,
     VIEW_TYPE_GAWA_COCKPIT,
     VIEW_TYPE_CALENDAR_DIGEST,
+    VIEW_TYPE_KARON,
     DESKTOP_HUB_ICON_ID,
     DESKTOP_HUB_ICON_SVG,
     GAWA_COCKPIT_ICON_ID,
     GAWA_COCKPIT_ICON_SVG,
     CALENDAR_DIGEST_ICON_ID,
     CALENDAR_DIGEST_ICON_SVG,
+    KARON_ICON_ID,
+    KARON_ICON_SVG,
 } from './constants';
 import { DiwaSettings } from './types';
 import { isTablet } from './utils';
 import { DesktopHubView } from './views/DesktopHubView';
 import { GawaCockpitView } from './views/GawaCockpitView';
 import { CalendarDigestView } from './views/CalendarDigestView';
+import { KaronView } from './views/KaronView';
 import { DiwaSettingTab } from './settings';
 import { IndexService } from './services/IndexService';
 import { CaptureService } from './services/CaptureService';
@@ -67,10 +71,12 @@ export default class DiwaPlugin extends Plugin {
         this.registerView(VIEW_TYPE_TABLET_HUB, (leaf) => new DesktopHubView(leaf, this));
         this.registerView(VIEW_TYPE_GAWA_COCKPIT, (leaf) => new GawaCockpitView(leaf, this));
         this.registerView(VIEW_TYPE_CALENDAR_DIGEST, (leaf) => new CalendarDigestView(leaf, this));
+        this.registerView(VIEW_TYPE_KARON, (leaf) => new KaronView(leaf, this));
 
         addIcon(DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG);
         addIcon(GAWA_COCKPIT_ICON_ID, GAWA_COCKPIT_ICON_SVG);
         addIcon(CALENDAR_DIGEST_ICON_ID, CALENDAR_DIGEST_ICON_SVG);
+        addIcon(KARON_ICON_ID, KARON_ICON_SVG);
 
         this.addRibbonIcon(DESKTOP_HUB_ICON_ID, 'DIWA Workspace', () => {
             void this.activateWorkspace();
@@ -80,6 +86,9 @@ export default class DiwaPlugin extends Plugin {
         });
         this.addRibbonIcon(CALENDAR_DIGEST_ICON_ID, 'Daily Digest & Review', () => {
             void this.activateCalendarDigest();
+        });
+        this.addRibbonIcon(KARON_ICON_ID, 'Karon (Today & Horizon)', () => {
+            void this.activateKaron();
         });
 
         this.addCommand({
@@ -99,6 +108,12 @@ export default class DiwaPlugin extends Plugin {
             name: 'Open Daily Digest & Review',
             icon: CALENDAR_DIGEST_ICON_ID,
             callback: () => { void this.activateCalendarDigest(); }
+        });
+        this.addCommand({
+            id: 'diwa-open-karon',
+            name: 'Open Karon (Today & Horizon)',
+            icon: KARON_ICON_ID,
+            callback: () => { void this.activateKaron(); }
         });
         this.addCommand({
             id: 'diwa-surface-important-notes',
@@ -174,7 +189,7 @@ export default class DiwaPlugin extends Plugin {
     }
 
     private detachRegisteredLeaves(): void {
-        const viewTypes = [VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB, VIEW_TYPE_GAWA_COCKPIT];
+        const viewTypes = [VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB, VIEW_TYPE_GAWA_COCKPIT, VIEW_TYPE_CALENDAR_DIGEST, VIEW_TYPE_KARON];
         for (const vt of viewTypes) {
             for (const leaf of this.app.workspace.getLeavesOfType(vt)) {
                 try {
@@ -210,6 +225,20 @@ export default class DiwaPlugin extends Plugin {
         const leaf = Platform.isDesktop ? workspace.getLeaf('tab') : workspace.getLeaf(false);
         if (leaf) {
             await leaf.setViewState({ type: VIEW_TYPE_CALENDAR_DIGEST, active: true });
+            workspace.revealLeaf(leaf);
+        }
+    }
+
+    async activateKaron(): Promise<void> {
+        const { workspace } = this.app;
+        const existing = workspace.getLeavesOfType(VIEW_TYPE_KARON);
+        if (existing.length > 0) {
+            workspace.revealLeaf(existing[0]);
+            return;
+        }
+        const leaf = Platform.isDesktop ? workspace.getLeaf('tab') : workspace.getLeaf(false);
+        if (leaf) {
+            await leaf.setViewState({ type: VIEW_TYPE_KARON, active: true });
             workspace.revealLeaf(leaf);
         }
     }
