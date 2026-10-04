@@ -1,5 +1,5 @@
 import { App, TFile, moment } from 'obsidian';
-import { DiwaSettings, CaptureEntry, CaptureTaskItem, GawaTaskRecord, GawaSubtaskItem, DayDigestSummary } from '../types';
+import { DiwaSettings, CaptureEntry, CaptureTaskItem, GawaTaskRecord, GawaSubtaskItem, DayDigestSummary, PermanentNoteRecord } from '../types';
 import { extractWikiLinks } from '../utils/wikilinks';
 import { normalizeConfiguredSettingPath } from '../utils/settingsPaths';
 import { normalizeVaultRelativePath } from '../utils/vaultFiles';
@@ -541,6 +541,106 @@ export class IndexService {
     additionalTaskFoldersChanged(): boolean {
         const current = this.getConfiguredAdditionalTaskFolders().slice().sort().join('|');
         return current.toLowerCase() !== this._lastIndexedAdditionalTaskFolders.toLowerCase();
+    }
+
+    getConfiguredPermanentNotesFolders(): string[] {
+        const folders = this.settings.permanentNotesFolders || [];
+        const result: string[] = [];
+        for (const f of folders) {
+            const raw = String(f || '').trim();
+            if (!raw || raw === '/' || raw === '.') continue;
+            try {
+                const norm = this.normalizeConfiguredPath(raw, '');
+                if (norm && !result.includes(norm)) {
+                    result.push(norm);
+                }
+            } catch {
+                // ignore invalid folder path
+            }
+        }
+        return result;
+    }
+
+    isPermanentNoteFile(fileOrPath: TFile | string): boolean {
+        const path = typeof fileOrPath === 'string' ? fileOrPath : fileOrPath.path;
+        const normalizedPath = this.normalizeVaultPath(path);
+        if (!normalizedPath.toLowerCase().endsWith('.md')) return false;
+        if (normalizedPath.toLowerCase().includes('/trash/') || normalizedPath.toLowerCase().startsWith('.trash/')) return false;
+        if (this.isCaptureFile(normalizedPath)) return false;
+
+        const attachmentsFolder = this.settings.attachmentsFolder ? this.normalizeConfiguredPath(this.settings.attachmentsFolder, '') : '';
+        if (attachmentsFolder && this.pathIsInFolder(normalizedPath, attachmentsFolder)) {
+            return false;
+        }
+
+        const configuredFolders = this.getConfiguredPermanentNotesFolders();
+        if (configuredFolders.length > 0) {
+            return configuredFolders.some(folder => this.pathIsInFolder(normalizedPath, folder));
+        }
+
+        return true;
+    }
+
+    getRecentlyUpdatedPermanentNotes(limit: number = 30, query?: string): PermanentNoteRecord[] {
+        const markdownFiles = this.app.vault.getMarkdownFiles();
+        const candidates: TFile[] = [];
+
+        for (const file of markdownFiles) {
+            if (this.isPermanentNoteFile(file)) {
+                candidates.push(file);
+            }
+        }
+
+        // Sort descending by mtime
+        candidates.sort((a, b) => b.stat.mtime - a.stat.mtime);
+
+        const cleanQuery = (query || '').toLowerCase().trim();
+        const records: PermanentNoteRecord[] = [];
+
+        for (const file of candidates) {
+            const folder = file.parent ? file.parent.path : '';
+            const title = file.basename;
+
+            if (cleanQuery) {
+                const matchesTitle = title.toLowerCase().includes(cleanQuery);
+                const matchesFolder = folder.toLowerCase().includes(cleanQuery);
+                const matchesPath = file.path.toLowerCase().includes(cleanQuery);
+                if (!matchesTitle && !matchesFolder && !matchesPath) {
+                    continue;
+                }
+            }
+
+            // Extract tags from metadataCache if available
+            const cache = this.app.metadataCache.getFileCache(file);
+            const tags: string[] = [];
+            if (cache?.tags) {
+                for (const t of cache.tags) {
+                    const tagStr = t.tag.replace(/^#/, '');
+                    if (!tags.includes(tagStr)) tags.push(tagStr);
+                }
+            }
+            if (cache?.frontmatter) {
+                const fmTags = IndexService.normalizeContext(cache.frontmatter.tags ?? cache.frontmatter.tag);
+                for (const t of fmTags) {
+                    if (!tags.includes(t)) tags.push(t);
+                }
+            }
+
+            records.push({
+                filePath: file.path,
+                title,
+                folder: folder === '/' ? '' : folder,
+                mtime: file.stat.mtime,
+                modifiedRelative: moment(file.stat.mtime).fromNow(),
+                tags,
+            });
+
+            if (records.length >= limit) {
+                break;
+            }
+        }
+
+        return records;
     }
 
     getScratchpadCutoffTimestamp(): number | null {

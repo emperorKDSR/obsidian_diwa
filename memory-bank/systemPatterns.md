@@ -72,11 +72,11 @@ flowchart TD
 ## 3. Continuous Scratchpad View (`DesktopHubView`)
 
 The **Continuous Scratchpad** is the primary interactive hub:
-1.  **Header Bar**: Logo, fast debounced search input, `[ Select ]` multi-note merge toggle, `[ 🧹 N Untagged ]` Inbox Sweeper button, Settings button.
+1.  **Header Bar**: Logo, fast debounced search input, `[ Select ]` multi-note merge toggle, `[ 🧹 N Untagged ]` Inbox Sweeper button, `[ 📚 Recent ]` permanent notes launcher, Settings button.
 2.  **Filter Carousel**: `[ All Notes ]`, `[ ☑️ Open Tasks ]`, Life Area chips (`[ 💼 Work ]`, `[ 🌱 Health ]`, `[ 💰 Wealth ]`, `[ 💡 Growth ]`).
-3.  **Adaptive Composer**:
+3.  **Adaptive Composer & Floating Action Bar**:
     *   *Desktop & Tablet*: Top Hero composer with borderless input capsule, `[ ☑️ Task ]` shortcut, life area selector chips, and `⌘ Enter` save shortcut.
-    *   *Mobile*: Compact 2-row frosted-glass floating bar (`backdrop-filter: blur(20px)`) with zero inner outline noise: Row 1 task shortcut + input + circular send button; Row 2 swipeable life-area pills.
+    *   *Mobile*: 1-Line Floating Action Bar with 5 quick buttons: `+` (composer), `🔍` (search), `📚` (recent permanent notes), `Sliders` (filter sheet), and `Panel-Bottom` (nav toggle).
 4.  **Continuous Document Stream**:
     *   Clean typography without card boxes, borders, or inner outlines.
     *   Hairline date separator dividers ("Today", "Yesterday", etc.).

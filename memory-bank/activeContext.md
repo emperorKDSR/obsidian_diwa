@@ -1,6 +1,23 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Uniform Neutral Styling for Gawa Header Pill
+## Current State: Recently Updated Permanent Notes Feature Deployed
+- **Permanent Note Query & Discovery (`src/services/IndexService.ts`)**:
+  - Implemented `isPermanentNoteFile(fileOrPath)`: filters markdown files outside `captureFolder`, `attachmentsFolder`, and `.trash`.
+  * Respects optional whitelist setting `permanentNotesFolders` (or defaults to all non-capture markdown files in the vault).
+  - Implemented `getRecentlyUpdatedPermanentNotes(limit, query)`: sorts by `file.stat.mtime` descending and supports real-time text query filtering across title, folder, and path.
+- **Dedicated Modal & Mobile Bottom Sheet (`src/modals/RecentPermanentNotesModal.ts`)**:
+  - Desktop & Tablet: Centered modal with search input, note title, folder badge (`📁`), tag indicators, and relative update time (`5m ago`, `2h ago`).
+  - Mobile Phones: Implemented as a native slide-up bottom sheet (`pos-mobile-bottom-sheet`) with drag handle and swipe-down gestures.
+  - 1-tap navigation: Tapping a note immediately opens it in the workspace and dismisses the modal.
+- **UI Triggers & Platform Parity (`src/views/DesktopHubView.ts` & `src/main.ts`)**:
+  - Desktop / Tablet: Added `[ 📚 Recent ]` pill button to header actions (`.pos-header-actions`).
+  - Mobile Phones: Added 5th circular button (`book-open` icon) to the 1-line floating action bar (`.pos-mobile-action-bar`), centered with 42px touch target.
+  - Command Palette: Registered `DIWA: Show Recently Updated Permanent Notes`.
+- **Zero Build Errors & Production Deployment**:
+  - Passed `tsc --noEmit --skipLibCheck` and `npm run build` cleanly.
+  - Deployed `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin directories.
+
+## Previous Phase: Uniform Neutral Styling for Gawa Header Pill
 - **Header Pill Consistency (`styles.css`)**:
   - Removed persistent `.pos-gawa-header-trigger` accent override (`color: var(--text-accent)`, `background: rgba(var(--accent-rgb), ...)`).
   - The Gawa quick-launcher pill now conforms to `.pos-header-text-btn`, matching `Select` and `Digest` with a clean, neutral secondary background and muted text, activating accent color only on hover or active states.

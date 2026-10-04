@@ -75,5 +75,6 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
     scratchpadHorizon: '7d',
     scratchpadCustomDate: '',
     keepImportantInScratchpad: true,
+    permanentNotesFolders: [],
 };
 

@@ -6,6 +6,7 @@ import { MergeNotesModal } from '../modals/MergeNotesModal';
 import { DatePickerModal } from '../modals/DatePickerModal';
 import { WikilinkPeekModal } from '../modals/WikilinkPeekModal';
 import { MobileFilterSheetModal } from '../modals/MobileFilterSheetModal';
+import { RecentPermanentNotesModal } from '../modals/RecentPermanentNotesModal';
 import { isTablet, attachInlineTriggers, attachMediaPasteHandler } from '../utils';
 import { attachMobileSheetViewportBehavior } from '../utils/mobileSheetViewport';
 
@@ -338,6 +339,16 @@ export class DesktopHubView extends ItemView {
             });
             karonBtn.onclick = () => {
                 void this.plugin.activateKaron();
+            };
+
+            // Recent Permanent Notes quick-launcher button
+            const recentBtn = actions.createEl('button', {
+                cls: 'pos-header-text-btn pos-recent-header-trigger',
+                text: '📚 Recent',
+                attr: { 'aria-label': 'Show Recently Updated Permanent Notes' }
+            });
+            recentBtn.onclick = () => {
+                new RecentPermanentNotesModal(this.app, this.plugin).open();
             };
 
             // Settings trigger
@@ -750,7 +761,17 @@ export class DesktopHubView extends ItemView {
                     this.renderComposer(parent, true);
                 };
 
-                // 3. Filter Sheet Action (Icon only)
+                // 3. Recent Permanent Notes Action (Icon only)
+                const recentBtn = actionBar.createEl('button', {
+                    cls: 'pos-mobile-action-btn pos-mobile-action-recent',
+                    attr: { 'aria-label': 'Recently updated notes', title: 'Recent notes' }
+                });
+                setIcon(recentBtn, 'book-open');
+                recentBtn.onclick = () => {
+                    new RecentPermanentNotesModal(this.app, this.plugin).open();
+                };
+
+                // 4. Filter Sheet Action (Icon only)
                 const hasActiveFilter = this._activeFilter !== 'all' || this._filterTasksOnly;
                 const filterBtn = actionBar.createEl('button', {
                     cls: `pos-mobile-action-btn pos-mobile-action-filter ${hasActiveFilter ? 'is-active' : ''}`,

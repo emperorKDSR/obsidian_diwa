@@ -98,6 +98,16 @@ export interface DiwaSettings {
     scratchpadHorizon: ScratchpadHorizon;
     scratchpadCustomDate?: string;
     keepImportantInScratchpad: boolean;
+    permanentNotesFolders?: string[];
+}
+
+export interface PermanentNoteRecord {
+    filePath: string;
+    title: string;
+    folder: string;
+    mtime: number;
+    modifiedRelative: string;
+    tags: string[];
 }
 
 export type FileOrCreate = TFile | string;

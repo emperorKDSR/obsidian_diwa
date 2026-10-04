@@ -23,6 +23,7 @@ import { GawaCockpitView } from './views/GawaCockpitView';
 import { CalendarDigestView } from './views/CalendarDigestView';
 import { KaronView } from './views/KaronView';
 import { DiwaSettingTab } from './settings';
+import { RecentPermanentNotesModal } from './modals/RecentPermanentNotesModal';
 import { IndexService } from './services/IndexService';
 import { CaptureService } from './services/CaptureService';
 import { RefreshCoordinator, type RefreshScope } from './application/RefreshCoordinator';
@@ -120,6 +121,14 @@ export default class DiwaPlugin extends Plugin {
             name: 'Open Karon (Today & Horizon)',
             icon: KARON_ICON_ID,
             callback: () => { void this.activateKaron(); }
+        });
+        this.addCommand({
+            id: 'diwa-show-recent-permanent-notes',
+            name: 'Show Recently Updated Permanent Notes',
+            icon: 'book-open',
+            callback: () => {
+                new RecentPermanentNotesModal(this.app, this).open();
+            }
         });
         this.addCommand({
             id: 'diwa-surface-important-notes',

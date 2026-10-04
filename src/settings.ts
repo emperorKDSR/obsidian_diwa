@@ -123,6 +123,28 @@ export class DiwaSettingTab extends PluginSettingTab {
                 });
             });
 
+        new Setting(containerEl)
+            .setName('Permanent Note Folders')
+            .setDesc('Specific folders to scan for recently updated permanent notes (e.g. "Notes, Slipbox, Projects"). Leave blank to include all markdown files in the vault outside the capture folder.')
+            .addTextArea(text => {
+                text.setPlaceholder('Notes, Slipbox, Projects (leave blank for all non-capture folders)');
+                const initialVal = (this.plugin.settings.permanentNotesFolders || []).join(', ');
+                text.setValue(initialVal);
+                text.inputEl.rows = 2;
+                text.inputEl.style.width = '100%';
+                text.inputEl.style.resize = 'vertical';
+                text.inputEl.addEventListener('blur', async () => {
+                    const raw = text.getValue();
+                    const parsed = Array.from(new Set(
+                        raw
+                            .split(/[\n,]/)
+                            .map(s => s.trim().replace(/^['"]|['"]$/g, ''))
+                            .filter(Boolean)
+                    ));
+                    await this.plugin.updateSetting('permanentNotesFolders', parsed);
+                });
+            });
+
         // Scratchpad Note Horizon
         const currentHorizon = this.plugin.settings.scratchpadHorizon || '7d';
         new Setting(containerEl)

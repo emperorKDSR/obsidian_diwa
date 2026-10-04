@@ -1,10 +1,21 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Uniform Neutral Styling for Gawa Header Pill (Complete)
+## Current Phase: Recently Updated Permanent Notes Feature (Complete)
 
 ---
 
-### 0. Uniform Neutral Styling for Gawa Header Pill (Complete)
+### 0. Recently Updated Permanent Notes Feature (Complete)
+*   [x] **Data Types & Settings (`src/types.ts`, `src/constants.ts`, `src/settings.ts`)** — Added `PermanentNoteRecord` type, optional `permanentNotesFolders?: string[]` setting with textarea in Settings under Storage & Workspace.
+*   [x] **Permanent Note Indexing Engine (`src/services/IndexService.ts`)** — Implemented `getConfiguredPermanentNotesFolders()`, `isPermanentNoteFile()`, and `getRecentlyUpdatedPermanentNotes(limit, query)` sorting by `stat.mtime` descending with real-time text query filtering.
+*   [x] **Modal & Mobile Bottom Sheet (`src/modals/RecentPermanentNotesModal.ts`)** — Built responsive modal/sheet featuring search filter, note titles, folder badges (`📁`), tags, and relative timestamps (`moment.fromNow()`), with 1-tap navigation and mobile drag-to-dismiss gesture physics.
+*   [x] **Desktop & Mobile UI Triggers (`src/views/DesktopHubView.ts`)** — Added `[ 📚 Recent ]` pill in desktop header actions and 5th circular button (`book-open` icon) in the mobile 1-line floating action bar.
+*   [x] **Global Command Registration (`src/main.ts`)** — Registered command `DIWA: Show Recently Updated Permanent Notes`.
+*   [x] **Zero Build & Lint Errors** — Passed strict `tsc --noEmit --skipLibCheck` and `npm run build` with 0 errors.
+*   [x] **Production Vault Deployment** — Deployed `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin directories.
+
+---
+
+### 0.1. Uniform Neutral Styling for Gawa Header Pill (Complete)
 *   [x] **Prune Persistent Accent Override (`styles.css`)** — Removed `.pos-gawa-header-trigger` custom accent override (`color: var(--text-accent)`, `background: rgba(var(--accent-rgb), 0.08)`, and border accent), allowing the Gawa launcher pill to cleanly inherit `.pos-header-text-btn`.
 *   [x] **Visual Parity with Header Action Pills** — Verified that Gawa pill matches `Select` and `Digest` with neutral pill styling on idle, highlighting with accent only on active hover states.
 *   [x] **Zero Build Errors & Production Deployment** — Passed `npm run build` cleanly and deployed `styles.css`, `main.js`, and `manifest.json` directly to active vaults `/Users/K26/Obsidian/K0000` & `K0001`.
