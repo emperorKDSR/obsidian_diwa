@@ -1,6 +1,14 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Universal Task Deduplication & Block ID Cleaning (Complete)
+## Current Phase: Mobile Navigation Bar Hidden by Default for Scratchpad Workspace (Complete)
+
+---
+
+### 0. Mobile Navigation Bar Hidden by Default for Scratchpad Workspace (Complete)
+*   [x] **Mount Lifecycle Guarantee (`src/views/DesktopHubView.ts`)** — In `onOpen()`, asserted `document.body.addClass('diwa-hide-mobile-navbar')` on mobile phones (`Platform.isMobile && !isTablet(this.app)`), ensuring restored tabs or newly opened leaves immediately hide the bottom bar.
+*   [x] **Workspace Activation & Startup Restore (`src/main.ts`)** — Wired `diwa-hide-mobile-navbar` into `plugin.activateWorkspace()` and `app.workspace.onLayoutReady` when the active view on launch is `DesktopHubView`.
+*   [x] **Robust Leaf Change & Device Guard (`src/main.ts`)** — Enhanced `active-leaf-change` listener to match all scratchpad view types (`DesktopHubView`, `VIEW_TYPE_DESKTOP_HUB`, `VIEW_TYPE_MOBILE_HUB`, `VIEW_TYPE_TABLET_HUB`). Reverts to normal navbar when switching away or when on desktop/tablet.
+*   [x] **Zero Build & Lint Errors** — Strict `tsc --noEmit --skipLibCheck` and `npm run build` both passed with 0 errors.
 
 ---
 

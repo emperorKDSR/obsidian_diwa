@@ -97,6 +97,7 @@ export class DesktopHubView extends ItemView {
         this.contentEl.addClass('pos-scratchpad-view');
 
         if (Platform.isMobile && !isTablet(this.app)) {
+            document.body.addClass('diwa-hide-mobile-navbar');
             this._viewportCleanup = attachMobileSheetViewportBehavior({
                 sheetEl: this.contentEl,
                 scrollEl: this.contentEl,

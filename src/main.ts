@@ -63,6 +63,12 @@ export default class DiwaPlugin extends Plugin {
             if (this.unloading) return;
             const startupToken = ++this.startupRunToken;
             this.registerReactiveRuntimeEvents();
+            if (this.isMobile() && !isTablet(this.app)) {
+                const activeView = this.app.workspace.getActiveViewOfType(DesktopHubView);
+                if (activeView) {
+                    document.body.classList.add('diwa-hide-mobile-navbar');
+                }
+            }
             await this.runStartupIndexBuild(startupToken);
         });
 
@@ -244,6 +250,9 @@ export default class DiwaPlugin extends Plugin {
     }
 
     async activateWorkspace() {
+        if (this.isMobile() && !isTablet(this.app)) {
+            document.body.classList.add('diwa-hide-mobile-navbar');
+        }
         const { workspace } = this.app;
         const existing = workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB)
             .concat(workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB))
@@ -350,10 +359,18 @@ export default class DiwaPlugin extends Plugin {
         }));
 
         this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => {
-            const isDiwaView = leaf?.view?.getViewType() === VIEW_TYPE_DESKTOP_HUB;
-            if (isDiwaView) {
-                if (this.isMobile() && !isTablet(this.app)) {
+            const viewType = leaf?.view?.getViewType();
+            const isScratchpadView = leaf?.view instanceof DesktopHubView ||
+                viewType === VIEW_TYPE_DESKTOP_HUB ||
+                viewType === VIEW_TYPE_MOBILE_HUB ||
+                viewType === VIEW_TYPE_TABLET_HUB;
+            const isGawaView = viewType === VIEW_TYPE_GAWA_COCKPIT;
+
+            if (this.isMobile() && !isTablet(this.app)) {
+                if (isScratchpadView || isGawaView) {
                     document.body.classList.add('diwa-hide-mobile-navbar');
+                } else {
+                    document.body.classList.remove('diwa-hide-mobile-navbar');
                 }
             } else {
                 document.body.classList.remove('diwa-hide-mobile-navbar');

@@ -1,6 +1,13 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Universal Task Deduplication & Block ID Cleaning Deployed
+## Current State: Mobile Navigation Bar Hidden by Default for Scratchpad Workspace
+- **Default State on Mobile Phones (`DesktopHubView.ts` & `src/main.ts`)**:
+  - Enforced `diwa-hide-mobile-navbar` on `document.body` whenever the scratchpad / DIWA workspace is mounted (`DesktopHubView.onOpen`), activated (`plugin.activateWorkspace`), switched to (`active-leaf-change`), or restored on mobile app launch (`onLayoutReady`).
+  - Restricted strictly to mobile phones (`isMobile && !isTablet`), ensuring desktop and tablet environments are untouched and never hide navigation elements.
+  - Toggling via the mobile action bar's `panel-bottom` button remains functional for transient inspection, with re-entry always defaulting back to hidden.
+  - When switching away to a standard note, external file, or unloading the plugin, the hide class is cleanly removed to maintain Obsidian's default behavior outside DIWA.
+
+## Previous Phase: Universal Task Deduplication & Block ID Cleaning Deployed
 - **Universal Task Deduplication (`IndexService.ts`)**:
   - Automatically deduplicates tasks across ALL scanned sources: across multiple project notes in `additionalTaskFolders`, within the same file, and between capture notes and permanent notes.
   - Strips Obsidian block reference IDs (`\s*\^[a-zA-Z0-9_-]+$`, e.g. `^dw-2ppuu4-b1`) from `cleanTitle` and normalization signatures, preventing block IDs from polluting task titles in Karon or breaking deduplication matching.
