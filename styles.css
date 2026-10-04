@@ -2187,18 +2187,6 @@ body.is-phone .pos-inline-textarea,
     background: var(--background-modifier-hover);
 }
 
-/* Header quick trigger from DesktopHubView */
-.pos-gawa-header-trigger {
-    background: rgba(var(--accent-rgb), 0.08) !important;
-    border-color: rgba(var(--accent-rgb), 0.25) !important;
-    color: var(--text-accent) !important;
-    font-weight: 600 !important;
-}
-
-.pos-gawa-header-trigger:hover {
-    background: rgba(var(--accent-rgb), 0.16) !important;
-    border-color: var(--interactive-accent) !important;
-}
 
 /* ── Filter Horizon Chips ── */
 .pos-gawa-horizon-chips {
@@ -3769,6 +3757,15 @@ body.is-phone .pos-inline-textarea,
 .pos-preflight-pill.is-log {
     background: var(--background-primary);
     color: var(--text-muted);
+}
+
+.pos-preflight-area-pill {
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: var(--diwa-radius-pill);
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    font-weight: 500;
 }
 
 .pos-preflight-due-pill {

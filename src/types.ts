@@ -72,6 +72,7 @@ export interface DigestibleBlock {
     primaryTarget: string | null;
     alternativeTargets: string[];
     actionRoute: 'target_log' | 'target_tasks' | 'keep_scratchpad' | 'gawa_inbox';
+    area?: string | null;
 }
 
 export interface DayDigestSummary {

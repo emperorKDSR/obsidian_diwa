@@ -56,6 +56,14 @@ export class PreFlightDigestModal extends Modal {
                 cls: `pos-preflight-pill ${block.isTask ? 'is-task' : 'is-log'}`,
                 text: block.isTask ? (block.isCompletedTask ? '☑ Completed Task' : '☐ Open Task') : '📝 Thought / Log'
             });
+            if (block.area) {
+                const areaObj = this.plugin.settings.lifeAreas?.find(a => a.id.toLowerCase() === (block.area || '').toLowerCase());
+                const areaLabel = areaObj ? `${areaObj.icon} ${areaObj.label}` : block.area.toUpperCase();
+                cardHeader.createSpan({
+                    cls: 'pos-preflight-area-pill',
+                    text: areaLabel
+                });
+            }
             if (block.dueDate) {
                 cardHeader.createSpan({
                     cls: 'pos-preflight-due-pill',

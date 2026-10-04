@@ -1,6 +1,13 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Mobile Navigation Bar Hidden by Default for Scratchpad Workspace (Complete)
+## Current Phase: Uniform Neutral Styling for Gawa Header Pill (Complete)
+
+---
+
+### 0. Uniform Neutral Styling for Gawa Header Pill (Complete)
+*   [x] **Prune Persistent Accent Override (`styles.css`)** — Removed `.pos-gawa-header-trigger` custom accent override (`color: var(--text-accent)`, `background: rgba(var(--accent-rgb), 0.08)`, and border accent), allowing the Gawa launcher pill to cleanly inherit `.pos-header-text-btn`.
+*   [x] **Visual Parity with Header Action Pills** — Verified that Gawa pill matches `Select` and `Digest` with neutral pill styling on idle, highlighting with accent only on active hover states.
+*   [x] **Zero Build Errors & Production Deployment** — Passed `npm run build` cleanly and deployed `styles.css`, `main.js`, and `manifest.json` directly to active vaults `/Users/K26/Obsidian/K0000` & `K0001`.
 
 ---
 
@@ -69,8 +76,8 @@
 *   [x] **Block-Level AST Parser (`CaptureService.ts`)** — Structured block parser grouping parent tasks with child subtasks and remarks, code fences, and paragraphs into atomic `DigestibleBlock` units.
 *   [x] **Wikilink & Heuristic Destination Resolver** — Filters out temporal date links (`[[YYYY-MM-DD]]`), detects explicit routing syntax (`-> [[Target]]`), and prioritizes topic/project links over people and entities.
 *   [x] **Reverse-Chronological Top Insertion** — Injects newest entries beneath `## Tasks` (for open tasks) and `## Log` (for notes and completed tasks), strictly preserving YAML frontmatter and document title headings.
-*   [x] **Idempotent Guard Comments** — Delimited injected blocks with `<!-- diwa-digest:src=...:idx=... -->` so re-digests update content in-place without duplicating or overwriting manual edits.
-*   [x] **Pre-Flight Confirmation Modal (`PreFlightDigestModal.ts`)** — Review modal showing blocks, task/log pills, destination buttons, `FileSuggestModal` note picker, and task routing choices before writing. Now renders full Markdown (`MarkdownRenderer.render`) with visual image embeds (`![[...] ]`) and clean containment styling.
+*   [x] **Pre-Flight Confirmation Modal (`PreFlightDigestModal.ts`)** — Review modal showing blocks, task/log pills, destination buttons, `FileSuggestModal` note picker, and task routing choices before writing. Now renders full Markdown (`MarkdownRenderer.render`) with visual image embeds (`![[...] ]`) and clean containment styling. Displays Life Area pill badges on blocks.
+*   [x] **Life Area Block Persistence (`CaptureService.ts`)** — Automatically carries forward the source capture's life area onto digested blocks as an inline `#<area>` tag upon digestion. Reconciles both tasks and thoughts cleanly without duplicate tags, allowing Gawa to index the task's life area accurately while keeping title displays clean. Supports inline `#<area>` updating on project task files via Inspector.
 *   [x] **Gawa Cockpit Project Task Synergy (`IndexService.ts`)** — Tasks moved to permanent project notes are registered in `projectTaskIndex` and remain active, interactive, and checkable in `GawaCockpitView.ts`, with `Source ↗` linking to the project file.
 *   [x] **Scratchpad "Inbox Zero" Flow (`DesktopHubView.ts`)** — Digested notes are hidden from the primary capture feed by default to maintain Inbox Zero, while remaining accessible on demand and preserved on their calendar dates.
 *   [x] **Mobile Responsive Design** — Segmented control `[ 📅 Calendar | 📝 Stream (N) ]` for smooth interaction on mobile viewports.

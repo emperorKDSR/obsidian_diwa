@@ -1,6 +1,12 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Mobile Navigation Bar Hidden by Default for Scratchpad Workspace
+## Current State: Uniform Neutral Styling for Gawa Header Pill
+- **Header Pill Consistency (`styles.css`)**:
+  - Removed persistent `.pos-gawa-header-trigger` accent override (`color: var(--text-accent)`, `background: rgba(var(--accent-rgb), ...)`).
+  - The Gawa quick-launcher pill now conforms to `.pos-header-text-btn`, matching `Select` and `Digest` with a clean, neutral secondary background and muted text, activating accent color only on hover or active states.
+  - Deployed cleanly to active test vaults (`/Users/K26/Obsidian/K0000` & `K0001`).
+
+## Previous Phase: Mobile Navigation Bar Hidden by Default for Scratchpad Workspace
 - **Default State on Mobile Phones (`DesktopHubView.ts` & `src/main.ts`)**:
   - Enforced `diwa-hide-mobile-navbar` on `document.body` whenever the scratchpad / DIWA workspace is mounted (`DesktopHubView.onOpen`), activated (`plugin.activateWorkspace`), switched to (`active-leaf-change`), or restored on mobile app launch (`onLayoutReady`).
   - Restricted strictly to mobile phones (`isMobile && !isTablet`), ensuring desktop and tablet environments are untouched and never hide navigation elements.
@@ -98,6 +104,8 @@
   - Supports task routing to `## Tasks`, `Gawa Inbox`, or custom destination.
   - Keyboard shortcut: `Enter` executes digest.
   - **Rich Markdown Rendering**: Block snippet previews render with `MarkdownRenderer.render(this.app, block.cleanText, snippet, block.sourceFilePath, this.plugin)`, showing pictures, embedded media (`![[...]]`), wikilinks, and formatting visually during triage review. Styled with `max-height: 260px` image containment.
+  - **Life Area Block Persistence**: Extracts the source capture's life area and appends `#<area>` inline to task lines and thought logs upon digestion. Gawa automatically detects the tag, assigns the Life Area column badge, and strips the hashtag from the title column to keep task titles clean. PreFlight modal displays area badges (`pos-preflight-area-pill`).
+  - **Gawa Task Update Synergy**: `CaptureService.updateTaskDetailsInFile` detects non-capture/project task files and updates `#<area>` inline on the task line rather than overwriting file frontmatter.
 - **IndexService & Gawa Synergy (`IndexService.ts`)**:
   - `dateIndex: Map<string, Set<string>>`: In-memory secondary index for $O(1)$ daily note lookups.
   - `getDayDigestSummary` & `getMonthDigestSummary`: Fast summaries calculating digested vs pending counts and status dots.

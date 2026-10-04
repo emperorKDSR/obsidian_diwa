@@ -349,7 +349,8 @@ export class CalendarDigestView extends ItemView {
             const blocks = this.plugin.capture.parseDigestibleBlocks(
                 contentToParse,
                 entry.filePath,
-                entry.createdAtMs
+                entry.createdAtMs,
+                entry.area || null
             );
             allBlocks.push(...blocks);
         }

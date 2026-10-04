@@ -325,29 +325,39 @@ export class CaptureService {
                     return knownAreas.includes(tag.toLowerCase()) ? '' : match;
                 }).replace(/\s+/g, ' ').trim();
 
-                // Update area in frontmatter
-                let foundAreaLine = false;
-                let inFrontmatter = false;
-                for (let i = 0; i < Math.min(lines.length, 30); i++) {
-                    if (lines[i].trim() === '---') {
-                        if (!inFrontmatter) {
-                            inFrontmatter = true;
-                            continue;
-                        } else {
-                            // End of frontmatter reached
-                            if (!foundAreaLine && targetArea) {
-                                lines.splice(i, 0, `area: ${JSON.stringify(targetArea)}`);
-                            }
-                            break;
-                        }
+                const baseCaptureFolder = this.settings.captureFolder?.trim() || '000 Bin/Diwa';
+                const isCaptureFile = options.filePath.startsWith(baseCaptureFolder);
+
+                if (!isCaptureFile) {
+                    // Non-capture note (project note / tracked task file): persist area directly on the task line as inline hashtag
+                    if (targetArea) {
+                        titleText += ` #${targetArea}`;
                     }
-                    if (inFrontmatter && /^area\s*:/i.test(lines[i])) {
-                        foundAreaLine = true;
-                        if (targetArea) {
-                            lines[i] = `area: ${JSON.stringify(targetArea)}`;
-                        } else {
-                            lines.splice(i, 1);
-                            i--;
+                } else {
+                    // Single-note capture file: update area in YAML frontmatter
+                    let foundAreaLine = false;
+                    let inFrontmatter = false;
+                    for (let i = 0; i < Math.min(lines.length, 30); i++) {
+                        if (lines[i].trim() === '---') {
+                            if (!inFrontmatter) {
+                                inFrontmatter = true;
+                                continue;
+                            } else {
+                                // End of frontmatter reached
+                                if (!foundAreaLine && targetArea) {
+                                    lines.splice(i, 0, `area: ${JSON.stringify(targetArea)}`);
+                                }
+                                break;
+                            }
+                        }
+                        if (inFrontmatter && /^area\s*:/i.test(lines[i])) {
+                            foundAreaLine = true;
+                            if (targetArea) {
+                                lines[i] = `area: ${JSON.stringify(targetArea)}`;
+                            } else {
+                                lines.splice(i, 1);
+                                i--;
+                            }
                         }
                     }
                 }
@@ -721,9 +731,20 @@ export class CaptureService {
     /**
      * Parses a capture note into coherent structural blocks (preserving tasks with indented children).
      */
-    parseDigestibleBlocks(content: string, filePath: string, createdAtMs: number): DigestibleBlock[] {
+    parseDigestibleBlocks(content: string, filePath: string, createdAtMs: number, area?: string | null): DigestibleBlock[] {
         const body = content.replace(/^---[\s\S]*?---\r?\n*/, '').trim();
         if (!body) return [];
+
+        let fallbackArea = (area || '').trim().toLowerCase() || null;
+        if (!fallbackArea) {
+            const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+            if (fmMatch) {
+                const areaMatch = fmMatch[1].match(/^area:\s*["']?([^"'\r\n]+)["']?/m);
+                if (areaMatch) {
+                    fallbackArea = areaMatch[1].trim().toLowerCase();
+                }
+            }
+        }
 
         // Normalize previously digested blocks wrapped in %% diwa-digested:dest=... %%
         let cleanBody = body;
@@ -817,6 +838,17 @@ export class CaptureService {
                 }
             }
 
+            // Resolve life area for this block: inline tag takes precedence over note fallback area
+            let blockArea = fallbackArea;
+            const inlineAreaTags = raw.match(/#([a-zA-Z0-9_\-]+)/g) || [];
+            for (const tagWithHash of inlineAreaTags) {
+                const tagName = tagWithHash.replace(/^#/, '').toLowerCase();
+                if (this.settings.lifeAreas.some(a => a.id.toLowerCase() === tagName)) {
+                    blockArea = tagName;
+                    break;
+                }
+            }
+
             const { primary, all } = this.extractTargetWikiLinks(raw);
             const cleanText = raw.replace(/->\s*\[\[[^\]]+\]\]/, '').trim();
 
@@ -842,10 +874,42 @@ export class CaptureService {
                 primaryTarget: primary,
                 alternativeTargets: all.filter(t => t !== primary),
                 actionRoute,
+                area: blockArea,
             });
         }
 
         return results;
+    }
+
+    /**
+     * Formats the payload text of a digestible block, ensuring any assigned life area is tagged.
+     */
+    formatDigestibleBlockPayload(block: DigestibleBlock, sectionName: 'Tasks' | 'Log', dateStr: string): string {
+        const timeStr = moment(block.sourceCreatedMs).format('HH:mm');
+        let text = block.cleanText;
+
+        // If block has an assigned life area, ensure #${area} is present as an inline hashtag
+        if (block.area) {
+            const normArea = block.area.toLowerCase().trim();
+            const tagRegex = new RegExp(`#${normArea}\\b`, 'i');
+            if (!tagRegex.test(text)) {
+                if (block.isTask) {
+                    // For tasks, append #${normArea} to the first line (the parent task line)
+                    const lines = text.split('\n');
+                    lines[0] = `${lines[0]} #${normArea}`;
+                    text = lines.join('\n');
+                } else {
+                    // For log entries/thoughts, append to the end of text
+                    text = `${text} #${normArea}`;
+                }
+            }
+        }
+
+        if (sectionName === 'Tasks') {
+            return `${text} ^${block.deterministicId}`;
+        } else {
+            return `#### [[${dateStr}]] ${timeStr}\n${text} ^${block.deterministicId}`;
+        }
     }
 
     /**
@@ -858,13 +922,8 @@ export class CaptureService {
         const blocksToInsertLog: DigestibleBlock[] = [];
 
         for (const block of newBlocks) {
-            const timeStr = moment(block.sourceCreatedMs).format('HH:mm');
-            let blockPayload: string;
-            if (block.actionRoute === 'target_tasks') {
-                blockPayload = `${block.cleanText} ^${block.deterministicId}`;
-            } else {
-                blockPayload = `#### [[${dateStr}]] ${timeStr}\n${block.cleanText} ^${block.deterministicId}`;
-            }
+            const isTaskSection = (block.actionRoute === 'target_tasks' || block.actionRoute === 'gawa_inbox');
+            const blockPayload = this.formatDigestibleBlockPayload(block, isTaskSection ? 'Tasks' : 'Log', dateStr);
 
             const startTag = `<!-- diwa-digest:src=${block.sourceFilePath}:idx=${block.blockIndex} -->`;
             const endTag = `<!-- diwa-digest:end -->`;
@@ -876,7 +935,7 @@ export class CaptureService {
             if (guardPattern.test(content)) {
                 content = content.replace(guardPattern, fullWrapped);
             } else {
-                if (block.actionRoute === 'target_tasks') {
+                if (isTaskSection) {
                     blocksToInsertTasks.push(block);
                 } else {
                     blocksToInsertLog.push(block);
@@ -901,16 +960,10 @@ export class CaptureService {
         sectionName: 'Tasks' | 'Log',
         dateStr: string
     ): string {
-        const timeStr = blocks.length > 0 ? moment(blocks[0].sourceCreatedMs).format('HH:mm') : moment().format('HH:mm');
         const formattedBlocks = blocks.map(b => {
             const startTag = `<!-- diwa-digest:src=${b.sourceFilePath}:idx=${b.blockIndex} -->`;
             const endTag = `<!-- diwa-digest:end -->`;
-            let payload: string;
-            if (sectionName === 'Tasks') {
-                payload = `${b.cleanText} ^${b.deterministicId}`;
-            } else {
-                payload = `#### [[${dateStr}]] ${timeStr}\n${b.cleanText} ^${b.deterministicId}`;
-            }
+            const payload = this.formatDigestibleBlockPayload(b, sectionName, dateStr);
             return `${startTag}\n${payload}\n${endTag}`;
         }).join('\n\n');
 
@@ -991,6 +1044,14 @@ export class CaptureService {
 
             if ((block.actionRoute === 'target_tasks' || block.actionRoute === 'target_log') && block.primaryTarget) {
                 const targetKey = block.primaryTarget.trim();
+                let list = targetMap.get(targetKey);
+                if (!list) {
+                    list = [];
+                    targetMap.set(targetKey, list);
+                }
+                list.push(block);
+            } else if (block.actionRoute === 'gawa_inbox') {
+                const targetKey = 'Gawa Inbox';
                 let list = targetMap.get(targetKey);
                 if (!list) {
                     list = [];
