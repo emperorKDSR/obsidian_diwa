@@ -290,7 +290,6 @@ export class DesktopHubView extends ItemView {
 
         // === DESKTOP & TABLET DUAL-PANE COCKPIT ===
         this.contentEl.empty();
-        this.contentEl.style.overflow = 'hidden';
         this.contentEl.scrollTop = 0;
         const layoutEl = this.contentEl.createDiv({ cls: 'pos-desktop-cockpit-layout' });
         if (isTablet(this.app)) {
