@@ -16,8 +16,10 @@
   - **Option 1 Rapid Multi-Block Chaining (`DesktopHubView.ts`)**:
     - **`Shift + Enter`**: Instantly captures current block, clears textarea, auto-resizes to 1 line, and preserves focus in the textarea for seamless rapid-fire chaining without touching the mouse.
     - **`Ctrl / ⌘ + Enter`**: Captures note block and finishes session (collapses composer).
-    - **`Enter`**: Standard newline for multi-line thoughts and checklists.
-    - **Cross-Platform Adaptive UI**: Button labels and hints dynamically detect platform (`Platform.isMacOS ? '⌘↵' : 'Ctrl↵'`), displaying `Shift+↵ Next • ⌘↵ Done` on Mac and `Shift+Enter Next • Ctrl+Enter Done` on Windows/Linux.
+  - **Agenda Side Panel Renaming & Default Activation (`DesktopHubView.ts`)**:
+    - **Renamed from "Rail" to "Agenda"**: Replaced technical "Rail" term with user-intuitive `◧ Agenda` toggle button and aria labels.
+    - **Active by Default**: Versioned localStorage key (`diwa-cockpit-state-v2`) resetting any stale auto-collapsed states so Agenda is open by default on desktop/tablet.
+    - **No Aggressive Auto-Collapse**: Reduced collapse breakpoint from `1050px` to `768px` (mobile only), allowing the Agenda panel to remain open during desktop multi-pane workflows.
 - **Production Build & Vault Deployment**:
   - Strict TypeScript check (`tsc --noEmit --skipLibCheck`) and ESBuild production build passed cleanly with 0 errors.
   - Deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin directories.

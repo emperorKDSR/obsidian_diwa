@@ -351,7 +351,7 @@ export class DesktopHubView extends ItemView {
 
     private loadCockpitState(): void {
         try {
-            const raw = localStorage.getItem('diwa-cockpit-state');
+            const raw = localStorage.getItem('diwa-cockpit-state-v2');
             if (raw) {
                 const parsed = JSON.parse(raw);
                 if (typeof parsed.railOpen === 'boolean') this._cockpitRailOpen = parsed.railOpen;
@@ -360,7 +360,7 @@ export class DesktopHubView extends ItemView {
                     this._cockpitSplitRatio = parsed.splitRatio;
                 }
             } else {
-                this._cockpitRailOpen = window.innerWidth >= 1050;
+                this._cockpitRailOpen = true;
             }
         } catch {
             this._cockpitRailOpen = true;
@@ -369,7 +369,7 @@ export class DesktopHubView extends ItemView {
 
     private saveCockpitState(): void {
         try {
-            localStorage.setItem('diwa-cockpit-state', JSON.stringify({
+            localStorage.setItem('diwa-cockpit-state-v2', JSON.stringify({
                 railOpen: this._cockpitRailOpen,
                 railTab: this._cockpitRailTab,
                 splitRatio: this._cockpitSplitRatio
@@ -386,7 +386,8 @@ export class DesktopHubView extends ItemView {
         this._resizeObserver = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 const width = entry.contentRect.width;
-                if (width < 1050 && this._cockpitRailOpen) {
+                // Only auto-collapse on small mobile screens (< 768px)
+                if (width < 768 && this._cockpitRailOpen) {
                     this._cockpitRailOpen = false;
                     this.updateCockpitRailState();
                 }
@@ -502,7 +503,7 @@ export class DesktopHubView extends ItemView {
             const toggleBtn = this._headerBarEl.querySelector('.pos-rail-toggle-btn') as HTMLElement | null;
             if (toggleBtn) {
                 toggleBtn.toggleClass('is-active', this._cockpitRailOpen);
-                toggleBtn.setText(this._cockpitRailOpen ? '◧ Rail' : '◨ Rail');
+                toggleBtn.setText(this._cockpitRailOpen ? '◧ Agenda' : '◨ Agenda');
             }
         }
     }
@@ -574,7 +575,7 @@ export class DesktopHubView extends ItemView {
         const actions = header.createDiv({ cls: 'pos-rail-actions' });
         const collapseBtn = actions.createEl('button', {
             cls: 'pos-icon-btn pos-rail-collapse-btn',
-            attr: { 'aria-label': 'Collapse side rail (\\)' }
+            attr: { 'aria-label': 'Collapse Agenda panel (\\)' }
         });
         setIcon(collapseBtn, 'panel-right-close');
         collapseBtn.onclick = () => {
@@ -871,8 +872,8 @@ export class DesktopHubView extends ItemView {
             // 1. Right Rail Toggle Button [ ◨ ]
             const railToggleBtn = actions.createEl('button', {
                 cls: `pos-header-text-btn pos-rail-toggle-btn ${this._cockpitRailOpen ? 'is-active' : ''}`,
-                text: this._cockpitRailOpen ? '◧ Rail' : '◨ Rail',
-                attr: { 'aria-label': 'Toggle Cockpit Side Rail (\\)' }
+                text: this._cockpitRailOpen ? '◧ Agenda' : '◨ Agenda',
+                attr: { 'aria-label': 'Toggle Agenda panel (\\)' }
             });
             railToggleBtn.onclick = () => {
                 this.toggleCockpitRail();
