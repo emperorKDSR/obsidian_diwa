@@ -1,19 +1,16 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Condensed Orientation-Adaptive Tablet Cockpit Deployed
-- **Condensed Tablet Cockpit Architecture (`src/views/DesktopHubView.ts` & `styles.css`)**:
-  - **Orientation-Adaptive Behavior (Landscape vs Portrait)**:
-    - **Landscape ($\ge$ 900px)**: Compact dual-pane layout (Stream + Agenda side-by-side) with an ergonomic default split ratio of `68% / 32%` (minimum `0.68` on tablet), ensuring notes have generous horizontal room while the Agenda rail remains constantly visible.
-    - **Portrait (< 900px)**: The document stream occupies **100% full width**. The Agenda rail auto-adapts as a slide-over floating drawer (`position: absolute; right: 0; width: 320px; max-width: 85vw; z-index: 50; box-shadow: -6px 0 24px rgba(0,0,0,0.35);`).
-    - **Backdrop Dismissal (`.pos-cockpit-drawer-backdrop`)**: Added a semi-transparent blurred backdrop overlay that closes the drawer upon tap. Rotating between landscape and portrait seamlessly toggles modes via `ResizeObserver`.
-  - **High-Density Compact Tablet Styling (`styles.css`)**:
-    - **Header Bar**: Vertical padding compressed to `8px 14px 6px 14px`, search box height tightened to `30px` (font `0.82em`), header buttons/logo streamlined.
-    - **Filter Bar**: Vertical padding reduced to `6px 14px 2px 14px`, filter pills tightened to `25px` height (`font-size: 0.78em`).
-    - **Composer**: Outer padding tightened to `6px 14px 3px 14px`, textarea initial min-height `38px` (expanding to `85px` on focus), toolbar buttons `26px`.
-    - **Stream & Note Items**: Container padding `4px 14px 32px 14px`, date divider top margin tightened from `32px` to `14px` (`6px` for first), note item padding `3px 6px`, timestamp font `0.76em`.
-    - **Agenda Side Rail**: Rail header `8px 12px`, content padding `8px 10px` with `10px` card gaps, compact horizon and task cards.
-  - **Virtual Keyboard Resilience Preserved**:
-    - Full WebKit 0px flex collapse protection (`has-mobile-keyboard` scroller ownership) remains active for tablet mode.
+## Current State: Raycast-Style Area Dropdown Capsule & Landscape Keyboard Drift Fix Deployed
+- **Option 1 Composer Area Dropdown Capsule (`DesktopHubView.ts` & `styles.css`)**:
+  - Replaced cluttered multi-pill loops across Desktop, Tablet, and Mobile composers with a single interactive property capsule:
+    - Default state shows a clean, quiet `🏷️ Area ▾` button.
+    - Tapping opens an Obsidian native `Menu` with `∅ No Area (General)` and all configured life areas with checkmarks and icons.
+    - Selected state turns into an active accent pill `[ 💼 Work ✕ ]` with 1-tap clear.
+    - Task toggle (`☑️ Task`) and Star toggle (`⭐ Important`) remain clean ghost buttons.
+- **Landscape Keyboard Horizontal Drift Fix (`DesktopHubView.ts`, `styles.css`, & `src/utils/mobileSheetViewport.ts`)**:
+  - **CSS `overflow-x: clip !important` Enforcement**: Replaced `overflow-x: hidden` with `overflow-x: clip` across `.diwa-workspace-root`, `.pos-desktop-cockpit-layout`, `.pos-cockpit-body`, and `.pos-cockpit-main-stage`. Unlike `hidden`, `clip` strictly prevents both user and browser programmatic horizontal scrolling shifts.
+  - **Viewport Scroll Position Lock (`mobileSheetViewport.ts`)**: Preserved and immediately restored horizontal scroll offsets (`win.scrollX = 0`, `sheetEl.scrollLeft = 0`) before and after `scrollTargetIntoView()`.
+  - **Active `focusin` & Scroll Guard (`DesktopHubView.ts`)**: Added an active listener locking `scrollLeft = 0` on `this.contentEl` and `.pos-desktop-cockpit-layout` whenever an input is focused on tablet/mobile.
 - **Production Build & Vault Deployment**:
   - Strict TypeScript check (`tsc --noEmit --skipLibCheck`) and ESBuild production build passed cleanly with 0 errors.
   - Deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin directories.

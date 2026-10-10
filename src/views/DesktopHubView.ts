@@ -129,16 +129,29 @@ export class DesktopHubView extends ItemView {
             this.setupResizeObserver();
         }
 
-        // On iPad and mobile runtimes, guard window scroll so WebKit keyboard avoidance never shifts the view off-screen
+        // On iPad and mobile runtimes, guard window and container scroll so WebKit keyboard avoidance never shifts the view off-screen
         if (Platform.isMobile) {
             const win = this.contentEl.ownerDocument.defaultView ?? window;
             const scrollLock = () => {
                 if (win.scrollY !== 0 || win.scrollX !== 0) {
                     win.scrollTo(0, 0);
                 }
+                if (this.contentEl.scrollLeft !== 0) {
+                    this.contentEl.scrollLeft = 0;
+                }
+                if (this._cockpitLayoutEl && this._cockpitLayoutEl.scrollLeft !== 0) {
+                    this._cockpitLayoutEl.scrollLeft = 0;
+                }
             };
             win.addEventListener('scroll', scrollLock, { passive: true });
-            this.register(() => win.removeEventListener('scroll', scrollLock));
+            this.contentEl.addEventListener('scroll', scrollLock, { passive: true });
+            this.contentEl.addEventListener('focusin', () => {
+                requestAnimationFrame(scrollLock);
+            }, true);
+            this.register(() => {
+                win.removeEventListener('scroll', scrollLock);
+                this.contentEl.removeEventListener('scroll', scrollLock);
+            });
         }
 
         this._containerEl = this.contentEl.createDiv({ cls: 'pos-scratchpad-container' });
@@ -1468,18 +1481,63 @@ export class DesktopHubView extends ItemView {
                 starPill.setText(this._selectedImportantForNewNote ? '⭐ Important' : '☆ Important');
             };
 
-            const areas = this.plugin.settings.lifeAreas || [];
-            for (const area of areas) {
-                const isSelected = this._selectedAreaForNewNote === area.id;
-                const areaBtn = pillsRow.createEl('button', {
-                    cls: `pos-composer-area-pill ${isSelected ? 'is-selected' : ''}`,
+            // Life Area Single Dropdown Capsule
+            const areaDropdownBtn = pillsRow.createEl('button', {
+                cls: `pos-composer-area-pill pos-composer-area-dropdown ${this._selectedAreaForNewNote ? 'is-selected' : ''}`,
+                attr: { 'aria-label': 'Select Life Area' }
+            });
+
+            const updateMobileAreaDropdownText = () => {
+                const areas = this.plugin.settings.lifeAreas || [];
+                const activeArea = areas.find(a => a.id === this._selectedAreaForNewNote);
+                if (activeArea) {
+                    areaDropdownBtn.addClass('is-selected');
+                    areaDropdownBtn.empty();
+                    const icon = activeArea.icon || '🏷️';
+                    areaDropdownBtn.createSpan({ text: `${icon} ${activeArea.label}` });
+                    const clearSpan = areaDropdownBtn.createSpan({ cls: 'pos-area-clear-btn', text: ' ✕' });
+                    clearSpan.onclick = (e) => {
+                        e.stopPropagation();
+                        this._selectedAreaForNewNote = '';
+                        updateMobileAreaDropdownText();
+                    };
+                } else {
+                    areaDropdownBtn.removeClass('is-selected');
+                    areaDropdownBtn.setText('🏷️ Area ▾');
+                }
+            };
+            updateMobileAreaDropdownText();
+
+            areaDropdownBtn.onclick = (e) => {
+                const menu = new Menu();
+                const areas = this.plugin.settings.lifeAreas || [];
+
+                menu.addItem((item) => {
+                    item.setTitle('No Area (General)')
+                        .setIcon('minus-circle')
+                        .setChecked(!this._selectedAreaForNewNote)
+                        .onClick(() => {
+                            this._selectedAreaForNewNote = '';
+                            updateMobileAreaDropdownText();
+                        });
                 });
-                areaBtn.setText(`${area.icon || ''} ${area.label}`.trim());
-                areaBtn.onclick = () => {
-                    this._selectedAreaForNewNote = this._selectedAreaForNewNote === area.id ? '' : area.id;
-                    this.renderComposerPillSelection(composerWrapper);
-                };
-            }
+
+                menu.addSeparator();
+
+                for (const area of areas) {
+                    menu.addItem((item) => {
+                        const iconText = area.icon ? `${area.icon} ` : '';
+                        item.setTitle(`${iconText}${area.label}`)
+                            .setChecked(this._selectedAreaForNewNote === area.id)
+                            .onClick(() => {
+                                this._selectedAreaForNewNote = area.id;
+                                updateMobileAreaDropdownText();
+                            });
+                    });
+                }
+
+                menu.showAtMouseEvent(e);
+            };
 
             // Dismiss/Close button
             const closeBtn = pillsRow.createEl('button', {
@@ -1760,19 +1818,63 @@ export class DesktopHubView extends ItemView {
             starBtn.setText(this._selectedImportantForNewNote ? '⭐ Important' : '☆ Important');
         };
 
-        // Life area selection chips
-        const areas = this.plugin.settings.lifeAreas || [];
-        for (const area of areas) {
-            const isSelected = this._selectedAreaForNewNote === area.id;
-            const areaBtn = leftControls.createEl('button', {
-                cls: `pos-composer-pill-btn ${isSelected ? 'is-selected' : ''}`,
+        // Life Area Single Dropdown Capsule
+        const areaDropdownBtn = leftControls.createEl('button', {
+            cls: `pos-composer-pill-btn pos-composer-area-dropdown ${this._selectedAreaForNewNote ? 'is-selected' : ''}`,
+            attr: { 'aria-label': 'Select Life Area' }
+        });
+
+        const updateDesktopAreaDropdownText = () => {
+            const areas = this.plugin.settings.lifeAreas || [];
+            const activeArea = areas.find(a => a.id === this._selectedAreaForNewNote);
+            if (activeArea) {
+                areaDropdownBtn.addClass('is-selected');
+                areaDropdownBtn.empty();
+                const icon = activeArea.icon || '🏷️';
+                areaDropdownBtn.createSpan({ text: `${icon} ${activeArea.label}` });
+                const clearSpan = areaDropdownBtn.createSpan({ cls: 'pos-area-clear-btn', text: ' ✕' });
+                clearSpan.onclick = (e) => {
+                    e.stopPropagation();
+                    this._selectedAreaForNewNote = '';
+                    updateDesktopAreaDropdownText();
+                };
+            } else {
+                areaDropdownBtn.removeClass('is-selected');
+                areaDropdownBtn.setText('🏷️ Area ▾');
+            }
+        };
+        updateDesktopAreaDropdownText();
+
+        areaDropdownBtn.onclick = (e) => {
+            const menu = new Menu();
+            const areas = this.plugin.settings.lifeAreas || [];
+
+            menu.addItem((item) => {
+                item.setTitle('No Area (General)')
+                    .setIcon('minus-circle')
+                    .setChecked(!this._selectedAreaForNewNote)
+                    .onClick(() => {
+                        this._selectedAreaForNewNote = '';
+                        updateDesktopAreaDropdownText();
+                    });
             });
-            areaBtn.setText(`${area.icon || ''} ${area.label}`.trim());
-            areaBtn.onclick = () => {
-                this._selectedAreaForNewNote = this._selectedAreaForNewNote === area.id ? '' : area.id;
-                this.renderComposerPillSelection(composerWrapper);
-            };
-        }
+
+            menu.addSeparator();
+
+            for (const area of areas) {
+                menu.addItem((item) => {
+                    const iconText = area.icon ? `${area.icon} ` : '';
+                    item.setTitle(`${iconText}${area.label}`)
+                        .setChecked(this._selectedAreaForNewNote === area.id)
+                        .onClick(() => {
+                            this._selectedAreaForNewNote = area.id;
+                            updateDesktopAreaDropdownText();
+                        });
+                });
+            }
+
+            menu.showAtMouseEvent(e);
+        };
 
         // Right controls: Save button & Shortcut hint
         const rightControls = toolbar.createDiv({ cls: 'pos-composer-right' });
@@ -1871,14 +1973,26 @@ export class DesktopHubView extends ItemView {
     }
 
     private renderComposerPillSelection(container: HTMLElement): void {
-        const buttons = container.querySelectorAll<HTMLButtonElement>('.pos-composer-pill-btn, .pos-composer-area-pill');
-        const areas = this.plugin.settings.lifeAreas || [];
-        buttons.forEach(btn => {
-            const area = areas.find(a => btn.textContent?.includes(a.label));
-            if (area) {
-                btn.toggleClass('is-selected', this._selectedAreaForNewNote === area.id);
+        const dropdownBtn = container.querySelector<HTMLButtonElement>('.pos-composer-area-dropdown');
+        if (dropdownBtn) {
+            const areas = this.plugin.settings.lifeAreas || [];
+            const activeArea = areas.find(a => a.id === this._selectedAreaForNewNote);
+            if (activeArea) {
+                dropdownBtn.addClass('is-selected');
+                dropdownBtn.empty();
+                const icon = activeArea.icon || '🏷️';
+                dropdownBtn.createSpan({ text: `${icon} ${activeArea.label}` });
+                const clearSpan = dropdownBtn.createSpan({ cls: 'pos-area-clear-btn', text: ' ✕' });
+                clearSpan.onclick = (e) => {
+                    e.stopPropagation();
+                    this._selectedAreaForNewNote = '';
+                    this.renderComposerPillSelection(container);
+                };
+            } else {
+                dropdownBtn.removeClass('is-selected');
+                dropdownBtn.setText('🏷️ Area ▾');
             }
-        });
+        }
     }
 
     private getFilteredCaptures(): CaptureEntry[] {

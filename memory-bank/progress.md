@@ -1,6 +1,16 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Condensed Orientation-Adaptive Tablet Cockpit (Complete)
+## Current Phase: Raycast-Style Area Dropdown Capsule & Landscape Drift Fix (Complete)
+
+---
+
+### 0. Raycast-Style Area Dropdown Capsule & Landscape Drift Fix (Complete)
+*   [x] **Raycast/Linear Single Area Dropdown Capsule (`DesktopHubView.ts` & `styles.css`)** — Replaced multi-button pill loops across desktop, tablet, and mobile composers with a single interactive property button (`🏷️ Area ▾`). Tapping opens an Obsidian native `Menu` with checkmarks; selecting an area converts it to an active pill (`[ 💼 Work ✕ ]`) with 1-tap clear.
+*   [x] **Landscape Keyboard Drift Fix (`DesktopHubView.ts`, `styles.css`, `mobileSheetViewport.ts`)** — Resolved the WebKit horizontal scroll drift on iPad landscape:
+    * Replaced `overflow-x: hidden` with `overflow-x: clip !important` across workspace root and cockpit layout containers, strictly prohibiting programmatic horizontal shifts.
+    * Preserved and restored horizontal scroll offsets around `scrollTargetIntoView()`.
+    * Added active `focusin` and `scroll` horizontal lock on `contentEl` resetting `scrollLeft = 0`.
+*   [x] **Zero Build Errors & Production Deployment** — Passed strict `tsc --noEmit --skipLibCheck` and ESBuild production build with 0 errors; deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

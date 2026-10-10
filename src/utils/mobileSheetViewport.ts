@@ -41,8 +41,11 @@ export function attachMobileSheetViewportBehavior({
         const visibleTop = viewport?.offsetTop ?? 0;
         const visibleBottom = viewport ? viewport.offsetTop + viewport.height : win.innerHeight;
         const margin = 16;
-        if (rect.top >= visibleTop + margin && rect.bottom <= visibleBottom - margin) return;
+        const prevWinX = win.scrollX;
+        const prevSheetX = sheetEl.scrollLeft;
         element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        if (win.scrollX !== prevWinX) win.scrollTo(prevWinX, win.scrollY);
+        if (sheetEl.scrollLeft !== prevSheetX) sheetEl.scrollLeft = prevSheetX;
     };
 
     const scheduleScrollIntoView = (target?: EventTarget | null) => {
