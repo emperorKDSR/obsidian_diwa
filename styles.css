@@ -1788,6 +1788,41 @@ body.is-tablet .pos-desktop-cockpit-layout.is-composer-active .pos-filter-bar,
     display: none !important;
 }
 
+/* Tablet Cockpit: Prevent WebKit zero-height flex collapse when keyboard is open (proven iOS pattern) */
+.diwa-workspace-root.has-mobile-keyboard .pos-desktop-cockpit-layout {
+    height: 100% !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+}
+
+.diwa-workspace-root.has-mobile-keyboard .pos-desktop-cockpit-layout .pos-cockpit-body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+}
+
+.diwa-workspace-root.has-mobile-keyboard .pos-desktop-cockpit-layout .pos-cockpit-main-stage {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+}
+
+.diwa-workspace-root.has-mobile-keyboard .pos-desktop-cockpit-layout .pos-cockpit-header-wrapper {
+    flex-shrink: 0 !important;
+}
+
+.diwa-workspace-root.has-mobile-keyboard .pos-desktop-cockpit-layout .pos-cockpit-composer-wrapper {
+    flex-shrink: 0 !important;
+}
+
+.diwa-workspace-root.has-mobile-keyboard .pos-desktop-cockpit-layout .pos-document-stream {
+    flex: 1 1 auto !important;
+    min-height: 120px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 24px !important;
+}
+
 /* ==========================================================================
    Wikilink Peek Modal & Mobile Bottom Sheet
    ========================================================================== */

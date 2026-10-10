@@ -1,20 +1,20 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Tablet Mode Viewport Stability & Fluid Ergonomics Deployed
-- **Tablet Mode Viewport Stability & Fluid Ergonomics (`src/utils.ts`, `src/views/DesktopHubView.ts`, & `styles.css`)**:
+## Current State: Proven iOS Keyboard Architecture Ported to Tablet Mode Deployed
+- **Tablet Mode Viewport Stability & Proven iOS Keyboard Architecture (`src/utils.ts`, `src/views/DesktopHubView.ts`, & `styles.css`)**:
+  - **Full Mobile Viewport Observer (`DesktopHubView.ts`)**:
+    - Wired `attachMobileSheetViewportBehavior` for all mobile environments (`Platform.isMobile`, including iPads and tablets), catching native Obsidian keyboard events (`keyboardWillShow`, `keyboardDidShow`, `keyboardWillHide`, `keyboardDidHide`) and reading `--keyboard-height` dynamically.
+    - Preserved `diwa-hide-mobile-navbar` strictly for phones (`!isTablet(this.app)`), keeping tablet navigation intact.
   - **Immune Tablet Detection (`src/utils.ts`)**:
-    - Updated `isTablet()` to inspect physical screen dimensions (`Math.min(screen.width, screen.height) >= 768` or `Math.max(screen.width, screen.height) >= 1024`).
-    - Physical screen measurements never contract when the virtual software keyboard opens, ensuring tablet detection remains 100% stable in landscape and portrait.
-  - **Root & Window Viewport Scroll Protection (`src/views/DesktopHubView.ts` & `styles.css`)**:
-    - Enforced `overflow: hidden !important;` and `scrollTop = 0` on `.diwa-workspace-root:has(.pos-desktop-cockpit-layout)` and `this.contentEl` in cockpit mode, completely blocking WebKit's native keyboard-avoidance engine from scrolling outer layout containers.
-    - Added `{ preventScroll: true }` to all composer textarea focus calls (`textarea.focus({ preventScroll: true })`), stopping WebKit from triggering document-level scroll jumps.
-    - Wired a passive window scroll guard resetting `window.scrollTo(0, 0)` if WebKit attempts to shift the Obsidian webview window.
-  - **Fluid Tablet Stage Ergonomics (`styles.css`)**:
-    - Reverted `.pos-cockpit-main-stage` to `overflow: hidden !important; height: 100%; display: flex; flex-direction: column;`, keeping the layout pinned inside the leaf container above the keyboard.
-    - Pinned `.pos-cockpit-composer-wrapper` at `flex-shrink: 0;` directly below the header with compact padding (`8px 16px 4px 16px`).
-    - Capped `.pos-composer-textarea` with `max-height: 90px !important;` and `font-size: 16px !important;` to eliminate iPadOS WebKit auto-zooming and screen crowding.
-    - Assigned `.pos-cockpit-main-stage .pos-document-stream` `flex: 1 1 0% !important; min-height: 0 !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch;`, providing fluid touch scrolling for note items below the composer.
-    - When composer is active on tablet (`.is-tablet.is-composer-active`), automatically hides the carousel filter bar (`display: none !important;`), giving an immediate extra ~40px of vertical viewing space to note items.
+    - `isTablet()` inspects physical screen measurements (`Math.min(screen.width, screen.height) >= 768` or `Math.max(screen.width, screen.height) >= 1024`), remaining immune to software keyboard viewport height contractions.
+  - **Proven iOS Keyboard-Open Flex Overrides (`styles.css`)**:
+    - Mirrored the documented iOS solution from `docs/CONTINUOUS_SCRATCHPAD_DESIGN.md` (§7.1, §7.3): when `.has-mobile-keyboard` is active, assigned `.pos-desktop-cockpit-layout`, `.pos-cockpit-body`, and `.pos-cockpit-main-stage` `overflow: visible !important; min-height: 100%;` to prevent WebKit's flex algorithm from collapsing the document stream to `0px`.
+    - Set `.pos-document-stream` to `flex: 1 1 auto !important; min-height: 120px !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important;`, ensuring the stream remains 100% visible and smoothly scrollable above the keyboard with zero black gaps.
+    - Pinned header and composer wrappers with `flex-shrink: 0 !important;`.
+  - **Root & Window Viewport Scroll Protection (`DesktopHubView.ts` & `styles.css`)**:
+    - Enforced `overflow: hidden !important;` and `scrollTop = 0` on `.diwa-workspace-root:has(.pos-desktop-cockpit-layout)` in cockpit mode.
+    - Focused textarea with `{ preventScroll: true }`, stopping WebKit from triggering document-level scroll jumps.
+    - Guarded window scroll with passive `window.scrollTo(0, 0)` reset on WebKit shifting.
 - **Production Build & Vault Deployment**:
   - Strict TypeScript check (`tsc --noEmit --skipLibCheck`) and ESBuild production build passed cleanly with 0 errors.
   - Deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin directories.

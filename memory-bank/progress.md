@@ -1,13 +1,14 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Tablet Mode Viewport Stability & Fluid Ergonomics (Complete)
+## Current Phase: Proven iOS Keyboard Architecture Ported to Tablet Mode (Complete)
 
 ---
 
-### 0. Tablet Mode Viewport Stability & Fluid Ergonomics (Complete)
+### 0. Tablet Mode Viewport Stability & Proven iOS Keyboard Architecture (Complete)
+*   [x] **Full Mobile Viewport Observer (`DesktopHubView.ts`)** — Attached `attachMobileSheetViewportBehavior` across all mobile runtimes (`Platform.isMobile`, including iPads/tablets), tracking native keyboard events and `--keyboard-height`.
 *   [x] **Immune Tablet Detection (`src/utils.ts`)** — Upgraded `isTablet()` to verify physical screen dimensions (`screen.width`/`screen.height`), making tablet detection immune to on-screen keyboard height contraction.
+*   [x] **Proven iOS Keyboard-Open Flex Overrides (`styles.css`)** — Mirrored `docs/CONTINUOUS_SCRATCHPAD_DESIGN.md` (§7.1, §7.3): `.pos-desktop-cockpit-layout`, `.pos-cockpit-body`, and `.pos-cockpit-main-stage` use `overflow: visible !important; min-height: 100%` when `.has-mobile-keyboard` is active, preventing zero-height flex collapse, while `.pos-document-stream` uses `flex: 1 1 auto !important; min-height: 120px !important;` with fluid touch scrolling.
 *   [x] **Root & Window Viewport Scroll Protection (`DesktopHubView.ts` & `styles.css`)** — Locked `.diwa-workspace-root` to `overflow: hidden !important;`, added `{ preventScroll: true }` to all textarea focus calls, and wired a passive window scroll guard resetting `window.scrollTo(0, 0)` on WebKit shifting.
-*   [x] **Fluid Tablet Stage Ergonomics (`styles.css`)** — Enforced `overflow: hidden !important;` on `.pos-cockpit-main-stage`, pinned the composer cleanly below the header, set `.pos-document-stream` to `flex: 1 1 0% !important; min-height: 0 !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch;`, and automatically collapsed the carousel filter bar when the composer is active for maximum note viewing area.
 *   [x] **Zero Build Errors & Production Deployment** — Passed strict `tsc --noEmit --skipLibCheck` and ESBuild production build with 0 errors; deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---

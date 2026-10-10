@@ -112,13 +112,17 @@ export class DesktopHubView extends ItemView {
         this.contentEl.addClass('diwa-workspace-root');
         this.contentEl.addClass('pos-scratchpad-view');
 
-        if (Platform.isMobile && !isTablet(this.app)) {
-            document.body.addClass('diwa-hide-mobile-navbar');
+        if (Platform.isMobile) {
             this._viewportCleanup = attachMobileSheetViewportBehavior({
                 sheetEl: this.contentEl,
                 scrollEl: this.contentEl,
             });
-        } else {
+            if (!isTablet(this.app)) {
+                document.body.addClass('diwa-hide-mobile-navbar');
+            }
+        }
+
+        if (!Platform.isMobile || isTablet(this.app)) {
             this.loadCockpitState();
             this.setupViewKeyHandler();
             this.setupResizeObserver();
