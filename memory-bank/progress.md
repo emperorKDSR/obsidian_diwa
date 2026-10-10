@@ -1,13 +1,21 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Raycast-Style Area Dropdown Capsule & Landscape Drift Fix (Complete)
+## Current Phase: Dual-Axis iPadOS Keyboard Preservation (Complete)
+
+---
+
+### 0. Dual-Axis iPadOS Keyboard Preservation: Zero Gap & Zero Drift (Complete)
+*   [x] **Dual-Axis Keyboard Architecture (`styles.css`)** — Resolved the conflict between vertical keyboard accommodation and horizontal multi-pane layout:
+    * **Vertical Axis (Black Void Elimination)**: Made `.diwa-workspace-root.has-mobile-keyboard` the sole vertical scroller (`overflow-y: auto !important; height: 100% !important;`), while setting `.pos-desktop-cockpit-layout`, `.pos-cockpit-body`, `.pos-cockpit-main-stage`, and `.pos-document-stream` to `height: auto !important; min-height: 100% !important; overflow: visible !important; flex: 0 0 auto !important;`. The stream grows to full content height with zero nested scroller height clipping, eliminating the black gap above the software keyboard.
+    * **Horizontal Axis (100% Full Width Preservation)**: Locked exact horizontal percentage widths on `.pos-cockpit-main-stage` (`flex: 0 0 68% !important; width: 68% !important; max-width: 68% !important;`) and `.pos-cockpit-side-rail` (`flex: 0 0 32% !important; width: 32% !important; max-width: 32% !important;`), ensuring the panels never collapse inward or drift left.
+    * **Portrait Mode Preservation**: In `.is-tablet-portrait`, main stage expands to `100%` and side rail is positioned as an absolute slide-over drawer (`width: 320px`).
+*   [x] **Zero Build Errors & Production Deployment** — Passed strict `tsc --noEmit --skipLibCheck` and ESBuild production build with 0 errors; deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 
 ### 0. Raycast-Style Area Dropdown Capsule & Complete Landscape Drift Elimination (Complete)
 *   [x] **Raycast/Linear Single Area Dropdown Capsule (`DesktopHubView.ts` & `styles.css`)** — Replaced multi-button pill loops across desktop, tablet, and mobile composers with a single interactive property button (`🏷️ Area ▾`). Tapping opens an Obsidian native `Menu` with checkmarks; selecting an area converts it to an active pill (`[ 💼 Work ✕ ]`) with 1-tap clear.
 *   [x] **Landscape Keyboard Drift & Width Collapse Elimination (`DesktopHubView.ts`, `styles.css`, `mobileSheetViewport.ts`)** — Completely stopped layout from shifting left when activating capture:
-    * Removed destructive `flex: 0 0 auto !important` on `.pos-cockpit-main-stage` and `.pos-cockpit-side-rail`, allowing `_mainStageEl` (`flex: 0.68`) and `_sideRailEl` (`flex: 0.32`) to fill 100% of the screen width in the row without collapsing to the left or leaving an empty black void on the right.
     * Enforced 100% full-width on `.pos-desktop-cockpit-layout` and `.pos-cockpit-body`.
     * Bypassed `scrollIntoView()` entirely for elements already in the top viewport (top composer), preventing WebKit's horizontal centering algorithm on iPad landscape.
     * Recorded and restored `scrollLeft` across all ancestors before and after scroll-into-view calls.

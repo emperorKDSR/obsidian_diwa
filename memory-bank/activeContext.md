@@ -1,19 +1,17 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Raycast-Style Area Dropdown Capsule & Complete Landscape Drift Elimination Deployed
-- **Option 1 Composer Area Dropdown Capsule (`DesktopHubView.ts` & `styles.css`)**:
-  - Replaced cluttered multi-pill loops across Desktop, Tablet, and Mobile composers with a single interactive property capsule:
-    - Default state shows a clean, quiet `🏷️ Area ▾` button.
-    - Tapping opens an Obsidian native `Menu` with `∅ No Area (General)` and all configured life areas with checkmarks and icons.
-    - Selected state turns into an active accent pill `[ 💼 Work ✕ ]` with 1-tap clear.
-    - Task toggle (`☑️ Task`) and Star toggle (`⭐ Important`) remain clean ghost buttons.
-- **Landscape Keyboard Horizontal Drift & Width Collapse Elimination (`styles.css` & `DesktopHubView.ts`)**:
-  - **Eliminated Destructive `flex: 0 0 auto !important` on Cockpit Split Panes**: In a horizontal flex row (`.pos-cockpit-body`), applying `flex: 0 0 auto !important` on `.pos-cockpit-main-stage` and `.pos-cockpit-side-rail` turned off their `flex-grow` expansion, causing both columns to shrink to their content/min-widths and collapse to the left, leaving a massive empty black void on the right. Removing this override allows `_mainStageEl` (`flex: 0.68`) and `_sideRailEl` (`flex: 0.32`) to fill 100% of the screen width at all times with the Agenda panel staying flush against the right screen edge.
-  - **100% Width Enforcement**: Locked `.pos-desktop-cockpit-layout` and `.pos-cockpit-body` to `width: 100% !important; min-width: 100% !important; max-width: 100% !important;`.
-  - **Top Composer Bypass in Viewport Behavior (`mobileSheetViewport.ts`)**: When activating the capture box (rect.top <= 200px), bypassed `scrollIntoView()` entirely. The composer is already at the top of the viewport; invoking `scrollIntoView` was the primary trigger for WebKit's horizontal centering algorithm on iPad landscape.
-  - **Ancestor Horizontal Offset Restoration (`mobileSheetViewport.ts`)**: For any elements scrolled into view, tracks and restores `scrollLeft` across all ancestor elements and `win.scrollX`.
-  - **Global Document Scroll Capture (`DesktopHubView.ts`)**: Wired capture-phase `doc.addEventListener('scroll', ..., true)` and `focusin` listeners locking `scrollLeft = 0` on `documentElement`, `body`, `this.contentEl`, `_cockpitLayoutEl`, and `_mainStageEl`.
-  - **Universal CSS `overflow-x: clip !important` Enforcement (`styles.css`)**: Set `overflow-x: clip !important` across `body.is-tablet .diwa-workspace-root`, `.pos-desktop-cockpit-layout`, `.pos-cockpit-body`, and `.pos-cockpit-main-stage`.
+## Current State: Dual-Axis Preservation (No Black Keyboard Gap & Zero Left Drift) Deployed
+- **Dual-Axis iPadOS Keyboard Preservation (`styles.css`)**:
+  - **Vertical Axis (Eliminating Black Void/Band Above Keyboard)**:
+    - Root container `.diwa-workspace-root.has-mobile-keyboard` remains the **sole vertical scroller** (`overflow-y: auto !important; height: 100% !important; -webkit-overflow-scrolling: touch;`).
+    - Internal containers (`.pos-desktop-cockpit-layout`, `.pos-cockpit-body`, `.pos-cockpit-main-stage`, `.pos-document-stream`) are set to `height: auto !important; min-height: 100% !important; overflow: visible !important; flex: 0 0 auto !important;`.
+    - Eliminates iOS WebKit's nested flexbox height collapse where `overflow-y: auto` inside child elements caused the document stream to shrink to 0px or leave a black gap above the virtual keyboard.
+  - **Horizontal Axis (Eliminating Left Drift & Empty Right Void)**:
+    - When `flex: 0 0 auto !important` was previously set without explicit column widths, the child panels in `.pos-cockpit-body` (`flex-direction: row`) shrank to their content width and bunched up to the left edge, leaving a black void on the right.
+    - Locked exact width percentages when keyboard is open in landscape mode:
+      - Main Stage (`.pos-cockpit-main-stage`): `flex: 0 0 68% !important; width: 68% !important; max-width: 68% !important; box-sizing: border-box !important;`.
+      - Agenda Rail (`.pos-cockpit-side-rail`): `flex: 0 0 32% !important; width: 32% !important; max-width: 32% !important; box-sizing: border-box !important;`.
+    - Portrait Mode Override (`.is-tablet.is-tablet-portrait` / `.is-tablet-portrait`): Main Stage takes `100%` width and Side Rail stays anchored as a slide-over drawer (`position: absolute; right: 0; width: 320px;`).
 - **Production Build & Vault Deployment**:
   - Strict TypeScript check (`tsc --noEmit --skipLibCheck`) and ESBuild production build passed cleanly with 0 errors.
   - Deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin directories.
