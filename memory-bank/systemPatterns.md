@@ -69,21 +69,24 @@ flowchart TD
 
 ---
 
-## 3. Continuous Scratchpad View (`DesktopHubView`)
+## 3. Desktop Dual-Pane Power Cockpit & Continuous Workspace (`DesktopHubView`)
 
-The **Continuous Scratchpad** is the primary interactive hub:
-1.  **Header Bar**: Logo, fast debounced search input, `[ Select ]` multi-note merge toggle, `[ 🧹 N Untagged ]` Inbox Sweeper button, `[ 📚 Recent ]` permanent notes launcher, Settings button.
-2.  **Filter Carousel**: `[ All Notes ]`, `[ ☑️ Open Tasks ]`, Life Area chips (`[ 💼 Work ]`, `[ 🌱 Health ]`, `[ 💰 Wealth ]`, `[ 💡 Growth ]`).
-3.  **Adaptive Composer & Floating Action Bar**:
-    *   *Desktop & Tablet*: Top Hero composer with borderless input capsule, `[ ☑️ Task ]` shortcut, life area selector chips, and `⌘ Enter` save shortcut.
-    *   *Mobile*: 1-Line Floating Action Bar with 5 quick buttons: `+` (composer), `🔍` (search), `📚` (recent permanent notes), `Sliders` (filter sheet), and `Panel-Bottom` (nav toggle).
-4.  **Continuous Document Stream**:
-    *   Clean typography without card boxes, borders, or inner outlines.
-    *   Hairline date separator dividers ("Today", "Yesterday", etc.).
-    *   Interactive life area badges with 1-tap dropdown menu for direct category reassignment.
-    *   Rendered markdown body with embeds and inline interactive `- [ ]` checkboxes with strike-through feedback.
-    *   Action menu: Edit in-place (`✏️`), Delete (`🗑️`), and dedicated `Select` mode for multi-note merge.
-5.  **Performance Optimization**: Progressive 25-item lazy loading via `IntersectionObserver` with in-memory Markdown DOM cache.
+The **DesktopHubView** adapts intelligently between a single-column mobile feed and an expansive dual-pane power workspace:
+1.  **Header Bar**: Logo, rolling horizon label (`Personal OS · Last 7 Days`), prominent centered search capsule with `[ / ]` hotkey indicator, `[ ◨ Rail ]` toggle button, `[ 📅 Digest ]` quick launcher, and `[ ⋯ More ]` utility dropdown (`Select / Merge`, `🧹 N Untagged`, `📋 Gawa Split`, `☀️ Karon Tab`, `📚 Recent Permanent Notes`, `⚙️ Settings`).
+2.  **Dual-Pane Cockpit Architecture (Desktop & Tablet)**:
+    *   **Left Main Stage (Flex ratio ~62%)**:
+        *   Filter Carousel: `[ All Notes ]`, `[ ☑️ Open Tasks ]`, Life Area chips (`[ 💼 Work ]`, `[ 🌱 Health ]`, `[ 💰 Wealth ]`, `[ 💡 Growth ]`).
+        *   **Smart Collapsible Hero Composer**: Renders as a 38px compact pill (`pos-composer-compact`) on idle, saving 120px+ vertical room. Expands smoothly on click, focus, `c`/`n` hotkey, or when an active draft is detected in `localStorage`. Auto-collapses on `⌘↵` or empty `Esc`.
+        *   **Continuous Document Stream**: Clean typography, hairline date dividers, area badges, and inline interactive `- [ ]` checkboxes.
+    *   **Center Fluid Resizer (`pos-cockpit-resizer`)**: 8px draggable divider with hover highlight, pointer event tracking, and split ratio constraints (40%–80%) persisted in `localStorage`.
+    *   **Right Side Rail (Flex ratio ~38%)**:
+        *   Segmented Tabs: `[ ☀️ Horizon ]` and `[ 📋 Tasks ]` with collapse button `[ ◨ ]`.
+        *   **Horizon Tab**: Live Karon briefing with overdue alert box, today's tasks & referenced notes with `WikilinkPeekModal` jump/peek, and tomorrow glance.
+        *   **Tasks Tab**: Gawa tasks table with horizon chips (`All`, `Overdue`, `Today`, `Upcoming`), interactive checkbox toggling via `CaptureService.toggleTaskInFile`, and source jump buttons (`↗`).
+3.  **Desktop Keyboard Flow**: Global view-level key handler for `/` (search), `c`/`n` (composer), `\` (toggle rail), and `Escape` (dismiss/exit).
+4.  **Responsive Auto-Collapse**: `ResizeObserver` automatically collapses the right rail when view width < 1050px.
+5.  **Mobile Streamlined Layout**: Single-column layout with 1-line floating action bar, bottom sticky composer, and slide-up modal sheets preserved without modification.
+6.  **Performance Optimization**: Progressive 25-item lazy loading via `IntersectionObserver` with in-memory Markdown DOM cache.
 
 ---
 

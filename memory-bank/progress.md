@@ -1,6 +1,18 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Recently Updated Permanent Notes Feature (Complete)
+## Current Phase: Single-Line Inline Outliner (`HH:MM PM <content>`) (Complete)
+
+---
+
+### 0. Single-Line Inline Outliner (`HH:MM PM <content>`) (Complete)
+*   [x] **Fixed Left Timestamp Gutter (`.pos-note-gutter`)** — Created a dedicated 68px left gutter with tabular numeric timestamps (`font-variant-numeric: tabular-nums`, `color: var(--text-faint)`), ensuring every note begins on the exact same horizontal column guideline across the daily feed.
+*   [x] **Single Horizontal Baseline Flow (`.pos-note-content-wrap`)** — Eliminated stacked 2-line headline/body rendering. Note text and metadata pills flow on a single horizontal baseline for single-line notes (`08:41 PM   Passport renewal   [Personal]`), eliminating awkward zig-zag reading motion.
+*   [x] **Automatic Hanging Indent for Multi-Line Content** — When notes span multiple lines, paragraphs, or task lists, text wraps naturally within the content column, preserving the clean, uncluttered timestamp gutter.
+*   [x] **Flush-Right Hover Capsule (`.pos-note-actions`)** — Anchored hover action icons (`[ ✏️ ] [ ⭐ ] [ ⋯ ] [ 🗑️ ]`) as an elevated top-right capsule on hover with zero layout shift, protected by 96px right padding on the content wrapper to prevent overlap.
+*   [x] **Date Divider & Column Spine Alignment (`styles.css`)** — Synchronized `.pos-date-divider` with `padding: 0 8px;`, aligning the date heading with the stream item gutter and the 820px reading column.
+*   [x] **Option 1 Crisp Day Separation Line (`DesktopHubView.ts` & `styles.css`)** — Injected high-visibility horizontal separator rule (`background: var(--background-modifier-border, rgba(255, 255, 255, 0.15))`) spanning after the note count badge across the stream column, with generous 32px inter-day separation spacing.
+*   [x] **Option 1 Rapid Multi-Block Chaining (`DesktopHubView.ts`)** — Wired `Shift + Enter` to instantly capture notes, reset textarea height, and keep the text box active and focused for rapid multi-block input, with full cross-platform UI hints (`⌘↵` on Mac, `Ctrl↵` on Windows/Linux).
+*   [x] **Zero Build Errors & Production Vault Deployment** — Clean compile with `tsc --noEmit -skipLibCheck` and ESBuild; deployed directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

@@ -1,6 +1,28 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Recently Updated Permanent Notes Feature Deployed
+## Current State: Single-Line Inline Outliner (`HH:MM PM <content>`) Deployed
+- **Single-Line Inline Outliner Architecture (`src/views/DesktopHubView.ts` & `styles.css`)**:
+  - Restructured `.pos-note-stream-item` from stacked 2-line cards into a single-horizontal-baseline outliner row:
+    - **DOM-Level Flex Row Enforcement**: Injected `display: flex; flex-direction: row; align-items: flex-start; gap: 12px;` directly on `.pos-note-stream-item` DOM elements, bypassing any Obsidian theme overrides or stale CSS cache.
+    - **Fixed Left Gutter (`.pos-note-gutter`)**: Fixed `68px` tabular timestamp (`font-variant-numeric: tabular-nums; font-size: 0.76em; color: var(--text-faint);`) with optional multi-select checkbox (`width: 86px` in selection mode).
+    - **Content Column (`.pos-note-content-wrap`)**: Starts at the exact same horizontal column guideline across all notes, housing `.pos-note-body` (`display: inline`) and inline metadata pills (`.pos-note-badges`).
+    - **Zero Headline-Body Gap**: Eliminates awkward vertical zig-zag scanning on 1-word or short thoughts (`"08:41 PM  Passport renewal  [Personal]"` on one unified line).
+    - **Automatic Hanging Indent**: Notes spanning 2+ lines wrap exclusively within `.pos-note-content-wrap`, keeping the left timestamp gutter completely clear and cleanly indented.
+    - **Flush-Right Hover Capsule (`.pos-note-actions`)**: Anchored at `top: 3px; right: 8px;` with solid background and shadow, appearing quietly on row hover with zero layout shift, shielded by `padding-right: 96px` on the content column so text never collides.
+  - **Option 1 Architectural Day Separation (`DesktopHubView.ts` & `styles.css`)**:
+    - **High-Contrast Dividing Rule**: Injected explicit line styles on `.pos-date-line` (`height: 1px; background: var(--background-modifier-border, rgba(255, 255, 255, 0.15)); flex: 1; display: block;`), ensuring clear dark-mode visibility.
+    - **Generous Inter-Day Spacing**: Increased top margin to `32px auto 10px auto` (`14px` for the very first date divider), establishing an unmistakable structural boundary between consecutive days.
+    - **Aligned Typography**: Scoped `.pos-date-divider` with `padding: 0 8px;`, perfectly aligning `TODAY [ 2 notes ] ───────` with the stream column guideline.
+  - **Option 1 Rapid Multi-Block Chaining (`DesktopHubView.ts`)**:
+    - **`Shift + Enter`**: Instantly captures current block, clears textarea, auto-resizes to 1 line, and preserves focus in the textarea for seamless rapid-fire chaining without touching the mouse.
+    - **`Ctrl / ⌘ + Enter`**: Captures note block and finishes session (collapses composer).
+    - **`Enter`**: Standard newline for multi-line thoughts and checklists.
+    - **Cross-Platform Adaptive UI**: Button labels and hints dynamically detect platform (`Platform.isMacOS ? '⌘↵' : 'Ctrl↵'`), displaying `Shift+↵ Next • ⌘↵ Done` on Mac and `Shift+Enter Next • Ctrl+Enter Done` on Windows/Linux.
+- **Production Build & Vault Deployment**:
+  - Strict TypeScript check (`tsc --noEmit --skipLibCheck`) and ESBuild production build passed cleanly with 0 errors.
+  - Deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin directories.
+
+## Previous Phase: Recently Updated Permanent Notes Feature Deployed
 - **Permanent Note Query & Discovery (`src/services/IndexService.ts`)**:
   - Implemented `isPermanentNoteFile(fileOrPath)`: filters markdown files outside `captureFolder`, `attachmentsFolder`, and `.trash`.
   * Respects optional whitelist setting `permanentNotesFolders` (or defaults to all non-capture markdown files in the vault).

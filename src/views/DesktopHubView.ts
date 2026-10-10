@@ -47,6 +47,21 @@ export class DesktopHubView extends ItemView {
     _capturePending: number = 0;
     _taskPending: number = 0;
 
+    // Cockpit dual-pane state & layout elements (Desktop & Tablet)
+    private _cockpitRailOpen: boolean = true;
+    private _cockpitRailTab: 'karon' | 'tasks' = 'karon';
+    private _cockpitSplitRatio: number = 0.62;
+    private _desktopComposerExpanded: boolean = false;
+    private _isResizingCockpit: boolean = false;
+    private _cockpitLayoutEl: HTMLElement | null = null;
+    private _mainStageEl: HTMLElement | null = null;
+    private _sideRailEl: HTMLElement | null = null;
+    private _resizerEl: HTMLElement | null = null;
+    private _resizeObserver: ResizeObserver | null = null;
+    private _keyHandler: ((e: KeyboardEvent) => void) | null = null;
+    private _tasksRailFilter: 'all' | 'overdue' | 'today' | 'upcoming' = 'all';
+    private _desktopComposerWrapperEl: HTMLElement | null = null;
+
     constructor(leaf: WorkspaceLeaf, plugin: DiwaPlugin) {
         super(leaf);
         this.plugin = plugin;
@@ -103,6 +118,10 @@ export class DesktopHubView extends ItemView {
                 sheetEl: this.contentEl,
                 scrollEl: this.contentEl,
             });
+        } else {
+            this.loadCockpitState();
+            this.setupViewKeyHandler();
+            this.setupResizeObserver();
         }
 
         this._containerEl = this.contentEl.createDiv({ cls: 'pos-scratchpad-container' });
@@ -141,6 +160,16 @@ export class DesktopHubView extends ItemView {
             this._viewportCleanup = null;
         }
 
+        if (this._resizeObserver) {
+            this._resizeObserver.disconnect();
+            this._resizeObserver = null;
+        }
+
+        if (this._keyHandler) {
+            this.contentEl.removeEventListener('keydown', this._keyHandler);
+            this._keyHandler = null;
+        }
+
         document.body.removeClass('diwa-hide-mobile-navbar');
 
         if (this._streamComponent) {
@@ -162,6 +191,11 @@ export class DesktopHubView extends ItemView {
         this._headerBarEl = null;
         this._composerEl = null;
         this._streamContainerEl = null;
+        this._cockpitLayoutEl = null;
+        this._mainStageEl = null;
+        this._sideRailEl = null;
+        this._resizerEl = null;
+        this._desktopComposerWrapperEl = null;
     }
 
     onActiveFileChange(_file?: TFile | null): void {
@@ -175,6 +209,9 @@ export class DesktopHubView extends ItemView {
     refreshCapture(): void {
         this.updateStreamOnly();
         this.updateFilterCounts();
+        if (this._cockpitRailOpen && this._sideRailEl) {
+            this.renderRightRailContent();
+        }
     }
 
     public get activeFilter(): ScratchpadFilterMode {
@@ -204,43 +241,92 @@ export class DesktopHubView extends ItemView {
     }
 
     renderView(resetPagination = true): void {
-        if (!this._containerEl) return;
         if (resetPagination) {
             this._renderedCount = BATCH_SIZE;
         }
 
-        this._containerEl.empty();
-
         const isMobile = Platform.isMobile && !isTablet(this.app);
 
-        // Header bar
-        this._headerBarEl = this._containerEl.createDiv({ cls: 'pos-header-bar' });
+        if (isMobile) {
+            this.contentEl.empty();
+            this._containerEl = this.contentEl.createDiv({ cls: 'pos-scratchpad-container' });
+
+            // Header bar
+            this._headerBarEl = this._containerEl.createDiv({ cls: 'pos-header-bar' });
+            this.renderHeaderBar(this._headerBarEl);
+
+            this._filterBarEl = null;
+
+            // Multi-select bulk action bar (if in selection mode)
+            this._selectionBarEl = this._containerEl.createDiv({ cls: 'pos-selection-bar-wrapper' });
+            this.updateSelectionBar();
+
+            // Continuous Document Stream
+            this._streamContainerEl = this._containerEl.createDiv({ cls: 'pos-document-stream' });
+            this.renderStream(this._streamContainerEl);
+
+            // Mobile Sticky Composer at bottom
+            this.renderComposer(this._containerEl, true);
+
+            this.updateComposerVisibility();
+            return;
+        }
+
+        // === DESKTOP & TABLET DUAL-PANE COCKPIT ===
+        this.contentEl.empty();
+        const layoutEl = this.contentEl.createDiv({ cls: 'pos-desktop-cockpit-layout' });
+        this._cockpitLayoutEl = layoutEl;
+
+        // Top Full-Width Header
+        const headerWrapper = layoutEl.createDiv({ cls: 'pos-cockpit-header-wrapper' });
+        this._headerBarEl = headerWrapper.createDiv({ cls: 'pos-header-bar' });
         this.renderHeaderBar(this._headerBarEl);
 
-        // Filter / Life Area carousel bar (Desktop & Tablet only)
-        if (!isMobile) {
-            this._filterBarEl = this._containerEl.createDiv({ cls: 'pos-filter-bar' });
-            this.renderFilterBar(this._filterBarEl);
+        // Body with Split Panes
+        const cockpitBody = layoutEl.createDiv({ cls: 'pos-cockpit-body' });
+
+        // Left Main Stage (Stream, Filters & Composer)
+        this._mainStageEl = cockpitBody.createDiv({ cls: 'pos-cockpit-main-stage' });
+        this._containerEl = this._mainStageEl;
+
+        if (this._cockpitRailOpen) {
+            this._mainStageEl.style.flex = `${this._cockpitSplitRatio}`;
         } else {
-            this._filterBarEl = null;
+            this._mainStageEl.style.flex = '1';
         }
+
+        // Filter / Life Area carousel bar
+        this._filterBarEl = this._mainStageEl.createDiv({ cls: 'pos-filter-bar' });
+        this.renderFilterBar(this._filterBarEl);
 
         // Multi-select bulk action bar (if in selection mode)
-        this._selectionBarEl = this._containerEl.createDiv({ cls: 'pos-selection-bar-wrapper' });
+        this._selectionBarEl = this._mainStageEl.createDiv({ cls: 'pos-selection-bar-wrapper' });
         this.updateSelectionBar();
 
-        // Desktop / Tablet Hero Composer at top
-        if (!isMobile) {
-            this.renderComposer(this._containerEl, false);
-        }
+        // Top Hero Quick Capture (Executive Notebook Model)
+        this._desktopComposerWrapperEl = this._mainStageEl.createDiv({ cls: 'pos-cockpit-composer-wrapper' });
+        this.renderComposer(this._desktopComposerWrapperEl, false);
 
         // Continuous Document Stream
-        this._streamContainerEl = this._containerEl.createDiv({ cls: 'pos-document-stream' });
+        this._streamContainerEl = this._mainStageEl.createDiv({ cls: 'pos-document-stream' });
         this.renderStream(this._streamContainerEl);
 
-        // Mobile Sticky Composer at bottom
-        if (isMobile) {
-            this.renderComposer(this._containerEl, true);
+        // Center Resizer Divider
+        this._resizerEl = cockpitBody.createDiv({ cls: 'pos-cockpit-resizer' });
+        this.setupCockpitResizer(this._resizerEl, cockpitBody);
+        if (!this._cockpitRailOpen) {
+            this._resizerEl.style.display = 'none';
+        }
+
+        // Right Side Rail (Inspector & Agenda)
+        this._sideRailEl = cockpitBody.createDiv({
+            cls: `pos-cockpit-side-rail ${!this._cockpitRailOpen ? 'is-collapsed' : ''}`
+        });
+        if (this._cockpitRailOpen) {
+            this._sideRailEl.style.flex = `${1 - this._cockpitSplitRatio}`;
+            this.renderRightRail(this._sideRailEl);
+        } else {
+            this._sideRailEl.style.flex = '0';
         }
 
         this.updateComposerVisibility();
@@ -263,6 +349,443 @@ export class DesktopHubView extends ItemView {
         }
     }
 
+    private loadCockpitState(): void {
+        try {
+            const raw = localStorage.getItem('diwa-cockpit-state');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (typeof parsed.railOpen === 'boolean') this._cockpitRailOpen = parsed.railOpen;
+                if (parsed.railTab === 'karon' || parsed.railTab === 'tasks') this._cockpitRailTab = parsed.railTab;
+                if (typeof parsed.splitRatio === 'number' && parsed.splitRatio >= 0.35 && parsed.splitRatio <= 0.85) {
+                    this._cockpitSplitRatio = parsed.splitRatio;
+                }
+            } else {
+                this._cockpitRailOpen = window.innerWidth >= 1050;
+            }
+        } catch {
+            this._cockpitRailOpen = true;
+        }
+    }
+
+    private saveCockpitState(): void {
+        try {
+            localStorage.setItem('diwa-cockpit-state', JSON.stringify({
+                railOpen: this._cockpitRailOpen,
+                railTab: this._cockpitRailTab,
+                splitRatio: this._cockpitSplitRatio
+            }));
+        } catch {
+            // ignore
+        }
+    }
+
+    private setupResizeObserver(): void {
+        if (this._resizeObserver) {
+            this._resizeObserver.disconnect();
+        }
+        this._resizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                const width = entry.contentRect.width;
+                if (width < 1050 && this._cockpitRailOpen) {
+                    this._cockpitRailOpen = false;
+                    this.updateCockpitRailState();
+                }
+            }
+        });
+        this._resizeObserver.observe(this.contentEl);
+    }
+
+    private setupViewKeyHandler(): void {
+        if (this._keyHandler) {
+            this.contentEl.removeEventListener('keydown', this._keyHandler);
+        }
+        this._keyHandler = (e: KeyboardEvent) => {
+            const activeEl = document.activeElement as HTMLElement | null;
+            const isInsideInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
+
+            // Escape handling
+            if (e.key === 'Escape') {
+                if (this._selectionMode) {
+                    this._selectionMode = false;
+                    this._selectedEntryIds.clear();
+                    this.updateSelectionBar();
+                    this.updateStreamOnly();
+                    return;
+                }
+                if (this._editingEntryId) {
+                    this._editingEntryId = null;
+                    this.updateStreamOnly();
+                    return;
+                }
+                if (this._searchQuery) {
+                    this._searchQuery = '';
+                    this.updateStreamOnly();
+                    const searchInput = this.contentEl.querySelector('.pos-search-input') as HTMLInputElement | null;
+                    if (searchInput) {
+                        searchInput.value = '';
+                        searchInput.blur();
+                    }
+                    return;
+                }
+                if (this._desktopComposerExpanded) {
+                    const textarea = this._composerEl?.querySelector('textarea');
+                    if (!textarea || !textarea.value.trim()) {
+                        this._desktopComposerExpanded = false;
+                        const targetParent = this._desktopComposerWrapperEl || this._mainStageEl;
+                        if (targetParent) {
+                            this.renderComposer(targetParent, false);
+                        }
+                        if (textarea) textarea.blur();
+                        return;
+                    }
+                }
+            }
+
+            if (isInsideInput) return;
+
+            // Hotkey: '/' or 'Cmd+F' -> Focus search
+            if (e.key === '/' || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f')) {
+                e.preventDefault();
+                const searchInput = this.contentEl.querySelector('.pos-search-input') as HTMLInputElement | null;
+                if (searchInput) {
+                    searchInput.focus();
+                    searchInput.select();
+                }
+                return;
+            }
+
+            // Hotkey: 'c' or 'n' -> Focus / expand composer
+            if (e.key.toLowerCase() === 'c' || e.key.toLowerCase() === 'n') {
+                e.preventDefault();
+                this._desktopComposerExpanded = true;
+                const targetParent = this._desktopComposerWrapperEl || this._mainStageEl;
+                if (targetParent) {
+                    this.renderComposer(targetParent, false);
+                }
+                const textarea = this._composerEl?.querySelector('textarea');
+                if (textarea) {
+                    textarea.focus();
+                }
+                return;
+            }
+
+            // Hotkey: '\' -> Toggle right rail
+            if (e.key === '\\') {
+                e.preventDefault();
+                this.toggleCockpitRail();
+                return;
+            }
+        };
+        this.contentEl.addEventListener('keydown', this._keyHandler);
+    }
+
+    public toggleCockpitRail(): void {
+        this._cockpitRailOpen = !this._cockpitRailOpen;
+        this.updateCockpitRailState();
+    }
+
+    private updateCockpitRailState(): void {
+        if (!this._sideRailEl || !this._mainStageEl || !this._resizerEl) return;
+        if (this._cockpitRailOpen) {
+            this._sideRailEl.removeClass('is-collapsed');
+            this._resizerEl.style.display = 'block';
+            this._mainStageEl.style.flex = `${this._cockpitSplitRatio}`;
+            this._sideRailEl.style.flex = `${1 - this._cockpitSplitRatio}`;
+            this.renderRightRail(this._sideRailEl);
+        } else {
+            this._sideRailEl.addClass('is-collapsed');
+            this._resizerEl.style.display = 'none';
+            this._mainStageEl.style.flex = '1';
+        }
+        this.saveCockpitState();
+        if (this._headerBarEl) {
+            const toggleBtn = this._headerBarEl.querySelector('.pos-rail-toggle-btn') as HTMLElement | null;
+            if (toggleBtn) {
+                toggleBtn.toggleClass('is-active', this._cockpitRailOpen);
+                toggleBtn.setText(this._cockpitRailOpen ? '◧ Rail' : '◨ Rail');
+            }
+        }
+    }
+
+    private setupCockpitResizer(resizer: HTMLElement, cockpitBody: HTMLElement): void {
+        let startX = 0;
+        let startRatio = this._cockpitSplitRatio;
+        let bodyWidth = 0;
+
+        const onPointerMove = (e: PointerEvent) => {
+            if (!this._isResizingCockpit) return;
+            const deltaX = e.clientX - startX;
+            const newRatio = Math.max(0.40, Math.min(0.80, startRatio + (deltaX / bodyWidth)));
+            this._cockpitSplitRatio = newRatio;
+            if (this._mainStageEl) this._mainStageEl.style.flex = `${newRatio}`;
+            if (this._sideRailEl) this._sideRailEl.style.flex = `${1 - newRatio}`;
+        };
+
+        const onPointerUp = () => {
+            if (!this._isResizingCockpit) return;
+            this._isResizingCockpit = false;
+            resizer.removeClass('is-active');
+            document.body.removeClass('is-resizing-cockpit');
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerup', onPointerUp);
+            this.saveCockpitState();
+        };
+
+        resizer.addEventListener('pointerdown', (e: PointerEvent) => {
+            e.preventDefault();
+            this._isResizingCockpit = true;
+            startX = e.clientX;
+            startRatio = this._cockpitSplitRatio;
+            bodyWidth = cockpitBody.getBoundingClientRect().width || 1000;
+            resizer.addClass('is-active');
+            document.body.addClass('is-resizing-cockpit');
+            window.addEventListener('pointermove', onPointerMove);
+            window.addEventListener('pointerup', onPointerUp);
+        });
+    }
+
+    private renderRightRail(rail: HTMLElement): void {
+        rail.empty();
+
+        // 1. Rail Header & Tabs
+        const header = rail.createDiv({ cls: 'pos-rail-header' });
+
+        const tabsContainer = header.createDiv({ cls: 'pos-rail-tabs' });
+        const karonTabBtn = tabsContainer.createEl('button', {
+            cls: `pos-rail-tab-btn ${this._cockpitRailTab === 'karon' ? 'is-active' : ''}`,
+            text: '☀️ Horizon'
+        });
+        karonTabBtn.onclick = () => {
+            this._cockpitRailTab = 'karon';
+            this.saveCockpitState();
+            this.renderRightRail(rail);
+        };
+
+        const tasksTabBtn = tabsContainer.createEl('button', {
+            cls: `pos-rail-tab-btn ${this._cockpitRailTab === 'tasks' ? 'is-active' : ''}`,
+            text: '📋 Tasks'
+        });
+        tasksTabBtn.onclick = () => {
+            this._cockpitRailTab = 'tasks';
+            this.saveCockpitState();
+            this.renderRightRail(rail);
+        };
+
+        const actions = header.createDiv({ cls: 'pos-rail-actions' });
+        const collapseBtn = actions.createEl('button', {
+            cls: 'pos-icon-btn pos-rail-collapse-btn',
+            attr: { 'aria-label': 'Collapse side rail (\\)' }
+        });
+        setIcon(collapseBtn, 'panel-right-close');
+        collapseBtn.onclick = () => {
+            this._cockpitRailOpen = false;
+            this.updateCockpitRailState();
+        };
+
+        // 2. Rail Content
+        const content = rail.createDiv({ cls: 'pos-rail-content' });
+        this.renderRightRailContent(content);
+    }
+
+    public renderRightRailContent(container?: HTMLElement): void {
+        const contentEl = container ?? (this._sideRailEl?.querySelector('.pos-rail-content') as HTMLElement | null);
+        if (!contentEl) return;
+        contentEl.empty();
+
+        if (this._cockpitRailTab === 'karon') {
+            this.renderHorizonRail(contentEl);
+        } else {
+            this.renderTasksRail(contentEl);
+        }
+    }
+
+    private renderHorizonRail(container: HTMLElement): void {
+        const today = moment();
+        const todayStr = today.format('YYYY-MM-DD');
+
+        // Date row
+        const dateHeader = container.createDiv({ cls: 'pos-rail-horizon-date-header' });
+        dateHeader.createSpan({ cls: 'pos-rail-horizon-today', text: `☀️ ${today.format('dddd, MMM D')}` });
+        dateHeader.createSpan({ cls: 'pos-rail-horizon-subtitle', text: 'Rolling Horizon' });
+
+        // Overdue section
+        const overdueTasks = this.plugin.index.getOverdueTasks(todayStr);
+        if (overdueTasks.length > 0) {
+            const overdueBox = container.createDiv({ cls: 'pos-rail-overdue-box' });
+            const titleRow = overdueBox.createDiv({ cls: 'pos-rail-overdue-title' });
+            const alertIcon = titleRow.createSpan();
+            setIcon(alertIcon, 'alert-circle');
+            titleRow.createSpan({ text: `${overdueTasks.length} Overdue Task${overdueTasks.length === 1 ? '' : 's'}` });
+
+            for (const task of overdueTasks.slice(0, 5)) {
+                this.renderRailTaskRow(overdueBox, task, true);
+            }
+            if (overdueTasks.length > 5) {
+                overdueBox.createDiv({ cls: 'pos-rail-empty-msg', text: `+ ${overdueTasks.length - 5} more overdue tasks` });
+            }
+        }
+
+        // Today Due Tasks Section
+        const todayTasks = this.plugin.index.getTasksForDueDate(todayStr);
+        const todaySection = container.createDiv({ cls: 'pos-rail-section' });
+        const todaySecHeader = todaySection.createDiv({ cls: 'pos-rail-section-header' });
+        todaySecHeader.createSpan({ text: "Today's Tasks" });
+        todaySecHeader.createSpan({ cls: 'pos-rail-section-badge', text: `${todayTasks.length}` });
+
+        if (todayTasks.length === 0) {
+            todaySection.createDiv({ cls: 'pos-rail-empty-msg', text: 'No tasks scheduled for today.' });
+        } else {
+            for (const task of todayTasks) {
+                this.renderRailTaskRow(todaySection, task, false);
+            }
+        }
+
+        // Notes Intended for Today
+        const todayCaptures = this.plugin.index.getCapturesForTargetDate(todayStr);
+        if (todayCaptures.length > 0) {
+            const notesSection = container.createDiv({ cls: 'pos-rail-section' });
+            const notesSecHeader = notesSection.createDiv({ cls: 'pos-rail-section-header' });
+            notesSecHeader.createSpan({ text: 'Referenced Notes' });
+            notesSecHeader.createSpan({ cls: 'pos-rail-section-badge', text: `${todayCaptures.length}` });
+
+            for (const capture of todayCaptures.slice(0, 6)) {
+                const noteRow = notesSection.createDiv({ cls: 'pos-rail-note-item' });
+                const baseTitle = capture.filePath.split('/').pop()?.replace(/\.md$/, '') || 'Untitled Note';
+                noteRow.createSpan({ text: `📄 ${baseTitle}` });
+                noteRow.onclick = () => {
+                    new WikilinkPeekModal(this.app, this.plugin, capture.filePath, capture.filePath, (target) => this.filterStreamByWikilink(target)).open();
+                };
+            }
+        }
+
+        // Tomorrow Glance
+        const tomorrowStr = moment(todayStr).add(1, 'days').format('YYYY-MM-DD');
+        const tomorrowTasks = this.plugin.index.getTasksForDueDate(tomorrowStr);
+        const tomorrowSection = container.createDiv({ cls: 'pos-rail-section' });
+        const tomorrowSecHeader = tomorrowSection.createDiv({ cls: 'pos-rail-section-header' });
+        tomorrowSecHeader.createSpan({ text: 'Tomorrow' });
+        tomorrowSecHeader.createSpan({ cls: 'pos-rail-section-badge', text: `${tomorrowTasks.length}` });
+
+        if (tomorrowTasks.length > 0) {
+            for (const task of tomorrowTasks.slice(0, 4)) {
+                this.renderRailTaskRow(tomorrowSection, task, false);
+            }
+        } else {
+            tomorrowSection.createDiv({ cls: 'pos-rail-empty-msg', text: 'Nothing due tomorrow.' });
+        }
+    }
+
+    private renderTasksRail(container: HTMLElement): void {
+        const allTasks = this.plugin.index.getGawaTasks();
+        const openTasks = allTasks.filter(t => !t.completed);
+        const todayStr = moment().format('YYYY-MM-DD');
+
+        const overdueCount = openTasks.filter(t => t.dueDate && t.dueDate < todayStr).length;
+        const todayCount = openTasks.filter(t => t.dueDate === todayStr).length;
+        const upcomingCount = openTasks.filter(t => t.dueDate && t.dueDate > todayStr).length;
+
+        // Filter chips row
+        const chipsRow = container.createDiv({ cls: 'pos-rail-tasks-chips' });
+        const chips: { id: 'all' | 'overdue' | 'today' | 'upcoming'; label: string }[] = [
+            { id: 'all', label: `All (${openTasks.length})` },
+            { id: 'overdue', label: `🔴 Overdue (${overdueCount})` },
+            { id: 'today', label: `🟡 Today (${todayCount})` },
+            { id: 'upcoming', label: `🟢 Upcoming (${upcomingCount})` },
+        ];
+
+        for (const chip of chips) {
+            const btn = chipsRow.createEl('button', {
+                cls: `pos-rail-chip ${this._tasksRailFilter === chip.id ? 'is-active' : ''}`,
+                text: chip.label
+            });
+            btn.onclick = () => {
+                this._tasksRailFilter = chip.id;
+                this.renderTasksRail(container);
+            };
+        }
+
+        // Filter tasks
+        let filtered = openTasks;
+        if (this._tasksRailFilter === 'overdue') {
+            filtered = openTasks.filter(t => t.dueDate && t.dueDate < todayStr);
+        } else if (this._tasksRailFilter === 'today') {
+            filtered = openTasks.filter(t => t.dueDate === todayStr);
+        } else if (this._tasksRailFilter === 'upcoming') {
+            filtered = openTasks.filter(t => t.dueDate && t.dueDate > todayStr);
+        }
+
+        // Sort ascending by due date
+        filtered.sort((a, b) => {
+            if (!a.dueDate && !b.dueDate) return 0;
+            if (!a.dueDate) return 1;
+            if (!b.dueDate) return -1;
+            return a.dueDate.localeCompare(b.dueDate);
+        });
+
+        const listEl = container.createDiv({ cls: 'pos-rail-section' });
+        if (filtered.length === 0) {
+            listEl.createDiv({ cls: 'pos-rail-empty-msg', text: 'No tasks matching this filter.' });
+            return;
+        }
+
+        for (const task of filtered.slice(0, 30)) {
+            this.renderRailTaskRow(listEl, task, Boolean(task.dueDate && task.dueDate < todayStr));
+        }
+
+        if (filtered.length > 30) {
+            listEl.createDiv({ cls: 'pos-rail-empty-msg', text: `+ ${filtered.length - 30} more tasks (open Gawa Cockpit for full list)` });
+        }
+    }
+
+    private renderRailTaskRow(parent: HTMLElement, task: any, isOverdue: boolean): void {
+        const row = parent.createDiv({ cls: 'pos-rail-task-item' });
+
+        const checkbox = row.createEl('input', {
+            type: 'checkbox',
+            cls: 'pos-rail-task-checkbox'
+        });
+        checkbox.checked = task.completed;
+        checkbox.onclick = async (e) => {
+            e.stopPropagation();
+            const newChecked = checkbox.checked;
+            try {
+                await this.plugin.capture.toggleTaskInFile(task.filePath, task.lineIndex, newChecked);
+                this.plugin.refreshCoordinator.notifyRefresh('tasks');
+            } catch (err) {
+                console.error('[DIWA] Rail task toggle error', err);
+                checkbox.checked = !newChecked;
+                new Notice('Failed to toggle task');
+            }
+        };
+
+        const content = row.createDiv({ cls: 'pos-rail-task-content' });
+        content.createSpan({
+            cls: `pos-rail-task-title ${task.completed ? 'is-completed' : ''}`,
+            text: task.cleanTitle || task.rawTitle
+        });
+
+        const metaRow = content.createDiv({ cls: 'pos-rail-task-meta' });
+        if (task.dueDate) {
+            const todayStr = moment().format('YYYY-MM-DD');
+            const pillCls = isOverdue ? 'is-overdue' : (task.dueDate === todayStr ? 'is-today' : '');
+            metaRow.createSpan({ cls: `pos-rail-meta-pill ${pillCls}`, text: `📅 ${task.dueDate}` });
+        }
+        if (task.areaLabel) {
+            metaRow.createSpan({ cls: 'pos-rail-meta-pill', text: `${task.areaIcon || ''} ${task.areaLabel}`.trim() });
+        }
+
+        // Jump to source button
+        const jumpBtn = row.createEl('button', {
+            cls: 'pos-rail-source-btn',
+            text: '↗',
+            attr: { 'aria-label': `Open ${task.noteTitle || 'note'}` }
+        });
+        jumpBtn.onclick = (e) => {
+            e.stopPropagation();
+            new WikilinkPeekModal(this.app, this.plugin, task.filePath, task.filePath, (target) => this.filterStreamByWikilink(target)).open();
+        };
+    }
+
     private renderHeaderBar(header: HTMLElement): void {
         header.empty();
 
@@ -274,96 +797,7 @@ export class DesktopHubView extends ItemView {
         const subtitleText = horizonLabel && horizonLabel !== 'All Notes' ? `Personal OS · ${horizonLabel}` : 'Personal OS';
         titleSection.createSpan({ cls: 'pos-header-subtitle', text: subtitleText });
 
-        // Actions - Desktop/Tablet only (mobile uses bottom action bar)
-        if (!isMobile) {
-            const actions = header.createDiv({ cls: 'pos-header-actions' });
-
-            // Select mode toggle button
-            const selectBtn = actions.createEl('button', {
-                cls: `pos-header-text-btn ${this._selectionMode ? 'is-active' : ''}`,
-                text: this._selectionMode ? 'Done' : 'Select',
-                attr: { 'aria-label': this._selectionMode ? 'Exit selection mode' : 'Select notes to merge' }
-            });
-            selectBtn.onclick = () => {
-                this._selectionMode = !this._selectionMode;
-                if (!this._selectionMode) {
-                    this._selectedEntryIds.clear();
-                }
-                if (this._headerBarEl) this.renderHeaderBar(this._headerBarEl);
-                this.updateSelectionBar();
-                this.updateStreamOnly();
-            };
-
-            // Inbox Sweeper button
-            const untaggedCount = this.plugin.index.getUntaggedCount();
-            if (untaggedCount > 0) {
-                const sweeperBtn = actions.createEl('button', {
-                    cls: `pos-sweeper-btn ${this._activeFilter === 'untagged' ? 'is-active' : ''}`,
-                    text: `🧹 ${untaggedCount}`
-                });
-                sweeperBtn.onclick = () => {
-                    this._activeFilter = this._activeFilter === 'untagged' ? 'all' : 'untagged';
-                    this._renderedCount = BATCH_SIZE;
-                    this.updateFilterActiveStates();
-                    this.updateStreamOnly();
-                };
-            }
-
-            // Gawa Cockpit quick-launcher button
-            const openTaskCount = this.plugin.index.getOpenTaskCount();
-            const gawaBtn = actions.createEl('button', {
-                cls: 'pos-header-text-btn pos-gawa-header-trigger',
-                text: `📋 Gawa (${openTaskCount})`,
-                attr: { 'aria-label': 'Open Gawa Task Cockpit in Split View' }
-            });
-            gawaBtn.onclick = () => {
-                void this.plugin.activateGawaCockpit();
-            };
-
-            // Daily Digest quick-launcher button
-            const todayDigestSummary = this.plugin.index.getDayDigestSummary(moment().format('YYYY-MM-DD'));
-            const digestBtn = actions.createEl('button', {
-                cls: 'pos-header-text-btn pos-digest-header-trigger',
-                text: todayDigestSummary.status === 'digested' ? '📅 Digest ✓' : '📅 Digest',
-                attr: { 'aria-label': 'Open Daily Digest & Review' }
-            });
-            digestBtn.onclick = () => {
-                void this.plugin.activateCalendarDigest();
-            };
-
-            // Karon (Today & Horizon) quick-launcher button
-            const karonBtn = actions.createEl('button', {
-                cls: 'pos-header-text-btn pos-karon-header-trigger',
-                text: '☀️ Karon',
-                attr: { 'aria-label': 'Open Karon (Today & Horizon)' }
-            });
-            karonBtn.onclick = () => {
-                void this.plugin.activateKaron();
-            };
-
-            // Recent Permanent Notes quick-launcher button
-            const recentBtn = actions.createEl('button', {
-                cls: 'pos-header-text-btn pos-recent-header-trigger',
-                text: '📚 Recent',
-                attr: { 'aria-label': 'Show Recently Updated Permanent Notes' }
-            });
-            recentBtn.onclick = () => {
-                new RecentPermanentNotesModal(this.app, this.plugin).open();
-            };
-
-            // Settings trigger
-            const settingsBtn = actions.createEl('button', {
-                cls: 'pos-icon-btn pos-settings-trigger',
-                attr: { 'aria-label': 'Settings' }
-            });
-            settingsBtn.setText('⚙️');
-            settingsBtn.onclick = () => {
-                (this.app as any).setting?.open();
-                (this.app as any).setting?.openTabById?.(this.plugin.manifest.id);
-            };
-        }
-
-        // Search bar (Desktop & Tablet only; mobile search is in the floating bottom capsule)
+        // Search bar (Desktop & Tablet: prominent search with [ / ] hotkey hint)
         if (!isMobile) {
             const searchContainer = header.createDiv({ cls: 'pos-search-container' });
             const searchInput = searchContainer.createEl('input', {
@@ -379,6 +813,9 @@ export class DesktopHubView extends ItemView {
                     spellcheck: 'false',
                 }
             });
+
+            // Hotkey badge [ / ]
+            searchContainer.createSpan({ cls: 'pos-search-kbd-badge', text: '/' });
 
             const triggerSearch = (query: string, dismissKeyboard = false) => {
                 if (this._searchDebounceTimer) clearTimeout(this._searchDebounceTimer);
@@ -425,6 +862,117 @@ export class DesktopHubView extends ItemView {
                     this.updateComposerVisibility();
                 };
             }
+        }
+
+        // Actions - Desktop/Tablet
+        if (!isMobile) {
+            const actions = header.createDiv({ cls: 'pos-header-actions' });
+
+            // 1. Right Rail Toggle Button [ ◨ ]
+            const railToggleBtn = actions.createEl('button', {
+                cls: `pos-header-text-btn pos-rail-toggle-btn ${this._cockpitRailOpen ? 'is-active' : ''}`,
+                text: this._cockpitRailOpen ? '◧ Rail' : '◨ Rail',
+                attr: { 'aria-label': 'Toggle Cockpit Side Rail (\\)' }
+            });
+            railToggleBtn.onclick = () => {
+                this.toggleCockpitRail();
+            };
+
+            // 2. Daily Digest quick-launcher button
+            const todayDigestSummary = this.plugin.index.getDayDigestSummary(moment().format('YYYY-MM-DD'));
+            const digestBtn = actions.createEl('button', {
+                cls: 'pos-header-text-btn pos-digest-header-trigger',
+                text: todayDigestSummary.status === 'digested' ? '📅 Digest ✓' : '📅 Digest',
+                attr: { 'aria-label': 'Open Daily Digest & Review' }
+            });
+            digestBtn.onclick = () => {
+                void this.plugin.activateCalendarDigest();
+            };
+
+            // 3. More Menu [ ⋯ ] consolidating utility actions
+            const moreBtn = actions.createEl('button', {
+                cls: 'pos-icon-btn pos-header-more-btn',
+                attr: { 'aria-label': 'More workspace actions' }
+            });
+            setIcon(moreBtn, 'more-horizontal');
+            moreBtn.onclick = (e) => {
+                e.stopPropagation();
+                const menu = new Menu();
+
+                // Select mode toggle
+                menu.addItem((item) => {
+                    item.setTitle(this._selectionMode ? 'Exit Selection Mode' : 'Select Notes to Merge')
+                        .setIcon('check-square')
+                        .setChecked(this._selectionMode)
+                        .onClick(() => {
+                            this._selectionMode = !this._selectionMode;
+                            if (!this._selectionMode) {
+                                this._selectedEntryIds.clear();
+                            }
+                            this.updateSelectionBar();
+                            this.updateStreamOnly();
+                        });
+                });
+
+                // Sweeper button (if untagged notes exist)
+                const untaggedCount = this.plugin.index.getUntaggedCount();
+                if (untaggedCount > 0) {
+                    menu.addItem((item) => {
+                        item.setTitle(`🧹 Sweep Untagged (${untaggedCount})`)
+                            .setChecked(this._activeFilter === 'untagged')
+                            .onClick(() => {
+                                this._activeFilter = this._activeFilter === 'untagged' ? 'all' : 'untagged';
+                                this._renderedCount = BATCH_SIZE;
+                                this.updateFilterActiveStates();
+                                this.updateStreamOnly();
+                            });
+                    });
+                }
+
+                menu.addSeparator();
+
+                // Open Gawa Task Cockpit in Split
+                const openTaskCount = this.plugin.index.getOpenTaskCount();
+                menu.addItem((item) => {
+                    item.setTitle(`Open Gawa Task Cockpit (${openTaskCount})`)
+                        .setIcon('list-todo')
+                        .onClick(() => {
+                            void this.plugin.activateGawaCockpit();
+                        });
+                });
+
+                // Open Karon Horizon in Tab
+                menu.addItem((item) => {
+                    item.setTitle('Open Karon Today & Horizon')
+                        .setIcon('sun')
+                        .onClick(() => {
+                            void this.plugin.activateKaron();
+                        });
+                });
+
+                // Show Recently Updated Permanent Notes
+                menu.addItem((item) => {
+                    item.setTitle('Recent Permanent Notes')
+                        .setIcon('book-open')
+                        .onClick(() => {
+                            new RecentPermanentNotesModal(this.app, this.plugin).open();
+                        });
+                });
+
+                menu.addSeparator();
+
+                // Settings
+                menu.addItem((item) => {
+                    item.setTitle('DIWA Settings')
+                        .setIcon('settings')
+                        .onClick(() => {
+                            (this.app as any).setting?.open();
+                            (this.app as any).setting?.openTabById?.(this.plugin.manifest.id);
+                        });
+                });
+
+                menu.showAtMouseEvent(e);
+            };
         }
     }
 
@@ -931,7 +1479,7 @@ export class DesktopHubView extends ItemView {
             };
 
             // Save logic
-            const doSave = async () => {
+            const doSave = async (keepActive = false) => {
                 const text = textarea.value.trim();
                 if (!text) return;
                 sendBtn.disabled = true;
@@ -944,11 +1492,17 @@ export class DesktopHubView extends ItemView {
                     );
                     this.plugin.capture.clearDraft();
                     textarea.value = '';
-                    this._selectedAreaForNewNote = '';
-                    this._selectedImportantForNewNote = false;
-                    this._mobileComposerOpen = false;
-                    this.renderComposer(parent, true);
-                    new Notice('Note captured!');
+                    autoResize();
+                    if (keepActive) {
+                        new Notice('Block captured! Ready for next ↵', 1500);
+                        textarea.focus();
+                    } else {
+                        this._selectedAreaForNewNote = '';
+                        this._selectedImportantForNewNote = false;
+                        this._mobileComposerOpen = false;
+                        this.renderComposer(parent, true);
+                        new Notice('Note captured!');
+                    }
                     this.updateFilterCounts();
                     this.updateStreamOnly();
                 } catch (err) {
@@ -959,12 +1513,15 @@ export class DesktopHubView extends ItemView {
                 }
             };
 
-            sendBtn.onclick = () => { void doSave(); };
+            sendBtn.onclick = () => { void doSave(false); };
 
             textarea.onkeydown = (e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                if (e.shiftKey && e.key === 'Enter') {
                     e.preventDefault();
-                    void doSave();
+                    void doSave(true);
+                } else if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    void doSave(false);
                 }
             };
 
@@ -979,7 +1536,61 @@ export class DesktopHubView extends ItemView {
         }
 
         // === DESKTOP / TABLET HERO COMPOSER ===
-        const composerWrapper = parent.createDiv({
+        const targetParent = this._desktopComposerWrapperEl || parent;
+        if (this._composerEl && this._composerEl.parentElement === targetParent) {
+            this._composerEl.remove();
+        } else if (targetParent === this._desktopComposerWrapperEl) {
+            targetParent.empty();
+        }
+
+        const draft = this.plugin.capture.getDraft();
+        const hasDraft = Boolean(draft && draft.trim().length > 0);
+        const isExpanded = this._desktopComposerExpanded || hasDraft;
+
+        if (!isExpanded) {
+            // Sleek Reflect-style fluid capture line
+            const compactWrapper = targetParent.createDiv({ cls: 'pos-composer-compact pos-reflect-composer-compact' });
+            this._composerEl = compactWrapper;
+
+            const triggerArea = compactWrapper.createDiv({ cls: 'pos-compact-trigger-area' });
+            triggerArea.createSpan({ cls: 'pos-compact-icon', text: '✏️' });
+            triggerArea.createSpan({ cls: 'pos-compact-placeholder', text: "What's on your mind? Capture a thought, task (- [ ]), or note..." });
+
+            const actions = compactWrapper.createDiv({ cls: 'pos-compact-actions' });
+            const taskChip = actions.createEl('button', {
+                cls: 'pos-composer-pill-btn',
+                text: '☑️ Task',
+                attr: { 'aria-label': 'Start new task' }
+            });
+            taskChip.onclick = (e) => {
+                e.stopPropagation();
+                this._desktopComposerExpanded = true;
+                this.renderComposer(targetParent, false);
+                const ta = this._composerEl?.querySelector('textarea');
+                if (ta) {
+                    ta.value = '- [ ] ';
+                    ta.focus();
+                    ta.setSelectionRange(6, 6);
+                }
+            };
+
+            const cmdSymbol = Platform.isMacOS ? '⌘↵' : 'Ctrl↵';
+            actions.createSpan({ cls: 'pos-compact-kbd', text: 'C' });
+            actions.createSpan({ cls: 'pos-compact-kbd', text: cmdSymbol });
+
+            compactWrapper.onclick = () => {
+                this._desktopComposerExpanded = true;
+                this.renderComposer(targetParent, false);
+                const ta = this._composerEl?.querySelector('textarea');
+                if (ta) {
+                    ta.focus();
+                }
+            };
+            return;
+        }
+
+        // Full-Height Desktop Composer
+        const composerWrapper = targetParent.createDiv({
             cls: 'pos-composer pos-desktop-composer'
         });
         this._composerEl = composerWrapper;
@@ -990,156 +1601,197 @@ export class DesktopHubView extends ItemView {
             attr: { rows: '2' }
         });
 
-            // Restore draft
-            const draft = this.plugin.capture.getDraft();
-            if (draft) {
-                textarea.value = draft;
-            }
+        // Restore draft if any
+        if (draft) {
+            textarea.value = draft;
+        }
 
-            // Auto-expand textarea without forced reflow
-            let resizePending = false;
-            const autoResize = () => {
-                if (resizePending) return;
-                resizePending = true;
-                requestAnimationFrame(() => {
-                    textarea.style.height = 'auto';
-                    textarea.style.height = `${Math.min(textarea.scrollHeight, 260)}px`;
-                    resizePending = false;
-                });
-            };
-            textarea.oninput = () => {
-                autoResize();
-                this.plugin.capture.saveDraft(textarea.value);
-            };
-            setTimeout(autoResize, 0);
-
-            // Smart triggers ([[ for links, # for tags/areas, @ for NLP dates, / for people, ++ for tasks)
-            attachInlineTriggers(
-                this.app,
-                textarea,
-                (_d) => {},
-                (tag) => {
-                    const area = (this.plugin.settings.lifeAreas || []).find(a => a.id.toLowerCase() === tag.toLowerCase());
-                    if (area) {
-                        this._selectedAreaForNewNote = area.id;
-                        this.renderComposerPillSelection(composerWrapper);
-                    }
-                },
-                () => {
-                    const areasList = (this.plugin.settings.lifeAreas || []).map(a => a.id);
-                    const contexts = this.plugin.settings.contexts || [];
-                    return Array.from(new Set([...areasList, ...contexts]));
-                },
-                this.plugin.settings.peopleFolder
-            );
-
-            attachMediaPasteHandler(
-                this.app,
-                textarea,
-                () => this.plugin.settings.attachmentsFolder || '000 Bin/DIWA Attachments'
-            );
-
-            // Composer Toolbar
-            const toolbar = composerWrapper.createDiv({ cls: 'pos-composer-toolbar' });
-
-            // Left controls: Area Selector & Task Shortcut
-            const leftControls = toolbar.createDiv({ cls: 'pos-composer-left' });
-
-            // Task toggle button
-            const taskBtn = leftControls.createEl('button', {
-                cls: 'pos-composer-pill-btn',
-                attr: { 'aria-label': 'Insert task checkbox' }
+        // Auto-expand textarea without forced reflow
+        let resizePending = false;
+        const autoResize = () => {
+            if (resizePending) return;
+            resizePending = true;
+            requestAnimationFrame(() => {
+                textarea.style.height = 'auto';
+                textarea.style.height = `${Math.min(textarea.scrollHeight, 260)}px`;
+                resizePending = false;
             });
-            taskBtn.setText('☑️ Task');
-            taskBtn.onclick = () => {
-                const cursor = textarea.selectionStart || 0;
-                const text = textarea.value;
-                const prefix = (cursor > 0 && text[cursor - 1] !== '\n') ? '\n- [ ] ' : '- [ ] ';
-                textarea.value = text.slice(0, cursor) + prefix + text.slice(cursor);
-                textarea.focus();
-                textarea.setSelectionRange(cursor + prefix.length, cursor + prefix.length);
-                autoResize();
-                this.plugin.capture.saveDraft(textarea.value);
-            };
+        };
+        textarea.oninput = () => {
+            autoResize();
+            this.plugin.capture.saveDraft(textarea.value);
+        };
+        setTimeout(autoResize, 0);
 
-            // Star toggle button
-            const starBtn = leftControls.createEl('button', {
-                cls: `pos-composer-pill-btn pos-composer-star-btn ${this._selectedImportantForNewNote ? 'is-selected' : ''}`,
-                attr: { 'aria-label': 'Toggle important flag' }
-            });
-            starBtn.setText(this._selectedImportantForNewNote ? '⭐ Important' : '☆ Important');
-            starBtn.onclick = () => {
-                this._selectedImportantForNewNote = !this._selectedImportantForNewNote;
-                starBtn.toggleClass('is-selected', this._selectedImportantForNewNote);
-                starBtn.setText(this._selectedImportantForNewNote ? '⭐ Important' : '☆ Important');
-            };
-
-            // Life area selection chips
-            const areas = this.plugin.settings.lifeAreas || [];
-            for (const area of areas) {
-                const isSelected = this._selectedAreaForNewNote === area.id;
-                const areaBtn = leftControls.createEl('button', {
-                    cls: `pos-composer-pill-btn ${isSelected ? 'is-selected' : ''}`,
-                });
-                areaBtn.setText(`${area.icon || ''} ${area.label}`.trim());
-                areaBtn.onclick = () => {
-                    this._selectedAreaForNewNote = this._selectedAreaForNewNote === area.id ? '' : area.id;
+        // Smart triggers ([[ for links, # for tags/areas, @ for NLP dates, / for people, ++ for tasks)
+        attachInlineTriggers(
+            this.app,
+            textarea,
+            (_d) => {},
+            (tag) => {
+                const area = (this.plugin.settings.lifeAreas || []).find(a => a.id.toLowerCase() === tag.toLowerCase());
+                if (area) {
+                    this._selectedAreaForNewNote = area.id;
                     this.renderComposerPillSelection(composerWrapper);
-                };
-            }
+                }
+            },
+            () => {
+                const areasList = (this.plugin.settings.lifeAreas || []).map(a => a.id);
+                const contexts = this.plugin.settings.contexts || [];
+                return Array.from(new Set([...areasList, ...contexts]));
+            },
+            this.plugin.settings.peopleFolder
+        );
 
-            // Right controls: Save button & Shortcut hint
-            const rightControls = toolbar.createDiv({ cls: 'pos-composer-right' });
-            
-            rightControls.createSpan({
-                cls: 'pos-composer-hint',
-                text: '⌘ Enter'
+        attachMediaPasteHandler(
+            this.app,
+            textarea,
+            () => this.plugin.settings.attachmentsFolder || '000 Bin/DIWA Attachments'
+        );
+
+        // Composer Toolbar
+        const toolbar = composerWrapper.createDiv({ cls: 'pos-composer-toolbar' });
+
+        // Left controls: Area Selector & Task Shortcut
+        const leftControls = toolbar.createDiv({ cls: 'pos-composer-left' });
+
+        // Task toggle button
+        const taskBtn = leftControls.createEl('button', {
+            cls: 'pos-composer-pill-btn',
+            attr: { 'aria-label': 'Insert task checkbox' }
+        });
+        taskBtn.setText('☑️ Task');
+        taskBtn.onclick = () => {
+            const cursor = textarea.selectionStart || 0;
+            const text = textarea.value;
+            const prefix = (cursor > 0 && text[cursor - 1] !== '\n') ? '\n- [ ] ' : '- [ ] ';
+            textarea.value = text.slice(0, cursor) + prefix + text.slice(cursor);
+            textarea.focus();
+            textarea.setSelectionRange(cursor + prefix.length, cursor + prefix.length);
+            autoResize();
+            this.plugin.capture.saveDraft(textarea.value);
+        };
+
+        // Star toggle button
+        const starBtn = leftControls.createEl('button', {
+            cls: `pos-composer-pill-btn pos-composer-star-btn ${this._selectedImportantForNewNote ? 'is-selected' : ''}`,
+            attr: { 'aria-label': 'Toggle important flag' }
+        });
+        starBtn.setText(this._selectedImportantForNewNote ? '⭐ Important' : '☆ Important');
+        starBtn.onclick = () => {
+            this._selectedImportantForNewNote = !this._selectedImportantForNewNote;
+            starBtn.toggleClass('is-selected', this._selectedImportantForNewNote);
+            starBtn.setText(this._selectedImportantForNewNote ? '⭐ Important' : '☆ Important');
+        };
+
+        // Life area selection chips
+        const areas = this.plugin.settings.lifeAreas || [];
+        for (const area of areas) {
+            const isSelected = this._selectedAreaForNewNote === area.id;
+            const areaBtn = leftControls.createEl('button', {
+                cls: `pos-composer-pill-btn ${isSelected ? 'is-selected' : ''}`,
             });
+            areaBtn.setText(`${area.icon || ''} ${area.label}`.trim());
+            areaBtn.onclick = () => {
+                this._selectedAreaForNewNote = this._selectedAreaForNewNote === area.id ? '' : area.id;
+                this.renderComposerPillSelection(composerWrapper);
+            };
+        }
 
-            const saveBtn = rightControls.createEl('button', {
-                cls: 'pos-composer-save-btn mod-cta',
-                text: 'Capture Note'
-            });
+        // Right controls: Save button & Shortcut hint
+        const rightControls = toolbar.createDiv({ cls: 'pos-composer-right' });
 
-            const doSave = async () => {
-                const text = textarea.value.trim();
-                if (!text) return;
-                saveBtn.disabled = true;
-                try {
-                    await this.plugin.capture.createCaptureNote(
-                        text,
-                        this._selectedAreaForNewNote,
-                        [],
-                        this._selectedImportantForNewNote
-                    );
-                    this.plugin.capture.clearDraft();
-                    textarea.value = '';
+        // Collapse pill button
+        const collapseBtn = rightControls.createEl('button', {
+            cls: 'pos-composer-pill-btn',
+            text: '✕',
+            attr: { 'aria-label': 'Collapse composer' }
+        });
+        collapseBtn.onclick = () => {
+            this._desktopComposerExpanded = false;
+            this.renderComposer(targetParent, false);
+        };
+
+        const cmdKey = Platform.isMacOS ? '⌘' : 'Ctrl';
+
+        rightControls.createSpan({
+            cls: 'pos-composer-hint',
+            text: `Shift+↵ Next  •  ${cmdKey}↵ Done`
+        });
+
+        const saveBtn = rightControls.createEl('button', {
+            cls: 'pos-composer-save-btn pos-reflect-save-btn',
+            text: `Capture ${cmdKey}↵`
+        });
+
+        const doSave = async (keepActive = false) => {
+            const text = textarea.value.trim();
+            if (!text) return;
+            saveBtn.disabled = true;
+            try {
+                await this.plugin.capture.createCaptureNote(
+                    text,
+                    this._selectedAreaForNewNote,
+                    [],
+                    this._selectedImportantForNewNote
+                );
+                this.plugin.capture.clearDraft();
+                textarea.value = '';
+                autoResize();
+
+                if (keepActive) {
+                    this._desktopComposerExpanded = true;
+                    new Notice('Block captured! Ready for next ↵', 1500);
+                    textarea.focus();
+                } else {
                     this._selectedAreaForNewNote = '';
                     this._selectedImportantForNewNote = false;
-                    starBtn.removeClass('is-selected');
-                    starBtn.setText('☆ Important');
-                    this.renderComposerPillSelection(composerWrapper);
-                    autoResize();
+                    this._desktopComposerExpanded = false;
+                    this.renderComposer(targetParent, false);
                     new Notice('Note captured!');
-                    this.updateFilterCounts();
-                    this.updateStreamOnly();
-                } catch (err) {
-                    console.error('[DIWA DesktopHubView] Save capture note error', err);
-                    new Notice('Failed to save note');
-                } finally {
-                    saveBtn.disabled = false;
                 }
-            };
 
-            saveBtn.onclick = () => { void doSave(); };
+                this.updateFilterCounts();
+                this.updateStreamOnly();
+                if (this._streamContainerEl) {
+                    this._streamContainerEl.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            } catch (err) {
+                console.error('[DIWA DesktopHubView] Save capture note error', err);
+                new Notice('Failed to save note');
+            } finally {
+                saveBtn.disabled = false;
+            }
+        };
 
-            // Cmd/Ctrl+Enter keyboard shortcut
-            textarea.onkeydown = (e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        saveBtn.onclick = () => { void doSave(false); };
+
+        // Keyboard shortcuts:
+        // Shift+Enter: save & keep active for next block
+        // Cmd/Ctrl+Enter: save & finish/collapse
+        // Escape: collapse if empty
+        textarea.onkeydown = (e) => {
+            if (e.shiftKey && e.key === 'Enter') {
+                e.preventDefault();
+                void doSave(true);
+            } else if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                e.preventDefault();
+                void doSave(false);
+            } else if (e.key === 'Escape') {
+                if (!textarea.value.trim()) {
                     e.preventDefault();
-                    void doSave();
+                    this._desktopComposerExpanded = false;
+                    this.renderComposer(targetParent, false);
                 }
-            };
+            }
+        };
+
+        setTimeout(() => {
+            if (textarea.isConnected) {
+                textarea.focus();
+                autoResize();
+            }
+        }, 50);
     }
 
     private renderComposerPillSelection(container: HTMLElement): void {
@@ -1289,6 +1941,13 @@ export class DesktopHubView extends ItemView {
 
         const visibleEntries = filtered.slice(0, this._renderedCount);
 
+        // Precompute note counts per date cluster
+        const dateCounts = new Map<string, number>();
+        for (const entry of filtered) {
+            const key = this.getDateHeadingForEntry(entry);
+            dateCounts.set(key, (dateCounts.get(key) || 0) + 1);
+        }
+
         // Group entries by date
         let lastDateKey = '';
 
@@ -1298,7 +1957,13 @@ export class DesktopHubView extends ItemView {
                 lastDateKey = dateKey;
                 const divider = container.createDiv({ cls: 'pos-date-divider' });
                 divider.createSpan({ cls: 'pos-date-heading', text: dateKey });
-                divider.createDiv({ cls: 'pos-date-line' });
+                const count = dateCounts.get(dateKey) || 1;
+                divider.createSpan({ cls: 'pos-date-count', text: `${count} note${count === 1 ? '' : 's'}` });
+                const dateLine = divider.createDiv({ cls: 'pos-date-line' });
+                dateLine.style.flex = '1';
+                dateLine.style.height = '1px';
+                dateLine.style.background = 'var(--background-modifier-border, rgba(255, 255, 255, 0.15))';
+                dateLine.style.display = 'block';
             }
 
             this.renderNoteItem(container, entry);
@@ -1332,6 +1997,13 @@ export class DesktopHubView extends ItemView {
             this._scrollSentinelEl.remove();
         }
 
+        // Precompute note counts per date cluster
+        const dateCounts = new Map<string, number>();
+        for (const entry of filtered) {
+            const key = this.getDateHeadingForEntry(entry);
+            dateCounts.set(key, (dateCounts.get(key) || 0) + 1);
+        }
+
         // Find last date heading currently rendered
         const dateDividers = container.querySelectorAll<HTMLElement>('.pos-date-heading');
         let lastDateKey = dateDividers.length > 0 ? dateDividers[dateDividers.length - 1].textContent || '' : '';
@@ -1342,7 +2014,13 @@ export class DesktopHubView extends ItemView {
                 lastDateKey = dateKey;
                 const divider = container.createDiv({ cls: 'pos-date-divider' });
                 divider.createSpan({ cls: 'pos-date-heading', text: dateKey });
-                divider.createDiv({ cls: 'pos-date-line' });
+                const count = dateCounts.get(dateKey) || 1;
+                divider.createSpan({ cls: 'pos-date-count', text: `${count} note${count === 1 ? '' : 's'}` });
+                const dateLine = divider.createDiv({ cls: 'pos-date-line' });
+                dateLine.style.flex = '1';
+                dateLine.style.height = '1px';
+                dateLine.style.background = 'var(--background-modifier-border, rgba(255, 255, 255, 0.15))';
+                dateLine.style.display = 'block';
             }
 
             this.renderNoteItem(container, entry);
@@ -1383,8 +2061,10 @@ export class DesktopHubView extends ItemView {
     private renderNoteItem(parent: HTMLElement, entry: CaptureEntry): void {
         const isSelected = this._selectedEntryIds.has(entry.id);
         const isImportant = this.plugin.index.isImportant(entry);
+        const isEditing = this._editingEntryId === entry.id;
+        const hasTasks = Array.isArray(entry.tasks) && entry.tasks.length > 0;
         const item = parent.createDiv({
-            cls: `pos-note-stream-item ${isSelected ? 'is-selected' : ''} ${this._selectionMode ? 'is-selection-mode' : ''} ${isImportant ? 'is-important' : ''}`
+            cls: `pos-note-stream-item ${isSelected ? 'is-selected' : ''} ${this._selectionMode ? 'is-selection-mode' : ''} ${isImportant ? 'is-important' : ''} ${hasTasks ? 'has-tasks' : ''} ${isEditing ? 'is-editing' : ''}`
         });
 
         // If in selection mode, tapping the note card toggles its selection
@@ -1421,14 +2101,27 @@ export class DesktopHubView extends ItemView {
             return;
         }
 
-        // Note Metadata line
-        const metaEl = item.createDiv({ cls: 'pos-note-meta' });
+        const isMobile = Platform.isMobile && !isTablet(this.app);
+        const timeStr = moment(entry.createdAtMs).format('h:mm A');
 
-        // Left meta: multi-select checkbox (only in selection mode) + time + area badge
-        const metaLeft = metaEl.createDiv({ cls: 'pos-note-meta-left' });
+        // Enforce strict horizontal outliner layout directly on DOM nodes
+        item.style.display = 'flex';
+        item.style.flexDirection = 'row';
+        item.style.alignItems = 'flex-start';
+        item.style.gap = '12px';
+
+        // Col 1: Left Gutter (Time + Multi-Select Checkbox)
+        const gutterEl = item.createDiv({ cls: 'pos-note-gutter' });
+        gutterEl.style.width = this._selectionMode ? '86px' : '68px';
+        gutterEl.style.minWidth = this._selectionMode ? '86px' : '68px';
+        gutterEl.style.maxWidth = this._selectionMode ? '86px' : '68px';
+        gutterEl.style.flexShrink = '0';
+        gutterEl.style.display = 'flex';
+        gutterEl.style.alignItems = 'baseline';
+        gutterEl.style.gap = '6px';
 
         if (this._selectionMode) {
-            const selectCheckbox = metaLeft.createEl('input', {
+            const selectCheckbox = gutterEl.createEl('input', {
                 type: 'checkbox',
                 cls: 'pos-select-checkbox',
             });
@@ -1445,47 +2138,66 @@ export class DesktopHubView extends ItemView {
             };
         }
 
-        const isMobile = Platform.isMobile && !isTablet(this.app);
-        const timeStr = moment(entry.createdAtMs).format('h:mm A');
-        metaLeft.createSpan({ cls: 'pos-note-time', text: timeStr });
+        gutterEl.createSpan({ cls: 'pos-note-time', text: timeStr });
+
+        // Col 2: Content Column (Body + Badges)
+        const contentWrap = item.createDiv({ cls: 'pos-note-content-wrap' });
+        contentWrap.style.flex = '1';
+        contentWrap.style.minWidth = '0';
+        contentWrap.style.display = 'flex';
+        contentWrap.style.flexDirection = 'row';
+        contentWrap.style.alignItems = 'baseline';
+        contentWrap.style.flexWrap = 'wrap';
+        contentWrap.style.gap = '8px';
+
+        // Note Body rendered via Obsidian MarkdownRenderer with cache
+        const bodyEl = contentWrap.createDiv({ cls: 'pos-note-body markdown-rendered' });
+        bodyEl.style.display = 'inline';
+        bodyEl.style.wordBreak = 'break-word';
+
+        // Badges container (Area, Tags, Reminders)
+        const badgesEl = contentWrap.createDiv({ cls: 'pos-note-badges' });
+        badgesEl.style.display = 'inline-flex';
+        badgesEl.style.alignItems = 'baseline';
+        badgesEl.style.gap = '6px';
 
         const areas = this.plugin.settings.lifeAreas || [];
         const areaObj = entry.area ? areas.find(a => a.id.toLowerCase() === entry.area.toLowerCase()) : null;
 
         // Metadata badges (Desktop & Tablet only; mobile keeps ultra-clean single timestamp)
         if (!isMobile) {
-            // Render Area badge on desktop
-            const badge = metaLeft.createSpan({
-                cls: `pos-area-badge ${entry.area ? `pos-area-${entry.area.toLowerCase()}` : 'pos-area-add'}`,
-                text: areaObj ? `${areaObj.icon || ''} ${areaObj.label}`.trim() : (entry.area ? entry.area : '+ Area'),
-                attr: { 'aria-label': 'Click to change life area' }
-            });
+            // Render Area badge on desktop if present
+            if (entry.area) {
+                const badge = badgesEl.createSpan({
+                    cls: `pos-area-badge pos-area-${entry.area.toLowerCase()}`,
+                    text: areaObj ? `${areaObj.icon || ''} ${areaObj.label}`.trim() : entry.area,
+                    attr: { 'aria-label': 'Click to change life area' }
+                });
 
-            badge.onclick = (e) => {
-                e.stopPropagation();
-                const menu = new Menu();
-                for (const area of areas) {
-                    menu.addItem((item) => {
-                        item.setTitle(`${area.icon || ''} ${area.label}`.trim())
-                            .setChecked(entry.area.toLowerCase() === area.id.toLowerCase())
-                            .onClick(async () => {
-                                try {
-                                    this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
-                                    await this.plugin.capture.updateNoteContent(entry.filePath, entry.body, area.id);
-                                    new Notice(`Moved to ${area.label}`);
-                                    this.updateStreamOnly();
-                                    this.updateFilterCounts();
-                                } catch (err) {
-                                    console.error('[DIWA] Update note area error', err);
-                                    new Notice('Failed to update area');
-                                }
-                            });
-                    });
-                }
-                if (entry.area) {
+                badge.onclick = (e) => {
+                    e.stopPropagation();
+                    const menu = new Menu();
+                    for (const area of areas) {
+                        menu.addItem((mItem) => {
+                            mItem.setTitle(`${area.icon || ''} ${area.label}`.trim())
+                                .setChecked(entry.area.toLowerCase() === area.id.toLowerCase())
+                                .onClick(async () => {
+                                    try {
+                                        this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
+                                        await this.plugin.capture.updateNoteContent(entry.filePath, entry.body, area.id);
+                                        new Notice(`Moved to ${area.label}`);
+                                        this.updateStreamOnly();
+                                        this.updateFilterCounts();
+                                    } catch (err) {
+                                        console.error('[DIWA] Update note area error', err);
+                                        new Notice('Failed to update area');
+                                    }
+                                });
+                        });
+                    }
                     menu.addSeparator();
-                    menu.addItem((item) => {
-                        item.setTitle('✕ Remove Area (Untagged)')
+                    menu.addItem((mItem) => {
+                        mItem.setTitle('✕ Remove Area (Untagged)')
                             .onClick(async () => {
                                 try {
                                     this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
@@ -1499,14 +2211,14 @@ export class DesktopHubView extends ItemView {
                                 }
                             });
                     });
-                }
-                menu.showAtMouseEvent(e);
-            };
+                    menu.showAtMouseEvent(e);
+                };
+            }
 
             // Other tags
             for (const tag of entry.tags) {
-                if (tag.toLowerCase() !== entry.area.toLowerCase()) {
-                    const tagBadge = metaLeft.createSpan({ cls: 'pos-tag-badge', text: `#${tag}` });
+                if (tag.toLowerCase() !== (entry.area || '').toLowerCase()) {
+                    const tagBadge = badgesEl.createSpan({ cls: 'pos-tag-badge', text: `#${tag}` });
                     tagBadge.onclick = (e) => {
                         e.stopPropagation();
                         this._searchQuery = `#${tag}`;
@@ -1531,7 +2243,7 @@ export class DesktopHubView extends ItemView {
                     const icon = isToday ? '📅' : isPast ? '⏳' : '📆';
                     const label = isToday ? 'Today' : dateStr;
 
-                    const dateBadge = metaLeft.createSpan({
+                    const dateBadge = badgesEl.createSpan({
                         cls: `pos-date-badge ${badgeCls}`,
                         text: `${icon} ${label}`,
                         attr: { 'aria-label': `Reminder date: ${dateStr}. Click to snooze or reschedule.` }
@@ -1545,10 +2257,10 @@ export class DesktopHubView extends ItemView {
             }
         }
 
-        // Right meta: Action buttons (Consolidated to Star & More on Mobile)
-        const metaRight = metaEl.createDiv({ cls: 'pos-note-actions' });
+        // Col 3: Action buttons (Hover)
+        const actionsEl = item.createDiv({ cls: 'pos-note-actions' });
 
-        const starBtn = metaRight.createSpan({
+        const starBtn = actionsEl.createSpan({
             cls: `pos-action-icon pos-star-btn ${isImportant ? 'is-starred' : ''}`,
             text: isImportant ? '⭐' : '☆',
             attr: { 'aria-label': isImportant ? 'Unmark important' : 'Mark as important' }
@@ -1571,7 +2283,7 @@ export class DesktopHubView extends ItemView {
         };
 
         if (!isMobile) {
-            const editBtn = metaRight.createSpan({
+            const editBtn = actionsEl.createSpan({
                 cls: 'pos-action-icon',
                 text: '✏️',
                 attr: { 'aria-label': 'Edit note' }
@@ -1584,7 +2296,7 @@ export class DesktopHubView extends ItemView {
             };
         }
 
-        const moreBtn = metaRight.createSpan({
+        const moreBtn = actionsEl.createSpan({
             cls: 'pos-action-icon pos-action-more',
             text: '⋯',
             attr: { 'aria-label': 'More note options' }
@@ -1595,7 +2307,7 @@ export class DesktopHubView extends ItemView {
         };
 
         if (!isMobile) {
-            const trashBtn = metaRight.createSpan({
+            const trashBtn = actionsEl.createSpan({
                 cls: 'pos-action-icon',
                 text: '🗑️',
                 attr: { 'aria-label': 'Delete note' }
@@ -1611,15 +2323,12 @@ export class DesktopHubView extends ItemView {
                 }
             };
         }
-
-        // Note Body rendered via Obsidian MarkdownRenderer with cache
-        const bodyEl = item.createDiv({ cls: 'pos-note-body markdown-rendered' });
         const cacheKey = `${entry.filePath}_${entry.modified}`;
         const cached = this.getCachedRenderedBody(cacheKey);
 
         if (cached) {
-            // Clone cached node and attach listeners
-            bodyEl.appendChild(cached.cloneNode(true));
+            // Restore cached innerHTML and attach listeners
+            bodyEl.innerHTML = cached.innerHTML;
             this.attachInteractiveElements(bodyEl, entry);
         } else {
             void MarkdownRenderer.render(
