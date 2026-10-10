@@ -1742,11 +1742,79 @@ body.is-tablet .pos-cockpit-main-stage,
     flex-direction: column;
 }
 
-/* On tablet, composer wrapper is neatly pinned at top */
+/* Tablet Condensed Header Bar */
+body.is-tablet .pos-cockpit-header-wrapper,
+.pos-desktop-cockpit-layout.is-tablet .pos-cockpit-header-wrapper {
+    flex-shrink: 0;
+    width: 100%;
+    padding: 8px 14px 6px 14px;
+    border-bottom: 1px solid var(--background-modifier-border-faint);
+    box-sizing: border-box;
+    background: var(--background-primary);
+}
+
+body.is-tablet .pos-cockpit-header-wrapper .pos-header-bar,
+.pos-desktop-cockpit-layout.is-tablet .pos-header-bar {
+    gap: 8px;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+body.is-tablet .pos-header-logo {
+    font-size: 1.18em;
+}
+
+body.is-tablet .pos-header-subtitle {
+    font-size: 0.78em;
+}
+
+body.is-tablet .pos-search-container {
+    max-width: 260px;
+    min-width: 150px;
+}
+
+body.is-tablet .pos-search-input {
+    min-height: 30px;
+    height: 30px;
+    padding: 4px 28px 4px 10px;
+    font-size: 0.82em;
+}
+
+body.is-tablet .pos-header-text-btn,
+body.is-tablet .pos-sweeper-btn {
+    font-size: 0.78em;
+    padding: 3px 9px;
+    min-height: 28px;
+}
+
+/* Tablet Condensed Filter Bar */
+body.is-tablet .pos-cockpit-main-stage .pos-filter-bar,
+.pos-desktop-cockpit-layout.is-tablet .pos-filter-bar {
+    padding: 6px 14px 2px 14px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--background-modifier-border-faint);
+    box-sizing: border-box;
+}
+
+body.is-tablet .pos-cockpit-main-stage .pos-filter-carousel,
+.pos-desktop-cockpit-layout.is-tablet .pos-filter-carousel {
+    padding: 0 4px 2px 4px;
+    gap: 6px;
+}
+
+body.is-tablet .pos-filter-pill,
+.pos-desktop-cockpit-layout.is-tablet .pos-filter-pill {
+    font-size: 0.78em;
+    padding: 2px 10px;
+    height: 25px;
+    line-height: 21px;
+}
+
+/* On tablet, composer wrapper is neatly pinned at top with compact ergonomics */
 body.is-tablet .pos-cockpit-composer-wrapper,
 .pos-desktop-cockpit-layout.is-tablet .pos-cockpit-composer-wrapper {
     flex-shrink: 0;
-    padding: 8px 16px 4px 16px;
+    padding: 6px 14px 3px 14px;
 }
 
 /* Tablet composer textarea: compact, non-obtrusive, 16px font to prevent WebKit zoom */
@@ -1754,24 +1822,33 @@ body.is-tablet .pos-composer-textarea,
 body.is-tablet .pos-composer-textarea:focus,
 .pos-desktop-cockpit-layout.is-tablet .pos-composer-textarea,
 .pos-desktop-cockpit-layout.is-tablet .pos-composer-textarea:focus {
-    min-height: 44px;
-    max-height: 90px !important;
+    min-height: 38px;
+    max-height: 85px !important;
     font-size: 16px !important; /* Prevents iPadOS WebKit auto-zooming */
+    padding: 6px 10px;
 }
 
 body.is-tablet .pos-desktop-composer,
 .pos-desktop-cockpit-layout.is-tablet .pos-desktop-composer {
-    padding: 8px 14px 6px 14px;
-    gap: 6px;
+    padding: 6px 12px 4px 12px;
+    gap: 4px;
+    border-radius: var(--diwa-radius-card);
 }
 
 body.is-tablet .pos-composer-toolbar,
 .pos-desktop-cockpit-layout.is-tablet .pos-composer-toolbar {
-    padding-top: 4px;
-    gap: 8px;
+    padding-top: 2px;
+    gap: 6px;
 }
 
-/* The stream on tablet fills remaining vertical space and scrolls smoothly */
+body.is-tablet .pos-composer-btn,
+.pos-desktop-cockpit-layout.is-tablet .pos-composer-btn {
+    font-size: 0.78em;
+    padding: 2px 8px;
+    height: 26px;
+}
+
+/* The stream on tablet fills remaining vertical space, with tightened spacing */
 body.is-tablet .pos-cockpit-main-stage .pos-document-stream,
 .pos-desktop-cockpit-layout.is-tablet .pos-cockpit-main-stage .pos-document-stream {
     flex: 1 1 0% !important;
@@ -1779,7 +1856,119 @@ body.is-tablet .pos-cockpit-main-stage .pos-document-stream,
     overflow-y: auto !important;
     overflow-x: hidden !important;
     -webkit-overflow-scrolling: touch;
-    padding-bottom: 32px !important;
+    padding: 4px 14px 32px 14px !important;
+}
+
+body.is-tablet .pos-cockpit-main-stage .pos-document-stream .pos-date-divider,
+.pos-desktop-cockpit-layout.is-tablet .pos-cockpit-main-stage .pos-document-stream .pos-date-divider {
+    margin: 14px auto 6px auto !important;
+    padding: 0 4px;
+    font-size: 0.76em;
+}
+
+body.is-tablet .pos-cockpit-main-stage .pos-document-stream .pos-date-divider:first-child,
+.pos-desktop-cockpit-layout.is-tablet .pos-cockpit-main-stage .pos-document-stream .pos-date-divider:first-child {
+    margin-top: 6px !important;
+}
+
+body.is-tablet .pos-cockpit-main-stage .pos-document-stream .pos-note-stream-item,
+.pos-desktop-cockpit-layout.is-tablet .pos-cockpit-main-stage .pos-document-stream .pos-note-stream-item {
+    margin: 0 auto 2px auto;
+    padding: 3px 6px;
+}
+
+body.is-tablet .pos-note-outliner-time,
+.pos-desktop-cockpit-layout.is-tablet .pos-note-outliner-time {
+    font-size: 0.76em;
+    min-width: 52px;
+}
+
+/* Tablet Condensed Agenda Side Rail (Landscape) */
+body.is-tablet .pos-cockpit-side-rail,
+.pos-desktop-cockpit-layout.is-tablet .pos-cockpit-side-rail {
+    min-width: 250px;
+    max-width: 360px;
+}
+
+body.is-tablet .pos-rail-header,
+.pos-desktop-cockpit-layout.is-tablet .pos-rail-header {
+    padding: 8px 12px;
+}
+
+body.is-tablet .pos-rail-tab-btn,
+.pos-desktop-cockpit-layout.is-tablet .pos-rail-tab-btn {
+    font-size: 0.76em;
+    padding: 3px 10px;
+}
+
+body.is-tablet .pos-rail-content,
+.pos-desktop-cockpit-layout.is-tablet .pos-rail-content {
+    padding: 8px 10px;
+    gap: 10px;
+}
+
+body.is-tablet .pos-horizon-card,
+.pos-desktop-cockpit-layout.is-tablet .pos-horizon-card {
+    padding: 8px 10px;
+}
+
+/* Tablet Portrait Slide-Over Drawer & Backdrop (< 900px) */
+.pos-cockpit-drawer-backdrop {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 45;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+}
+
+.pos-cockpit-drawer-backdrop.is-active {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-cockpit-main-stage,
+body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-cockpit-main-stage {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-cockpit-resizer,
+body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-cockpit-resizer {
+    display: none !important;
+}
+
+.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-cockpit-side-rail,
+body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-cockpit-side-rail {
+    position: absolute !important;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 320px !important;
+    max-width: 85vw !important;
+    z-index: 50;
+    background: var(--background-secondary);
+    box-shadow: -6px 0 24px rgba(0, 0, 0, 0.35);
+    border-left: 1px solid var(--background-modifier-border);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+    transform: translateX(0);
+}
+
+.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-cockpit-side-rail.is-collapsed,
+body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-cockpit-side-rail.is-collapsed {
+    transform: translateX(105%) !important;
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
 }
 
 /* When composer is active on tablet, collapse filter carousel to give maximum height to notes */

@@ -1,21 +1,19 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Proven iOS Keyboard Architecture Ported to Tablet Mode Deployed
-- **Tablet Mode Viewport Stability & Proven iOS Keyboard Architecture (`src/utils.ts`, `src/views/DesktopHubView.ts`, & `styles.css`)**:
-  - **Full Mobile Viewport Observer (`DesktopHubView.ts`)**:
-    - Wired `attachMobileSheetViewportBehavior` for all mobile environments (`Platform.isMobile`, including iPads and tablets), catching native Obsidian keyboard events (`keyboardWillShow`, `keyboardDidShow`, `keyboardWillHide`, `keyboardDidHide`) and reading `--keyboard-height` dynamically.
-    - Preserved `diwa-hide-mobile-navbar` strictly for phones (`!isTablet(this.app)`), keeping tablet navigation intact.
-    - Removed inline overflow styles from `renderView()` so CSS has-mobile-keyboard scroller rules govern without specificity conflicts.
-  - **Immune Tablet Detection (`src/utils.ts`)**:
-    - `isTablet()` inspects physical screen measurements (`Math.min(screen.width, screen.height) >= 768` or `Math.max(screen.width, screen.height) >= 1024`), remaining immune to software keyboard viewport height contractions.
-  - **1-to-1 Port of Proven Mobile iOS Pattern (`styles.css`)**:
-    - Mirrored the exact solution from `docs/CONTINUOUS_SCRATCHPAD_DESIGN.md` (§7.1, §7.3): when `.has-mobile-keyboard` is active, `.diwa-workspace-root` becomes the sole vertical scroller (`overflow-y: auto !important; -webkit-overflow-scrolling: touch;`).
-    - Assigned `.pos-desktop-cockpit-layout`, `.pos-cockpit-body`, and `.pos-cockpit-main-stage` `flex: 0 0 auto !important; height: auto !important; min-height: 100% !important; overflow: visible !important;` to break WebKit's implicit scroller trap.
-    - Set `.pos-document-stream` to `flex: 0 0 auto !important; min-height: auto !important; overflow: visible !important; padding-bottom: 40px !important;`, ensuring the stream never collapses to `0px` and notes stay 100% visible with zero black gaps above the virtual keyboard.
-    - Pinned header and composer wrappers with `flex-shrink: 0 !important;`.
-  - **Root & Window Viewport Scroll Protection (`DesktopHubView.ts` & `styles.css`)**:
-    - Focused textarea with `{ preventScroll: true }`, stopping WebKit from triggering document-level scroll jumps.
-    - Guarded window scroll with passive `window.scrollTo(0, 0)` reset on WebKit shifting.
+## Current State: Condensed Orientation-Adaptive Tablet Cockpit Deployed
+- **Condensed Tablet Cockpit Architecture (`src/views/DesktopHubView.ts` & `styles.css`)**:
+  - **Orientation-Adaptive Behavior (Landscape vs Portrait)**:
+    - **Landscape ($\ge$ 900px)**: Compact dual-pane layout (Stream + Agenda side-by-side) with an ergonomic default split ratio of `68% / 32%` (minimum `0.68` on tablet), ensuring notes have generous horizontal room while the Agenda rail remains constantly visible.
+    - **Portrait (< 900px)**: The document stream occupies **100% full width**. The Agenda rail auto-adapts as a slide-over floating drawer (`position: absolute; right: 0; width: 320px; max-width: 85vw; z-index: 50; box-shadow: -6px 0 24px rgba(0,0,0,0.35);`).
+    - **Backdrop Dismissal (`.pos-cockpit-drawer-backdrop`)**: Added a semi-transparent blurred backdrop overlay that closes the drawer upon tap. Rotating between landscape and portrait seamlessly toggles modes via `ResizeObserver`.
+  - **High-Density Compact Tablet Styling (`styles.css`)**:
+    - **Header Bar**: Vertical padding compressed to `8px 14px 6px 14px`, search box height tightened to `30px` (font `0.82em`), header buttons/logo streamlined.
+    - **Filter Bar**: Vertical padding reduced to `6px 14px 2px 14px`, filter pills tightened to `25px` height (`font-size: 0.78em`).
+    - **Composer**: Outer padding tightened to `6px 14px 3px 14px`, textarea initial min-height `38px` (expanding to `85px` on focus), toolbar buttons `26px`.
+    - **Stream & Note Items**: Container padding `4px 14px 32px 14px`, date divider top margin tightened from `32px` to `14px` (`6px` for first), note item padding `3px 6px`, timestamp font `0.76em`.
+    - **Agenda Side Rail**: Rail header `8px 12px`, content padding `8px 10px` with `10px` card gaps, compact horizon and task cards.
+  - **Virtual Keyboard Resilience Preserved**:
+    - Full WebKit 0px flex collapse protection (`has-mobile-keyboard` scroller ownership) remains active for tablet mode.
 - **Production Build & Vault Deployment**:
   - Strict TypeScript check (`tsc --noEmit --skipLibCheck`) and ESBuild production build passed cleanly with 0 errors.
   - Deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin directories.

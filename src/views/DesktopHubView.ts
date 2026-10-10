@@ -54,6 +54,7 @@ export class DesktopHubView extends ItemView {
     private _desktopComposerExpanded: boolean = false;
     private _isResizingCockpit: boolean = false;
     private _cockpitLayoutEl: HTMLElement | null = null;
+    private _cockpitBackdropEl: HTMLElement | null = null;
     private _mainStageEl: HTMLElement | null = null;
     private _sideRailEl: HTMLElement | null = null;
     private _resizerEl: HTMLElement | null = null;
@@ -292,8 +293,12 @@ export class DesktopHubView extends ItemView {
         this.contentEl.empty();
         this.contentEl.scrollTop = 0;
         const layoutEl = this.contentEl.createDiv({ cls: 'pos-desktop-cockpit-layout' });
+        const viewWidth = this.contentEl.getBoundingClientRect().width || window.innerWidth;
         if (isTablet(this.app)) {
             layoutEl.addClass('is-tablet');
+            if (viewWidth < 900) {
+                layoutEl.addClass('is-tablet-portrait');
+            }
         }
         this._cockpitLayoutEl = layoutEl;
 
@@ -305,11 +310,20 @@ export class DesktopHubView extends ItemView {
         // Body with Split Panes
         const cockpitBody = layoutEl.createDiv({ cls: 'pos-cockpit-body' });
 
+        // Drawer backdrop for tablet portrait overlay
+        this._cockpitBackdropEl = cockpitBody.createDiv({ cls: 'pos-cockpit-drawer-backdrop' });
+        this._cockpitBackdropEl.addEventListener('click', () => {
+            if (this._cockpitRailOpen) {
+                this.toggleCockpitRail();
+            }
+        });
+
         // Left Main Stage (Stream, Filters & Composer)
         this._mainStageEl = cockpitBody.createDiv({ cls: 'pos-cockpit-main-stage' });
         this._containerEl = this._mainStageEl;
 
-        if (this._cockpitRailOpen) {
+        const isTabletPortrait = Boolean(layoutEl.hasClass('is-tablet-portrait'));
+        if (this._cockpitRailOpen && !isTabletPortrait) {
             this._mainStageEl.style.flex = `${this._cockpitSplitRatio}`;
         } else {
             this._mainStageEl.style.flex = '1';
@@ -343,7 +357,13 @@ export class DesktopHubView extends ItemView {
             cls: `pos-cockpit-side-rail ${!this._cockpitRailOpen ? 'is-collapsed' : ''}`
         });
         if (this._cockpitRailOpen) {
-            this._sideRailEl.style.flex = `${1 - this._cockpitSplitRatio}`;
+            if (isTabletPortrait) {
+                this._sideRailEl.style.flex = 'none';
+                if (this._resizerEl) this._resizerEl.style.display = 'none';
+                if (this._cockpitBackdropEl) this._cockpitBackdropEl.addClass('is-active');
+            } else {
+                this._sideRailEl.style.flex = `${1 - this._cockpitSplitRatio}`;
+            }
             this.renderRightRail(this._sideRailEl);
         } else {
             this._sideRailEl.style.flex = '0';
@@ -381,9 +401,19 @@ export class DesktopHubView extends ItemView {
                 }
             } else {
                 this._cockpitRailOpen = true;
+                if (isTablet(this.app)) {
+                    this._cockpitSplitRatio = 0.68;
+                }
             }
         } catch {
             this._cockpitRailOpen = true;
+            if (isTablet(this.app)) {
+                this._cockpitSplitRatio = 0.68;
+            }
+        }
+
+        if (isTablet(this.app) && this._cockpitSplitRatio < 0.68) {
+            this._cockpitSplitRatio = 0.68;
         }
     }
 
@@ -406,8 +436,19 @@ export class DesktopHubView extends ItemView {
         this._resizeObserver = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 const width = entry.contentRect.width;
+                if (isTablet(this.app) && this._cockpitLayoutEl) {
+                    const isPortrait = width < 900;
+                    const wasPortrait = this._cockpitLayoutEl.hasClass('is-tablet-portrait');
+                    if (isPortrait !== wasPortrait) {
+                        this._cockpitLayoutEl.toggleClass('is-tablet-portrait', isPortrait);
+                        if (isPortrait && this._cockpitRailOpen) {
+                            this._cockpitRailOpen = false;
+                        }
+                        this.updateCockpitRailState();
+                    }
+                }
                 // Only auto-collapse on small mobile screens (< 768px)
-                if (width < 768 && this._cockpitRailOpen) {
+                if (width < 768 && this._cockpitRailOpen && !isTablet(this.app)) {
                     this._cockpitRailOpen = false;
                     this.updateCockpitRailState();
                 }
@@ -507,16 +548,28 @@ export class DesktopHubView extends ItemView {
 
     private updateCockpitRailState(): void {
         if (!this._sideRailEl || !this._mainStageEl || !this._resizerEl) return;
+        const isTabletPortrait = Boolean(this._cockpitLayoutEl?.hasClass('is-tablet-portrait'));
+
         if (this._cockpitRailOpen) {
             this._sideRailEl.removeClass('is-collapsed');
-            this._resizerEl.style.display = 'block';
-            this._mainStageEl.style.flex = `${this._cockpitSplitRatio}`;
-            this._sideRailEl.style.flex = `${1 - this._cockpitSplitRatio}`;
+            if (isTabletPortrait) {
+                this._resizerEl.style.display = 'none';
+                this._mainStageEl.style.flex = '1';
+                this._sideRailEl.style.flex = 'none';
+                if (this._cockpitBackdropEl) this._cockpitBackdropEl.addClass('is-active');
+            } else {
+                this._resizerEl.style.display = 'block';
+                this._mainStageEl.style.flex = `${this._cockpitSplitRatio}`;
+                this._sideRailEl.style.flex = `${1 - this._cockpitSplitRatio}`;
+                if (this._cockpitBackdropEl) this._cockpitBackdropEl.removeClass('is-active');
+            }
             this.renderRightRail(this._sideRailEl);
         } else {
             this._sideRailEl.addClass('is-collapsed');
             this._resizerEl.style.display = 'none';
             this._mainStageEl.style.flex = '1';
+            this._sideRailEl.style.flex = '0';
+            if (this._cockpitBackdropEl) this._cockpitBackdropEl.removeClass('is-active');
         }
         this.saveCockpitState();
         if (this._headerBarEl) {
@@ -535,6 +588,7 @@ export class DesktopHubView extends ItemView {
 
         const onPointerMove = (e: PointerEvent) => {
             if (!this._isResizingCockpit) return;
+            if (this._cockpitLayoutEl?.hasClass('is-tablet-portrait')) return;
             const deltaX = e.clientX - startX;
             const newRatio = Math.max(0.40, Math.min(0.80, startRatio + (deltaX / bodyWidth)));
             this._cockpitSplitRatio = newRatio;
