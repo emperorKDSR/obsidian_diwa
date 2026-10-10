@@ -2026,9 +2026,8 @@ body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-cockpit-side-
     visibility: hidden;
 }
 
-/* When composer is active on tablet, collapse filter carousel to give maximum height to notes */
-body.is-tablet .pos-desktop-cockpit-layout.is-composer-active .pos-filter-bar,
-.pos-desktop-cockpit-layout.is-tablet.is-composer-active .pos-filter-bar {
+/* On narrow tablet portrait, collapse filter bar when composer is active to give maximum height to notes */
+.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait.is-composer-active .pos-filter-bar {
     display: none !important;
 }
 
@@ -2042,53 +2041,54 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     max-width: 100% !important;
 }
 
-/* Tablet Cockpit: Prevent WebKit zero-height flex collapse when keyboard is open (proven iOS pattern) */
+/* Tablet Cockpit: Preserve 100% full-width dual-pane proportions when keyboard is open */
 .diwa-workspace-root.has-mobile-keyboard .pos-desktop-cockpit-layout {
-    flex: 0 0 auto !important;
-    height: auto !important;
-    min-height: 100% !important;
-    overflow-y: visible !important;
-    overflow-x: clip !important;
+    width: 100% !important;
+    min-width: 100% !important;
     max-width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-x: clip !important;
 }
 
 .diwa-workspace-root.has-mobile-keyboard .pos-desktop-cockpit-layout .pos-cockpit-body {
-    flex: 0 0 auto !important;
-    height: auto !important;
-    min-height: 100% !important;
-    overflow-y: visible !important;
-    overflow-x: clip !important;
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    min-width: 100% !important;
     max-width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: clip !important;
+    min-height: 0 !important;
 }
 
 .diwa-workspace-root.has-mobile-keyboard .pos-desktop-cockpit-layout .pos-cockpit-main-stage {
-    flex: 0 0 auto !important;
-    height: auto !important;
-    min-height: 100% !important;
-    overflow-y: visible !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
     overflow-x: clip !important;
-    max-width: 100% !important;
 }
 
 .diwa-workspace-root.has-mobile-keyboard .pos-desktop-cockpit-layout .pos-cockpit-header-wrapper {
     flex-shrink: 0 !important;
+    width: 100% !important;
 }
 
 .diwa-workspace-root.has-mobile-keyboard .pos-desktop-cockpit-layout .pos-cockpit-composer-wrapper {
     flex-shrink: 0 !important;
+    width: 100% !important;
 }
 
-/* Stream never collapses to zero height on tablet when keyboard is open */
+/* Stream fills available vertical space inside main stage */
 .diwa-workspace-root.has-mobile-keyboard .pos-desktop-cockpit-layout .pos-document-stream {
-    flex: 0 0 auto !important;
-    min-height: auto !important;
-    overflow: visible !important;
+    flex: 1 1 0% !important;
+    min-height: 120px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
     padding-bottom: 40px !important;
-}
-
-.diwa-workspace-root.has-mobile-keyboard .pos-desktop-cockpit-layout .pos-cockpit-side-rail {
-    flex: 0 0 auto !important;
-    overflow: visible !important;
 }
 
 /* ==========================================================================

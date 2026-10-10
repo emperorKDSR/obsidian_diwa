@@ -7,7 +7,9 @@
     - Tapping opens an Obsidian native `Menu` with `∅ No Area (General)` and all configured life areas with checkmarks and icons.
     - Selected state turns into an active accent pill `[ 💼 Work ✕ ]` with 1-tap clear.
     - Task toggle (`☑️ Task`) and Star toggle (`⭐ Important`) remain clean ghost buttons.
-- **Landscape Keyboard Horizontal Drift Elimination (`DesktopHubView.ts`, `styles.css`, & `src/utils/mobileSheetViewport.ts`)**:
+- **Landscape Keyboard Horizontal Drift & Width Collapse Elimination (`styles.css` & `DesktopHubView.ts`)**:
+  - **Eliminated Destructive `flex: 0 0 auto !important` on Cockpit Split Panes**: In a horizontal flex row (`.pos-cockpit-body`), applying `flex: 0 0 auto !important` on `.pos-cockpit-main-stage` and `.pos-cockpit-side-rail` turned off their `flex-grow` expansion, causing both columns to shrink to their content/min-widths and collapse to the left, leaving a massive empty black void on the right. Removing this override allows `_mainStageEl` (`flex: 0.68`) and `_sideRailEl` (`flex: 0.32`) to fill 100% of the screen width at all times with the Agenda panel staying flush against the right screen edge.
+  - **100% Width Enforcement**: Locked `.pos-desktop-cockpit-layout` and `.pos-cockpit-body` to `width: 100% !important; min-width: 100% !important; max-width: 100% !important;`.
   - **Top Composer Bypass in Viewport Behavior (`mobileSheetViewport.ts`)**: When activating the capture box (rect.top <= 200px), bypassed `scrollIntoView()` entirely. The composer is already at the top of the viewport; invoking `scrollIntoView` was the primary trigger for WebKit's horizontal centering algorithm on iPad landscape.
   - **Ancestor Horizontal Offset Restoration (`mobileSheetViewport.ts`)**: For any elements scrolled into view, tracks and restores `scrollLeft` across all ancestor elements and `win.scrollX`.
   - **Global Document Scroll Capture (`DesktopHubView.ts`)**: Wired capture-phase `doc.addEventListener('scroll', ..., true)` and `focusin` listeners locking `scrollLeft = 0` on `documentElement`, `body`, `this.contentEl`, `_cockpitLayoutEl`, and `_mainStageEl`.
