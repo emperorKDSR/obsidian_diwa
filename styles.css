@@ -1720,6 +1720,82 @@ body.is-phone .pos-inline-textarea {
         min-width: 30px;
         min-height: 30px;
     }
+
+    .pos-cockpit-main-stage {
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .pos-cockpit-main-stage .pos-document-stream {
+        flex: 0 0 auto !important;
+        overflow-y: visible !important;
+    }
+
+    .pos-desktop-cockpit-layout.is-composer-active .pos-cockpit-main-stage .pos-document-stream {
+        padding-bottom: 300px !important;
+    }
+
+    .pos-composer-textarea {
+        max-height: 110px !important;
+        font-size: 16px !important;
+    }
+}
+
+/* Tablet Cockpit Natural Full-Page Scrolling & Viewport Ergonomics */
+body.is-tablet .pos-desktop-cockpit-layout,
+.pos-desktop-cockpit-layout.is-tablet {
+    height: 100%;
+    overflow: hidden;
+}
+
+body.is-tablet .pos-cockpit-main-stage,
+.pos-desktop-cockpit-layout.is-tablet .pos-cockpit-main-stage {
+    height: 100%;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+}
+
+body.is-tablet .pos-cockpit-main-stage .pos-document-stream,
+.pos-desktop-cockpit-layout.is-tablet .pos-cockpit-main-stage .pos-document-stream {
+    flex: 0 0 auto !important;
+    overflow-y: visible !important;
+    min-height: auto !important;
+    padding-bottom: 80px;
+}
+
+body.is-tablet .pos-desktop-cockpit-layout.is-composer-active .pos-cockpit-main-stage .pos-document-stream,
+.pos-desktop-cockpit-layout.is-tablet.is-composer-active .pos-cockpit-main-stage .pos-document-stream {
+    padding-bottom: 300px !important;
+}
+
+/* Tablet Composer Dimensions (Compact & Non-Obtrusive) */
+body.is-tablet .pos-composer-textarea,
+body.is-tablet .pos-composer-textarea:focus,
+.pos-desktop-cockpit-layout.is-tablet .pos-composer-textarea,
+.pos-desktop-cockpit-layout.is-tablet .pos-composer-textarea:focus {
+    min-height: 44px;
+    max-height: 110px !important;
+    font-size: 16px !important; /* Prevents iPadOS WebKit auto-zooming */
+}
+
+body.is-tablet .pos-desktop-composer,
+.pos-desktop-cockpit-layout.is-tablet .pos-desktop-composer {
+    padding: 10px 14px 8px 14px;
+    gap: 8px;
+}
+
+body.is-tablet .pos-cockpit-composer-wrapper,
+.pos-desktop-cockpit-layout.is-tablet .pos-cockpit-composer-wrapper {
+    padding: 8px 16px 4px 16px;
+}
+
+body.is-tablet .pos-composer-toolbar,
+.pos-desktop-cockpit-layout.is-tablet .pos-composer-toolbar {
+    padding-top: 6px;
+    gap: 8px;
 }
 
 /* ==========================================================================

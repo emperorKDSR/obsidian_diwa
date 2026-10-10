@@ -1,6 +1,15 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Single-Line Inline Outliner (`HH:MM PM <content>`) (Complete)
+## Current Phase: Tablet Mode Natural Full-Page Scrolling (Complete)
+
+---
+
+### 0. Tablet Mode Natural Full-Page Scrolling (Complete)
+*   [x] **Dynamic Tablet & Active Composer Detection (`DesktopHubView.ts`)** — Tagged `.pos-desktop-cockpit-layout` with `is-tablet` reliably using `isTablet(this.app)` and toggled `is-composer-active` when the composer expands.
+*   [x] **Full-Page Fluid Scrolling Surface (`styles.css`)** — Unlocked `.pos-cockpit-main-stage` to `overflow-y: auto !important; -webkit-overflow-scrolling: touch;` and set `.pos-document-stream` to `overflow-y: visible !important;` on tablet, unifying the header, stream, and composer into a fluid document.
+*   [x] **Compact Composer & iOS WebKit 16px Font Guard (`styles.css`)** — Set `.pos-composer-textarea` with `max-height: 110px !important;` and `font-size: 16px !important;` preventing iOS/iPadOS auto-zoom and screen occlusion.
+*   [x] **Virtual Keyboard Bottom Clearance (`styles.css`)** — Added `padding-bottom: 300px !important;` to `.pos-document-stream` when the composer is active (`is-composer-active`), allowing notes and composer to remain fully visible above the software keyboard.
+*   [x] **Zero Build Errors & Production Deployment** — Strict `tsc --noEmit --skipLibCheck` and ESBuild passed with 0 errors; deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

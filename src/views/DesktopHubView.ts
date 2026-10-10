@@ -275,6 +275,9 @@ export class DesktopHubView extends ItemView {
         // === DESKTOP & TABLET DUAL-PANE COCKPIT ===
         this.contentEl.empty();
         const layoutEl = this.contentEl.createDiv({ cls: 'pos-desktop-cockpit-layout' });
+        if (isTablet(this.app)) {
+            layoutEl.addClass('is-tablet');
+        }
         this._cockpitLayoutEl = layoutEl;
 
         // Top Full-Width Header
@@ -1547,6 +1550,7 @@ export class DesktopHubView extends ItemView {
         const draft = this.plugin.capture.getDraft();
         const hasDraft = Boolean(draft && draft.trim().length > 0);
         const isExpanded = this._desktopComposerExpanded || hasDraft;
+        this._cockpitLayoutEl?.toggleClass('is-composer-active', isExpanded);
 
         if (!isExpanded) {
             // Sleek Reflect-style fluid capture line
