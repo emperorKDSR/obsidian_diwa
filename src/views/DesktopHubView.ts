@@ -124,6 +124,18 @@ export class DesktopHubView extends ItemView {
             this.setupResizeObserver();
         }
 
+        // On iPad and mobile runtimes, guard window scroll so WebKit keyboard avoidance never shifts the view off-screen
+        if (Platform.isMobile) {
+            const win = this.contentEl.ownerDocument.defaultView ?? window;
+            const scrollLock = () => {
+                if (win.scrollY !== 0 || win.scrollX !== 0) {
+                    win.scrollTo(0, 0);
+                }
+            };
+            win.addEventListener('scroll', scrollLock, { passive: true });
+            this.register(() => win.removeEventListener('scroll', scrollLock));
+        }
+
         this._containerEl = this.contentEl.createDiv({ cls: 'pos-scratchpad-container' });
         this.renderView();
 
@@ -274,6 +286,8 @@ export class DesktopHubView extends ItemView {
 
         // === DESKTOP & TABLET DUAL-PANE COCKPIT ===
         this.contentEl.empty();
+        this.contentEl.style.overflow = 'hidden';
+        this.contentEl.scrollTop = 0;
         const layoutEl = this.contentEl.createDiv({ cls: 'pos-desktop-cockpit-layout' });
         if (isTablet(this.app)) {
             layoutEl.addClass('is-tablet');
@@ -468,7 +482,7 @@ export class DesktopHubView extends ItemView {
                 }
                 const textarea = this._composerEl?.querySelector('textarea');
                 if (textarea) {
-                    textarea.focus();
+                    textarea.focus({ preventScroll: true });
                 }
                 return;
             }
@@ -1574,7 +1588,7 @@ export class DesktopHubView extends ItemView {
                 const ta = this._composerEl?.querySelector('textarea');
                 if (ta) {
                     ta.value = '- [ ] ';
-                    ta.focus();
+                    ta.focus({ preventScroll: true });
                     ta.setSelectionRange(6, 6);
                 }
             };
@@ -1588,7 +1602,7 @@ export class DesktopHubView extends ItemView {
                 this.renderComposer(targetParent, false);
                 const ta = this._composerEl?.querySelector('textarea');
                 if (ta) {
-                    ta.focus();
+                    ta.focus({ preventScroll: true });
                 }
             };
             return;
@@ -1671,7 +1685,7 @@ export class DesktopHubView extends ItemView {
             const text = textarea.value;
             const prefix = (cursor > 0 && text[cursor - 1] !== '\n') ? '\n- [ ] ' : '- [ ] ';
             textarea.value = text.slice(0, cursor) + prefix + text.slice(cursor);
-            textarea.focus();
+            textarea.focus({ preventScroll: true });
             textarea.setSelectionRange(cursor + prefix.length, cursor + prefix.length);
             autoResize();
             this.plugin.capture.saveDraft(textarea.value);
@@ -1747,7 +1761,7 @@ export class DesktopHubView extends ItemView {
                 if (keepActive) {
                     this._desktopComposerExpanded = true;
                     new Notice('Block captured! Ready for next ↵', 1500);
-                    textarea.focus();
+                    textarea.focus({ preventScroll: true });
                 } else {
                     this._selectedAreaForNewNote = '';
                     this._selectedImportantForNewNote = false;

@@ -32,6 +32,11 @@
     box-sizing: border-box;
 }
 
+.diwa-workspace-root:has(.pos-desktop-cockpit-layout) {
+    overflow: hidden !important;
+    height: 100% !important;
+}
+
 .pos-scratchpad-view {
     overflow-x: hidden !important;
     max-width: 100vw;
@@ -1720,82 +1725,67 @@ body.is-phone .pos-inline-textarea {
         min-width: 30px;
         min-height: 30px;
     }
-
-    .pos-cockpit-main-stage {
-        overflow-y: auto !important;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .pos-cockpit-main-stage .pos-document-stream {
-        flex: 0 0 auto !important;
-        overflow-y: visible !important;
-    }
-
-    .pos-desktop-cockpit-layout.is-composer-active .pos-cockpit-main-stage .pos-document-stream {
-        padding-bottom: 300px !important;
-    }
-
-    .pos-composer-textarea {
-        max-height: 110px !important;
-        font-size: 16px !important;
-    }
 }
 
-/* Tablet Cockpit Natural Full-Page Scrolling & Viewport Ergonomics */
-body.is-tablet .pos-desktop-cockpit-layout,
+/* Tablet Cockpit Fluid Ergonomics & Viewport Stability */
+body.is-tablet .diwa-workspace-root,
 .pos-desktop-cockpit-layout.is-tablet {
     height: 100%;
-    overflow: hidden;
+    overflow: hidden !important;
 }
 
 body.is-tablet .pos-cockpit-main-stage,
 .pos-desktop-cockpit-layout.is-tablet .pos-cockpit-main-stage {
     height: 100%;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    -webkit-overflow-scrolling: touch;
+    overflow: hidden !important;
     display: flex;
     flex-direction: column;
 }
 
-body.is-tablet .pos-cockpit-main-stage .pos-document-stream,
-.pos-desktop-cockpit-layout.is-tablet .pos-cockpit-main-stage .pos-document-stream {
-    flex: 0 0 auto !important;
-    overflow-y: visible !important;
-    min-height: auto !important;
-    padding-bottom: 80px;
+/* On tablet, composer wrapper is neatly pinned at top */
+body.is-tablet .pos-cockpit-composer-wrapper,
+.pos-desktop-cockpit-layout.is-tablet .pos-cockpit-composer-wrapper {
+    flex-shrink: 0;
+    padding: 8px 16px 4px 16px;
 }
 
-body.is-tablet .pos-desktop-cockpit-layout.is-composer-active .pos-cockpit-main-stage .pos-document-stream,
-.pos-desktop-cockpit-layout.is-tablet.is-composer-active .pos-cockpit-main-stage .pos-document-stream {
-    padding-bottom: 300px !important;
-}
-
-/* Tablet Composer Dimensions (Compact & Non-Obtrusive) */
+/* Tablet composer textarea: compact, non-obtrusive, 16px font to prevent WebKit zoom */
 body.is-tablet .pos-composer-textarea,
 body.is-tablet .pos-composer-textarea:focus,
 .pos-desktop-cockpit-layout.is-tablet .pos-composer-textarea,
 .pos-desktop-cockpit-layout.is-tablet .pos-composer-textarea:focus {
     min-height: 44px;
-    max-height: 110px !important;
+    max-height: 90px !important;
     font-size: 16px !important; /* Prevents iPadOS WebKit auto-zooming */
 }
 
 body.is-tablet .pos-desktop-composer,
 .pos-desktop-cockpit-layout.is-tablet .pos-desktop-composer {
-    padding: 10px 14px 8px 14px;
-    gap: 8px;
-}
-
-body.is-tablet .pos-cockpit-composer-wrapper,
-.pos-desktop-cockpit-layout.is-tablet .pos-cockpit-composer-wrapper {
-    padding: 8px 16px 4px 16px;
+    padding: 8px 14px 6px 14px;
+    gap: 6px;
 }
 
 body.is-tablet .pos-composer-toolbar,
 .pos-desktop-cockpit-layout.is-tablet .pos-composer-toolbar {
-    padding-top: 6px;
+    padding-top: 4px;
     gap: 8px;
+}
+
+/* The stream on tablet fills remaining vertical space and scrolls smoothly */
+body.is-tablet .pos-cockpit-main-stage .pos-document-stream,
+.pos-desktop-cockpit-layout.is-tablet .pos-cockpit-main-stage .pos-document-stream {
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 32px !important;
+}
+
+/* When composer is active on tablet, collapse filter carousel to give maximum height to notes */
+body.is-tablet .pos-desktop-cockpit-layout.is-composer-active .pos-filter-bar,
+.pos-desktop-cockpit-layout.is-tablet.is-composer-active .pos-filter-bar {
+    display: none !important;
 }
 
 /* ==========================================================================

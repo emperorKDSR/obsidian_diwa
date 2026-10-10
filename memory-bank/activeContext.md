@@ -1,18 +1,20 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Tablet Mode Natural Full-Page Scrolling Deployed
-- **Tablet Natural Full-Page Scrolling (`src/views/DesktopHubView.ts` & `styles.css`)**:
-  - **Dynamic Tablet & Active Composer Detection (`DesktopHubView.ts`)**:
-    - Added `layoutEl.addClass('is-tablet')` when `isTablet(this.app)` is true so `.pos-desktop-cockpit-layout` reliably reflects tablet environment.
-    - Added `this._cockpitLayoutEl?.toggleClass('is-composer-active', isExpanded)` inside `renderComposer()` to dynamically signal when the input box is expanded or focused.
-  - **Full-Page Fluid Scrolling Surface (`styles.css`)**:
-    - Scoped both under media query `@media (min-width: 769px) and (max-width: 1024px)` and under `body.is-tablet` / `.pos-desktop-cockpit-layout.is-tablet`.
-    - Unlocked `.pos-cockpit-main-stage` to `overflow-y: auto !important; -webkit-overflow-scrolling: touch;`, replacing desktop's rigid `overflow: hidden`.
-    - Set `.pos-cockpit-main-stage .pos-document-stream` to `flex: 0 0 auto !important; overflow-y: visible !important; min-height: auto !important;`, unifying the header, stream notes, and composer into a single continuous scrollable document.
-  - **Compact Composer & On-Screen Keyboard Clearance (`styles.css`)**:
-    - Capped `.pos-composer-textarea` with `min-height: 44px; max-height: 110px !important;` and enforced `font-size: 16px !important;` to completely prevent iPadOS/WebKit viewport auto-zooming.
-    - Tightened `.pos-desktop-composer` padding (`padding: 10px 14px 8px 14px; gap: 8px;`) on tablet.
-    - Applied generous `padding-bottom: 300px !important;` on `.pos-document-stream` when `.is-composer-active`, ensuring all notes and buttons scroll comfortably above the on-screen virtual keyboard without getting cut off.
+## Current State: Tablet Mode Viewport Stability & Fluid Ergonomics Deployed
+- **Tablet Mode Viewport Stability & Fluid Ergonomics (`src/utils.ts`, `src/views/DesktopHubView.ts`, & `styles.css`)**:
+  - **Immune Tablet Detection (`src/utils.ts`)**:
+    - Updated `isTablet()` to inspect physical screen dimensions (`Math.min(screen.width, screen.height) >= 768` or `Math.max(screen.width, screen.height) >= 1024`).
+    - Physical screen measurements never contract when the virtual software keyboard opens, ensuring tablet detection remains 100% stable in landscape and portrait.
+  - **Root & Window Viewport Scroll Protection (`src/views/DesktopHubView.ts` & `styles.css`)**:
+    - Enforced `overflow: hidden !important;` and `scrollTop = 0` on `.diwa-workspace-root:has(.pos-desktop-cockpit-layout)` and `this.contentEl` in cockpit mode, completely blocking WebKit's native keyboard-avoidance engine from scrolling outer layout containers.
+    - Added `{ preventScroll: true }` to all composer textarea focus calls (`textarea.focus({ preventScroll: true })`), stopping WebKit from triggering document-level scroll jumps.
+    - Wired a passive window scroll guard resetting `window.scrollTo(0, 0)` if WebKit attempts to shift the Obsidian webview window.
+  - **Fluid Tablet Stage Ergonomics (`styles.css`)**:
+    - Reverted `.pos-cockpit-main-stage` to `overflow: hidden !important; height: 100%; display: flex; flex-direction: column;`, keeping the layout pinned inside the leaf container above the keyboard.
+    - Pinned `.pos-cockpit-composer-wrapper` at `flex-shrink: 0;` directly below the header with compact padding (`8px 16px 4px 16px`).
+    - Capped `.pos-composer-textarea` with `max-height: 90px !important;` and `font-size: 16px !important;` to eliminate iPadOS WebKit auto-zooming and screen crowding.
+    - Assigned `.pos-cockpit-main-stage .pos-document-stream` `flex: 1 1 0% !important; min-height: 0 !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch;`, providing fluid touch scrolling for note items below the composer.
+    - When composer is active on tablet (`.is-tablet.is-composer-active`), automatically hides the carousel filter bar (`display: none !important;`), giving an immediate extra ~40px of vertical viewing space to note items.
 - **Production Build & Vault Deployment**:
   - Strict TypeScript check (`tsc --noEmit --skipLibCheck`) and ESBuild production build passed cleanly with 0 errors.
   - Deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin directories.

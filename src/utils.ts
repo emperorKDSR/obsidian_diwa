@@ -46,8 +46,20 @@ export function getWorkspaceViewportSize(app?: App): { width: number; height: nu
 export function isTablet(app?: App): boolean {
     const isMobile = (app as { isMobile?: boolean } | undefined)?.isMobile ?? Platform.isMobile;
     if (!isMobile) return false;
+
+    // Check physical screen dimensions first (immune to virtual keyboard height contraction)
+    const doc = app?.workspace?.containerEl?.ownerDocument ?? document;
+    const win = doc.defaultView ?? window;
+    const screenW = win.screen?.width ?? 0;
+    const screenH = win.screen?.height ?? 0;
+    const minScreen = Math.min(screenW, screenH);
+    const maxScreen = Math.max(screenW, screenH);
+    if (minScreen >= TABLET_VIEWPORT_SHORT_EDGE_PX || maxScreen >= 1024) {
+        return true;
+    }
+
     const { width, height } = getWorkspaceViewportSize(app);
-    return Math.min(width, height) >= TABLET_VIEWPORT_SHORT_EDGE_PX;
+    return Math.max(width, height) >= 1024 || Math.min(width, height) >= TABLET_VIEWPORT_SHORT_EDGE_PX;
 }
 
 export function parseNaturalDate(text: string): string | null {
