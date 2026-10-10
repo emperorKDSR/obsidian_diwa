@@ -132,9 +132,16 @@ export class DesktopHubView extends ItemView {
         // On iPad and mobile runtimes, guard window and container scroll so WebKit keyboard avoidance never shifts the view off-screen
         if (Platform.isMobile) {
             const win = this.contentEl.ownerDocument.defaultView ?? window;
+            const doc = this.contentEl.ownerDocument;
             const scrollLock = () => {
                 if (win.scrollY !== 0 || win.scrollX !== 0) {
                     win.scrollTo(0, 0);
+                }
+                if (doc.documentElement.scrollLeft !== 0) {
+                    doc.documentElement.scrollLeft = 0;
+                }
+                if (doc.body.scrollLeft !== 0) {
+                    doc.body.scrollLeft = 0;
                 }
                 if (this.contentEl.scrollLeft !== 0) {
                     this.contentEl.scrollLeft = 0;
@@ -142,15 +149,37 @@ export class DesktopHubView extends ItemView {
                 if (this._cockpitLayoutEl && this._cockpitLayoutEl.scrollLeft !== 0) {
                     this._cockpitLayoutEl.scrollLeft = 0;
                 }
+                if (this._mainStageEl && this._mainStageEl.scrollLeft !== 0) {
+                    this._mainStageEl.scrollLeft = 0;
+                }
             };
-            win.addEventListener('scroll', scrollLock, { passive: true });
-            this.contentEl.addEventListener('scroll', scrollLock, { passive: true });
-            this.contentEl.addEventListener('focusin', () => {
+
+            const docScrollCapture = (e: Event) => {
+                const el = e.target;
+                if (el instanceof HTMLElement && el.scrollLeft !== 0) {
+                    if (!el.classList.contains('pos-filter-carousel') && !el.classList.contains('pos-rail-tabs')) {
+                        el.scrollLeft = 0;
+                    }
+                }
+            };
+
+            const onFocusIn = () => {
+                scrollLock();
                 requestAnimationFrame(scrollLock);
-            }, true);
+                setTimeout(scrollLock, 50);
+                setTimeout(scrollLock, 150);
+            };
+
+            win.addEventListener('scroll', scrollLock, { passive: true });
+            doc.addEventListener('scroll', docScrollCapture, true);
+            this.contentEl.addEventListener('scroll', scrollLock, { passive: true });
+            this.contentEl.addEventListener('focusin', onFocusIn, true);
+
             this.register(() => {
                 win.removeEventListener('scroll', scrollLock);
+                doc.removeEventListener('scroll', docScrollCapture, true);
                 this.contentEl.removeEventListener('scroll', scrollLock);
+                this.contentEl.removeEventListener('focusin', onFocusIn, true);
             });
         }
 

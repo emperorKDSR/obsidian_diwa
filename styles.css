@@ -1782,15 +1782,19 @@ body.is-phone .pos-inline-textarea {
 body.is-tablet .diwa-workspace-root,
 .pos-desktop-cockpit-layout.is-tablet {
     height: 100%;
-    overflow: hidden !important;
+    overflow-y: hidden !important;
+    overflow-x: clip !important;
+    max-width: 100% !important;
 }
 
 body.is-tablet .pos-cockpit-main-stage,
 .pos-desktop-cockpit-layout.is-tablet .pos-cockpit-main-stage {
     height: 100%;
-    overflow: hidden !important;
+    overflow-y: hidden !important;
+    overflow-x: clip !important;
     display: flex;
     flex-direction: column;
+    max-width: 100% !important;
 }
 
 /* Tablet Condensed Header Bar */

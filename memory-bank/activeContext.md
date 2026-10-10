@@ -1,16 +1,17 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Raycast-Style Area Dropdown Capsule & Landscape Keyboard Drift Fix Deployed
+## Current State: Raycast-Style Area Dropdown Capsule & Complete Landscape Drift Elimination Deployed
 - **Option 1 Composer Area Dropdown Capsule (`DesktopHubView.ts` & `styles.css`)**:
   - Replaced cluttered multi-pill loops across Desktop, Tablet, and Mobile composers with a single interactive property capsule:
     - Default state shows a clean, quiet `🏷️ Area ▾` button.
     - Tapping opens an Obsidian native `Menu` with `∅ No Area (General)` and all configured life areas with checkmarks and icons.
     - Selected state turns into an active accent pill `[ 💼 Work ✕ ]` with 1-tap clear.
     - Task toggle (`☑️ Task`) and Star toggle (`⭐ Important`) remain clean ghost buttons.
-- **Landscape Keyboard Horizontal Drift Fix (`DesktopHubView.ts`, `styles.css`, & `src/utils/mobileSheetViewport.ts`)**:
-  - **CSS `overflow-x: clip !important` Enforcement**: Replaced `overflow-x: hidden` with `overflow-x: clip` across `.diwa-workspace-root`, `.pos-desktop-cockpit-layout`, `.pos-cockpit-body`, and `.pos-cockpit-main-stage`. Unlike `hidden`, `clip` strictly prevents both user and browser programmatic horizontal scrolling shifts.
-  - **Viewport Scroll Position Lock (`mobileSheetViewport.ts`)**: Preserved and immediately restored horizontal scroll offsets (`win.scrollX = 0`, `sheetEl.scrollLeft = 0`) before and after `scrollTargetIntoView()`.
-  - **Active `focusin` & Scroll Guard (`DesktopHubView.ts`)**: Added an active listener locking `scrollLeft = 0` on `this.contentEl` and `.pos-desktop-cockpit-layout` whenever an input is focused on tablet/mobile.
+- **Landscape Keyboard Horizontal Drift Elimination (`DesktopHubView.ts`, `styles.css`, & `src/utils/mobileSheetViewport.ts`)**:
+  - **Top Composer Bypass in Viewport Behavior (`mobileSheetViewport.ts`)**: When activating the capture box (rect.top <= 200px), bypassed `scrollIntoView()` entirely. The composer is already at the top of the viewport; invoking `scrollIntoView` was the primary trigger for WebKit's horizontal centering algorithm on iPad landscape.
+  - **Ancestor Horizontal Offset Restoration (`mobileSheetViewport.ts`)**: For any elements scrolled into view, tracks and restores `scrollLeft` across all ancestor elements and `win.scrollX`.
+  - **Global Document Scroll Capture (`DesktopHubView.ts`)**: Wired capture-phase `doc.addEventListener('scroll', ..., true)` and `focusin` listeners locking `scrollLeft = 0` on `documentElement`, `body`, `this.contentEl`, `_cockpitLayoutEl`, and `_mainStageEl`.
+  - **Universal CSS `overflow-x: clip !important` Enforcement (`styles.css`)**: Set `overflow-x: clip !important` across `body.is-tablet .diwa-workspace-root`, `.pos-desktop-cockpit-layout`, `.pos-cockpit-body`, and `.pos-cockpit-main-stage`.
 - **Production Build & Vault Deployment**:
   - Strict TypeScript check (`tsc --noEmit --skipLibCheck`) and ESBuild production build passed cleanly with 0 errors.
   - Deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin directories.

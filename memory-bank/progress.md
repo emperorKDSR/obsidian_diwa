@@ -4,12 +4,13 @@
 
 ---
 
-### 0. Raycast-Style Area Dropdown Capsule & Landscape Drift Fix (Complete)
+### 0. Raycast-Style Area Dropdown Capsule & Complete Landscape Drift Elimination (Complete)
 *   [x] **Raycast/Linear Single Area Dropdown Capsule (`DesktopHubView.ts` & `styles.css`)** — Replaced multi-button pill loops across desktop, tablet, and mobile composers with a single interactive property button (`🏷️ Area ▾`). Tapping opens an Obsidian native `Menu` with checkmarks; selecting an area converts it to an active pill (`[ 💼 Work ✕ ]`) with 1-tap clear.
-*   [x] **Landscape Keyboard Drift Fix (`DesktopHubView.ts`, `styles.css`, `mobileSheetViewport.ts`)** — Resolved the WebKit horizontal scroll drift on iPad landscape:
-    * Replaced `overflow-x: hidden` with `overflow-x: clip !important` across workspace root and cockpit layout containers, strictly prohibiting programmatic horizontal shifts.
-    * Preserved and restored horizontal scroll offsets around `scrollTargetIntoView()`.
-    * Added active `focusin` and `scroll` horizontal lock on `contentEl` resetting `scrollLeft = 0`.
+*   [x] **Landscape Keyboard Drift Elimination (`DesktopHubView.ts`, `styles.css`, `mobileSheetViewport.ts`)** — Completely stopped layout from shifting left when activating capture:
+    * Bypassed `scrollIntoView()` entirely for elements already in the top viewport (top composer), preventing WebKit's horizontal centering algorithm on iPad landscape.
+    * Recorded and restored `scrollLeft` across all ancestors before and after scroll-into-view calls.
+    * Added capture-phase document scroll listener and multi-stage `focusin` guard locking horizontal offsets to 0.
+    * Replaced all `overflow: hidden` with `overflow-x: clip !important` across workspace root, layout, cockpit body, and main stage.
 *   [x] **Zero Build Errors & Production Deployment** — Passed strict `tsc --noEmit --skipLibCheck` and ESBuild production build with 0 errors; deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---

@@ -37,15 +37,39 @@ export function attachMobileSheetViewportBehavior({
     const scrollTargetIntoView = (target?: EventTarget | null) => {
         const element = target instanceof win.HTMLElement ? target : null;
         if (!element || !sheetEl.contains(element) || !shouldScrollTarget(element)) return;
+
+        // If the element is already visible at the top (such as the top hero composer),
+        // or if in a dual-pane cockpit layout at the top, NEVER invoke scrollIntoView
+        // as WebKit will attempt to horizontally center it on screen.
         const rect = element.getBoundingClientRect();
+        if (rect.top >= 0 && rect.top <= 200) {
+            return;
+        }
+
         const visibleTop = viewport?.offsetTop ?? 0;
         const visibleBottom = viewport ? viewport.offsetTop + viewport.height : win.innerHeight;
         const margin = 16;
+        if (rect.top >= visibleTop + margin && rect.bottom <= visibleBottom - margin) return;
+
+        // Record all horizontal scroll offsets up the parent chain
+        const scrollPositions = new Map<HTMLElement, number>();
+        let p: HTMLElement | null = element;
+        while (p) {
+            if (p.scrollLeft !== 0) scrollPositions.set(p, p.scrollLeft);
+            p = p.parentElement;
+        }
         const prevWinX = win.scrollX;
-        const prevSheetX = sheetEl.scrollLeft;
+
         element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+
+        // Restore all horizontal scroll offsets to strictly prevent left drift
+        p = element;
+        while (p) {
+            const orig = scrollPositions.get(p) ?? 0;
+            if (p.scrollLeft !== orig) p.scrollLeft = orig;
+            p = p.parentElement;
+        }
         if (win.scrollX !== prevWinX) win.scrollTo(prevWinX, win.scrollY);
-        if (sheetEl.scrollLeft !== prevSheetX) sheetEl.scrollLeft = prevSheetX;
     };
 
     const scheduleScrollIntoView = (target?: EventTarget | null) => {
