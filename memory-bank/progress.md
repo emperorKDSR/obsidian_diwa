@@ -1,6 +1,13 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Floating Command Capsule Quick Capture Bar (Complete)
+## Current Phase: Capture Bar Hotkey Guides Removal & Pencil Icon Circle Outline (Complete)
+
+---
+
+### 0. Capture Bar Hotkey Guides Removal & Pencil Icon Circle Outline (Complete)
+*   [x] **Pencil Icon Circle Outline (`styles.css`)** — Styled `.pos-compact-icon` as a 26px circular badge (`border-radius: 50%`, `border: 1px solid var(--background-modifier-border)`, `background: var(--background-primary)`) with hover illumination (`border-color: var(--interactive-accent)` and `color: var(--interactive-accent)`).
+*   [x] **Hotkey Guides Removal (`DesktopHubView.ts`)** — Removed `pos-compact-actions` (`[ C ]` and `[ ⌘↵ ]`) from the idle capture bar, removed `pos-composer-hint` from the expanded composer, and simplified the primary save button text to `Capture`.
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

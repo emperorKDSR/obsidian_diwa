@@ -308,18 +308,20 @@ export class GawaCockpitView extends ItemView {
         const upcomingCount = baseTasks.filter(t => t.dueDate !== null && t.dueDate > todayStr).length;
         const undatedCount = baseTasks.filter(t => t.dueDate === null).length;
 
-        const chipsData: Array<{ id: DateFilterType; label: string; count: number; cls: string }> = [
-            { id: 'all', label: 'All Open', count: totalCount, cls: 'chip-all' },
-            { id: 'overdue', label: '🔴 Overdue', count: overdueCount, cls: 'chip-overdue' },
-            { id: 'today', label: '🟡 Today', count: todayCount, cls: 'chip-today' },
-            { id: 'upcoming', label: '🟢 Upcoming', count: upcomingCount, cls: 'chip-upcoming' },
-            { id: 'undated', label: '⚪ Undated', count: undatedCount, cls: 'chip-undated' },
+        const chipsData: Array<{ id: DateFilterType; label: string; icon: string; count: number; cls: string }> = [
+            { id: 'all', label: 'All Open', icon: 'check-square', count: totalCount, cls: 'chip-all' },
+            { id: 'overdue', label: 'Overdue', icon: 'alert-circle', count: overdueCount, cls: 'chip-overdue' },
+            { id: 'today', label: 'Today', icon: 'calendar', count: todayCount, cls: 'chip-today' },
+            { id: 'upcoming', label: 'Upcoming', icon: 'calendar-clock', count: upcomingCount, cls: 'chip-upcoming' },
+            { id: 'undated', label: 'Undated', icon: 'help-circle', count: undatedCount, cls: 'chip-undated' },
         ];
 
         for (const chip of chipsData) {
             const chipEl = this._chipsContainerEl.createDiv({
                 cls: `pos-gawa-chip ${chip.cls} ${this._activeDateFilter === chip.id ? 'is-active' : ''}`,
             });
+            const iconWrap = chipEl.createSpan({ cls: 'pos-chip-icon' });
+            setIcon(iconWrap, chip.icon);
             chipEl.createSpan({ text: chip.label, cls: 'chip-label' });
             chipEl.createSpan({ text: String(chip.count), cls: 'chip-count' });
 
@@ -417,10 +419,10 @@ export class GawaCockpitView extends ItemView {
         if (tasks.length === 0) {
             const emptyRow = this._tableBodyEl.createEl('tr', { cls: 'pos-gawa-empty-row' });
             const cell = emptyRow.createEl('td', { attr: { colspan: isMobile ? '2' : '7' } });
-            cell.createDiv({
-                cls: 'pos-gawa-empty-state',
-                text: '✨ No open tasks matching current filters. All caught up!',
-            });
+            const emptyState = cell.createDiv({ cls: 'pos-gawa-empty-state' });
+            const emptyIcon = emptyState.createSpan({ cls: 'pos-empty-icon' });
+            setIcon(emptyIcon, 'check-circle');
+            emptyState.createSpan({ text: ' No open tasks matching current filters. All caught up!' });
             return;
         }
 
@@ -491,12 +493,14 @@ export class GawaCockpitView extends ItemView {
                 const allDone = doneCount === totalCount;
                 const subtaskPill = titleWrap.createSpan({
                     cls: `pos-gawa-subtask-progress-pill ${allDone ? 'is-all-done' : ''}`,
-                    text: allDone ? `✓ ${doneCount}/${totalCount}` : `☑ ${doneCount}/${totalCount}`,
                     attr: {
                         'aria-label': `${doneCount} of ${totalCount} subtasks completed`,
                         title: `${doneCount} of ${totalCount} subtasks completed`,
                     },
                 });
+                const subIcon = subtaskPill.createSpan({ cls: 'pos-subtask-icon' });
+                setIcon(subIcon, allDone ? 'check' : 'check-square');
+                subtaskPill.createSpan({ text: ` ${doneCount}/${totalCount}` });
                 subtaskPill.addEventListener('click', (e) => {
                     e.stopPropagation();
                     this.openInspector(task);
@@ -535,7 +539,10 @@ export class GawaCockpitView extends ItemView {
             const areaCell = row.createEl('td', { cls: 'td-area' });
             if (task.areaId && task.areaId !== '—') {
                 const areaPill = areaCell.createSpan({ cls: `pos-gawa-area-pill area-${task.areaId}` });
-                areaPill.setText(`${task.areaIcon} ${task.areaLabel}`);
+                if (task.areaIcon) {
+                    areaPill.createSpan({ cls: 'pos-emoji-muted', text: task.areaIcon });
+                }
+                areaPill.createSpan({ text: ` ${task.areaLabel}` });
             } else {
                 areaCell.createSpan({ text: '—', cls: 'area-none' });
             }
@@ -545,9 +552,11 @@ export class GawaCockpitView extends ItemView {
             if (task.remarks && task.remarks.length > 0) {
                 const remBadge = remarksCell.createSpan({
                     cls: 'pos-gawa-remarks-badge',
-                    text: `💬 ${task.remarks.length}`,
                     attr: { 'aria-label': `${task.remarks.length} remarks` },
                 });
+                const remIcon = remBadge.createSpan({ cls: 'pos-badge-icon' });
+                setIcon(remIcon, 'message-square');
+                remBadge.createSpan({ text: ` ${task.remarks.length}` });
                 remBadge.addEventListener('click', (e) => {
                     e.stopPropagation();
                     this.openInspector(task);
@@ -916,8 +925,11 @@ export class GawaCockpitView extends ItemView {
             const isCurrent = (selectedAreaId || '').toLowerCase() === area.id.toLowerCase();
             const chip = areaChipsWrap.createDiv({
                 cls: `pos-gawa-insp-area-chip area-${area.id} ${isCurrent ? 'is-active' : ''}`,
-                text: `${area.icon} ${area.label}`,
             });
+            if (area.icon) {
+                chip.createSpan({ cls: 'pos-emoji-muted', text: area.icon });
+            }
+            chip.createSpan({ text: ` ${area.label}` });
             chip.addEventListener('click', () => {
                 selectedAreaId = area.id;
                 areaChipsWrap.querySelectorAll('.pos-gawa-insp-area-chip').forEach(c => c.removeClass('is-active'));
@@ -1118,13 +1130,15 @@ export class GawaCockpitView extends ItemView {
         if (task.shadowedLocations && task.shadowedLocations.length > 0) {
             const syncWrap = metaInfo.createDiv({ cls: 'pos-gawa-insp-sync' });
             const names = task.shadowedLocations.map(l => l.filePath.split('/').pop()?.replace(/\.md$/, '') || l.filePath);
-            syncWrap.createSpan({ text: `🔗 Synced with: ${names.join(', ')}` });
+            const syncIcon = syncWrap.createSpan({ cls: 'pos-sync-icon' });
+            setIcon(syncIcon, 'link');
+            syncWrap.createSpan({ text: ` Synced with: ${names.join(', ')}` });
         }
 
         // Save Button Footer
         const inspFooter = this._inspectorEl.createDiv({ cls: 'pos-gawa-insp-footer' });
         const saveBtn = inspFooter.createEl('button', {
-            cls: 'pos-btn pos-btn-primary pos-gawa-save-btn',
+            cls: 'pos-btn pos-gawa-save-btn',
             text: 'Save Changes',
         });
 

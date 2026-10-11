@@ -2050,11 +2050,6 @@ export class DesktopHubView extends ItemView {
             setIcon(editIcon, 'edit-3');
             triggerArea.createSpan({ cls: 'pos-compact-placeholder', text: "Capture your thought..." });
 
-            const actions = compactWrapper.createDiv({ cls: 'pos-compact-actions' });
-            const cmdSymbol = Platform.isMacOS ? '⌘↵' : 'Ctrl↵';
-            actions.createSpan({ cls: 'pos-compact-kbd', text: 'C' });
-            actions.createSpan({ cls: 'pos-compact-kbd', text: cmdSymbol });
-
             const activateComposer = () => {
                 this._desktopComposerExpanded = true;
                 this.renderComposer(targetParent, false);
@@ -2259,16 +2254,9 @@ export class DesktopHubView extends ItemView {
             this.renderComposer(targetParent, false);
         };
 
-        const cmdKey = Platform.isMacOS ? '⌘' : 'Ctrl';
-
-        rightControls.createSpan({
-            cls: 'pos-composer-hint',
-            text: `Shift+↵ Next  •  ${cmdKey}↵ Done`
-        });
-
         const saveBtn = rightControls.createEl('button', {
             cls: 'pos-composer-save-btn pos-reflect-save-btn',
-            text: `Capture ${cmdKey}↵`
+            text: 'Capture'
         });
 
         const doSave = async (keepActive = false) => {

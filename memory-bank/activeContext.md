@@ -1,12 +1,16 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Floating Command Capsule Quick Capture Bar Deployed
+## Current State: Capture Bar Hotkey Guides Removed & Pencil Icon Circle Outline Deployed
+- **Pencil Icon Circle Outline & Hotkey Cleanliness (`DesktopHubView.ts` & `styles.css`)**:
+  - **Circular Pencil Badge (`.pos-compact-icon`)**: Enclosed the idle pencil icon in a dedicated 26px circular badge (`border-radius: 50%`, `border: 1px solid var(--background-modifier-border)`, `background: var(--background-primary)`). On capsule hover, the circle border and icon illuminate with `var(--interactive-accent)`.
+  - **Removed Idle Hotkey Guides**: Removed `pos-compact-actions` rendering `[ C ]` and `[ ⌘↵ ]` badges on the right side of the idle capsule, giving full visual focus to the clean prompt.
+  - **Streamlined Expanded Composer**: Removed `pos-composer-hint` and cleaned the primary save button text from `Capture ⌘↵` to `Capture`.
 - **Tactile Command Capsule Quick Capture Bar (`DesktopHubView.ts` & `styles.css`)**:
   - Restyled `.pos-composer-compact` into an elevated, tactile "Command Capsule" with strong visual presence:
     - **Solid Surface & Border**: Upgraded from transparent to `background: var(--background-secondary)` with an architectural perimeter border `1px solid var(--background-modifier-border)` and modern `8px` rounded corners.
     - **Floating Depth & Elevation**: Added subtle ambient drop shadow (`box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14)`) providing depth against the dark page canvas.
     - **Hover & Focus Glow**: Interactive accent illumination (`border-color: var(--interactive-accent)` with soft ambient halo and focus ring).
-    - **Typography & Iconography**: Simplified prompt text to `"Capture your thought..."` with crisp readability (`color: var(--text-normal); font-weight: 500; opacity: 0.85;`). Boosted `edit-3` pen SVG to 15px with muted styling, and framed shortcut keys (`C`, `⌘↵`) with solid primary backgrounds.
+    - **Typography & Iconography**: Simplified prompt text to `"Capture your thought..."` with crisp readability (`color: var(--text-normal); font-weight: 500; opacity: 0.85;`).
 - **Production Build & Vault Deployment**:
   - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
   - Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.

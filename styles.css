@@ -6204,14 +6204,26 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
     color: var(--text-muted);
+    flex-shrink: 0;
+    transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.pos-composer-compact:hover .pos-compact-icon {
+    border-color: var(--interactive-accent);
+    color: var(--interactive-accent);
 }
 
 .pos-compact-icon svg {
-    width: 15px;
-    height: 15px;
+    width: 13px;
+    height: 13px;
     stroke-width: 2px;
-    color: var(--text-muted);
+    color: currentColor;
     stroke: currentColor;
 }
 
@@ -6220,22 +6232,6 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
     font-size: 0.94em;
     font-weight: 500;
     opacity: 0.85;
-}
-
-.pos-compact-actions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.pos-compact-kbd {
-    font-size: 0.72em;
-    font-family: var(--font-monospace);
-    color: var(--text-muted);
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 4px;
-    padding: 2px 6px;
 }
 
 /* Header hotkey badge for search */
