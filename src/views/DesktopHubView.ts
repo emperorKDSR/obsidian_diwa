@@ -3235,6 +3235,10 @@ export class DesktopHubView extends ItemView {
             cb.addClass('pos-interactive-checkbox');
 
             const listItem = cb.closest('li');
+            if (listItem) {
+                listItem.toggleClass('is-checked', cb.checked);
+                listItem.setAttribute('data-task', cb.checked ? 'x' : ' ');
+            }
             const cleanLiText = listItem ? (listItem.textContent || '').replace(/^\[[ xX]\]\s*/, '').trim() : '';
             const matchedTask = entry.tasks.find(t => t.title && cleanLiText && (cleanLiText.includes(t.title) || t.title.includes(cleanLiText))) || entry.tasks[idx];
 
@@ -3294,6 +3298,7 @@ export class DesktopHubView extends ItemView {
                 const isPast = this.plugin.index.isDatePast(dateStr);
 
                 link.addClass('pos-rendered-date-link');
+                link.addClass('pos-stream-wikilink');
                 if (isToday) link.addClass('pos-date-link-today');
                 else if (isPast) link.addClass('pos-date-link-past');
                 else link.addClass('pos-date-link-future');

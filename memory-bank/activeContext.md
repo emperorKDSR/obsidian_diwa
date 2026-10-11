@@ -1,24 +1,23 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Tablet Workspace Optimization (Full-Width Stream in Portrait, Available/Collapsible Agenda in Landscape)
-- **Tablet Responsive Architecture (`DesktopHubView.ts`, `src/utils.ts`, & `styles.css`)**:
-  - **Portrait Mode (Pure Stream & Full-Width Focus)**:
-    - Automatically detected via `isTabletPortrait()` using `@media (orientation: portrait)` matchMedia checks and aspect ratio logic, eliminating false-positives caused by narrow sidebar-split widths in landscape.
-    - The document stream (`.pos-cockpit-main-stage`), stream notes (`.pos-note-stream-item`), date dividers (`.pos-date-divider`), and quick capture capsule (`.pos-composer-compact`, `.pos-desktop-composer`) fill **100% full width of the tablet** (`width: 100% !important; max-width: 100% !important; margin: 0 !important;`).
-    - The right side rail (`.pos-cockpit-side-rail`), center resizer (`.pos-cockpit-resizer`), drawer backdrop (`.pos-cockpit-drawer-backdrop`), and Agenda toggle header button (`.pos-rail-toggle-btn`) are completely hidden (`display: none !important`).
-    - Hotkey `\` and toggle calls are guarded against opening the side rail while in portrait orientation.
-  - **Tablet Stream Action Buttons (Important, Edit, and ...)**:
-    - On tablets, stream item actions exclusively surface **Important (Star)**, **Edit**, and **More (...)**.
-    - The bare Delete / Trash icon is intentionally omitted from the stream item action bar on tablets to prevent accidental deletions on touch screens.
-    - Delete Note is securely housed inside the `...` popup menu (`openNoteActionMenu`), retaining full capability with accidental-tap safety.
-    - Desktop continues displaying the direct hover trash icon as before.
-  - **Landscape Mode (Desktop Dual-Pane Parity with Available & Collapsible Agenda)**:
-    - Agenda panel is available in landscape orientation. When open, it renders anchored to the right margin with in-flow layout (`320px`) alongside the center draggable resizer.
-    - If the user needs to minimize / collapse the Agenda panel, they can click the collapse button in the rail header (`.pos-rail-collapse-btn`) or the header toggle button (`.pos-rail-toggle-btn`), expanding the stream to full width.
-    - Seamless orientation transitions handled by `ResizeObserver` on `this.contentEl` and `window.orientationchange` event listeners, backed by CSS `@media (orientation: portrait)` and `@media (orientation: landscape)` fallbacks.
+## Current State: Stream Dates as Normal Wikilinks & Completed Task Strike-Through
+- **Stream Date Wikilink Styling (`DesktopHubView.ts` & `styles.css`)**:
+  - Date links inside note markdown bodies (`.pos-rendered-date-link`) are now treated like normal editorial wikilinks:
+    - Displayed inline with regular text color (`var(--text-normal) !important; font-weight: 600 !important;`).
+    - Styled with an editorial solid hairline underline (`underline solid var(--background-modifier-border) !important; text-underline-offset: 3.5px !important; text-decoration-thickness: 1px !important;`).
+    - Stripped of subtle pill backgrounds, padding, and muted grey text colors (`background: transparent !important; padding: 0 !important;`).
+    - On hover, underline subtly illuminates to `var(--text-muted)`.
+    - Date click action menu (`openDateActionMenu` for snooze/reschedule) remains fully interactive.
+- **Completed Task Full Strike-Through (`DesktopHubView.ts` & `styles.css`)**:
+  - In the stream, when a task is completed (`- [x]` / `li.is-checked` / `li[data-task="x"]`), **all child elements are included in being striked through**:
+    - Child wikilinks (`a.internal-link`, `.pos-stream-wikilink`), date links (`.pos-rendered-date-link`), text, tags, code, and bold/italic elements all receive `text-decoration: line-through !important; color: var(--text-muted) !important; text-decoration-color: var(--text-muted) !important;`.
+    - `attachInteractiveElements()` initializes `listItem.toggleClass('is-checked', cb.checked)` and `data-task="x"` immediately on view mount, guaranteeing completed tasks are striked through upon note loading as well as on interactive toggle.
+    - Extended across Gawa task rows (`.pos-gawa-row.is-completed`), subtasks, Karon task rows, and Agenda side rail tasks (`.pos-rail-task-title.is-completed`).
 - **Production Build & Vault Deployment**:
   - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
   - Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Tablet Workspace Optimization (Full-Width Stream in Portrait, Available/Collapsible Agenda in Landscape)
 
 ## Previous State: Right Pane Fixed-Width Sidebar Anchored to Right Edge (Option 1 Implemented)
 - **Fixed-Width Sidebar Anchoring (`styles.css` & `DesktopHubView.ts`)**:

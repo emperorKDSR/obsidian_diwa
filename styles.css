@@ -1407,43 +1407,34 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
     background: rgba(59, 130, 246, 0.22);
 }
 
-/* Rendered inline date links in note body */
+/* Rendered inline date links in note body (Normal wikilink appearance, bold text, solid hairline) */
+.pos-note-body a.internal-link.pos-rendered-date-link,
 .pos-rendered-date-link {
-    display: inline-flex;
-    align-items: center;
-    padding: 1px 6px;
-    border-radius: 6px;
-    text-decoration: none !important;
-    font-weight: 500;
-    cursor: pointer;
-    transition: var(--diwa-transition);
-}
-
-.pos-date-link-today {
-    background: rgba(234, 179, 8, 0.15);
-    color: #eab308 !important;
-}
-
-.pos-date-link-today:hover {
-    background: rgba(234, 179, 8, 0.25);
-}
-
-.pos-date-link-past {
-    background: var(--background-secondary);
-    color: var(--text-muted) !important;
-}
-
-.pos-date-link-past:hover {
+    display: inline !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
     color: var(--text-normal) !important;
+    text-decoration: underline solid var(--background-modifier-border, rgba(255, 255, 255, 0.2)) !important;
+    text-underline-offset: 3.5px !important;
+    text-decoration-thickness: 1px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
 
+.pos-note-body a.internal-link.pos-rendered-date-link:hover,
+.pos-rendered-date-link:hover {
+    color: var(--text-normal) !important;
+    text-decoration-color: var(--text-muted) !important;
+    background: transparent !important;
+}
+
+.pos-date-link-today,
+.pos-date-link-past,
 .pos-date-link-future {
-    background: rgba(59, 130, 246, 0.1);
-    color: #3b82f6 !important;
-}
-
-.pos-date-link-future:hover {
-    background: rgba(59, 130, 246, 0.2);
+    background: transparent !important;
+    color: var(--text-normal) !important;
 }
 
 /* Note Actions (Quiet Flush-Right Capsule anchored at top-right) */
@@ -1629,9 +1620,51 @@ body.is-tablet .pos-note-actions .pos-trash-btn,
 
 .pos-note-body li.is-checked,
 .pos-note-body.markdown-rendered li.is-checked,
-.pos-note-body .markdown-rendered li.is-checked {
-    text-decoration: line-through;
-    color: var(--text-muted);
+.pos-note-body .markdown-rendered li.is-checked,
+.pos-note-body li[data-task="x"],
+.pos-note-body li[data-task="X"],
+.pos-note-body li:has(input[type="checkbox"]:checked) {
+    text-decoration: line-through !important;
+    text-decoration-color: var(--text-muted) !important;
+    color: var(--text-muted) !important;
+}
+
+/* Ensure all child text, wikilinks, and date links in completed tasks are striked through */
+.pos-note-body li.is-checked a,
+.pos-note-body li.is-checked a.internal-link,
+.pos-note-body li.is-checked .pos-stream-wikilink,
+.pos-note-body li.is-checked .pos-rendered-date-link,
+.pos-note-body li.is-checked span,
+.pos-note-body li.is-checked p,
+.pos-note-body li.is-checked strong,
+.pos-note-body li.is-checked em,
+.pos-note-body li.is-checked code,
+.pos-note-body li[data-task="x"] a,
+.pos-note-body li[data-task="x"] a.internal-link,
+.pos-note-body li[data-task="x"] .pos-stream-wikilink,
+.pos-note-body li[data-task="x"] .pos-rendered-date-link,
+.pos-note-body li[data-task="x"] span,
+.pos-note-body li[data-task="x"] p,
+.pos-note-body li[data-task="x"] strong,
+.pos-note-body li[data-task="x"] em,
+.pos-note-body li[data-task="x"] code,
+.pos-note-body li:has(input[type="checkbox"]:checked) a,
+.pos-note-body li:has(input[type="checkbox"]:checked) a.internal-link,
+.pos-note-body li:has(input[type="checkbox"]:checked) .pos-stream-wikilink,
+.pos-note-body li:has(input[type="checkbox"]:checked) .pos-rendered-date-link,
+.pos-note-body li:has(input[type="checkbox"]:checked) span,
+.pos-note-body li:has(input[type="checkbox"]:checked) p {
+    text-decoration: line-through !important;
+    text-decoration-color: var(--text-muted) !important;
+    color: var(--text-muted) !important;
+    opacity: 0.85;
+}
+
+.pos-note-body li.is-checked a:hover,
+.pos-note-body li[data-task="x"] a:hover,
+.pos-note-body li:has(input[type="checkbox"]:checked) a:hover {
+    text-decoration: line-through !important;
+    color: var(--text-normal) !important;
 }
 
 .pos-interactive-checkbox,
@@ -3345,8 +3378,11 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     opacity: 0.55;
 }
 
-.pos-gawa-row.is-completed .task-title-text {
-    text-decoration: line-through;
+.pos-gawa-row.is-completed .task-title-text,
+.pos-gawa-row.is-completed .task-title-markdown,
+.pos-gawa-row.is-completed .task-title-markdown *,
+.pos-gawa-row.is-completed .task-title-markdown a.internal-link {
+    text-decoration: line-through !important;
 }
 
 .pos-gawa-table td {
@@ -6209,13 +6245,16 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
     text-decoration-color: var(--text-muted);
 }
 
-.pos-rail-task-title.is-completed {
-    text-decoration: line-through;
-    color: var(--text-muted);
+.pos-rail-task-title.is-completed,
+.pos-rail-task-title.is-completed * {
+    text-decoration: line-through !important;
+    text-decoration-color: var(--text-muted) !important;
+    color: var(--text-muted) !important;
 }
 
 .pos-rail-task-title.is-completed a.internal-link {
-    color: var(--text-muted);
+    text-decoration: line-through !important;
+    color: var(--text-muted) !important;
 }
 
 .pos-rail-task-meta {
