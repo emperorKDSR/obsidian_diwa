@@ -2277,12 +2277,85 @@ body.is-tablet .pos-horizon-card,
     pointer-events: auto;
 }
 
-/* Tablet Portrait Mode: Pure Stream & Capture Focus (Side Rail & Resizer Completely Hidden) */
+/* Tablet Portrait Mode: Pure Stream & Full Width Focus (Side Rail & Resizer Hidden, 100% Width Stream) */
+.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait,
+body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-cockpit-body,
+body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-cockpit-body {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
 .pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-cockpit-main-stage,
 body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-cockpit-main-stage {
     flex: 1 1 100% !important;
     width: 100% !important;
     max-width: 100% !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Entire width of tablet filled with stream items and composer */
+.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-cockpit-composer-wrapper,
+body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-cockpit-composer-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 10px 16px 4px 16px !important;
+    box-sizing: border-box !important;
+}
+
+.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-cockpit-composer-wrapper .pos-composer-compact,
+.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-cockpit-composer-wrapper .pos-desktop-composer,
+body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-cockpit-composer-wrapper .pos-composer-compact,
+body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-cockpit-composer-wrapper .pos-desktop-composer {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+}
+
+.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-document-stream,
+body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-document-stream {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 6px 16px 40px 16px !important;
+    box-sizing: border-box !important;
+}
+
+.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-document-stream .pos-note-stream-item,
+body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-document-stream .pos-note-stream-item {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 0 2px 0 !important;
+    box-sizing: border-box !important;
+}
+
+.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-document-stream .pos-date-divider,
+body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-document-stream .pos-date-divider {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-document-stream .pos-empty-state,
+body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-document-stream .pos-empty-state {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-filter-carousel,
+.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-selection-bar,
+body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-filter-carousel,
+body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-selection-bar {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
 }
 
 .pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-cockpit-resizer,
@@ -2312,12 +2385,19 @@ body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-rail-toggle-b
     display: none !important;
 }
 
-/* Tablet Landscape Mode: Dual-Pane Cockpit Parity with Desktop */
+/* Tablet Landscape Mode: Dual-Pane Cockpit Parity with Desktop (Agenda Panel Available & Collapsible) */
 .pos-desktop-cockpit-layout.is-tablet:not(.is-tablet-portrait) .pos-cockpit-main-stage,
 body.is-tablet .pos-desktop-cockpit-layout:not(.is-tablet-portrait) .pos-cockpit-main-stage {
     flex: 1 1 auto !important;
     min-width: 0 !important;
     width: auto !important;
+}
+
+.pos-desktop-cockpit-layout.is-tablet:not(.is-tablet-portrait) .pos-cockpit-resizer,
+body.is-tablet .pos-desktop-cockpit-layout:not(.is-tablet-portrait) .pos-cockpit-resizer {
+    display: block;
+    width: 6px;
+    flex: 0 0 6px;
 }
 
 .pos-desktop-cockpit-layout.is-tablet:not(.is-tablet-portrait) .pos-cockpit-side-rail,
@@ -2331,12 +2411,60 @@ body.is-tablet .pos-desktop-cockpit-layout:not(.is-tablet-portrait) .pos-cockpit
     display: flex !important;
 }
 
+/* Agenda Panel allowed to be minimized by user in landscape mode */
 .pos-desktop-cockpit-layout.is-tablet:not(.is-tablet-portrait) .pos-cockpit-side-rail.is-collapsed,
 body.is-tablet .pos-desktop-cockpit-layout:not(.is-tablet-portrait) .pos-cockpit-side-rail.is-collapsed {
     width: 0 !important;
     min-width: 0 !important;
     max-width: 0 !important;
     display: none !important;
+}
+
+.pos-desktop-cockpit-layout.is-tablet:not(.is-tablet-portrait) .pos-rail-toggle-btn,
+body.is-tablet .pos-desktop-cockpit-layout:not(.is-tablet-portrait) .pos-rail-toggle-btn {
+    display: inline-flex !important;
+}
+
+/* Hardware orientation media query fallbacks */
+@media (orientation: portrait) {
+    body.is-tablet .pos-desktop-cockpit-layout .pos-cockpit-main-stage,
+    .pos-desktop-cockpit-layout.is-tablet .pos-cockpit-main-stage {
+        flex: 1 1 100% !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    body.is-tablet .pos-desktop-cockpit-layout .pos-note-stream-item,
+    body.is-tablet .pos-desktop-cockpit-layout .pos-composer-compact,
+    body.is-tablet .pos-desktop-cockpit-layout .pos-desktop-composer,
+    .pos-desktop-cockpit-layout.is-tablet .pos-note-stream-item,
+    .pos-desktop-cockpit-layout.is-tablet .pos-composer-compact,
+    .pos-desktop-cockpit-layout.is-tablet .pos-desktop-composer {
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+    body.is-tablet .pos-desktop-cockpit-layout .pos-cockpit-side-rail,
+    .pos-desktop-cockpit-layout.is-tablet .pos-cockpit-side-rail {
+        display: none !important;
+    }
+    body.is-tablet .pos-desktop-cockpit-layout .pos-cockpit-resizer,
+    .pos-desktop-cockpit-layout.is-tablet .pos-cockpit-resizer {
+        display: none !important;
+    }
+    body.is-tablet .pos-desktop-cockpit-layout .pos-rail-toggle-btn,
+    .pos-desktop-cockpit-layout.is-tablet .pos-rail-toggle-btn {
+        display: none !important;
+    }
+}
+
+@media (orientation: landscape) {
+    body.is-tablet .pos-desktop-cockpit-layout .pos-rail-toggle-btn,
+    .pos-desktop-cockpit-layout.is-tablet .pos-rail-toggle-btn {
+        display: inline-flex !important;
+    }
+    body.is-tablet .pos-desktop-cockpit-layout .pos-cockpit-side-rail:not(.is-collapsed),
+    .pos-desktop-cockpit-layout.is-tablet .pos-cockpit-side-rail:not(.is-collapsed) {
+        display: flex !important;
+    }
 }
 
 /* When keyboard is active on tablet, workspace root becomes the sole vertical scroller */

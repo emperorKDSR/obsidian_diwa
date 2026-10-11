@@ -8,7 +8,7 @@ import { WikilinkPeekModal } from '../modals/WikilinkPeekModal';
 import { MobileFilterSheetModal } from '../modals/MobileFilterSheetModal';
 import { RecentPermanentNotesModal } from '../modals/RecentPermanentNotesModal';
 import { ConfirmDeleteModal } from '../modals/ConfirmDeleteModal';
-import { isTablet, attachInlineTriggers, attachMediaPasteHandler } from '../utils';
+import { isTablet, isTabletPortrait, attachInlineTriggers, attachMediaPasteHandler } from '../utils';
 import { attachMobileSheetViewportBehavior } from '../utils/mobileSheetViewport';
 
 const BATCH_SIZE = 25;
@@ -344,12 +344,9 @@ export class DesktopHubView extends ItemView {
         this.contentEl.empty();
         this.contentEl.scrollTop = 0;
         const layoutEl = this.contentEl.createDiv({ cls: 'pos-desktop-cockpit-layout' });
-        const viewWidth = this.contentEl.getBoundingClientRect().width || window.innerWidth;
         if (isTablet(this.app)) {
             layoutEl.addClass('is-tablet');
-            const win = this.contentEl.ownerDocument?.defaultView ?? window;
-            const isPortrait = (viewWidth < 900) || (win.innerHeight > win.innerWidth);
-            if (isPortrait) {
+            if (isTabletPortrait(this.app, this.contentEl)) {
                 layoutEl.addClass('is-tablet-portrait');
             }
         }
@@ -392,12 +389,12 @@ export class DesktopHubView extends ItemView {
         this._streamContainerEl = this._mainStageEl.createDiv({ cls: 'pos-document-stream' });
         this.renderStream(this._streamContainerEl);
 
-        const isTabletPortrait = Boolean(layoutEl.hasClass('is-tablet-portrait'));
+        const isPortrait = Boolean(layoutEl.hasClass('is-tablet-portrait'));
 
         // Center Resizer Divider (between stream and fixed right rail)
         this._resizerEl = cockpitBody.createDiv({ cls: 'pos-cockpit-resizer' });
         this.setupCockpitResizer(this._resizerEl, cockpitBody);
-        if (!this._cockpitRailOpen || isTabletPortrait) {
+        if (!this._cockpitRailOpen || isPortrait) {
             this._resizerEl.style.display = 'none';
         } else {
             this._resizerEl.style.display = 'block';
@@ -405,15 +402,20 @@ export class DesktopHubView extends ItemView {
 
         // Right Side Rail (Inspector & Agenda) — Fixed Width Anchored to Right Edge
         this._sideRailEl = cockpitBody.createDiv({
-            cls: `pos-cockpit-side-rail ${(!this._cockpitRailOpen || isTabletPortrait) ? 'is-collapsed' : ''}`
+            cls: `pos-cockpit-side-rail ${(!this._cockpitRailOpen || isPortrait) ? 'is-collapsed' : ''}`
         });
         this._sideRailEl.style.width = `${this._cockpitRailWidth}px`;
         this._sideRailEl.style.marginLeft = 'auto';
 
-        if (this._cockpitRailOpen && !isTabletPortrait) {
+        if (isPortrait) {
+            this._sideRailEl.style.display = 'none';
+            if (this._cockpitBackdropEl) this._cockpitBackdropEl.removeClass('is-active');
+        } else if (this._cockpitRailOpen) {
+            this._sideRailEl.style.display = '';
             if (this._cockpitBackdropEl) this._cockpitBackdropEl.removeClass('is-active');
             this.renderRightRail(this._sideRailEl);
         } else {
+            this._sideRailEl.style.display = '';
             if (this._cockpitBackdropEl) this._cockpitBackdropEl.removeClass('is-active');
         }
 
@@ -476,27 +478,34 @@ export class DesktopHubView extends ItemView {
         if (this._resizeObserver) {
             this._resizeObserver.disconnect();
         }
+        const checkOrientation = () => {
+            if (isTablet(this.app) && this._cockpitLayoutEl) {
+                const isPortrait = isTabletPortrait(this.app, this.contentEl);
+                const wasPortrait = this._cockpitLayoutEl.hasClass('is-tablet-portrait');
+                if (isPortrait !== wasPortrait) {
+                    this._cockpitLayoutEl.toggleClass('is-tablet-portrait', isPortrait);
+                    this.updateCockpitRailState();
+                    if (this._headerBarEl) {
+                        this.renderHeaderBar(this._headerBarEl);
+                    }
+                }
+            }
+        };
+
         this._resizeObserver = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 const width = entry.contentRect.width;
                 // Ignore zero-width backgrounded, detached, or transitioning tabs
                 if (width <= 0) return;
-
-                if (isTablet(this.app) && this._cockpitLayoutEl) {
-                    const win = this.contentEl.ownerDocument?.defaultView ?? window;
-                    const isPortrait = (width < 900) || (win.innerHeight > win.innerWidth);
-                    const wasPortrait = this._cockpitLayoutEl.hasClass('is-tablet-portrait');
-                    if (isPortrait !== wasPortrait) {
-                        this._cockpitLayoutEl.toggleClass('is-tablet-portrait', isPortrait);
-                        this.updateCockpitRailState();
-                        if (this._headerBarEl) {
-                            this.renderHeaderBar(this._headerBarEl);
-                        }
-                    }
-                }
+                checkOrientation();
             }
         });
         this._resizeObserver.observe(this.contentEl);
+
+        const win = this.contentEl.ownerDocument?.defaultView ?? window;
+        win.addEventListener('orientationchange', () => {
+            setTimeout(checkOrientation, 100);
+        });
     }
 
     private setupViewKeyHandler(): void {

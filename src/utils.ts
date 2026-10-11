@@ -44,11 +44,14 @@ export function getWorkspaceViewportSize(app?: App): { width: number; height: nu
  *  distinguish them by the current Obsidian viewport short edge instead of
  *  the physical device screen size. */
 export function isTablet(app?: App): boolean {
+    if (Platform.isTablet) return true;
+    const doc = app?.workspace?.containerEl?.ownerDocument ?? document;
+    if (doc?.body?.classList.contains('is-tablet')) return true;
+
     const isMobile = (app as { isMobile?: boolean } | undefined)?.isMobile ?? Platform.isMobile;
     if (!isMobile) return false;
 
     // Check physical screen dimensions first (immune to virtual keyboard height contraction)
-    const doc = app?.workspace?.containerEl?.ownerDocument ?? document;
     const win = doc.defaultView ?? window;
     const screenW = win.screen?.width ?? 0;
     const screenH = win.screen?.height ?? 0;
@@ -60,6 +63,23 @@ export function isTablet(app?: App): boolean {
 
     const { width, height } = getWorkspaceViewportSize(app);
     return Math.max(width, height) >= 1024 || Math.min(width, height) >= TABLET_VIEWPORT_SHORT_EDGE_PX;
+}
+
+/**
+ * Detects whether the tablet is currently in portrait orientation.
+ * Returns true if in portrait mode, false if in landscape mode.
+ */
+export function isTabletPortrait(app?: App, element?: HTMLElement): boolean {
+    if (!isTablet(app)) return false;
+    const doc = element?.ownerDocument ?? app?.workspace?.containerEl?.ownerDocument ?? document;
+    const win = doc.defaultView ?? window;
+    if (win.matchMedia?.('(orientation: portrait)')?.matches) {
+        return true;
+    }
+    if (win.matchMedia?.('(orientation: landscape)')?.matches) {
+        return false;
+    }
+    return win.innerHeight > win.innerWidth;
 }
 
 export function parseNaturalDate(text: string): string | null {

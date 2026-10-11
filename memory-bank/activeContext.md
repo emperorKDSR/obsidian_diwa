@@ -1,15 +1,16 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Tablet Workspace Optimization (Pure Stream Portrait, Desktop Parity Landscape)
-- **Tablet Responsive Architecture (`DesktopHubView.ts` & `styles.css`)**:
-  - **Portrait Mode (Pure Stream & Capture Focus)**:
-    - Automatically detected via `isTablet(this.app)` and `(viewWidth < 900) || (win.innerHeight > win.innerWidth)` across all tablet devices (iPad Mini to iPad Pro 12.9").
-    - The document stream (`.pos-cockpit-main-stage`) takes 100% full width (`flex: 1 1 100% !important; width: 100% !important; max-width: 100% !important;`).
+## Current State: Tablet Workspace Optimization (Full-Width Stream in Portrait, Available/Collapsible Agenda in Landscape)
+- **Tablet Responsive Architecture (`DesktopHubView.ts`, `src/utils.ts`, & `styles.css`)**:
+  - **Portrait Mode (Pure Stream & Full-Width Focus)**:
+    - Automatically detected via `isTabletPortrait()` using `@media (orientation: portrait)` matchMedia checks and aspect ratio logic, eliminating false-positives caused by narrow sidebar-split widths in landscape.
+    - The document stream (`.pos-cockpit-main-stage`), stream notes (`.pos-note-stream-item`), date dividers (`.pos-date-divider`), and quick capture capsule (`.pos-composer-compact`, `.pos-desktop-composer`) fill **100% full width of the tablet** (`width: 100% !important; max-width: 100% !important; margin: 0 !important;`).
     - The right side rail (`.pos-cockpit-side-rail`), center resizer (`.pos-cockpit-resizer`), drawer backdrop (`.pos-cockpit-drawer-backdrop`), and Agenda toggle header button (`.pos-rail-toggle-btn`) are completely hidden (`display: none !important`).
     - Hotkey `\` and toggle calls are guarded against opening the side rail while in portrait orientation.
-  - **Landscape Mode (Desktop Dual-Pane Parity)**:
-    - Restores the full desktop cockpit layout with in-flow fixed right sidebar (`320px`, anchored to right edge), center draggable resizer (`.pos-cockpit-resizer`), and active Agenda header toggle button.
-    - Dynamic orientation flips handled seamlessly by `ResizeObserver` on `this.contentEl`.
+  - **Landscape Mode (Desktop Dual-Pane Parity with Available & Collapsible Agenda)**:
+    - Agenda panel is available in landscape orientation. When open, it renders anchored to the right margin with in-flow layout (`320px`) alongside the center draggable resizer.
+    - If the user needs to minimize / collapse the Agenda panel, they can click the collapse button in the rail header (`.pos-rail-collapse-btn`) or the header toggle button (`.pos-rail-toggle-btn`), expanding the stream to full width.
+    - Seamless orientation transitions handled by `ResizeObserver` on `this.contentEl` and `window.orientationchange` event listeners, backed by CSS `@media (orientation: portrait)` and `@media (orientation: landscape)` fallbacks.
 - **Production Build & Vault Deployment**:
   - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
   - Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
