@@ -1,6 +1,16 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Agenda Rail Hover-Reveal Subtasks & Notes with Multi-Way Dismissal
+## Current State: Mobile Micro-Card Stream Layout (Option 1 Implemented for Mobile Only)
+- **Mobile Micro-Card Stream Layout (`DesktopHubView.ts` & `styles.css`)**:
+  - Exclusively targets mobile phones (`Platform.isMobile && !isTablet(this.app)`), leaving desktop and tablet dual-pane cockpit layouts 100% untouched.
+  - Eliminated the desktop 3-column outliner constraints on phones (removed the `68px` left gutter and the `96px` right padding for hover actions).
+  - Built a dedicated `.pos-mobile-card-header`:
+    - Top Left: Note timestamp (`pos-note-time`, `h:mm A`) and selection checkbox (if multi-select mode is active).
+    - Top Right: Compact static action buttons capsule (`pos-mobile-card-actions`) with Star (`☆`) and More options (`...`).
+  - Full-Width Content Body (`.pos-note-content-wrap`): Note markdown and tasks span **100% full width of the card** directly below the header row, doubling usable text width from ~180px to ~350px (+95%) and eliminating awkward 3-word line wrapping.
+  - Consistent visual card design: `background: var(--background-secondary)`, `border-radius: 12px`, subtle border, soft elevation, and gold left border for important/starred notes.
+
+## Previous State: Agenda Rail Hover-Reveal Subtasks & Notes with Multi-Way Dismissal
 - **Compact Resting Card Layout (`DesktopHubView.ts` & `styles.css`)**:
   - Subtasks and comments/notes containers are hidden by default (`display: none;`), eliminating vertical clutter so each task card occupies a compact ~40px row with title, due date, and subtle count badges (`☑ done/total`, `💬 count`).
   - Action buttons (`+ Subtask`, `+ Note`) for tasks with no existing items are strictly hidden by default (`display: none !important;`) and only reveal when hovering over the task card (`.pos-rail-task-row:hover .pos-rail-meta-action-pill`).

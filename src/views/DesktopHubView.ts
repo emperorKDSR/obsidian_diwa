@@ -3255,7 +3255,102 @@ export class DesktopHubView extends ItemView {
         const isMobile = Platform.isMobile && !isTablet(this.app);
         const timeStr = moment(entry.createdAtMs).format('h:mm A');
 
-        // If in inline editing mode
+        // Mobile Micro-Card Layout (Phones only: full-width card with top meta header)
+        if (isMobile) {
+            item.addClass('is-mobile-card');
+
+            if (this._editingEntryId === entry.id) {
+                item.addClass('is-editing');
+                const editorWrapper = item.createDiv({ cls: 'pos-note-content-wrap pos-inline-editor-wrap' });
+                this.renderInlineEditor(editorWrapper, entry);
+                return;
+            }
+
+            // Top Header: Time on left, Actions on right
+            const cardHeader = item.createDiv({ cls: 'pos-mobile-card-header' });
+            const headerLeft = cardHeader.createDiv({ cls: 'pos-mobile-card-header-left' });
+
+            if (this._selectionMode) {
+                const selectCheckbox = headerLeft.createEl('input', {
+                    type: 'checkbox',
+                    cls: 'pos-select-checkbox',
+                });
+                selectCheckbox.checked = isSelected;
+                selectCheckbox.onclick = (e) => {
+                    e.stopPropagation();
+                    if (selectCheckbox.checked) {
+                        this._selectedEntryIds.add(entry.id);
+                    } else {
+                        this._selectedEntryIds.delete(entry.id);
+                    }
+                    item.toggleClass('is-selected', selectCheckbox.checked);
+                    this.updateSelectionBar();
+                };
+            }
+
+            headerLeft.createSpan({ cls: 'pos-note-time', text: timeStr });
+
+            // Actions capsule anchored in top-right of mobile card header
+            const actionsEl = cardHeader.createDiv({ cls: 'pos-note-actions pos-mobile-card-actions' });
+            const starBtn = actionsEl.createSpan({
+                cls: `pos-action-icon pos-star-btn ${isImportant ? 'is-starred' : ''}`,
+                attr: { 'aria-label': isImportant ? 'Unmark important' : 'Mark as important' }
+            });
+            setIcon(starBtn, 'star');
+            starBtn.onclick = async (e) => {
+                e.stopPropagation();
+                try {
+                    this.invalidateRenderCacheForFile(entry.filePath);
+                    const newState = await this.plugin.capture.toggleNoteImportance(entry.filePath);
+                    entry.important = newState;
+                    entry.pinned = newState;
+                    this.plugin.index?.setCaptureImportance?.(entry.filePath, newState);
+                    new Notice(newState ? 'Marked as Important' : 'Unmarked from Important');
+                    this.updateFilterCounts();
+                    this.updateStreamOnly();
+                } catch (err) {
+                    console.error('[DIWA] Toggle note importance error', err);
+                    new Notice('Failed to update importance');
+                }
+            };
+
+            const moreBtn = actionsEl.createSpan({
+                cls: 'pos-action-icon pos-action-more',
+                attr: { 'aria-label': 'More note options' }
+            });
+            setIcon(moreBtn, 'more-horizontal');
+            moreBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.openNoteActionMenu(e, entry);
+            };
+
+            // Full-Width Body Content (takes 100% width, no left gutter, no 96px deadspace)
+            const contentWrap = item.createDiv({ cls: 'pos-note-content-wrap' });
+            const bodyEl = contentWrap.createDiv({ cls: 'pos-note-body markdown-rendered' });
+
+            const cacheKey = `${entry.filePath}_${entry.modified}`;
+            const cached = this.getCachedRenderedBody(cacheKey);
+
+            if (cached) {
+                bodyEl.innerHTML = cached.innerHTML;
+                this.attachInteractiveElements(bodyEl, entry);
+            } else {
+                void MarkdownRenderer.render(
+                    this.app,
+                    entry.body,
+                    bodyEl,
+                    entry.filePath,
+                    this._streamComponent ?? this
+                ).then(() => {
+                    const clone = bodyEl.cloneNode(true) as HTMLElement;
+                    this.setCachedRenderedBody(cacheKey, clone);
+                    this.attachInteractiveElements(bodyEl, entry);
+                });
+            }
+            return;
+        }
+
+        // If in inline editing mode (Desktop & Tablet)
         if (this._editingEntryId === entry.id) {
             item.addClass('is-editing');
             item.style.display = 'flex';
