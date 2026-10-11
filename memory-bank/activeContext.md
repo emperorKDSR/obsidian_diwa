@@ -1,6 +1,21 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Clean Solid Hairline Wikilinks Deployed (Spellcheck Look Eliminated)
+## Current State: Stream Day Dividers, Agenda Anchoring & Note Edit Formatting Refined
+- **1. Day Dividers Subtle Normal Casing (`DesktopHubView.ts` & `styles.css`)**:
+  - **Inline Style & CSS Enforcement**: Set `headingEl.style.textTransform = 'none'`, `headingEl.style.letterSpacing = '-0.01em'`, `headingEl.style.fontWeight = '500'`, `headingEl.style.fontSize = '0.76rem'`, and `headingEl.style.color = 'var(--text-faint)'` directly in DOM creation as well as high-specificity CSS (`!important`).
+  - Eliminates all cached uppercase styling and renders clean normal casing (`Today`, `Yesterday`, `Friday, October 9`) with subtle weight and tighter character spacing.
+- **2. Agenda Pane Anchored to Right (`styles.css` & `DesktopHubView.ts`)**:
+  - Enforced `margin-left: auto !important; align-self: stretch;` on `.pos-cockpit-side-rail` and in DOM element creation.
+  - In task rows, anchored `.pos-rail-source-btn` (jump button) flush to the right edge with `margin-left: auto !important; flex-shrink: 0 !important;`.
+- **3. Seamless Note Edit Formatting (`DesktopHubView.ts` & `styles.css`)**:
+  - Preserved the outliner horizontal rhythm during inline editing: Col 1 maintains the timestamp gutter (`3:42 PM`), preventing the note from jumping or breaking feed alignment.
+  - Integrated smart Markdown list continuation in textarea on `Enter`: automatically continues checkboxes (`- [ ] `), bullet points (`- ` / `* `), and numbered lists (`1. `), or removes empty list markers when pressing Enter on an empty bullet.
+  - Replaced bright `.mod-cta` with muted `pos-inline-save-btn` (`Save (⌘↵)`) and `pos-inline-btn` (`Cancel (Esc)`).
+- **Production Build & Vault Deployment**:
+  - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
+  - Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Clean Solid Hairline Wikilinks Deployed (Spellcheck Look Eliminated)
 - **Elimination of Dotted Spellcheck-Style Underlines (`styles.css`)**:
   - Replaced all dotted underlines across note stream body (`.pos-note-body a.internal-link`), modal peek links (`.pos-stream-wikilink`), Gawa table titles, subtasks, and comments (`.pos-gawa-table ... a.internal-link`, `.pos-gawa-subtask-title a.internal-link`, `.pos-gawa-comment-content a.internal-link`), and Agenda rail task titles (`.pos-rail-task-title a.internal-link`).
   - Swapped with an editorial, clean solid hairline:

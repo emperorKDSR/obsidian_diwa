@@ -405,6 +405,7 @@ export class DesktopHubView extends ItemView {
         this._sideRailEl = cockpitBody.createDiv({
             cls: `pos-cockpit-side-rail ${!this._cockpitRailOpen ? 'is-collapsed' : ''}`
         });
+        this._sideRailEl.style.marginLeft = 'auto';
         if (this._cockpitRailOpen) {
             if (isTabletPortrait) {
                 this._sideRailEl.style.flex = 'none';
@@ -600,6 +601,7 @@ export class DesktopHubView extends ItemView {
 
         if (this._cockpitRailOpen) {
             this._sideRailEl.removeClass('is-collapsed');
+            this._sideRailEl.style.marginLeft = 'auto';
             if (isTabletPortrait) {
                 this._resizerEl.style.display = 'none';
                 this._mainStageEl.style.flex = '1';
@@ -2515,9 +2517,18 @@ export class DesktopHubView extends ItemView {
             if (dateKey !== lastDateKey) {
                 lastDateKey = dateKey;
                 const divider = container.createDiv({ cls: 'pos-date-divider' });
-                divider.createSpan({ cls: 'pos-date-heading', text: dateKey });
+                const headingEl = divider.createSpan({ cls: 'pos-date-heading', text: dateKey });
+                headingEl.style.textTransform = 'none';
+                headingEl.style.letterSpacing = '-0.01em';
+                headingEl.style.fontWeight = '500';
+                headingEl.style.fontSize = '0.76rem';
+                headingEl.style.color = 'var(--text-faint)';
+                headingEl.style.opacity = '0.82';
                 const count = dateCounts.get(dateKey) || 1;
-                divider.createSpan({ cls: 'pos-date-count', text: `${count}` });
+                const countEl = divider.createSpan({ cls: 'pos-date-count', text: `${count}` });
+                countEl.style.fontSize = '0.70rem';
+                countEl.style.fontWeight = '500';
+                countEl.style.color = 'var(--text-faint)';
                 divider.createDiv({ cls: 'pos-date-line' });
             }
 
@@ -2568,9 +2579,18 @@ export class DesktopHubView extends ItemView {
             if (dateKey !== lastDateKey) {
                 lastDateKey = dateKey;
                 const divider = container.createDiv({ cls: 'pos-date-divider' });
-                divider.createSpan({ cls: 'pos-date-heading', text: dateKey });
+                const headingEl = divider.createSpan({ cls: 'pos-date-heading', text: dateKey });
+                headingEl.style.textTransform = 'none';
+                headingEl.style.letterSpacing = '-0.01em';
+                headingEl.style.fontWeight = '500';
+                headingEl.style.fontSize = '0.76rem';
+                headingEl.style.color = 'var(--text-faint)';
+                headingEl.style.opacity = '0.82';
                 const count = dateCounts.get(dateKey) || 1;
-                divider.createSpan({ cls: 'pos-date-count', text: `${count}` });
+                const countEl = divider.createSpan({ cls: 'pos-date-count', text: `${count}` });
+                countEl.style.fontSize = '0.70rem';
+                countEl.style.fontWeight = '500';
+                countEl.style.color = 'var(--text-faint)';
                 divider.createDiv({ cls: 'pos-date-line' });
             }
 
@@ -2646,14 +2666,39 @@ export class DesktopHubView extends ItemView {
             };
         }
 
-        // If in inline editing mode
-        if (this._editingEntryId === entry.id) {
-            this.renderInlineEditor(item, entry);
-            return;
-        }
-
         const isMobile = Platform.isMobile && !isTablet(this.app);
         const timeStr = moment(entry.createdAtMs).format('h:mm A');
+
+        // If in inline editing mode
+        if (this._editingEntryId === entry.id) {
+            item.addClass('is-editing');
+            item.style.display = 'flex';
+            item.style.flexDirection = 'row';
+            item.style.alignItems = 'flex-start';
+            item.style.gap = '12px';
+            item.style.width = '100%';
+            item.style.maxWidth = 'var(--diwa-stream-max-width, 820px)';
+
+            // Preserve Col 1: Left Gutter (Time) so stream outliner alignment never jumps
+            const gutterEl = item.createDiv({ cls: 'pos-note-gutter' });
+            gutterEl.style.width = '68px';
+            gutterEl.style.minWidth = '68px';
+            gutterEl.style.maxWidth = '68px';
+            gutterEl.style.flexShrink = '0';
+            gutterEl.style.display = 'flex';
+            gutterEl.style.alignItems = 'baseline';
+            gutterEl.style.paddingTop = '6px';
+            gutterEl.createSpan({ cls: 'pos-note-time', text: timeStr });
+
+            // Col 2: Content Column containing the Inline Editor
+            const editorWrapper = item.createDiv({ cls: 'pos-note-content-wrap pos-inline-editor-wrap' });
+            editorWrapper.style.flex = '1';
+            editorWrapper.style.minWidth = '0';
+            editorWrapper.style.width = '100%';
+
+            this.renderInlineEditor(editorWrapper, entry);
+            return;
+        }
 
         // Enforce strict horizontal outliner layout directly on DOM nodes
         item.style.display = 'flex';
@@ -3390,7 +3435,7 @@ export class DesktopHubView extends ItemView {
         // Action buttons
         const actions = editorContainer.createDiv({ cls: 'pos-inline-actions' });
         
-        const cancelBtn = actions.createEl('button', { text: 'Cancel', cls: 'pos-inline-btn' });
+        const cancelBtn = actions.createEl('button', { text: 'Cancel (Esc)', cls: 'pos-inline-btn' });
         cancelBtn.onclick = () => {
             this._editingEntryId = null;
             this.updateStreamOnly();
@@ -3398,8 +3443,8 @@ export class DesktopHubView extends ItemView {
         };
 
         const saveBtn = actions.createEl('button', {
-            text: 'Save',
-            cls: 'mod-cta'
+            text: 'Save (⌘↵)',
+            cls: 'pos-inline-save-btn'
         });
         saveBtn.onclick = async () => {
             const newBody = textarea.value.trim();
@@ -3428,6 +3473,69 @@ export class DesktopHubView extends ItemView {
                 this._editingEntryId = null;
                 this.updateStreamOnly();
                 this.updateComposerVisibility();
+            } else if (e.key === 'Enter' && !e.shiftKey) {
+                // Smart markdown list & task continuation
+                const val = textarea.value;
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                if (start === end) {
+                    const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+                    const lineText = val.substring(lineStart, start);
+                    const taskMatch = lineText.match(/^(\s*-\s*\[[ xX]?\]\s+)(.*)$/);
+                    const bulletMatch = lineText.match(/^(\s*[-*]\s+)(.*)$/);
+                    const numMatch = lineText.match(/^(\s*(\d+)\.\s+)(.*)$/);
+
+                    if (taskMatch) {
+                        e.preventDefault();
+                        if (taskMatch[2].trim() === '') {
+                            const before = val.substring(0, lineStart);
+                            const after = val.substring(start);
+                            textarea.value = before + after;
+                            textarea.setSelectionRange(lineStart, lineStart);
+                        } else {
+                            const indent = taskMatch[1].replace(/\[[ xX]?\]\s+/, '[ ] ');
+                            const before = val.substring(0, start);
+                            const after = val.substring(end);
+                            textarea.value = before + '\n' + indent + after;
+                            const newPos = start + 1 + indent.length;
+                            textarea.setSelectionRange(newPos, newPos);
+                        }
+                        autoResize();
+                    } else if (bulletMatch) {
+                        e.preventDefault();
+                        if (bulletMatch[2].trim() === '') {
+                            const before = val.substring(0, lineStart);
+                            const after = val.substring(start);
+                            textarea.value = before + after;
+                            textarea.setSelectionRange(lineStart, lineStart);
+                        } else {
+                            const prefix = bulletMatch[1];
+                            const before = val.substring(0, start);
+                            const after = val.substring(end);
+                            textarea.value = before + '\n' + prefix + after;
+                            const newPos = start + 1 + prefix.length;
+                            textarea.setSelectionRange(newPos, newPos);
+                        }
+                        autoResize();
+                    } else if (numMatch) {
+                        e.preventDefault();
+                        if (numMatch[3].trim() === '') {
+                            const before = val.substring(0, lineStart);
+                            const after = val.substring(start);
+                            textarea.value = before + after;
+                            textarea.setSelectionRange(lineStart, lineStart);
+                        } else {
+                            const nextNum = parseInt(numMatch[2], 10) + 1;
+                            const indent = numMatch[1].replace(/\d+\./, `${nextNum}.`);
+                            const before = val.substring(0, start);
+                            const after = val.substring(end);
+                            textarea.value = before + '\n' + indent + after;
+                            const newPos = start + 1 + indent.length;
+                            textarea.setSelectionRange(newPos, newPos);
+                        }
+                        autoResize();
+                    }
+                }
             }
         };
     }

@@ -1123,50 +1123,53 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
 .pos-date-divider {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin: 32px 0 10px 0;
+    gap: 8px;
+    margin: 22px 0 8px 0;
     width: 100%;
     max-width: 100%;
-    padding: 0 8px;
+    padding: 0 4px;
     box-sizing: border-box;
 }
 
 .pos-date-divider:first-child {
-    margin-top: 14px;
+    margin-top: 10px;
 }
 
 .pos-date-heading {
-    font-size: 0.58em;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    font-size: 0.76rem !important;
+    font-weight: 500 !important;
+    text-transform: none !important;
+    letter-spacing: -0.01em !important;
     color: var(--text-faint) !important;
+    opacity: 0.82 !important;
     white-space: nowrap;
     user-select: none;
     margin: 0;
     padding: 0;
-    line-height: 1;
+    line-height: 1.2;
 }
 
 .pos-date-count {
-    font-size: 0.56em;
-    font-weight: 600;
+    font-size: 0.70rem !important;
+    font-weight: 500 !important;
     color: var(--text-faint) !important;
-    background: var(--background-modifier-hover, rgba(255, 255, 255, 0.05));
-    border: 1px solid var(--background-modifier-border-faint, rgba(255, 255, 255, 0.08));
-    padding: 0 4px;
+    opacity: 0.72 !important;
+    background: var(--background-modifier-hover, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--background-modifier-border-faint, rgba(255, 255, 255, 0.06));
+    padding: 0 5px;
     min-width: 14px;
     text-align: center;
     border-radius: var(--diwa-radius-pill);
     white-space: nowrap;
     user-select: none;
-    line-height: 1.5;
+    line-height: 1.4;
 }
 
 .pos-date-line {
     flex: 1;
     height: 1px;
-    background: var(--background-modifier-border);
+    background: var(--background-modifier-border-faint, rgba(255, 255, 255, 0.06));
+    opacity: 0.5;
     display: block;
 }
 
@@ -1675,11 +1678,26 @@ body.is-tablet .pos-action-icon {
 }
 
 /* Inline Editor */
+.pos-note-stream-item.is-editing {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    padding: 6px 8px !important;
+}
+
+.pos-inline-editor-wrap {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
 .pos-inline-editor {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 8px 0;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0;
 }
 
 .pos-inline-area-selector {
@@ -1693,15 +1711,22 @@ body.is-tablet .pos-action-icon {
 .pos-inline-textarea {
     width: 100%;
     box-sizing: border-box;
-    border-radius: var(--diwa-radius-sm);
-    border: 1px solid var(--interactive-accent);
+    border-radius: var(--diwa-radius-sm, 6px);
+    border: 1px solid var(--background-modifier-border-hover, rgba(255, 255, 255, 0.15));
     background: var(--background-secondary);
-    padding: 10px 12px;
+    padding: 8px 12px;
     font-family: var(--font-text);
-    font-size: 0.95em;
-    line-height: 1.5;
+    font-size: 0.95rem;
+    line-height: 1.55;
     color: var(--text-normal);
     resize: vertical;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pos-inline-textarea:focus {
+    outline: none;
+    border-color: var(--text-muted);
+    box-shadow: 0 0 0 1px var(--background-modifier-border-focus, rgba(255, 255, 255, 0.2));
 }
 
 /* Enforce 16px on mobile to completely prevent iOS Safari/WebKit auto-zoom */
@@ -1721,29 +1746,41 @@ body.is-phone .pos-inline-textarea {
     justify-content: flex-end;
     gap: 8px;
     align-items: center;
+    padding-top: 4px;
 }
 
 .pos-inline-btn {
-    background: var(--background-modifier-form-field);
+    background: transparent;
     border: 1px solid var(--background-modifier-border);
     border-radius: var(--button-radius, 4px);
-    color: var(--text-normal);
-    padding: 6px 14px;
-    font-size: var(--font-ui-small);
-    min-height: 34px;
+    color: var(--text-muted);
+    padding: 5px 12px;
+    font-size: 0.78rem;
     cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    transition: var(--diwa-transition);
 }
 
 .pos-inline-btn:hover {
     background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border-color: var(--text-muted);
 }
 
-.pos-inline-actions .mod-cta {
-    min-height: 34px;
-    padding: 6px 18px;
+.pos-inline-save-btn {
+    background: var(--background-modifier-hover, rgba(255, 255, 255, 0.08));
+    border: 1px solid var(--background-modifier-border-hover, rgba(255, 255, 255, 0.2));
+    border-radius: var(--button-radius, 4px);
+    color: var(--text-normal);
+    font-weight: 500;
+    padding: 5px 14px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: var(--diwa-transition);
+}
+
+.pos-inline-save-btn:hover {
+    background: var(--background-modifier-active-hover, rgba(255, 255, 255, 0.14));
+    border-color: var(--text-muted);
 }
 
 /* Empty State */
@@ -2174,7 +2211,6 @@ body.is-tablet .pos-cockpit-main-stage .pos-document-stream .pos-date-divider,
 .pos-desktop-cockpit-layout.is-tablet .pos-cockpit-main-stage .pos-document-stream .pos-date-divider {
     margin: 14px 0 6px 0 !important;
     padding: 0 4px;
-    font-size: 0.58em;
 }
 
 body.is-tablet .pos-cockpit-main-stage .pos-document-stream .pos-date-divider:first-child,
@@ -5655,16 +5691,16 @@ body.is-resizing-cockpit {
 .pos-cockpit-main-stage .pos-document-stream .pos-date-divider {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     width: 100%;
     max-width: 100%;
-    margin: 32px 0 10px 0;
-    padding: 0 8px;
+    margin: 28px 0 10px 0;
+    padding: 0 4px;
     box-sizing: border-box;
 }
 
 .pos-cockpit-main-stage .pos-document-stream .pos-date-divider:first-child {
-    margin-top: 14px;
+    margin-top: 12px;
 }
 
 .pos-cockpit-main-stage .pos-document-stream .pos-note-stream-item {
@@ -5722,6 +5758,8 @@ body.is-resizing-cockpit {
     overflow: hidden;
     min-width: 280px;
     max-width: 650px;
+    margin-left: auto !important;
+    align-self: stretch;
     transition: width 0.18s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease;
 }
 
@@ -6080,6 +6118,9 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    margin-left: auto !important;
+    flex-shrink: 0 !important;
+    align-self: flex-start !important;
 }
 
 .pos-rail-source-btn svg {
