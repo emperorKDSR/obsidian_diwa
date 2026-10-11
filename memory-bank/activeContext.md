@@ -1,6 +1,14 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Option B Smart Date Isolation & Bugfix for Digested Tasks in Horizon
+## Current State: Pre-Flight Modal Harmonized with DIWA Muted Workspace Theme & Palette
+- **DIWA Palette Alignment in PreFlightDigestModal (`styles.css` & `PreFlightDigestModal.ts`)**:
+  - **Execute Digest CTA Button**: Overrode bright neon-green `.mod-cta` with DIWA's calm muted button style (`background: var(--background-modifier-hover)`, subtle border `var(--background-modifier-border)`, `color: var(--text-normal)`), eliminating harsh theme accent blocks.
+  - **Editorial Note Snippet Links**: Styled snippet wikilinks and dates with standard text color and subtle hairline underlines (`.pos-stream-wikilink` style), eliminating bright neon-green links.
+  - **Muted Tags & Checkboxes**: Replaced bright green tag styling with muted badge styling (`var(--background-modifier-hover)`), and desaturated checkboxes.
+  - **Clean Title Formatting**: Strips raw `- [ ]` checklist syntax, `[[ ]]` wikilink brackets, and hashtags from the modal title (e.g. `Digest Note: Project Steer status...`).
+  - **Refined Neutral Pills**: `.is-alt` dashed pills and active pills use subtle neutral borders and hover illumination.
+
+## Previous State: Option B Smart Date Isolation & Bugfix for Digested Tasks in Horizon
 - **Option B Smart Date Isolation (`IndexService.ts`)**:
   - Implemented `stripDigestMetadata(text: string): string` to strip auto-generated digest headers (`#### [[YYYY-MM-DD]] HH:mm`), block anchors (`^dw-...`), and comment wrappers (`diwa-digest:`, `diwa-digested:`).
   - In `getVaultNoteBlocksForDate(dateStr)`:

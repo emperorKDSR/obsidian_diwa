@@ -3757,7 +3757,14 @@ export class DesktopHubView extends ItemView {
         }
 
         const dateStr = moment(entry.createdAtMs).format('YYYY-MM-DD');
-        const noteTitle = (entry.body.split('\n')[0].replace(/^#+\s*/, '').slice(0, 35).trim()) || 'Quick Note';
+        const rawLine = (entry.body.split('\n')[0].replace(/^#+\s*/, '').trim());
+        const noteTitle = rawLine
+            .replace(/^[ \t]*-[ \t]+\[[ xX]\]\s*/, '')
+            .replace(/\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]/g, '$1')
+            .replace(/#([a-zA-Z0-9_\-]+)/g, '')
+            .replace(/\s+/g, ' ')
+            .slice(0, 42)
+            .trim() || 'Quick Note';
 
         new PreFlightDigestModal(
             this.app,

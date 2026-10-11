@@ -33,7 +33,12 @@ export class PreFlightDigestModal extends Modal {
 
         // Header
         const headerEl = contentEl.createDiv({ cls: 'pos-preflight-header' });
-        const displayTitle = this.title ? `Digest Note: ${this.title}` : `Pre-Flight Digest: ${this.dateStr}`;
+        const cleanTitle = (this.title || '')
+            .replace(/^[ \t]*-[ \t]+\[[ xX]\]\s*/, '')
+            .replace(/\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]/g, '$1')
+            .replace(/#([a-zA-Z0-9_\-]+)/g, '')
+            .trim();
+        const displayTitle = cleanTitle ? `Digest Note: ${cleanTitle}` : `Pre-Flight Digest: ${this.dateStr}`;
         headerEl.createEl('h2', { text: displayTitle });
         headerEl.createEl('p', {
             cls: 'pos-preflight-subtitle',

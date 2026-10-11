@@ -5120,6 +5120,41 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     margin-bottom: 0;
 }
 
+/* Editorial Wikilinks matching DIWA stream (No neon green) */
+.pos-preflight-snippet a,
+.pos-preflight-snippet a.internal-link {
+    color: var(--text-normal) !important;
+    font-weight: 500 !important;
+    text-decoration: underline solid var(--background-modifier-border) !important;
+    text-underline-offset: 3px !important;
+    text-decoration-thickness: 1px !important;
+    transition: color 0.15s ease, text-decoration-color 0.15s ease !important;
+}
+
+.pos-preflight-snippet a:hover,
+.pos-preflight-snippet a.internal-link:hover {
+    color: var(--text-normal) !important;
+    text-decoration-color: var(--text-muted) !important;
+}
+
+/* Muted Tags */
+.pos-preflight-snippet .tag {
+    color: var(--text-muted) !important;
+    background: var(--background-modifier-hover) !important;
+    border: 1px solid var(--background-modifier-border-faint) !important;
+    font-weight: 500 !important;
+    font-size: 0.76rem !important;
+    padding: 1px 7px !important;
+    border-radius: var(--diwa-radius-pill) !important;
+}
+
+/* Grayscale Muted Checkboxes */
+.pos-preflight-snippet input[type="checkbox"] {
+    accent-color: var(--text-muted) !important;
+    filter: grayscale(1) !important;
+    opacity: 0.8 !important;
+}
+
 .pos-preflight-snippet img {
     max-width: 100%;
     max-height: 240px;
@@ -5154,9 +5189,9 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border-faint);
-    color: var(--text-muted);
+    background: var(--background-secondary) !important;
+    border: 1px solid var(--background-modifier-border-faint) !important;
+    color: var(--text-muted) !important;
     border-radius: var(--diwa-radius-pill);
     padding: 3px 10px;
     font-size: 0.78rem;
@@ -5166,24 +5201,37 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-pill-btn:hover {
-    border-color: var(--background-modifier-border);
-    background: var(--background-modifier-hover);
-    color: var(--text-normal);
+    border-color: var(--background-modifier-border) !important;
+    background: var(--background-modifier-hover) !important;
+    color: var(--text-normal) !important;
 }
 
 .pos-pill-btn.is-active {
-    background: var(--background-modifier-hover);
-    color: var(--text-normal);
-    border-color: var(--text-muted);
-    font-weight: 600;
+    background: var(--background-modifier-hover) !important;
+    color: var(--text-normal) !important;
+    border: 1px solid var(--text-muted) !important;
+    font-weight: 600 !important;
 }
 
 .pos-pill-btn.is-alt {
-    border-style: dashed;
+    border: 1px dashed var(--background-modifier-border) !important;
+    background: transparent !important;
+    color: var(--text-muted) !important;
+}
+
+.pos-pill-btn.is-alt:hover {
+    border-color: var(--text-muted) !important;
+    color: var(--text-normal) !important;
+    background: var(--background-modifier-hover) !important;
 }
 
 .pos-pill-btn.is-action {
-    color: var(--text-normal);
+    color: var(--text-muted) !important;
+    background: var(--background-secondary) !important;
+}
+
+.pos-pill-btn.is-action:hover {
+    color: var(--text-normal) !important;
 }
 
 .pos-pill-btn .pos-btn-icon {
@@ -5198,11 +5246,48 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     vertical-align: middle;
 }
 
+/* Action Buttons - DIWA Muted Styling (No neon green) */
 .pos-preflight-actions {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
     margin-top: 18px;
+}
+
+.pos-preflight-actions button.mod-cta {
+    background: var(--background-modifier-hover) !important;
+    color: var(--text-normal) !important;
+    border: 1px solid var(--background-modifier-border) !important;
+    box-shadow: none !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    border-radius: var(--diwa-radius-sm, 6px) !important;
+    padding: 6px 16px !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+}
+
+.pos-preflight-actions button.mod-cta:hover {
+    background: var(--background-modifier-active-hover, var(--background-modifier-hover)) !important;
+    border-color: var(--text-muted) !important;
+    color: var(--text-normal) !important;
+}
+
+.pos-preflight-actions button:not(.mod-cta) {
+    background: transparent !important;
+    color: var(--text-muted) !important;
+    border: 1px solid var(--background-modifier-border-faint) !important;
+    font-size: 0.85rem !important;
+    border-radius: var(--diwa-radius-sm, 6px) !important;
+    padding: 6px 14px !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+}
+
+.pos-preflight-actions button:not(.mod-cta):hover {
+    background: var(--background-modifier-hover) !important;
+    color: var(--text-normal) !important;
+    border-color: var(--background-modifier-border) !important;
 }
 
 /* Mobile & Tablet Modal Responsiveness */

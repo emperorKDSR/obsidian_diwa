@@ -1,6 +1,15 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Option B Smart Date Isolation & Bugfix for Digested Tasks in Horizon (Complete)
+## Current Phase: Pre-Flight Modal Harmonized with DIWA Muted Workspace Theme & Palette (Complete)
+
+---
+
+### 0. Pre-Flight Modal Harmonized with DIWA Muted Theme & Palette (Complete)
+*   [x] **Overrode Theme Accent on CTA Button (`styles.css`)** — Replaced `.mod-cta` neon-green button styling with DIWA's calm muted button style (`background: var(--background-modifier-hover)`, subtle border `var(--background-modifier-border)`, `color: var(--text-normal)`), eliminating harsh neon accent blocks on Execute Digest.
+*   [x] **Muted Editorial Links & Tags in Snippets (`styles.css`)** — Styled rendered Markdown snippet wikilinks and dates with standard text color and subtle hairline underlines (`.pos-stream-wikilink` style) instead of neon green. Converted tags into muted badges (`var(--background-modifier-hover)`) and desaturated task checkboxes with grayscale filter.
+*   [x] **Clean Modal Header Title (`DesktopHubView.ts` & `PreFlightDigestModal.ts`)** — Stripped raw checklist syntax (`- [ ]`, `- [x]`), wikilink wrappers (`[[`, `]]`), and hashtags from the modal title (e.g. `Digest Note: Project Steer status...`).
+*   [x] **Soft Neutral Pills (`styles.css`)** — Refined `.pos-pill-btn`, `.pos-pill-btn.is-active`, and `.pos-pill-btn.is-alt` dashed pills with subtle neutral borders and soft hover effects.
+*   [x] **Unit Tests & Production Deployment** — Passed `npm test` (15/15 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 
