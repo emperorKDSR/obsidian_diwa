@@ -1,13 +1,13 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Stream Day Dividers, Agenda Anchoring & Note Edit Formatting (Complete)
+## Current Phase: Right Pane Docked as Sliding Drawer Overlay Anchored to Right (Complete)
 
 ---
 
-### 0. Stream Day Dividers, Agenda Anchoring & Note Edit Formatting (Complete)
-*   [x] **Subtle Normal Casing for Day Dividers (`DesktopHubView.ts` & `styles.css`)** — Applied inline styles on DOM elements (`headingEl.style.textTransform = 'none'`, `letterSpacing = '-0.01em'`, `fontWeight = '500'`, `fontSize = '0.76rem'`, `color = 'var(--text-faint)'`) and CSS `!important` to permanently override any cached stylesheets or theme inheritance.
-*   [x] **Agenda Side Rail Right Anchoring (`styles.css` & `DesktopHubView.ts`)** — Anchored `.pos-cockpit-side-rail` to the right margin with `margin-left: auto !important; align-self: stretch;`. Anchored task jump buttons `.pos-rail-source-btn` flush to the right edge with `margin-left: auto !important; flex-shrink: 0 !important;`.
-*   [x] **Refined Note Edit Formatting (`DesktopHubView.ts` & `styles.css`)** — Preserved outliner horizontal rhythm during inline editing with time gutter (`3:42 PM`). Added smart markdown list continuation on Enter (`- [ ] `, `- `, `* `, `1. `). Muted action buttons (`Cancel (Esc)` and `Save (⌘↵)`).
+### 0. Right Pane Docked as Sliding Drawer Overlay Anchored to Right (Complete)
+*   [x] **Sliding Drawer Architecture (`styles.css` & `DesktopHubView.ts`)** — Positioned `.pos-cockpit-side-rail` absolutely (`position: absolute !important; top: 0; right: 0; bottom: 0; width: 340px !important; z-index: 50;`) anchored flush to the right edge with hardware-accelerated slide transitions (`transform: translateX(0)` open, `transform: translateX(105%)` closed).
+*   [x] **Full-Width Stable Stream** — Main stage takes full 100% width (`flex: 1 1 100% !important; width: 100% !important;`), completely preventing stream notes from being squished or distorted when toggling the drawer.
+*   [x] **Click-to-Dismiss Backdrop & Resizer Retired** — Backdrop (`.pos-cockpit-drawer-backdrop`) activates on open for easy dismissal on outside click; center drag resizer retired in favor of the clean drawer overlay.
 *   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---

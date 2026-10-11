@@ -2230,12 +2230,6 @@ body.is-tablet .pos-note-outliner-time,
     min-width: 52px;
 }
 
-/* Tablet Condensed Agenda Side Rail (Landscape) */
-body.is-tablet .pos-cockpit-side-rail,
-.pos-desktop-cockpit-layout.is-tablet .pos-cockpit-side-rail {
-    min-width: 250px;
-    max-width: 360px;
-}
 
 body.is-tablet .pos-rail-header,
 .pos-desktop-cockpit-layout.is-tablet .pos-rail-header {
@@ -5622,15 +5616,16 @@ body.is-resizing-cockpit {
 
 /* Left Main Stage (Stream, Filters & Sticky Bottom Composer) */
 .pos-cockpit-main-stage {
-    flex: 1;
-    min-width: 320px;
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    min-width: 0;
     height: 100%;
     overflow-y: hidden;
     overflow-x: clip;
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    max-width: 100%;
+    max-width: 100% !important;
     padding: 0;
     gap: 0;
 }
@@ -5719,58 +5714,39 @@ body.is-resizing-cockpit {
     padding: 32px 8px;
 }
 
-/* Center Resizer Divider */
+/* Center Resizer Divider — Hidden in overlay drawer mode */
 .pos-cockpit-resizer {
-    width: 8px;
-    flex-shrink: 0;
-    cursor: col-resize;
-    background: transparent;
-    position: relative;
-    transition: background 0.15s ease;
-    user-select: none;
-    z-index: 10;
+    display: none !important;
 }
 
-.pos-cockpit-resizer:hover,
-.pos-cockpit-resizer.is-active {
-    background: var(--interactive-accent);
-}
-
-.pos-cockpit-resizer::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 3px;
-    width: 1px;
-    background: var(--background-modifier-border-faint);
-}
-
-/* Right Side Rail (Inspector & Agenda) */
+/* Right Side Rail (Inspector & Agenda) — Floating Drawer Overlay Anchored to Right */
 .pos-cockpit-side-rail {
-    flex-shrink: 0;
-    height: 100%;
+    position: absolute !important;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 340px !important;
+    max-width: 85vw !important;
+    height: 100% !important;
+    z-index: 50;
     display: flex;
     flex-direction: column;
-    border-left: 1px solid var(--background-modifier-border-faint);
+    border-left: 1px solid var(--background-modifier-border);
     background: var(--background-secondary);
+    box-shadow: -6px 0 24px rgba(0, 0, 0, 0.35);
     box-sizing: border-box;
     overflow: hidden;
-    min-width: 280px;
-    max-width: 650px;
-    margin-left: auto !important;
-    align-self: stretch;
-    transition: width 0.18s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease;
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .pos-cockpit-side-rail.is-collapsed {
-    width: 0 !important;
-    min-width: 0 !important;
-    border-left: none;
-    opacity: 0;
-    pointer-events: none;
-    overflow: hidden;
-    visibility: hidden;
+    transform: translateX(105%) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
 }
 
 /* Right Rail Header & Tab Switcher */

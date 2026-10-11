@@ -372,12 +372,7 @@ export class DesktopHubView extends ItemView {
         this._mainStageEl = cockpitBody.createDiv({ cls: 'pos-cockpit-main-stage' });
         this._containerEl = this._mainStageEl;
 
-        const isTabletPortrait = Boolean(layoutEl.hasClass('is-tablet-portrait'));
-        if (this._cockpitRailOpen && !isTabletPortrait) {
-            this._mainStageEl.style.flex = `${this._cockpitSplitRatio}`;
-        } else {
-            this._mainStageEl.style.flex = '1';
-        }
+        this._mainStageEl.style.flex = '1';
 
         // Filter / Life Area carousel bar removed (consolidated into header)
         this._filterBarEl = null;
@@ -394,29 +389,19 @@ export class DesktopHubView extends ItemView {
         this._streamContainerEl = this._mainStageEl.createDiv({ cls: 'pos-document-stream' });
         this.renderStream(this._streamContainerEl);
 
-        // Center Resizer Divider
+        // Center Resizer Divider (Hidden in overlay drawer mode)
         this._resizerEl = cockpitBody.createDiv({ cls: 'pos-cockpit-resizer' });
-        this.setupCockpitResizer(this._resizerEl, cockpitBody);
-        if (!this._cockpitRailOpen) {
-            this._resizerEl.style.display = 'none';
-        }
+        this._resizerEl.style.display = 'none';
 
-        // Right Side Rail (Inspector & Agenda)
+        // Right Side Rail (Inspector & Agenda) — Floating Drawer Overlay Anchored to Right
         this._sideRailEl = cockpitBody.createDiv({
             cls: `pos-cockpit-side-rail ${!this._cockpitRailOpen ? 'is-collapsed' : ''}`
         });
-        this._sideRailEl.style.marginLeft = 'auto';
         if (this._cockpitRailOpen) {
-            if (isTabletPortrait) {
-                this._sideRailEl.style.flex = 'none';
-                if (this._resizerEl) this._resizerEl.style.display = 'none';
-                if (this._cockpitBackdropEl) this._cockpitBackdropEl.addClass('is-active');
-            } else {
-                this._sideRailEl.style.flex = `${1 - this._cockpitSplitRatio}`;
-            }
+            if (this._cockpitBackdropEl) this._cockpitBackdropEl.addClass('is-active');
             this.renderRightRail(this._sideRailEl);
         } else {
-            this._sideRailEl.style.flex = '0';
+            if (this._cockpitBackdropEl) this._cockpitBackdropEl.removeClass('is-active');
         }
 
         this.updateComposerVisibility();
@@ -596,37 +581,25 @@ export class DesktopHubView extends ItemView {
     }
 
     private updateCockpitRailState(): void {
-        if (!this._sideRailEl || !this._mainStageEl || !this._resizerEl) return;
-        const isTabletPortrait = Boolean(this._cockpitLayoutEl?.hasClass('is-tablet-portrait'));
+        if (!this._sideRailEl || !this._mainStageEl) return;
 
         if (this._cockpitRailOpen) {
             this._sideRailEl.removeClass('is-collapsed');
-            this._sideRailEl.style.marginLeft = 'auto';
-            if (isTabletPortrait) {
-                this._resizerEl.style.display = 'none';
-                this._mainStageEl.style.flex = '1';
-                this._sideRailEl.style.flex = 'none';
-                if (this._cockpitBackdropEl) this._cockpitBackdropEl.addClass('is-active');
-            } else {
-                this._resizerEl.style.display = 'block';
-                this._mainStageEl.style.flex = `${this._cockpitSplitRatio}`;
-                this._sideRailEl.style.flex = `${1 - this._cockpitSplitRatio}`;
-                if (this._cockpitBackdropEl) this._cockpitBackdropEl.removeClass('is-active');
-            }
+            if (this._cockpitBackdropEl) this._cockpitBackdropEl.addClass('is-active');
             this.renderRightRail(this._sideRailEl);
         } else {
             this._sideRailEl.addClass('is-collapsed');
-            this._resizerEl.style.display = 'none';
-            this._mainStageEl.style.flex = '1';
-            this._sideRailEl.style.flex = '0';
             if (this._cockpitBackdropEl) this._cockpitBackdropEl.removeClass('is-active');
         }
+        if (this._resizerEl) {
+            this._resizerEl.style.display = 'none';
+        }
+        this._mainStageEl.style.flex = '1';
         this.saveCockpitState();
         if (this._headerBarEl) {
             const toggleBtn = this._headerBarEl.querySelector('.pos-rail-toggle-btn') as HTMLElement | null;
             if (toggleBtn) {
                 toggleBtn.toggleClass('is-active', this._cockpitRailOpen);
-                toggleBtn.setText(this._cockpitRailOpen ? '◧ Agenda' : '◨ Agenda');
             }
         }
     }

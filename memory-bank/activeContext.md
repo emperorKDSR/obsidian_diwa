@@ -1,16 +1,11 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Stream Day Dividers, Agenda Anchoring & Note Edit Formatting Refined
-- **1. Day Dividers Subtle Normal Casing (`DesktopHubView.ts` & `styles.css`)**:
-  - **Inline Style & CSS Enforcement**: Set `headingEl.style.textTransform = 'none'`, `headingEl.style.letterSpacing = '-0.01em'`, `headingEl.style.fontWeight = '500'`, `headingEl.style.fontSize = '0.76rem'`, and `headingEl.style.color = 'var(--text-faint)'` directly in DOM creation as well as high-specificity CSS (`!important`).
-  - Eliminates all cached uppercase styling and renders clean normal casing (`Today`, `Yesterday`, `Friday, October 9`) with subtle weight and tighter character spacing.
-- **2. Agenda Pane Anchored to Right (`styles.css` & `DesktopHubView.ts`)**:
-  - Enforced `margin-left: auto !important; align-self: stretch;` on `.pos-cockpit-side-rail` and in DOM element creation.
-  - In task rows, anchored `.pos-rail-source-btn` (jump button) flush to the right edge with `margin-left: auto !important; flex-shrink: 0 !important;`.
-- **3. Seamless Note Edit Formatting (`DesktopHubView.ts` & `styles.css`)**:
-  - Preserved the outliner horizontal rhythm during inline editing: Col 1 maintains the timestamp gutter (`3:42 PM`), preventing the note from jumping or breaking feed alignment.
-  - Integrated smart Markdown list continuation in textarea on `Enter`: automatically continues checkboxes (`- [ ] `), bullet points (`- ` / `* `), and numbered lists (`1. `), or removes empty list markers when pressing Enter on an empty bullet.
-  - Replaced bright `.mod-cta` with muted `pos-inline-save-btn` (`Save (⌘↵)`) and `pos-inline-btn` (`Cancel (Esc)`).
+## Current State: Right Pane Docked as Sliding Drawer Overlay Anchored to Right Edge
+- **Sliding Drawer Architecture (`styles.css` & `DesktopHubView.ts`)**:
+  - **Always Anchored to Right**: `.pos-cockpit-side-rail` is now positioned absolutely (`position: absolute !important; top: 0; right: 0; bottom: 0; width: 340px !important; z-index: 50;`) anchored flush to the right edge with hardware-accelerated slide transitions (`transform: translateX(0)` when open, `transform: translateX(105%)` when collapsed).
+  - **Zero Stream Distortion**: The main document stream (`.pos-cockpit-main-stage`) occupies 100% width (`flex: 1 1 100% !important; width: 100% !important;`), completely preventing notes and capture components from being squeezed, wrapped, or shifted when toggling Agenda view.
+  - **Backdrop & Dismissal**: Click-to-dismiss backdrop (`.pos-cockpit-drawer-backdrop`) activates on open, allowing clicking outside the drawer or pressing <kbd>\</kbd> to smoothly slide the drawer off-screen.
+  - **Resizer Retired**: The center draggable divider (`.pos-cockpit-resizer`) is retired in favor of the clean drawer overlay.
 - **Production Build & Vault Deployment**:
   - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
   - Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
