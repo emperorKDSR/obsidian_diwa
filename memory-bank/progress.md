@@ -1,6 +1,15 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Mobile Micro-Card Stream Layout (Option 1 Complete for Mobile Only)
+## Current Phase: Single-Note Digest in Stream & Muted Pre-Flight Modal (Complete)
+
+---
+
+### 0. Single-Note Digest in Stream & Muted Pre-Flight Modal (Complete)
+*   [x] **Single-Note Digest Action in `...` Menu (`DesktopHubView.ts`)** — Added a `"Digest Note..."` action (icon `sparkles`) to the stream card `...` dropdown menu. Directly extracts digestible blocks from the selected note using `parseDigestibleBlocks` and opens `PreFlightDigestModal` strictly isolated to that single note.
+*   [x] **Post-Digest Refresh & Re-indexing (`DesktopHubView.ts`)** — On digest execution (`executeBatchDigest`), automatically re-indexes the source note (`indexCaptureFile`), invalidates the markdown render cache, updates the stream view, and triggers the refresh coordinator.
+*   [x] **Muted Aesthetic Pre-Flight Modal (`PreFlightDigestModal.ts` & `styles.css`)** — Replaced bright emoji buttons with clean Obsidian Lucide icons (`arrow-right`, `search`, `check-square`, `file-text`). Cleaned pill labels (`Open Task`, `Done Task`, `Thought`). Set soft borders (`var(--background-modifier-border-faint)`), neutral backgrounds, and muted text matching the DIWA theme.
+*   [x] **Mobile & Tablet Touch Ergonomics (`styles.css`)** — Modal adopts responsive full-width (`95vw`) sizing on mobile/tablet viewports ($\le 768px$), larger touch targets for pill buttons ($\ge 36px$), vertically stacked confirmation buttons, and safe-area inset padding. Desktop preserves keyboard ergonomics (`Enter` to confirm, `Esc` to cancel).
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

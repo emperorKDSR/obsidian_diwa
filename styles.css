@@ -5008,19 +5008,30 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     margin-bottom: 12px;
 }
 
-/* PreFlight Modal Styles */
+/* PreFlight Modal Styles - Muted & Responsive */
 .pos-preflight-modal {
-    max-width: 720px;
+    max-width: 700px;
+    width: 100%;
 }
 
 .pos-preflight-header h2 {
     margin: 0 0 4px 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--text-normal);
 }
 
 .pos-preflight-subtitle {
     margin: 0 0 16px 0;
     color: var(--text-muted);
-    font-size: 0.88rem;
+    font-size: 0.82rem;
+}
+
+.pos-preflight-empty {
+    padding: 24px 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9rem;
 }
 
 .pos-preflight-list {
@@ -5034,36 +5045,43 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 
 .pos-preflight-card {
     background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: var(--diwa-radius-sm);
+    border: 1px solid var(--background-modifier-border-faint);
+    border-radius: var(--diwa-radius-md, 8px);
     padding: 12px 14px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
+    transition: border-color 0.15s ease;
+}
+
+.pos-preflight-card:hover {
+    border-color: var(--background-modifier-border);
 }
 
 .pos-preflight-card-header {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap;
 }
 
 .pos-preflight-pill {
     font-size: 0.72rem;
     padding: 2px 8px;
     border-radius: var(--diwa-radius-pill);
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .pos-preflight-pill.is-task {
     background: var(--background-modifier-hover);
-    color: var(--text-normal);
-    border: 1px solid var(--background-modifier-border);
+    color: var(--text-muted);
+    border: 1px solid var(--background-modifier-border-faint);
 }
 
 .pos-preflight-pill.is-log {
-    background: var(--background-primary);
-    color: var(--text-muted);
+    background: transparent;
+    color: var(--text-faint);
+    border: 1px solid var(--background-modifier-border-faint);
 }
 
 .pos-preflight-area-pill {
@@ -5071,24 +5089,25 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     padding: 2px 8px;
     border-radius: var(--diwa-radius-pill);
     background: var(--background-modifier-hover);
-    color: var(--text-normal);
+    color: var(--text-muted);
+    border: 1px solid var(--background-modifier-border-faint);
     font-weight: 500;
 }
 
 .pos-preflight-due-pill {
     font-size: 0.72rem;
-    color: var(--text-muted);
+    color: var(--text-faint);
     margin-left: auto;
 }
 
 .pos-preflight-snippet {
-    font-size: 0.88rem;
+    font-size: 0.85rem;
     line-height: 1.5;
     color: var(--text-normal);
     background: var(--background-primary);
-    padding: 8px 10px;
-    border-radius: var(--diwa-radius-sm);
-    border: 1px solid var(--background-modifier-border);
+    padding: 8px 12px;
+    border-radius: var(--diwa-radius-sm, 6px);
+    border: 1px solid var(--background-modifier-border-faint);
 }
 
 .pos-preflight-snippet p {
@@ -5101,7 +5120,7 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 
 .pos-preflight-snippet img {
     max-width: 100%;
-    max-height: 260px;
+    max-height: 240px;
     object-fit: contain;
     border-radius: var(--diwa-radius-sm);
     display: block;
@@ -5117,9 +5136,10 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-preflight-label {
-    font-weight: 600;
+    font-weight: 500;
     color: var(--text-muted);
     font-size: 0.78rem;
+    white-space: nowrap;
 }
 
 .pos-preflight-pills-wrap {
@@ -5129,19 +5149,24 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border-faint);
+    color: var(--text-muted);
     border-radius: var(--diwa-radius-pill);
     padding: 3px 10px;
     font-size: 0.78rem;
     cursor: pointer;
     transition: all 0.15s ease;
+    min-height: 28px;
 }
 
 .pos-pill-btn:hover {
-    border-color: var(--text-muted);
+    border-color: var(--background-modifier-border);
     background: var(--background-modifier-hover);
+    color: var(--text-normal);
 }
 
 .pos-pill-btn.is-active {
@@ -5159,11 +5184,70 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     color: var(--text-normal);
 }
 
+.pos-pill-btn .pos-btn-icon {
+    display: inline-flex;
+    align-items: center;
+}
+
+.pos-pill-btn .pos-btn-icon svg {
+    width: 12px;
+    height: 12px;
+    stroke-width: 2;
+    vertical-align: middle;
+}
+
 .pos-preflight-actions {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
     margin-top: 18px;
+}
+
+/* Mobile & Tablet Modal Responsiveness */
+@media (max-width: 768px) {
+    .pos-preflight-modal {
+        width: 95vw !important;
+        max-width: 95vw !important;
+        padding: 16px 14px !important;
+    }
+
+    .pos-preflight-list {
+        max-height: 55vh;
+        gap: 10px;
+    }
+
+    .pos-preflight-card {
+        padding: 10px 12px;
+    }
+
+    .pos-preflight-routing-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .pos-preflight-pills-wrap {
+        gap: 6px;
+        width: 100%;
+    }
+
+    .pos-pill-btn {
+        min-height: 36px;
+        padding: 6px 12px;
+        font-size: 0.82rem;
+    }
+
+    .pos-preflight-actions {
+        flex-direction: column-reverse;
+        gap: 8px;
+        margin-top: 14px;
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
+    }
+
+    .pos-preflight-actions button {
+        width: 100%;
+        min-height: 40px;
+    }
 }
 
 /* ==========================================================================

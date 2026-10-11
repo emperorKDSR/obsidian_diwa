@@ -8,6 +8,7 @@ import { WikilinkPeekModal } from '../modals/WikilinkPeekModal';
 import { MobileFilterSheetModal } from '../modals/MobileFilterSheetModal';
 import { RecentPermanentNotesModal } from '../modals/RecentPermanentNotesModal';
 import { ConfirmDeleteModal } from '../modals/ConfirmDeleteModal';
+import { PreFlightDigestModal } from '../modals/PreFlightDigestModal';
 import { isTablet, isTabletPortrait, attachInlineTriggers, attachMediaPasteHandler } from '../utils';
 import { attachMobileSheetViewportBehavior } from '../utils/mobileSheetViewport';
 
@@ -3720,6 +3721,14 @@ export class DesktopHubView extends ItemView {
                 });
         });
 
+        menu.addItem((item) => {
+            item.setTitle('Digest Note...')
+                .setIcon('sparkles')
+                .onClick(() => {
+                    this.openSingleNoteDigest(entry);
+                });
+        });
+
         menu.addSeparator();
 
         menu.addItem((item) => {
@@ -3731,6 +3740,43 @@ export class DesktopHubView extends ItemView {
         });
 
         menu.showAtMouseEvent(e);
+    }
+
+    private openSingleNoteDigest(entry: CaptureEntry): void {
+        const contentToParse = entry.rawBody || entry.body;
+        const blocks = this.plugin.capture.parseDigestibleBlocks(
+            contentToParse,
+            entry.filePath,
+            entry.createdAtMs,
+            entry.area || null
+        );
+
+        if (blocks.length === 0) {
+            new Notice('No digestible blocks identified in this note.');
+            return;
+        }
+
+        const dateStr = moment(entry.createdAtMs).format('YYYY-MM-DD');
+        const noteTitle = (entry.body.split('\n')[0].replace(/^#+\s*/, '').slice(0, 35).trim()) || 'Quick Note';
+
+        new PreFlightDigestModal(
+            this.app,
+            this.plugin,
+            dateStr,
+            blocks,
+            async (confirmedBlocks) => {
+                await this.plugin.capture.executeBatchDigest(dateStr, confirmedBlocks);
+                const file = this.app.vault.getAbstractFileByPath(entry.filePath);
+                if (file instanceof TFile) {
+                    await this.plugin.index.indexCaptureFile(file);
+                }
+                this.invalidateRenderCacheForFile(entry.filePath);
+                this.updateStreamOnly();
+                this.updateFilterCounts();
+                this.plugin.refreshCoordinator.notifyRefresh('capture');
+            },
+            noteTitle
+        ).open();
     }
 
     private promptDeleteNote(entry: CaptureEntry): void {

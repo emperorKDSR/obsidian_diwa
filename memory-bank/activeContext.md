@@ -1,6 +1,20 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Mobile Micro-Card Stream Layout (Option 1 Implemented for Mobile Only)
+## Current State: Single-Note Digest in Stream & Muted Pre-Flight Modal (Desktop, Tablet, Mobile)
+- **Single-Note Digest in Note Card Menu (`DesktopHubView.ts`)**:
+  - Implemented single-note digest flow via the existing `...` note actions dropdown menu (`Digest Note...` with icon `sparkles`).
+  - Scoped strictly to the selected note: parses digestible blocks from `entry.rawBody || entry.body` via `plugin.capture.parseDigestibleBlocks`.
+  - Zero visual clutter added to stream card surfaces (no buttons or badges).
+  - Handles execution via `plugin.capture.executeBatchDigest(dateStr, confirmedBlocks)`, automatically re-indexes the source note file, invalidates render cache, updates the stream, and dispatches refresh notifications.
+- **Muted Theme & Responsive Pre-Flight Digest Modal (`PreFlightDigestModal.ts` & `styles.css`)**:
+  - Replaced bright emojis with clean Obsidian Lucide icons (`arrow-right`, `search`, `check-square`, `file-text`).
+  - Dynamic title reflects context: `Digest Note: <title>` for single-note triggers or `Pre-Flight Digest: <date>` for calendar daily digest.
+  - Neutral muted styling matching DIWA palette (`var(--background-modifier-border-faint)`, muted pill buttons, no stark colors).
+  - Full responsiveness across form factors:
+    - Desktop: centered floating modal with keyboard shortcuts (`Enter` to confirm, `Esc` to cancel).
+    - Mobile & Tablet: full width (95vw), touch-friendly pill button targets (min-height 36px), stacked action buttons, and safe-area inset padding.
+
+## Previous State: Mobile Micro-Card Stream Layout (Option 1 Implemented for Mobile Only)
 - **Mobile Micro-Card Stream Layout (`DesktopHubView.ts` & `styles.css`)**:
   - Exclusively targets mobile phones (`Platform.isMobile && !isTablet(this.app)`), leaving desktop and tablet dual-pane cockpit layouts 100% untouched.
   - Eliminated the desktop 3-column outliner constraints on phones (removed the `68px` left gutter and the `96px` right padding for hover actions).

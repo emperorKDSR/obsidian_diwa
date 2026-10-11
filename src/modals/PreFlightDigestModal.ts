@@ -1,4 +1,4 @@
-import { App, Modal, Notice, MarkdownRenderer } from 'obsidian';
+import { App, Modal, Notice, MarkdownRenderer, setIcon } from 'obsidian';
 import type DiwaPlugin from '../main';
 import { DigestibleBlock } from '../types';
 import { FileSuggestModal } from './FileSuggestModal';
@@ -8,19 +8,22 @@ export class PreFlightDigestModal extends Modal {
     private dateStr: string;
     private blocks: DigestibleBlock[];
     private onConfirm: (blocks: DigestibleBlock[]) => Promise<void>;
+    private title?: string;
 
     constructor(
         app: App,
         plugin: DiwaPlugin,
         dateStr: string,
         blocks: DigestibleBlock[],
-        onConfirm: (blocks: DigestibleBlock[]) => Promise<void>
+        onConfirm: (blocks: DigestibleBlock[]) => Promise<void>,
+        title?: string
     ) {
         super(app);
         this.plugin = plugin;
         this.dateStr = dateStr;
         this.blocks = blocks;
         this.onConfirm = onConfirm;
+        this.title = title;
     }
 
     onOpen(): void {
@@ -30,7 +33,8 @@ export class PreFlightDigestModal extends Modal {
 
         // Header
         const headerEl = contentEl.createDiv({ cls: 'pos-preflight-header' });
-        headerEl.createEl('h2', { text: `Pre-Flight Digest: ${this.dateStr}` });
+        const displayTitle = this.title ? `Digest Note: ${this.title}` : `Pre-Flight Digest: ${this.dateStr}`;
+        headerEl.createEl('h2', { text: displayTitle });
         headerEl.createEl('p', {
             cls: 'pos-preflight-subtitle',
             text: `Review destinations and task routing for ${this.blocks.length} block(s).`
@@ -54,11 +58,11 @@ export class PreFlightDigestModal extends Modal {
             const cardHeader = card.createDiv({ cls: 'pos-preflight-card-header' });
             cardHeader.createSpan({
                 cls: `pos-preflight-pill ${block.isTask ? 'is-task' : 'is-log'}`,
-                text: block.isTask ? (block.isCompletedTask ? '☑ Completed Task' : '☐ Open Task') : '📝 Thought / Log'
+                text: block.isTask ? (block.isCompletedTask ? 'Done Task' : 'Open Task') : 'Thought'
             });
             if (block.area) {
                 const areaObj = this.plugin.settings.lifeAreas?.find(a => a.id.toLowerCase() === (block.area || '').toLowerCase());
-                const areaLabel = areaObj ? `${areaObj.icon} ${areaObj.label}` : block.area.toUpperCase();
+                const areaLabel = areaObj ? (areaObj.icon ? `${areaObj.icon} ${areaObj.label}` : areaObj.label) : block.area.toUpperCase();
                 cardHeader.createSpan({
                     cls: 'pos-preflight-area-pill',
                     text: areaLabel
@@ -93,10 +97,13 @@ export class PreFlightDigestModal extends Modal {
 
                 // 1. Primary target pill (if any)
                 if (block.primaryTarget) {
+                    const isAct = block.actionRoute !== 'keep_scratchpad' && block.actionRoute !== 'gawa_inbox';
                     const primaryBtn = pillsWrap.createEl('button', {
-                        cls: `pos-pill-btn ${block.actionRoute !== 'keep_scratchpad' && block.actionRoute !== 'gawa_inbox' ? 'is-active' : ''}`,
-                        text: `🟢 [[${block.primaryTarget}]]`
+                        cls: `pos-pill-btn ${isAct ? 'is-active' : ''}`
                     });
+                    const targetIcon = primaryBtn.createSpan({ cls: 'pos-btn-icon' });
+                    setIcon(targetIcon, 'arrow-right');
+                    primaryBtn.createSpan({ text: ` [[${block.primaryTarget}]]` });
                     primaryBtn.onclick = () => {
                         if (block.isTask && !block.isCompletedTask) {
                             block.actionRoute = 'target_tasks';
@@ -131,9 +138,11 @@ export class PreFlightDigestModal extends Modal {
 
                 // 3. Search / custom note picker
                 const searchBtn = pillsWrap.createEl('button', {
-                    cls: 'pos-pill-btn is-action',
-                    text: '🔍 Pick Note…'
+                    cls: 'pos-pill-btn is-action'
                 });
+                const searchIcon = searchBtn.createSpan({ cls: 'pos-btn-icon' });
+                setIcon(searchIcon, 'search');
+                searchBtn.createSpan({ text: ' Pick Note…' });
                 searchBtn.onclick = () => {
                     new FileSuggestModal(this.app, (chosenFile) => {
                         block.primaryTarget = chosenFile.basename;
@@ -148,20 +157,26 @@ export class PreFlightDigestModal extends Modal {
 
                 // 4. Task-specific options or Keep in Daily Log
                 if (block.isTask && !block.isCompletedTask) {
+                    const isGawa = block.actionRoute === 'gawa_inbox';
                     const gawaInboxBtn = pillsWrap.createEl('button', {
-                        cls: `pos-pill-btn ${block.actionRoute === 'gawa_inbox' ? 'is-active' : ''}`,
-                        text: '📋 Gawa Inbox'
+                        cls: `pos-pill-btn ${isGawa ? 'is-active' : ''}`
                     });
+                    const gawaIcon = gawaInboxBtn.createSpan({ cls: 'pos-btn-icon' });
+                    setIcon(gawaIcon, 'check-square');
+                    gawaInboxBtn.createSpan({ text: ' Gawa Inbox' });
                     gawaInboxBtn.onclick = () => {
                         block.actionRoute = 'gawa_inbox';
                         renderPills();
                     };
                 }
 
+                const isKeep = block.actionRoute === 'keep_scratchpad';
                 const keepBtn = pillsWrap.createEl('button', {
-                    cls: `pos-pill-btn ${block.actionRoute === 'keep_scratchpad' ? 'is-active' : ''}`,
-                    text: '📁 Keep in Scratchpad'
+                    cls: `pos-pill-btn ${isKeep ? 'is-active' : ''}`
                 });
+                const keepIcon = keepBtn.createSpan({ cls: 'pos-btn-icon' });
+                setIcon(keepIcon, 'file-text');
+                keepBtn.createSpan({ text: ' Keep in Note' });
                 keepBtn.onclick = () => {
                     block.actionRoute = 'keep_scratchpad';
                     renderPills();
@@ -186,7 +201,7 @@ export class PreFlightDigestModal extends Modal {
             confirmBtn.setText('Executing Digest…');
             try {
                 await this.onConfirm(this.blocks);
-                new Notice(`Day ${this.dateStr} successfully digested!`);
+                new Notice(`${this.title ? 'Note' : 'Day ' + this.dateStr} successfully digested! ✓`);
                 this.close();
             } catch (err) {
                 console.error('[DIWA PreFlightDigestModal] Digest error', err);
