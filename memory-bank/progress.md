@@ -1,6 +1,14 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Right Pane Fixed-Width Sidebar Anchored to Right Edge (Option 1 Complete)
+## Current Phase: Tablet Workspace Optimization (Pure Stream Portrait, Desktop Parity Landscape)
+
+---
+
+### 0. Tablet Workspace Optimization (Complete)
+*   [x] **Tablet Portrait Mode (Pure Stream & Capture Focus) (`DesktopHubView.ts` & `styles.css`)** — Automatically detected via `isTablet(this.app)` and `(viewWidth < 900) || (win.innerHeight > win.innerWidth)`. Stream and capture capsule expand to 100% full width (`flex: 1 1 100% !important; width: 100% !important;`). The right rail (`.pos-cockpit-side-rail`), center resizer (`.pos-cockpit-resizer`), drawer backdrop (`.pos-cockpit-drawer-backdrop`), and Agenda toggle header button (`.pos-rail-toggle-btn`) are completely hidden.
+*   [x] **Tablet Landscape Mode (Desktop Dual-Pane Parity) (`DesktopHubView.ts` & `styles.css`)** — Restores the desktop dual-pane cockpit layout with stream on the left, draggable resizer divider in center, fixed right sidebar anchored to right edge (`320px`), and active Agenda header toggle button.
+*   [x] **Dynamic Orientation Observation (`DesktopHubView.ts`)** — Managed by `ResizeObserver` on `this.contentEl` to seamlessly transition layout classes and re-render header controls on orientation flip.
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

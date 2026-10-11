@@ -2277,6 +2277,7 @@ body.is-tablet .pos-horizon-card,
     pointer-events: auto;
 }
 
+/* Tablet Portrait Mode: Pure Stream & Capture Focus (Side Rail & Resizer Completely Hidden) */
 .pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-cockpit-main-stage,
 body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-cockpit-main-stage {
     flex: 1 1 100% !important;
@@ -2291,30 +2292,50 @@ body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-cockpit-resiz
 
 .pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-cockpit-side-rail,
 body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-cockpit-side-rail {
-    position: absolute !important;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 320px !important;
-    max-width: 85vw !important;
-    z-index: 50;
-    background: var(--background-secondary);
-    box-shadow: -6px 0 24px rgba(0, 0, 0, 0.35);
-    border-left: 1px solid var(--background-modifier-border);
-    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
-    transform: translateX(0);
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
 }
 
-.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-cockpit-side-rail.is-collapsed,
-body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-cockpit-side-rail.is-collapsed {
-    transform: translateX(105%) !important;
-    opacity: 0;
-    pointer-events: none;
-    visibility: hidden;
+.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-cockpit-drawer-backdrop,
+body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-cockpit-drawer-backdrop {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
-/* On narrow tablet portrait, collapse filter bar when composer is active to give maximum height to notes */
-.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait.is-composer-active .pos-filter-bar {
+.pos-desktop-cockpit-layout.is-tablet.is-tablet-portrait .pos-rail-toggle-btn,
+body.is-tablet .pos-desktop-cockpit-layout.is-tablet-portrait .pos-rail-toggle-btn {
+    display: none !important;
+}
+
+/* Tablet Landscape Mode: Dual-Pane Cockpit Parity with Desktop */
+.pos-desktop-cockpit-layout.is-tablet:not(.is-tablet-portrait) .pos-cockpit-main-stage,
+body.is-tablet .pos-desktop-cockpit-layout:not(.is-tablet-portrait) .pos-cockpit-main-stage {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: auto !important;
+}
+
+.pos-desktop-cockpit-layout.is-tablet:not(.is-tablet-portrait) .pos-cockpit-side-rail,
+body.is-tablet .pos-desktop-cockpit-layout:not(.is-tablet-portrait) .pos-cockpit-side-rail {
+    position: relative !important;
+    flex: 0 0 auto !important;
+    width: 320px;
+    min-width: 260px;
+    max-width: 450px;
+    margin-left: auto !important;
+    display: flex !important;
+}
+
+.pos-desktop-cockpit-layout.is-tablet:not(.is-tablet-portrait) .pos-cockpit-side-rail.is-collapsed,
+body.is-tablet .pos-desktop-cockpit-layout:not(.is-tablet-portrait) .pos-cockpit-side-rail.is-collapsed {
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
     display: none !important;
 }
 

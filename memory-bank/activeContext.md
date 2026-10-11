@@ -1,6 +1,20 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Right Pane Fixed-Width Sidebar Anchored to Right Edge (Option 1 Implemented)
+## Current State: Tablet Workspace Optimization (Pure Stream Portrait, Desktop Parity Landscape)
+- **Tablet Responsive Architecture (`DesktopHubView.ts` & `styles.css`)**:
+  - **Portrait Mode (Pure Stream & Capture Focus)**:
+    - Automatically detected via `isTablet(this.app)` and `(viewWidth < 900) || (win.innerHeight > win.innerWidth)` across all tablet devices (iPad Mini to iPad Pro 12.9").
+    - The document stream (`.pos-cockpit-main-stage`) takes 100% full width (`flex: 1 1 100% !important; width: 100% !important; max-width: 100% !important;`).
+    - The right side rail (`.pos-cockpit-side-rail`), center resizer (`.pos-cockpit-resizer`), drawer backdrop (`.pos-cockpit-drawer-backdrop`), and Agenda toggle header button (`.pos-rail-toggle-btn`) are completely hidden (`display: none !important`).
+    - Hotkey `\` and toggle calls are guarded against opening the side rail while in portrait orientation.
+  - **Landscape Mode (Desktop Dual-Pane Parity)**:
+    - Restores the full desktop cockpit layout with in-flow fixed right sidebar (`320px`, anchored to right edge), center draggable resizer (`.pos-cockpit-resizer`), and active Agenda header toggle button.
+    - Dynamic orientation flips handled seamlessly by `ResizeObserver` on `this.contentEl`.
+- **Production Build & Vault Deployment**:
+  - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
+  - Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Right Pane Fixed-Width Sidebar Anchored to Right Edge (Option 1 Implemented)
 - **Fixed-Width Sidebar Anchoring (`styles.css` & `DesktopHubView.ts`)**:
   - **Fixed Width Anchored to Right**: `.pos-cockpit-side-rail` operates as an in-flow sidebar locked at a fixed pixel width (`_cockpitRailWidth`, default `340px`, range `260px`–`600px`) anchored flush to the right edge with `margin-left: auto !important; align-self: stretch;`.
   - **Dynamic Main Stream**: The document stream (`.pos-cockpit-main-stage`) has `flex: 1 1 auto !important; min-width: 0 !important; width: auto !important;`, dynamically absorbing 100% of window resizing while the right rail stays fixed and pinned against the right margin.
