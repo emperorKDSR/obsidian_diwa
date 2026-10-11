@@ -6161,28 +6161,34 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
     font-weight: 600;
 }
 
-/* ── Reflect Fluid Quick Capture Bar ── */
+/* ── Command Capsule Quick Capture Bar (Option 1) ── */
 .pos-composer-compact {
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid var(--background-modifier-border-faint);
-    border-radius: 0;
-    padding: 8px 12px 10px 12px;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    padding: 10px 14px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    min-height: 40px;
+    min-height: 42px;
     box-sizing: border-box;
     cursor: text;
-    transition: border-color 0.15s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
     user-select: none;
 }
 
 .pos-composer-compact:hover {
-    border-bottom-color: var(--text-muted);
-    background: transparent;
-    box-shadow: none;
+    border-color: var(--interactive-accent);
+    background: var(--background-secondary);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(var(--interactive-accent-rgb, 120, 120, 255), 0.2);
+}
+
+.pos-composer-compact:focus-visible {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb, 120, 120, 255), 0.25);
 }
 
 .pos-compact-trigger-area {
@@ -6190,30 +6196,30 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
     align-items: center;
     gap: 10px;
     flex: 1;
-    color: var(--text-muted);
-    font-size: 0.9em;
+    color: var(--text-normal);
+    font-size: 0.92em;
 }
 
 .pos-compact-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: var(--text-faint);
+    color: var(--text-muted);
 }
 
 .pos-compact-icon svg {
-    width: 14px;
-    height: 14px;
+    width: 15px;
+    height: 15px;
     stroke-width: 2px;
-    color: var(--text-faint);
+    color: var(--text-muted);
     stroke: currentColor;
 }
 
 .pos-compact-placeholder {
-    color: var(--text-muted);
+    color: var(--text-normal);
     font-size: 0.94em;
-    font-weight: 400;
-    opacity: 0.8;
+    font-weight: 500;
+    opacity: 0.85;
 }
 
 .pos-compact-actions {
@@ -6225,11 +6231,11 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
 .pos-compact-kbd {
     font-size: 0.72em;
     font-family: var(--font-monospace);
-    color: var(--text-faint);
+    color: var(--text-muted);
     background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border-faint);
+    border: 1px solid var(--background-modifier-border);
     border-radius: 4px;
-    padding: 1px 5px;
+    padding: 2px 6px;
 }
 
 /* Header hotkey badge for search */

@@ -2048,7 +2048,7 @@ export class DesktopHubView extends ItemView {
             const triggerArea = compactWrapper.createDiv({ cls: 'pos-compact-trigger-area' });
             const editIcon = triggerArea.createSpan({ cls: 'pos-compact-icon' });
             setIcon(editIcon, 'edit-3');
-            triggerArea.createSpan({ cls: 'pos-compact-placeholder', text: "What's on your mind? Capture a thought, task (- [ ]), or note..." });
+            triggerArea.createSpan({ cls: 'pos-compact-placeholder', text: "Capture your thought..." });
 
             const actions = compactWrapper.createDiv({ cls: 'pos-compact-actions' });
             const cmdSymbol = Platform.isMacOS ? '⌘↵' : 'Ctrl↵';
