@@ -1,6 +1,12 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Stream Life Area Badge Hidden & Minimalist Clean Stream
+## Current State: Horizon Empty Section Suppression & Minimalist Agenda Panel
+- **Horizon Rail Empty Section Suppression (`DesktopHubView.ts`)**:
+  - In the Rolling Horizon (`renderHorizonRail`) view of the Agenda side rail, sections for **Today's Tasks** and **Tomorrow** are now strictly conditional:
+    - If `todayTasks.length === 0`, the Today section and its placeholder (`"No tasks scheduled for today."`) are omitted completely.
+    - If `tomorrowTasks.length === 0`, the Tomorrow section and its placeholder (`"Nothing due tomorrow."`) are omitted completely.
+    - Overdue section remains conditional on `overdueTasks.length > 0`.
+    - If all three sections are empty, a clean, subtle all-clear message (`"All caught up — no tasks scheduled."`) is displayed under the date header.
 - **Stream Life Area Badge Hidden (`DesktopHubView.ts` & `styles.css`)**:
   - Removed the `.pos-area-badge` DOM creation from note cards in `renderNoteItem`.
   - Added `.pos-stream-item .pos-area-badge { display: none !important; }` in `styles.css` as a defense-in-depth safety rule.

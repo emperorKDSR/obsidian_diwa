@@ -798,14 +798,12 @@ export class DesktopHubView extends ItemView {
 
         // Today Due Tasks Section
         const todayTasks = this.plugin.index.getTasksForDueDate(todayStr);
-        const todaySection = container.createDiv({ cls: 'pos-rail-section' });
-        const todaySecHeader = todaySection.createDiv({ cls: 'pos-rail-section-header' });
-        todaySecHeader.createSpan({ text: "Today's Tasks" });
-        todaySecHeader.createSpan({ cls: 'pos-rail-section-badge', text: `${todayTasks.length}` });
+        if (todayTasks.length > 0) {
+            const todaySection = container.createDiv({ cls: 'pos-rail-section' });
+            const todaySecHeader = todaySection.createDiv({ cls: 'pos-rail-section-header' });
+            todaySecHeader.createSpan({ text: "Today's Tasks" });
+            todaySecHeader.createSpan({ cls: 'pos-rail-section-badge', text: `${todayTasks.length}` });
 
-        if (todayTasks.length === 0) {
-            todaySection.createDiv({ cls: 'pos-rail-empty-msg', text: 'No tasks scheduled for today.' });
-        } else {
             for (const task of todayTasks) {
                 this.renderRailTaskRow(todaySection, task, false);
             }
@@ -814,17 +812,20 @@ export class DesktopHubView extends ItemView {
         // Tomorrow Glance
         const tomorrowStr = moment(todayStr).add(1, 'days').format('YYYY-MM-DD');
         const tomorrowTasks = this.plugin.index.getTasksForDueDate(tomorrowStr);
-        const tomorrowSection = container.createDiv({ cls: 'pos-rail-section' });
-        const tomorrowSecHeader = tomorrowSection.createDiv({ cls: 'pos-rail-section-header' });
-        tomorrowSecHeader.createSpan({ text: 'Tomorrow' });
-        tomorrowSecHeader.createSpan({ cls: 'pos-rail-section-badge', text: `${tomorrowTasks.length}` });
-
         if (tomorrowTasks.length > 0) {
+            const tomorrowSection = container.createDiv({ cls: 'pos-rail-section' });
+            const tomorrowSecHeader = tomorrowSection.createDiv({ cls: 'pos-rail-section-header' });
+            tomorrowSecHeader.createSpan({ text: 'Tomorrow' });
+            tomorrowSecHeader.createSpan({ cls: 'pos-rail-section-badge', text: `${tomorrowTasks.length}` });
+
             for (const task of tomorrowTasks.slice(0, 4)) {
                 this.renderRailTaskRow(tomorrowSection, task, false);
             }
-        } else {
-            tomorrowSection.createDiv({ cls: 'pos-rail-empty-msg', text: 'Nothing due tomorrow.' });
+        }
+
+        // All-clear message if no overdue, today, or tomorrow tasks
+        if (overdueTasks.length === 0 && todayTasks.length === 0 && tomorrowTasks.length === 0) {
+            container.createDiv({ cls: 'pos-rail-empty-msg', text: 'All caught up — no tasks scheduled.' });
         }
     }
 

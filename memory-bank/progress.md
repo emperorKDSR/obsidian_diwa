@@ -1,6 +1,12 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Stream Life Area Badge Hidden & Minimalist Clean Stream
+## Current Phase: Horizon Empty Section Suppression & Minimalist Agenda Panel
+
+---
+
+### 0. Horizon Rail Empty Section Suppression (Complete)
+*   [x] **Suppress Empty Horizon Sections & Placeholders (`DesktopHubView.ts`)** — In `renderHorizonRail`, made Today's Tasks and Tomorrow sections strictly conditional so that empty sections and placeholders (`"Nothing due tomorrow."`, `"No tasks scheduled for today."`) are omitted entirely when there are no tasks for those days. Added clean all-clear note if all 3 sections are empty.
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 
