@@ -1,13 +1,13 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Right Pane Docked as Sliding Drawer Overlay Anchored to Right (Complete)
+## Current Phase: Right Pane Fixed-Width Sidebar Anchored to Right Edge (Option 1 Complete)
 
 ---
 
-### 0. Right Pane Docked as Sliding Drawer Overlay Anchored to Right (Complete)
-*   [x] **Sliding Drawer Architecture (`styles.css` & `DesktopHubView.ts`)** — Positioned `.pos-cockpit-side-rail` absolutely (`position: absolute !important; top: 0; right: 0; bottom: 0; width: 340px !important; z-index: 50;`) anchored flush to the right edge with hardware-accelerated slide transitions (`transform: translateX(0)` open, `transform: translateX(105%)` closed).
-*   [x] **Full-Width Stable Stream** — Main stage takes full 100% width (`flex: 1 1 100% !important; width: 100% !important;`), completely preventing stream notes from being squished or distorted when toggling the drawer.
-*   [x] **Click-to-Dismiss Backdrop & Resizer Retired** — Backdrop (`.pos-cockpit-drawer-backdrop`) activates on open for easy dismissal on outside click; center drag resizer retired in favor of the clean drawer overlay.
+### 0. Right Pane Fixed-Width Sidebar Anchored to Right Edge (Option 1 Complete)
+*   [x] **Fixed-Width Sidebar Anchored to Right Edge (`styles.css` & `DesktopHubView.ts`)** — Positioned `.pos-cockpit-side-rail` as an in-flow sidebar locked at a fixed pixel width (`_cockpitRailWidth`, default `340px`, range `260px`–`600px`) anchored flush to the right edge with `margin-left: auto !important; align-self: stretch;`.
+*   [x] **Dynamic Full-Width Main Stage** — Main stage takes all remaining space (`flex: 1 1 auto !important; min-width: 0 !important; width: auto !important;`), dynamically absorbing 100% of window resizing while the right rail stays fixed and pinned against the right margin.
+*   [x] **Pixel Width Resizer & Smooth Collapse** — Resizer (`.pos-cockpit-resizer`) adjusts sidebar width in pixels from the left edge and persists to `localStorage`. When collapsed, the rail transitions to `width: 0 !important` and stream expands to 100%.
 *   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---

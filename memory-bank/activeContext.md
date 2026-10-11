@@ -1,11 +1,11 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Right Pane Docked as Sliding Drawer Overlay Anchored to Right Edge
-- **Sliding Drawer Architecture (`styles.css` & `DesktopHubView.ts`)**:
-  - **Always Anchored to Right**: `.pos-cockpit-side-rail` is now positioned absolutely (`position: absolute !important; top: 0; right: 0; bottom: 0; width: 340px !important; z-index: 50;`) anchored flush to the right edge with hardware-accelerated slide transitions (`transform: translateX(0)` when open, `transform: translateX(105%)` when collapsed).
-  - **Zero Stream Distortion**: The main document stream (`.pos-cockpit-main-stage`) occupies 100% width (`flex: 1 1 100% !important; width: 100% !important;`), completely preventing notes and capture components from being squeezed, wrapped, or shifted when toggling Agenda view.
-  - **Backdrop & Dismissal**: Click-to-dismiss backdrop (`.pos-cockpit-drawer-backdrop`) activates on open, allowing clicking outside the drawer or pressing <kbd>\</kbd> to smoothly slide the drawer off-screen.
-  - **Resizer Retired**: The center draggable divider (`.pos-cockpit-resizer`) is retired in favor of the clean drawer overlay.
+## Current State: Right Pane Fixed-Width Sidebar Anchored to Right Edge (Option 1 Implemented)
+- **Fixed-Width Sidebar Anchoring (`styles.css` & `DesktopHubView.ts`)**:
+  - **Fixed Width Anchored to Right**: `.pos-cockpit-side-rail` operates as an in-flow sidebar locked at a fixed pixel width (`_cockpitRailWidth`, default `340px`, range `260px`–`600px`) anchored flush to the right edge with `margin-left: auto !important; align-self: stretch;`.
+  - **Dynamic Main Stream**: The document stream (`.pos-cockpit-main-stage`) has `flex: 1 1 auto !important; min-width: 0 !important; width: auto !important;`, dynamically absorbing 100% of window resizing while the right rail stays fixed and pinned against the right margin.
+  - **Pixel Width Resizer**: Draggable center resizer (`.pos-cockpit-resizer`) allows adjusting the sidebar width in pixels from the left edge (`startX - e.clientX`), persisting `railWidth` to `localStorage`.
+  - **Clean Collapse**: When collapsed (`.is-collapsed`), the rail transitions to `width: 0 !important; border-left: none; opacity: 0;`, letting the stream occupy the full window width.
 - **Production Build & Vault Deployment**:
   - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
   - Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
