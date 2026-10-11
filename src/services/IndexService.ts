@@ -1155,6 +1155,19 @@ export class IndexService {
         return matchingSnippets;
     }
 
+    isDigestBlock(text: string): boolean {
+        if (!text) return false;
+        // 1. DIWA deterministic block anchor: ^dw-xxxxxx-bx
+        if (/\^dw-[a-z0-9]+-b\d+/i.test(text)) return true;
+        // 2. DIWA digest wrapper comment
+        if (text.includes('diwa-digested:')) return true;
+        // 3. DIWA digest timestamp heading: #### [[YYYY-MM-DD]] HH:mm
+        if (/^#{1,6}\s+\[\[\d{4}-\d{2}-\d{2}\]\]\s+\d{2}:\d{2}/m.test(text)) return true;
+        // 4. Any line with date and time heading with block reference
+        if (/\[\[\d{4}-\d{2}-\d{2}\]\]\s+\d{2}:\d{2}/.test(text) && /\^[a-z0-9\-]+/i.test(text)) return true;
+        return false;
+    }
+
     async getVaultNoteBlocksForDate(dateStr: string): Promise<HorizonNoteBlock[]> {
         const results: HorizonNoteBlock[] = [];
         const seenKeys = new Set<string>();
@@ -1163,6 +1176,9 @@ export class IndexService {
         for (const entry of this.captureIndex.values()) {
             if (!entry) continue;
             if (entry.filePath.toLowerCase().includes('handumanan')) continue;
+            // Exclude already digested capture notes
+            if (entry.digested || (entry.tags && entry.tags.includes('digested')) || (entry.body && entry.body.includes('diwa-digested:'))) continue;
+
             const dates = Array.isArray(entry.allDates) ? entry.allDates : [];
             const hasDate = dates.includes(dateStr) || (entry.body && (entry.body.includes(`[[${dateStr}]]`) || entry.body.includes(dateStr)));
             if (!hasDate) continue;
@@ -1175,6 +1191,7 @@ export class IndexService {
                 if (!trimmed) continue;
                 // Exclude tasks (open/completed tasks are handled by getTasksForDueDate)
                 if (/^[ \t]*-[ \t]+\[[ xX]\]/.test(trimmed)) continue;
+                if (this.isDigestBlock(trimmed)) continue;
 
                 const key = `${entry.filePath}::${trimmed}`;
                 if (!seenKeys.has(key)) {
@@ -1234,15 +1251,21 @@ export class IndexService {
                 const paragraphs = body.split(/\n\s*\n/);
                 const matchingParagraphs = paragraphs.filter(p => {
                     const pt = p.trim();
-                    return pt.includes(`[[${dateStr}]]`) || pt.includes(dateStr);
+                    if (!pt.includes(`[[${dateStr}]]`) && !pt.includes(dateStr)) return false;
+                    // Exclude any blocks/snippets originating from DIWA digest
+                    if (this.isDigestBlock(pt)) return false;
+                    return true;
                 });
 
-                const snippetsToUse = matchingParagraphs.length > 0 ? matchingParagraphs : [paragraphs[0]];
-                for (const snippet of snippetsToUse) {
+                // Do not fallback to unrelated paragraphs if all matches were digest entries
+                if (matchingParagraphs.length === 0) continue;
+
+                for (const snippet of matchingParagraphs) {
                     const trimmed = snippet.trim();
                     if (!trimmed) continue;
                     // Exclude checklist lines
                     if (/^[ \t]*-[ \t]+\[[ xX]\]/.test(trimmed)) continue;
+                    if (this.isDigestBlock(trimmed)) continue;
 
                     const key = `${file.path}::${trimmed}`;
                     if (!seenKeys.has(key)) {

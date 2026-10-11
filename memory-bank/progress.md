@@ -1,6 +1,16 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: 1 Note = 1 Digestible Block & Single-Note Digest in Stream (Complete)
+## Current Phase: Digest Items & Dates Excluded from Horizon (Complete)
+
+---
+
+### 0. Digest Items & Dates Excluded from Horizon (Complete)
+*   [x] **Digest Detection Helper (`IndexService.ts`)** — Created `isDigestBlock(text: string): boolean` to fingerprint DIWA digest anchors (`^dw-[a-z0-9]+-b\d+`), timestamp headers (`#### [[YYYY-MM-DD]] HH:mm`), and wrapper comments (`diwa-digested:`).
+*   [x] **Horizon Note & Date Filter (`IndexService.ts`)** — In `getVaultNoteBlocksForDate`:
+    - Skips digested stream notes (`entry.digested: true`, `entry.tags.includes('digested')`, or `diwa-digested:`).
+    - In vault markdown files, filters out paragraphs matching `isDigestBlock(pt)`.
+    - Removed fallback to unrelated paragraphs when all date matches were from digest, ensuring notes containing only digested logs do not pull their host files or dates into the Horizon.
+*   [x] **Unit Tests & Production Deployment** — Added tests in `tests/digestionBlocks.test.ts` for `isDigestBlock`. Passed `npm test` (14/14 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

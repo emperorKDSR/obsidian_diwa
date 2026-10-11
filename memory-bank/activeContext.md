@@ -1,6 +1,16 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: 1 Note = 1 Digestible Block & Single-Note Digest in Stream
+## Current State: Digest Items & Dates Excluded from Horizon (Agenda Rail)
+- **Exclusion of Digest Dates & Blocks from Horizon (`IndexService.ts`)**:
+  - Implemented `isDigestBlock(text: string): boolean` helper checking for DIWA digest fingerprints:
+    - Deterministic block anchors: `^dw-[a-z0-9]+-b\d+`
+    - Stamped timestamp headers: `#### [[YYYY-MM-DD]] HH:mm`
+    - Wrapped comments: `diwa-digested:`
+  - In `getVaultNoteBlocksForDate(dateStr)`:
+    - Excludes stream notes where `entry.digested === true`, `entry.tags.includes('digested')`, or containing `diwa-digested:`.
+    - In vault markdown files, filters out paragraphs matching `isDigestBlock(pt)`.
+    - Removed fallback to unrelated paragraphs if matches were digest blocks, ensuring notes only containing digested logs for that date are omitted.
+    - Prevents "ghost" horizon date sections from appearing purely due to archived digest log entries.
 - **1 Note = 1 Digestible Block Logic (`CaptureService.ts`)**:
   - Transitioned `parseDigestibleBlocks` from fragmented line-by-line block splitting to **1 note = 1 digestible block** (`[singleBlock]`).
   - The entire note body remains cohesive and intact during digestion, preserving markdown structures, lists, and subtasks together.

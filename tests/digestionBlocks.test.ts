@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { CaptureService } from '../src/services/CaptureService';
+import { IndexService } from '../src/services/IndexService';
 import { DEFAULT_SETTINGS } from '../src/constants';
 
 test('parseDigestibleBlocks treats one note as one block with intact content and targets', () => {
@@ -67,4 +68,19 @@ test('wrapBlockAsDigested wraps content non-destructively in Markdown comments',
     const unwrapped = service.unwrapDigestedComments(wrapped);
     assert.ok(unwrapped.includes('- [ ] Task to digest'));
     assert.ok(!unwrapped.includes('diwa-digested:'));
+});
+
+test('IndexService.isDigestBlock correctly detects digest anchors, headings, and comments', () => {
+    const service = new IndexService({} as any, { ...DEFAULT_SETTINGS });
+    assert.strictEqual(service.isDigestBlock('Some normal reflection [[2026-10-11]]'), false);
+    assert.strictEqual(service.isDigestBlock('- [ ] Regular task @2026-10-11'), false);
+
+    // Anchor fingerprint
+    assert.strictEqual(service.isDigestBlock('Digested thought ^dw-a1b2c3-b1'), true);
+
+    // Digest comment fingerprint
+    assert.strictEqual(service.isDigestBlock('%%\ndiwa-digested:dest=[[Project]]\nTask\n%%'), true);
+
+    // Digest timestamp heading fingerprint
+    assert.strictEqual(service.isDigestBlock('#### [[2026-10-11]] 14:30\nMeeting notes'), true);
 });
