@@ -5108,6 +5108,8 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     padding: 8px 12px;
     border-radius: var(--diwa-radius-sm, 6px);
     border: 1px solid var(--background-modifier-border-faint);
+    max-height: 240px;
+    overflow-y: auto;
 }
 
 .pos-preflight-snippet p {

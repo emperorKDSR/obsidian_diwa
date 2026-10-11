@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { CaptureService } from '../src/services/CaptureService';
 import { DEFAULT_SETTINGS } from '../src/constants';
 
-test('parseDigestibleBlocks separates tasks, subtasks, paragraphs, and explicit targets', () => {
+test('parseDigestibleBlocks treats one note as one block with intact content and targets', () => {
     const service = new CaptureService({} as any, { ...DEFAULT_SETTINGS });
     const content = `---
 created: 2026-10-11T12:00:00
@@ -13,31 +13,30 @@ created: 2026-10-11T12:00:00
     - [ ] Add market analysis
     - remark: verify numbers
 
-Reflect on quarterly revenue -> [[Strategy 2026]]
-
-- [ ] Independent inbox task
+Reflect on quarterly revenue [[Strategy 2026]]
 `;
 
     const blocks = service.parseDigestibleBlocks(content, '000 Bin/Diwa/2026/10/note.md', Date.now());
 
-    assert.strictEqual(blocks.length, 3);
+    // 1 note = 1 block
+    assert.strictEqual(blocks.length, 1);
 
-    // Block 1: Parent task with child subtasks and target
+    // Starts with task checkbox -> isTask: true
     assert.strictEqual(blocks[0].isTask, true);
     assert.strictEqual(blocks[0].primaryTarget, 'Product Launch');
     assert.strictEqual(blocks[0].actionRoute, 'target_tasks');
+    assert.ok(blocks[0].alternativeTargets.includes('Strategy 2026'));
     assert.ok(blocks[0].cleanText.includes('- [ ] Prepare pitch deck'));
     assert.ok(blocks[0].cleanText.includes('Add market analysis'));
+    assert.ok(blocks[0].cleanText.includes('Reflect on quarterly revenue'));
 
-    // Block 2: Thought routed to Strategy 2026
-    assert.strictEqual(blocks[1].isTask, false);
-    assert.strictEqual(blocks[1].primaryTarget, 'Strategy 2026');
-    assert.strictEqual(blocks[1].actionRoute, 'target_log');
-
-    // Block 3: Untargeted task -> Gawa Inbox
-    assert.strictEqual(blocks[2].isTask, true);
-    assert.strictEqual(blocks[2].primaryTarget, null);
-    assert.strictEqual(blocks[2].actionRoute, 'gawa_inbox');
+    // Non-task note test
+    const noteContent = `Meeting with design team\n\nReviewed wireframes and agreed on muted palette -> [[Design System]]`;
+    const noteBlocks = service.parseDigestibleBlocks(noteContent, '000 Bin/Diwa/2026/10/note2.md', Date.now());
+    assert.strictEqual(noteBlocks.length, 1);
+    assert.strictEqual(noteBlocks[0].isTask, false);
+    assert.strictEqual(noteBlocks[0].primaryTarget, 'Design System');
+    assert.strictEqual(noteBlocks[0].actionRoute, 'target_log');
 });
 
 test('wrapBlockAsDigested wraps content non-destructively in Markdown comments', () => {

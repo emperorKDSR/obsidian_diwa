@@ -1,6 +1,14 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Single-Note Digest in Stream & Muted Pre-Flight Modal (Complete)
+## Current Phase: 1 Note = 1 Digestible Block & Single-Note Digest in Stream (Complete)
+
+---
+
+### 0. 1 Note = 1 Digestible Block for Pre-Flight Digest (Complete)
+*   [x] **1 Note = 1 Block Identification (`CaptureService.ts`)** — Replaced multi-fragment line-by-line block splitting in `parseDigestibleBlocks` with unified **1 note = 1 digestible block** logic (`[singleBlock]`). Entire note text remains intact and cohesive upon review and routing.
+*   [x] **Smart Classification & Route Defaults (`CaptureService.ts`)** — Classifies notes starting with `- [ ]` as tasks (`target_tasks` or `Gawa Inbox`), and regular notes/meeting logs as notes (`target_log` or `Keep in Note`), preserving inline `#area` tags and explicit `-> [[Target]]` wikilinks.
+*   [x] **Modal Copy & Snippet Scrolling (`PreFlightDigestModal.ts` & `styles.css`)** — Updated pill labels to `'Note'` (instead of `'Thought'`), modal subtitle to `"Review destinations and routing for X note(s)"`, action button to `"Execute Digest (X note(s))"`, and added snippet scroll containment (`max-height: 240px; overflow-y: auto`).
+*   [x] **Unit Tests & Production Deployment** — Updated `tests/digestionBlocks.test.ts` to assert 1 note = 1 block behavior. Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

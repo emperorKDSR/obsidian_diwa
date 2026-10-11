@@ -37,13 +37,13 @@ export class PreFlightDigestModal extends Modal {
         headerEl.createEl('h2', { text: displayTitle });
         headerEl.createEl('p', {
             cls: 'pos-preflight-subtitle',
-            text: `Review destinations and task routing for ${this.blocks.length} block(s).`
+            text: `Review destinations and routing for ${this.blocks.length} note(s).`
         });
 
         if (this.blocks.length === 0) {
             contentEl.createDiv({
                 cls: 'pos-preflight-empty',
-                text: 'No digestible blocks found for this date.'
+                text: 'No notes found to digest.'
             });
             return;
         }
@@ -58,7 +58,7 @@ export class PreFlightDigestModal extends Modal {
             const cardHeader = card.createDiv({ cls: 'pos-preflight-card-header' });
             cardHeader.createSpan({
                 cls: `pos-preflight-pill ${block.isTask ? 'is-task' : 'is-log'}`,
-                text: block.isTask ? (block.isCompletedTask ? 'Done Task' : 'Open Task') : 'Thought'
+                text: block.isTask ? (block.isCompletedTask ? 'Done Task' : 'Open Task') : 'Note'
             });
             if (block.area) {
                 const areaObj = this.plugin.settings.lifeAreas?.find(a => a.id.toLowerCase() === (block.area || '').toLowerCase());
@@ -191,8 +191,9 @@ export class PreFlightDigestModal extends Modal {
         const cancelBtn = actionsEl.createEl('button', { text: 'Cancel' });
         cancelBtn.onclick = () => this.close();
 
+        const countStr = `${this.blocks.length} note${this.blocks.length === 1 ? '' : 's'}`;
         const confirmBtn = actionsEl.createEl('button', {
-            text: `Execute Digest (${this.blocks.length} blocks)`,
+            text: `Execute Digest (${countStr})`,
             cls: 'mod-cta'
         });
 
@@ -207,7 +208,7 @@ export class PreFlightDigestModal extends Modal {
                 console.error('[DIWA PreFlightDigestModal] Digest error', err);
                 new Notice(`Digest error: ${err instanceof Error ? err.message : String(err)}`);
                 confirmBtn.disabled = false;
-                confirmBtn.setText(`Execute Digest (${this.blocks.length} blocks)`);
+                confirmBtn.setText(`Execute Digest (${countStr})`);
             }
         };
 

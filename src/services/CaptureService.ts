@@ -763,123 +763,61 @@ export class CaptureService {
         cleanBody = cleanBody.replace(/%%[\s\S]*?%%/g, '').trim();
         if (!cleanBody) return [];
 
-        const lines = cleanBody.split('\n');
-        const rawBlocks: string[] = [];
-        let currentBlockLines: string[] = [];
-        let inCodeFence = false;
-
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-
-            if (/^```/.test(line.trim())) {
-                inCodeFence = !inCodeFence;
-                currentBlockLines.push(line);
-                if (!inCodeFence) {
-                    rawBlocks.push(currentBlockLines.join('\n'));
-                    currentBlockLines = [];
-                }
-                continue;
-            }
-
-            if (inCodeFence) {
-                currentBlockLines.push(line);
-                continue;
-            }
-
-            const isTopLevelTask = /^[ \t]{0,1}-\s*\[[ xX]\]/.test(line);
-            const isTopLevelBullet = /^[ \t]{0,1}-\s+(?!\[[ xX]\])/.test(line);
-            const isHeading = /^#{1,6}\s+/.test(line);
-
-            if (isTopLevelTask || isTopLevelBullet || isHeading) {
-                if (currentBlockLines.length > 0) {
-                    rawBlocks.push(currentBlockLines.join('\n'));
-                    currentBlockLines = [];
-                }
-                currentBlockLines.push(line);
-            } else if (/^\s{2,}|\t/.test(line) && currentBlockLines.length > 0) {
-                currentBlockLines.push(line);
-            } else if (!line.trim()) {
-                if (currentBlockLines.length > 0) {
-                    rawBlocks.push(currentBlockLines.join('\n'));
-                    currentBlockLines = [];
-                }
-            } else {
-                if (currentBlockLines.length === 0) {
-                    currentBlockLines.push(line);
-                } else if (/^[ \t]{0,1}-\s*/.test(currentBlockLines[0])) {
-                    rawBlocks.push(currentBlockLines.join('\n'));
-                    currentBlockLines = [line];
-                } else {
-                    currentBlockLines.push(line);
-                }
-            }
-        }
-
-        if (currentBlockLines.length > 0) {
-            rawBlocks.push(currentBlockLines.join('\n'));
-        }
+        const raw = cleanBody.trim();
+        if (!raw) return [];
 
         const fileHash = Math.abs(filePath.split('').reduce((acc, c) => (acc << 5) - acc + c.charCodeAt(0), 0)).toString(36).slice(0, 6);
+        const deterministicId = `dw-${fileHash}-b1`;
 
-        const results: DigestibleBlock[] = [];
-        for (let idx = 0; idx < rawBlocks.length; idx++) {
-            const raw = rawBlocks[idx].trim();
-            if (!raw) continue;
+        const isTask = /^[ \t]*-[ \t]+\[[ xX]\]/.test(raw);
+        const isCompletedTask = isTask && /^[ \t]*-[ \t]+\[[xX]\]/.test(raw);
 
-            const blockIndex = idx + 1;
-            const deterministicId = `dw-${fileHash}-b${blockIndex}`;
-            const isTask = /^[ \t]*-[ \t]+\[[ xX]\]/.test(raw);
-            const isCompletedTask = /^[ \t]*-[ \t]+\[[xX]\]/.test(raw);
-
-            let dueDate: string | null = null;
-            if (isTask) {
-                const dateMatches = raw.match(/@(\d{4}-\d{2}-\d{2})|\[\[(\d{4}-\d{2}-\d{2})\]\]|📅\s*(\d{4}-\d{2}-\d{2})|\[due::\s*(\d{4}-\d{2}-\d{2})\]/);
-                if (dateMatches) {
-                    dueDate = dateMatches[1] || dateMatches[2] || dateMatches[3] || dateMatches[4] || null;
-                }
+        let dueDate: string | null = null;
+        if (isTask) {
+            const dateMatches = raw.match(/@(\d{4}-\d{2}-\d{2})|\[\[(\d{4}-\d{2}-\d{2})\]\]|📅\s*(\d{4}-\d{2}-\d{2})|\[due::\s*(\d{4}-\d{2}-\d{2})\]/);
+            if (dateMatches) {
+                dueDate = dateMatches[1] || dateMatches[2] || dateMatches[3] || dateMatches[4] || null;
             }
-
-            // Resolve life area for this block: inline tag takes precedence over note fallback area
-            let blockArea = fallbackArea;
-            const inlineAreaTags = raw.match(/#([a-zA-Z0-9_\-]+)/g) || [];
-            for (const tagWithHash of inlineAreaTags) {
-                const tagName = tagWithHash.replace(/^#/, '').toLowerCase();
-                if (this.settings.lifeAreas.some(a => a.id.toLowerCase() === tagName)) {
-                    blockArea = tagName;
-                    break;
-                }
-            }
-
-            const { primary, all } = this.extractTargetWikiLinks(raw);
-            const cleanText = raw.replace(/->\s*\[\[[^\]]+\]\]/, '').trim();
-
-            let actionRoute: DigestibleBlock['actionRoute'] = 'keep_scratchpad';
-            if (isTask && !isCompletedTask && primary) {
-                actionRoute = 'target_tasks';
-            } else if (primary) {
-                actionRoute = 'target_log';
-            } else if (isTask && !isCompletedTask) {
-                actionRoute = 'gawa_inbox';
-            }
-
-            results.push({
-                sourceFilePath: filePath,
-                sourceCreatedMs: createdAtMs,
-                blockIndex,
-                deterministicId,
-                rawContent: raw,
-                cleanText,
-                isTask,
-                isCompletedTask,
-                dueDate,
-                primaryTarget: primary,
-                alternativeTargets: all.filter(t => t !== primary),
-                actionRoute,
-                area: blockArea,
-            });
         }
 
-        return results;
+        // Resolve life area for this block: inline tag takes precedence over note fallback area
+        let blockArea = fallbackArea;
+        const inlineAreaTags = raw.match(/#([a-zA-Z0-9_\-]+)/g) || [];
+        for (const tagWithHash of inlineAreaTags) {
+            const tagName = tagWithHash.replace(/^#/, '').toLowerCase();
+            if (this.settings.lifeAreas.some(a => a.id.toLowerCase() === tagName)) {
+                blockArea = tagName;
+                break;
+            }
+        }
+
+        const { primary, all } = this.extractTargetWikiLinks(raw);
+        const cleanText = raw.replace(/->\s*\[\[[^\]]+\]\]/g, '').trim();
+
+        let actionRoute: DigestibleBlock['actionRoute'] = 'keep_scratchpad';
+        if (isTask && !isCompletedTask && primary) {
+            actionRoute = 'target_tasks';
+        } else if (primary) {
+            actionRoute = 'target_log';
+        } else if (isTask && !isCompletedTask) {
+            actionRoute = 'gawa_inbox';
+        }
+
+        return [{
+            sourceFilePath: filePath,
+            sourceCreatedMs: createdAtMs,
+            blockIndex: 1,
+            deterministicId,
+            rawContent: raw,
+            cleanText,
+            isTask,
+            isCompletedTask,
+            dueDate,
+            primaryTarget: primary,
+            alternativeTargets: all.filter(t => t !== primary),
+            actionRoute,
+            area: blockArea,
+        }];
     }
 
     /**

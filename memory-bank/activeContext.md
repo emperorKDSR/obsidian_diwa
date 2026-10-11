@@ -1,18 +1,24 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Single-Note Digest in Stream & Muted Pre-Flight Modal (Desktop, Tablet, Mobile)
+## Current State: 1 Note = 1 Digestible Block & Single-Note Digest in Stream
+- **1 Note = 1 Digestible Block Logic (`CaptureService.ts`)**:
+  - Transitioned `parseDigestibleBlocks` from fragmented line-by-line block splitting to **1 note = 1 digestible block** (`[singleBlock]`).
+  - The entire note body remains cohesive and intact during digestion, preserving markdown structures, lists, and subtasks together.
+  - Automatically classifies note block as `isTask: true` if it begins with a task checkbox (`- [ ]`), defaulting route to `target_tasks` (or `Gawa Inbox`).
+  - Regular text/meeting notes are classified as `Note` (`isTask: false`), defaulting route to `target_log` (under `## Log` in target note) or `Keep in Note`.
+  - When digested, the entire note body is wrapped and the note is stamped `digested: true`.
+- **Pre-Flight Modal Polish (`PreFlightDigestModal.ts` & `styles.css`)**:
+  - Updated card pill label to `'Note'` (replacing `'Thought'`).
+  - Subtitle updated to: `Review destinations and routing for X note(s).`
+  - Action button updated to: `Execute Digest (X note(s))`.
+  - Added `max-height: 240px; overflow-y: auto` to `.pos-preflight-snippet` for comfortable scrolling of long notes.
 - **Single-Note Digest in Note Card Menu (`DesktopHubView.ts`)**:
-  - Implemented single-note digest flow via the existing `...` note actions dropdown menu (`Digest Note...` with icon `sparkles`).
-  - Scoped strictly to the selected note: parses digestible blocks from `entry.rawBody || entry.body` via `plugin.capture.parseDigestibleBlocks`.
-  - Zero visual clutter added to stream card surfaces (no buttons or badges).
-  - Handles execution via `plugin.capture.executeBatchDigest(dateStr, confirmedBlocks)`, automatically re-indexes the source note file, invalidates render cache, updates the stream, and dispatches refresh notifications.
-- **Muted Theme & Responsive Pre-Flight Digest Modal (`PreFlightDigestModal.ts` & `styles.css`)**:
+  - Single-note digest accessible via `...` dropdown menu (`Digest Note...` with icon `sparkles`), opening the pre-flight modal for that single note.
+  - Automatically re-indexes the source note file, invalidates render cache, updates the stream, and dispatches refresh notifications.
+- **Muted Theme & Responsive Pre-Flight Digest Modal (`styles.css`)**:
   - Replaced bright emojis with clean Obsidian Lucide icons (`arrow-right`, `search`, `check-square`, `file-text`).
-  - Dynamic title reflects context: `Digest Note: <title>` for single-note triggers or `Pre-Flight Digest: <date>` for calendar daily digest.
   - Neutral muted styling matching DIWA palette (`var(--background-modifier-border-faint)`, muted pill buttons, no stark colors).
-  - Full responsiveness across form factors:
-    - Desktop: centered floating modal with keyboard shortcuts (`Enter` to confirm, `Esc` to cancel).
-    - Mobile & Tablet: full width (95vw), touch-friendly pill button targets (min-height 36px), stacked action buttons, and safe-area inset padding.
+  - Full responsiveness across Desktop, Tablet, and Mobile.
 
 ## Previous State: Mobile Micro-Card Stream Layout (Option 1 Implemented for Mobile Only)
 - **Mobile Micro-Card Stream Layout (`DesktopHubView.ts` & `styles.css`)**:
