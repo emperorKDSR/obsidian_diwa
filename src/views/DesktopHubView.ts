@@ -2903,7 +2903,8 @@ export class DesktopHubView extends ItemView {
             this.openNoteActionMenu(e, entry);
         };
 
-        if (!isMobile) {
+        const isTabletDevice = isTablet(this.app);
+        if (!isMobile && !isTabletDevice) {
             const trashBtn = actionsEl.createSpan({
                 cls: 'pos-action-icon pos-trash-btn',
                 attr: { 'aria-label': 'Delete note' }

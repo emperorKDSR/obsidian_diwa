@@ -1473,17 +1473,26 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
 /* Touch & Mobile action icon visibility stays visible */
 body.is-mobile .pos-note-actions,
 body.is-phone .pos-note-actions,
-body.is-tablet .pos-note-actions {
+body.is-tablet .pos-note-actions,
+.pos-desktop-cockpit-layout.is-tablet .pos-note-actions {
     opacity: 0.95 !important;
     pointer-events: auto !important;
 }
 
 body.is-mobile .pos-action-icon,
 body.is-phone .pos-action-icon,
-body.is-tablet .pos-action-icon {
+body.is-tablet .pos-action-icon,
+.pos-desktop-cockpit-layout.is-tablet .pos-action-icon {
     min-width: 28px;
     min-height: 28px;
     font-size: 0.95em;
+}
+
+/* Tablet stream action icons: Only show Important (Star), Edit, and More (...) */
+body.is-tablet .pos-note-actions .pos-trash-btn,
+.pos-desktop-cockpit-layout.is-tablet .pos-note-actions .pos-trash-btn {
+    display: none !important;
+    pointer-events: none !important;
 }
 
 .pos-action-icon {

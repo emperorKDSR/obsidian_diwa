@@ -7,6 +7,11 @@
     - The document stream (`.pos-cockpit-main-stage`), stream notes (`.pos-note-stream-item`), date dividers (`.pos-date-divider`), and quick capture capsule (`.pos-composer-compact`, `.pos-desktop-composer`) fill **100% full width of the tablet** (`width: 100% !important; max-width: 100% !important; margin: 0 !important;`).
     - The right side rail (`.pos-cockpit-side-rail`), center resizer (`.pos-cockpit-resizer`), drawer backdrop (`.pos-cockpit-drawer-backdrop`), and Agenda toggle header button (`.pos-rail-toggle-btn`) are completely hidden (`display: none !important`).
     - Hotkey `\` and toggle calls are guarded against opening the side rail while in portrait orientation.
+  - **Tablet Stream Action Buttons (Important, Edit, and ...)**:
+    - On tablets, stream item actions exclusively surface **Important (Star)**, **Edit**, and **More (...)**.
+    - The bare Delete / Trash icon is intentionally omitted from the stream item action bar on tablets to prevent accidental deletions on touch screens.
+    - Delete Note is securely housed inside the `...` popup menu (`openNoteActionMenu`), retaining full capability with accidental-tap safety.
+    - Desktop continues displaying the direct hover trash icon as before.
   - **Landscape Mode (Desktop Dual-Pane Parity with Available & Collapsible Agenda)**:
     - Agenda panel is available in landscape orientation. When open, it renders anchored to the right margin with in-flow layout (`320px`) alongside the center draggable resizer.
     - If the user needs to minimize / collapse the Agenda panel, they can click the collapse button in the rail header (`.pos-rail-collapse-btn`) or the header toggle button (`.pos-rail-toggle-btn`), expanding the stream to full width.
