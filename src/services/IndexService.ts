@@ -16,6 +16,11 @@ export class IndexService {
     private _lastIndexedCaptureFolderSetting: string = '';
     private _lastIndexedAdditionalTaskFolders: string = '';
     private _taskFileMtime: Map<string, number> = new Map();
+    private _cachedPermanentNotes: TFile[] | null = null;
+
+    invalidatePermanentNotesCache(): void {
+        this._cachedPermanentNotes = null;
+    }
 
     constructor(app: App, settings: DiwaSettings) {
         this.app = app;
@@ -38,7 +43,7 @@ export class IndexService {
         } else {
             arr = [raw];
         }
-        return arr.map(v => String(v).replace(/^#+/, '').trim()).filter(Boolean);
+        return arr.map(v => String(v).trim().replace(/^#+/, '').trim()).filter(Boolean);
     }
 
     /** Extract and loosely parse frontmatter when metadataCache is unavailable. */
@@ -582,18 +587,22 @@ export class IndexService {
     }
 
     getRecentlyUpdatedPermanentNotes(limit: number = 30, query?: string): PermanentNoteRecord[] {
-        const markdownFiles = this.app.vault.getMarkdownFiles();
-        const candidates: TFile[] = [];
+        if (!this._cachedPermanentNotes) {
+            const markdownFiles = this.app.vault.getMarkdownFiles();
+            const candidates: TFile[] = [];
 
-        for (const file of markdownFiles) {
-            if (this.isPermanentNoteFile(file)) {
-                candidates.push(file);
+            for (const file of markdownFiles) {
+                if (this.isPermanentNoteFile(file)) {
+                    candidates.push(file);
+                }
             }
+
+            // Sort descending by mtime
+            candidates.sort((a, b) => b.stat.mtime - a.stat.mtime);
+            this._cachedPermanentNotes = candidates;
         }
 
-        // Sort descending by mtime
-        candidates.sort((a, b) => b.stat.mtime - a.stat.mtime);
-
+        const candidates = this._cachedPermanentNotes;
         const cleanQuery = (query || '').toLowerCase().trim();
         const records: PermanentNoteRecord[] = [];
 

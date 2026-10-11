@@ -1,19 +1,33 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Production Hardening (Phase 1 & Phase 2 Complete)
-- **Phase 1 Functional Defect Remediation**:
-  - **Subtask Checkbox Alignment (`src/views/DesktopHubView.ts`)**: Enhanced `attachInteractiveElements()` to detect list item text content and match top-level tasks from `entry.tasks` or pass subtask text fallback to `CaptureService.toggleTaskInFile()`. Tapping nested subtasks in the scratchpad feed now toggles accurately without throwing index errors.
-  - **KaronView Async Markdown Rendering (`src/views/KaronView.ts`)**: Upgraded deprecated `renderMarkdown()` to standard `MarkdownRenderer.render()` and chained `attachInteractiveLinks()` to each snippet's render promise, resolving the race condition on internal wikilink interceptors.
-  - **Dangling Timer Cleanup (`src/views/GawaCockpitView.ts`)**: Added `clearTimeout(this._searchDebounceTimer)` in `onClose()`, preventing unhandled background calls against detached elements.
-  - **Multi-Leaf Broadcast Query (`src/application/RefreshCoordinator.ts`)**: Expanded `hubLeaves` to query `VIEW_TYPE_MOBILE_HUB` and `VIEW_TYPE_TABLET_HUB` alongside `VIEW_TYPE_DESKTOP_HUB`, ensuring all open workspace leaves receive refresh signals.
-- **Phase 2 Distribution & Configuration Alignment**:
-  - **Manifest & Versions Compatibility (`manifest.json` & `versions.json`)**: Formatted name to `"DIWA"` and bumped `minAppVersion` to `"1.5.0"`, accurately reflecting required Obsidian APIs (`vault.process`, `processFrontMatter`). Updated `versions.json` entry for `11.1.3` to `"1.5.0"`.
-  - **Release Workflow Title (`.github/workflows/release.yml`)**: Corrected release name from `MINA V2` to `DIWA ${{ github.ref_name }}`.
-  - **Scratch Script Deletion**: Removed legacy root migration scripts (`implement_redesign.js`, `implement_swipe.js`, `replace1.js`).
-  - **CSS Scoping (`styles.css`)**: Scoped `.date-none, .area-none, .rem-none` strictly to `.pos-gawa-table`, eliminating unnamespaced selectors.
-- **Production Build & Vault Deployment**:
-  - `tsc --noEmit --skipLibCheck` and `npm run build` passed cleanly with 0 errors.
-  - Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+## Current State: Full Production-Grade Hardening (Phases A-E Complete)
+- **Phase A — Search & Query Performance Optimization**:
+  - Implemented `_cachedPermanentNotes` and `invalidatePermanentNotesCache()` in `src/services/IndexService.ts`, avoiding redundant $O(N \log N)$ disk scans and sorting on repetitive keystrokes.
+  - Connected cache invalidation to `RefreshCoordinator.ts` on vault file modification events.
+  - Added 150ms debounced search listeners and timer cleanup in `DesktopHubView.ts` (Agenda Recent Notes rail) and `RecentPermanentNotesModal.ts`.
+- **Phase B — Active Concurrency Lock Tracking in DesktopHubView**:
+  - Bound `_taskPending` counters (`this._taskPending++` / `finally this._taskPending--`) around `CaptureService.toggleTaskInFile()` in `src/views/DesktopHubView.ts`.
+  - Bound `_capturePending` counters around both Desktop Hero Composer and Mobile Sticky Composer save routines (`createCaptureNote()`), guarding against concurrent race conditions during background sync.
+- **Phase C — Dynamic Target Note Filename Sanitization**:
+  - Exported and hardened `sanitizeVaultFilename()` in `src/utils/vaultFiles.ts`: cleanly separates valid file extensions (`.md`, `.canvas`), trims illegal filesystem characters, and strips dangling dots.
+  - Sanitized target file creation paths in `CaptureService.executeBatchDigest()` and `WikilinkPeekModal.ts` create button.
+- **Phase D — Zero-Dependency Automated Regression Test Suite**:
+  - Implemented native `node:test` test harness via `scripts/run-tests.mjs` bundled on-the-fly with `esbuild` and Obsidian API mocks (`tests/mocks/obsidian.js`). Runs 13 tests in ~70ms with 0 external network dependencies.
+  - Added 5 comprehensive test suites:
+    - `tests/vaultFiles.test.ts` (filename sanitization, traversal defense, YAML generation)
+    - `tests/dateParsing.test.ts` (ISO formats, localized formats, natural date extraction)
+    - `tests/taskDeduplication.test.ts` (task signature normalization, hashtag stripping, context normalization)
+    - `tests/frontmatterFallback.test.ts` (YAML parsing, wikilink array disambiguation, missing block fallback)
+    - `tests/digestionBlocks.test.ts` (task/subtask AST parsing, non-destructive comment wrapping)
+  - Discovered and resolved real edge-case bug in `IndexService.normalizeContext()` where leading spaces in comma-delimited strings (`#work, #health`) prevented hashtag stripping.
+- **Phase E — ESLint Configuration & Distribution Build**:
+  - Created standard TypeScript `.eslintrc.json` using `@typescript-eslint/parser` and `@typescript-eslint/eslint-plugin`.
+  - Added resilient lint runner `scripts/lint.mjs` running `eslint` when installed or fallback `tsc --noEmit --skipLibCheck` in offline sandbox environments.
+  - Wired `"test": "node scripts/run-tests.mjs"` and `"lint": "node scripts/lint.mjs"` into `package.json`.
+  - Verified `npm test` (13/13 passed in 70ms), `npm run lint` (0 errors), and `npm run build` (clean 478KB production bundle).
+  - Deployed fresh `main.js`, `manifest.json`, and `styles.css` to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous Phase: Production Hardening (Phase 1 & Phase 2 Complete)
 
 ## Previous Phase: Recent Notes Tab in Agenda Side Rail Deployed
 - **Option 1 Dedicated "📚 Notes" Tab in Agenda Panel (`DesktopHubView.ts` & `styles.css`)**:

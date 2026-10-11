@@ -54,6 +54,7 @@ export class DesktopHubView extends ItemView {
     private _desktopComposerExpanded: boolean = false;
     private _isResizingCockpit: boolean = false;
     private _railNotesSearchQuery: string = '';
+    private _railNotesSearchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private _cockpitLayoutEl: HTMLElement | null = null;
     private _cockpitBackdropEl: HTMLElement | null = null;
     private _mainStageEl: HTMLElement | null = null;
@@ -245,6 +246,10 @@ export class DesktopHubView extends ItemView {
         if (this._searchDebounceTimer) {
             clearTimeout(this._searchDebounceTimer);
             this._searchDebounceTimer = null;
+        }
+        if (this._railNotesSearchDebounceTimer) {
+            clearTimeout(this._railNotesSearchDebounceTimer);
+            this._railNotesSearchDebounceTimer = null;
         }
         this._renderedMarkdownCache.clear();
         this._containerEl = null;
@@ -941,7 +946,13 @@ export class DesktopHubView extends ItemView {
 
             searchInput.addEventListener('input', () => {
                 this._railNotesSearchQuery = searchInput?.value || '';
-                if (listContainer) this.updateRailNotesList(listContainer);
+                if (this._railNotesSearchDebounceTimer) {
+                    clearTimeout(this._railNotesSearchDebounceTimer);
+                }
+                this._railNotesSearchDebounceTimer = setTimeout(() => {
+                    this._railNotesSearchDebounceTimer = null;
+                    if (listContainer) this.updateRailNotesList(listContainer);
+                }, 150);
             });
         }
 
@@ -1746,6 +1757,7 @@ export class DesktopHubView extends ItemView {
                 const text = textarea.value.trim();
                 if (!text) return;
                 sendBtn.disabled = true;
+                this._capturePending++;
                 try {
                     await this.plugin.capture.createCaptureNote(
                         text,
@@ -1772,6 +1784,7 @@ export class DesktopHubView extends ItemView {
                     console.error('[DIWA DesktopHubView] Save capture note error', err);
                     new Notice('Failed to save note');
                 } finally {
+                    this._capturePending--;
                     sendBtn.disabled = false;
                 }
             };
@@ -2036,6 +2049,7 @@ export class DesktopHubView extends ItemView {
             const text = textarea.value.trim();
             if (!text) return;
             saveBtn.disabled = true;
+            this._capturePending++;
             try {
                 await this.plugin.capture.createCaptureNote(
                     text,
@@ -2068,6 +2082,7 @@ export class DesktopHubView extends ItemView {
                 console.error('[DIWA DesktopHubView] Save capture note error', err);
                 new Notice('Failed to save note');
             } finally {
+                this._capturePending--;
                 saveBtn.disabled = false;
             }
         };
@@ -2969,6 +2984,7 @@ export class DesktopHubView extends ItemView {
                 this.invalidateRenderCacheForFile(entry.filePath);
 
                 // Update file directly in background
+                this._taskPending++;
                 try {
                     const lineIdx = matchedTask ? matchedTask.lineIndex : -1;
                     const taskTitle = matchedTask ? matchedTask.title : (cleanLiText || undefined);
@@ -2989,6 +3005,8 @@ export class DesktopHubView extends ItemView {
                         matchedTask.completed = !isChecked;
                     }
                     new Notice('Failed to update task state in note');
+                } finally {
+                    this._taskPending--;
                 }
             };
         });

@@ -7,6 +7,7 @@ export class RecentPermanentNotesModal extends Modal {
     private searchQuery: string = '';
     private listContainerEl: HTMLElement | null = null;
     private searchInputEl: HTMLInputElement | null = null;
+    private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     constructor(app: App, plugin: DiwaPlugin) {
         super(app);
@@ -72,7 +73,13 @@ export class RecentPermanentNotesModal extends Modal {
         searchInput.value = this.searchQuery;
         searchInput.addEventListener('input', () => {
             this.searchQuery = searchInput.value;
-            this.renderList();
+            if (this.searchDebounceTimer) {
+                clearTimeout(this.searchDebounceTimer);
+            }
+            this.searchDebounceTimer = setTimeout(() => {
+                this.searchDebounceTimer = null;
+                this.renderList();
+            }, 150);
         });
         searchInput.addEventListener('keydown', (e: KeyboardEvent) => {
             if (e.key === 'Enter') {
@@ -196,6 +203,10 @@ export class RecentPermanentNotesModal extends Modal {
     }
 
     onClose(): void {
+        if (this.searchDebounceTimer) {
+            clearTimeout(this.searchDebounceTimer);
+            this.searchDebounceTimer = null;
+        }
         const { modalEl } = this;
         modalEl.empty();
     }

@@ -1,5 +1,6 @@
 import { App, Modal, TFile, MarkdownRenderer, Platform, setIcon, Notice, Component } from 'obsidian';
 import type DiwaPlugin from '../main';
+import { sanitizeVaultFilename } from '../utils/vaultFiles';
 
 export class WikilinkPeekModal extends Modal {
     private linkText: string;
@@ -258,9 +259,10 @@ export class WikilinkPeekModal extends Modal {
                 if (sourceFile instanceof TFile && sourceFile.parent) {
                     targetFolderPath = sourceFile.parent.path;
                 }
+                const safeName = sanitizeVaultFilename(this.cleanLinkName);
                 const newFilePath = targetFolderPath && targetFolderPath !== '/'
-                    ? `${targetFolderPath}/${this.cleanLinkName}.md`
-                    : `${this.cleanLinkName}.md`;
+                    ? `${targetFolderPath}/${safeName}.md`
+                    : `${safeName}.md`;
 
                 const initialContent = `# ${this.cleanLinkName}\n\n`;
                 const created = await this.app.vault.create(newFilePath, initialContent);

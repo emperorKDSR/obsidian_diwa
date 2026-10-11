@@ -1,5 +1,6 @@
 import { App, TFile, moment, normalizePath } from 'obsidian';
 import { DiwaSettings, DigestibleBlock } from '../types';
+import { sanitizeVaultFilename } from '../utils/vaultFiles';
 
 export class CaptureService {
     private app: App;
@@ -1067,7 +1068,8 @@ export class CaptureService {
             if (!targetFile) {
                 const folder = this.settings.newNoteFolder || '';
                 await this.ensureFolder(folder);
-                const targetPath = normalizePath(`${folder ? folder + '/' : ''}${targetName}.md`);
+                const safeTargetName = sanitizeVaultFilename(targetName);
+                const targetPath = normalizePath(`${folder ? folder + '/' : ''}${safeTargetName}.md`);
                 targetFile = await this.app.vault.create(targetPath, `# ${targetName}\n\n`);
             }
 

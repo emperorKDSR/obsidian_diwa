@@ -40,6 +40,7 @@ export class RefreshCoordinator {
             await this.index.indexProjectTaskFile(file);
             this.notifyRefresh('tasks');
         } else if (this.index.isPermanentNoteFile(file)) {
+            this.index.invalidatePermanentNotesCache();
             this.notifyRefresh('capture');
         }
     }

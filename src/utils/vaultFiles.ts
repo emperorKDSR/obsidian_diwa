@@ -44,18 +44,18 @@ function normalizeVaultFolder(folder: string): string {
     return normalized;
 }
 
-function sanitizeVaultFilename(filename: string): string {
+export function sanitizeVaultFilename(filename: string): string {
     const trimmed = (filename || '').trim();
-    const extIdx = trimmed.lastIndexOf('.');
-    const base = extIdx > 0 ? trimmed.substring(0, extIdx) : trimmed;
-    const ext = extIdx > 0 ? trimmed.substring(extIdx) : '';
+    const extMatch = trimmed.match(/^([\s\S]*?)(\.[a-zA-Z0-9_-]+)$/);
+    const base = extMatch ? extMatch[1] : trimmed;
+    const ext = extMatch ? extMatch[2] : '';
     const safeBase = base
         .replace(/[\/\\?%*:|"<>]/g, '-')
         .replace(/\s+/g, ' ')
         .trim()
-        .replace(/^\.+|\.+$/g, '') || 'Untitled';
-    const safeExt = ext.replace(/[^.\w-]/g, '');
-    return `${safeBase}${safeExt}`;
+        .replace(/^\.+|\.+$/g, '');
+    const finalBase = safeBase || 'Untitled';
+    return `${finalBase}${ext}`;
 }
 
 export async function ensureVaultFolder(app: App, folder: string): Promise<void> {

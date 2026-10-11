@@ -1,10 +1,20 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Production Hardening (Phase 1 & Phase 2 Complete)
+## Current Phase: Full Production Hardening (Phases A-E Complete)
 
 ---
 
-### 0. Production Hardening: Defect Remediation & Distribution Alignment (Complete)
+### 0. Full Production Hardening: Performance, Concurrency, Sanitization, Tests & Lint (Complete)
+*   [x] **Phase A: Search & Query Performance Optimization (`IndexService.ts`, `DesktopHubView.ts`, `RecentPermanentNotesModal.ts`)** — Added in-memory caching for permanent notes (`_cachedPermanentNotes`), saving redundant $O(N \log N)$ disk scans and sorting on keystroke. Linked cache invalidation to `RefreshCoordinator.ts`. Added 150ms debounced input listeners and timer cleanup.
+*   [x] **Phase B: Concurrency Lock Tracking (`DesktopHubView.ts`)** — Wrapped background disk updates (`toggleTaskInFile`) with `_taskPending++ / finally _taskPending--` and hero/sticky capture routines (`createCaptureNote`) with `_capturePending++ / finally _capturePending--`.
+*   [x] **Phase C: Dynamic Target Note Filename Sanitization (`vaultFiles.ts`, `CaptureService.ts`, `WikilinkPeekModal.ts`)** — Exported and enhanced `sanitizeVaultFilename()` to handle true file extensions, trim illegal chars, and strip dangling dots. Applied to `CaptureService.executeBatchDigest` and `WikilinkPeekModal`.
+*   [x] **Phase D: Automated Regression Test Suite (`scripts/run-tests.mjs`, `tests/`)** — Established zero-dependency automated test runner using Node's built-in `node:test` bundled with `esbuild` and Obsidian API mocks (`tests/mocks/obsidian.js`). 13 unit tests across 5 test files (`vaultFiles.test.ts`, `dateParsing.test.ts`, `taskDeduplication.test.ts`, `frontmatterFallback.test.ts`, `digestionBlocks.test.ts`) executing in ~70ms. Caught and fixed real bug in `IndexService.normalizeContext()` with space-separated hashtag lists.
+*   [x] **Phase E: ESLint Configuration & CI Tooling (`.eslintrc.json`, `scripts/lint.mjs`, `package.json`)** — Configured `.eslintrc.json` using `@typescript-eslint/parser`, added resilient `scripts/lint.mjs` with `tsc` fallback in offline sandbox, and wired `"test"` and `"lint"` scripts in `package.json`.
+*   [x] **Production Build & Vault Deployment** — Strict `npm test` (13/13 passing in 70ms), `npm run lint` (0 errors), and `npm run build` (clean 478KB `main.js`). Deployed `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+---
+
+### 0.1. Production Hardening: Defect Remediation & Distribution Alignment (Complete)
 *   [x] **Subtask Checkbox Alignment (`DesktopHubView.ts`)** — Resolved subtask checkbox mismatch by reading `listItem.textContent` and matching indexed tasks or passing subtask title fallback to `CaptureService.toggleTaskInFile()`. Tapping nested subtasks in the continuous feed now toggles safely without index error notices.
 *   [x] **KaronView Async Markdown Link Interception (`KaronView.ts`)** — Replaced deprecated `MarkdownRenderer.renderMarkdown()` with modern `MarkdownRenderer.render()` and chained `attachInteractiveLinks()` directly to each snippet's render promise, eliminating the race condition on internal link previews.
 *   [x] **Debounce Timer Cleanup (`GawaCockpitView.ts`)** — Added explicit `clearTimeout(this._searchDebounceTimer)` in `onClose()` to prevent unhandled background calls after view destruction.

@@ -7,13 +7,15 @@
     "dev": "node esbuild.config.mjs",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "clean": "node -e \"const fs=require('fs'); ['main.js'].forEach(f => fs.rmSync(f, {force:true, recursive:true}))\"",
-    "version": "node -p \"require('./manifest.json').version\""
+    "version": "node -p \"require('./manifest.json').version\"",
+    "test": "node scripts/run-tests.mjs",
+    "lint": "node scripts/lint.mjs"
   },
   "keywords": [],
   "author": "K",
   "license": "MIT",
   "devDependencies": {
-
+    "eslint": "^8.57.0",
     "@types/node": "^25.6.0",
     "@typescript-eslint/eslint-plugin": "8.58.2",
     "@typescript-eslint/parser": "8.58.2",
