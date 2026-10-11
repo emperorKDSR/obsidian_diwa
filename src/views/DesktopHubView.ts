@@ -943,17 +943,6 @@ export class DesktopHubView extends ItemView {
             setIcon(calIcon, 'calendar');
             datePill.createSpan({ text: ` Due: ${task.dueDate}` });
         }
-
-        // Jump to source button
-        const jumpBtn = row.createEl('button', {
-            cls: 'pos-rail-source-btn',
-            attr: { 'aria-label': `Open ${task.noteTitle || 'note'}` }
-        });
-        setIcon(jumpBtn, 'arrow-up-right');
-        jumpBtn.onclick = (e) => {
-            e.stopPropagation();
-            new WikilinkPeekModal(this.app, this.plugin, task.filePath, task.filePath, (target) => this.filterStreamByWikilink(target)).open();
-        };
     }
 
     private renderRecentNotesRail(container: HTMLElement): void {
@@ -2790,57 +2779,7 @@ export class DesktopHubView extends ItemView {
 
         // Metadata badges (Desktop & Tablet only; mobile keeps ultra-clean single timestamp)
         if (!isMobile) {
-            // Render Area badge on desktop if present
-            if (entry.area) {
-                const badge = badgesEl.createSpan({
-                    cls: `pos-area-badge pos-area-${entry.area.toLowerCase()}`,
-                    text: areaObj ? `${areaObj.icon || ''} ${areaObj.label}`.trim() : entry.area,
-                    attr: { 'aria-label': 'Click to change life area' }
-                });
-
-                badge.onclick = (e) => {
-                    e.stopPropagation();
-                    const menu = new Menu();
-                    for (const area of areas) {
-                        menu.addItem((mItem) => {
-                            mItem.setTitle(this.createMutedAreaTitle(area.label, area.icon))
-                                .setChecked(entry.area.toLowerCase() === area.id.toLowerCase())
-                                .onClick(async () => {
-                                    try {
-                                        this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
-                                        await this.plugin.capture.updateNoteContent(entry.filePath, entry.body, area.id);
-                                        new Notice(`Moved to ${area.label}`);
-                                        this.updateStreamOnly();
-                                        this.updateFilterCounts();
-                                    } catch (err) {
-                                        console.error('[DIWA] Update note area error', err);
-                                        new Notice('Failed to update area');
-                                    }
-                                });
-                        });
-                    }
-                    menu.addSeparator();
-                    menu.addItem((mItem) => {
-                        mItem.setTitle('Remove Area (Untagged)')
-                            .setIcon('cross')
-                            .onClick(async () => {
-                                try {
-                                    this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
-                                    await this.plugin.capture.updateNoteContent(entry.filePath, entry.body, '');
-                                    new Notice('Removed area');
-                                    this.updateStreamOnly();
-                                    this.updateFilterCounts();
-                                } catch (err) {
-                                    console.error('[DIWA] Remove note area error', err);
-                                    new Notice('Failed to remove area');
-                                }
-                            });
-                    });
-                    menu.showAtMouseEvent(e);
-                };
-            }
-
-            // Other tags
+            // Other tags (Life Area is hidden from stream view)
             for (const tag of entry.tags) {
                 if (tag.toLowerCase() !== (entry.area || '').toLowerCase()) {
                     const tagBadge = badgesEl.createSpan({ cls: 'pos-tag-badge', text: `#${tag}` });

@@ -1,6 +1,18 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Stream Dates as Normal Wikilinks, Task "Due: " Prefix & Relative Dates, and Completed Task Strike-Through
+## Current Phase: Stream Life Area Badge Hidden & Minimalist Clean Stream
+
+---
+
+### 0. Stream Life Area Badge Hidden (Complete)
+*   [x] **Hide Life Area from Stream Note Cards (`DesktopHubView.ts` & `styles.css`)** — Removed `.pos-area-badge` DOM rendering from note cards in `renderNoteItem` and added defense-in-depth rule `.pos-stream-item .pos-area-badge { display: none !important; }` in `styles.css`. Life areas remain preserved in markdown files/frontmatter and are accessible via the note's `...` action menu (`Set Life Area...`) and inline editor, but no longer clutter the stream view.
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+---
+
+### 0. Agenda Task Cards Note Button Removal (Complete)
+*   [x] **Remove Source Note Jump Button (`DesktopHubView.ts` & `styles.css`)** — Removed the `arrow-up-right` note link button (`pos-rail-source-btn`) from all task card rows across Rolling Horizon / Karon and Tasks tabs in the Agenda side rail. The task cards now have a cleaner, distraction-free aesthetic with full-width text and due date badge next to the task checkbox. Deprecated unused `.pos-rail-source-btn` CSS rules.
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

@@ -1,6 +1,15 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Stream Dates as Normal Wikilinks, Task "Due: " Prefix & Relative Dates, and Completed Task Strike-Through
+## Current State: Stream Life Area Badge Hidden & Minimalist Clean Stream
+- **Stream Life Area Badge Hidden (`DesktopHubView.ts` & `styles.css`)**:
+  - Removed the `.pos-area-badge` DOM creation from note cards in `renderNoteItem`.
+  - Added `.pos-stream-item .pos-area-badge { display: none !important; }` in `styles.css` as a defense-in-depth safety rule.
+  - Life area metadata remains intact in note frontmatter and files, and is still available in the note's `...` action menu (`Set Life Area...`) and inline editor, but is no longer visually rendered in the stream cards.
+- **Agenda Side Rail Task Cards Aesthetic Cleanup (`DesktopHubView.ts` & `styles.css`)**:
+  - Removed the note link button (`pos-rail-source-btn`, icon `arrow-up-right`) from all task cards in the Agenda side rail (`renderRailTaskRow`).
+  - Affects both the **Rolling Horizon / Karon** tab (Overdue, Today, Tomorrow) and the **Tasks** tab (All, Overdue, Today, Upcoming).
+  - The task cards now have a clean, distraction-free aesthetic with only the task checkbox and the task title/due-date meta content, while removing the unused/cluttering peek button.
+  - Deprecated and removed unused `.pos-rail-source-btn` CSS definitions from `styles.css`.
 - **Stream Task Due Date Relative Substitution (`DesktopHubView.ts`)**:
   - When a date link (`a.internal-link` matching `YYYY-MM-DD`) is located inside a task item (`li.task-list-item, li:has(input[type="checkbox"])`):
     - Evaluates relative status dynamically against current date:

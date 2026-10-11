@@ -1304,6 +1304,10 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
     vertical-align: baseline;
 }
 
+.pos-stream-item .pos-area-badge {
+    display: none !important;
+}
+
 .pos-area-badge {
     font-weight: 500;
     padding: 1px 6px;
@@ -6303,39 +6307,6 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
     border-color: var(--background-modifier-border);
 }
 
-.pos-rail-source-btn {
-    padding: 3px 4px;
-    font-size: 0.72em;
-    background: transparent;
-    border: 1px solid var(--background-modifier-border-faint);
-    border-radius: 4px;
-    color: var(--text-faint);
-    cursor: pointer;
-    transition: var(--diwa-transition);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: auto !important;
-    flex-shrink: 0 !important;
-    align-self: flex-start !important;
-}
-
-.pos-rail-source-btn svg {
-    width: 12px;
-    height: 12px;
-    stroke-width: 2px;
-    color: var(--text-muted);
-    stroke: currentColor;
-}
-
-.pos-rail-source-btn:hover {
-    color: var(--text-normal);
-    border-color: var(--text-muted);
-}
-
-.pos-rail-source-btn:hover svg {
-    color: var(--text-normal);
-}
 
 /* ── Agenda Rail Recent Notes ── */
 .pos-rail-notes-search-wrap {
