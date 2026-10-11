@@ -1,6 +1,15 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Dual-Axis iPadOS Keyboard Preservation (Complete)
+## Current Phase: Recent Notes in Agenda Side Rail (Complete)
+
+---
+
+### 0. Recent Notes in Agenda Side Rail: Dedicated Tab & Real-Time Sync (Complete)
+*   [x] **Dedicated "📚 Notes" Agenda Tab (`DesktopHubView.ts`)** — Added 3rd tab to the Agenda panel alongside `☀️ Horizon` and `📋 Tasks`, persisting tab state in `diwa-cockpit-state-v2` (`localStorage`).
+*   [x] **Embedded Filter & Outliner List (`DesktopHubView.ts` & `styles.css`)** — Rendered a low-profile search input (`Filter recent notes...`) that preserves query and cursor focus across background refreshes, paired with a high-density outliner displaying the latest 40 updated permanent notes.
+*   [x] **Rich Note Metadata & Ergonomic Navigation (`DesktopHubView.ts`)** — Displays note title, folder capsule, tag pills, and relative timestamps (`12m`, `2h`, `Yesterday`). Supported standard click (open in leaf), `Cmd/Ctrl + click` (open in new tab), and `Alt + click` (open in new window).
+*   [x] **Background Reactivity & Real-Time Sync (`RefreshCoordinator.ts` & `main.ts`)** — Wired permanent note modifications to trigger background refresh, keeping the Agenda rail updated immediately when notes are edited.
+*   [x] **Zero Build Errors & Production Deployment** — Passed strict `tsc --noEmit --skipLibCheck` and ESBuild production build with 0 errors; deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

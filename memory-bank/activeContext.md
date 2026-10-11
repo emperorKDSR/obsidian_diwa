@@ -1,17 +1,16 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Dual-Axis Preservation (No Black Keyboard Gap & Zero Left Drift) Deployed
-- **Dual-Axis iPadOS Keyboard Preservation (`styles.css`)**:
-  - **Vertical Axis (Eliminating Black Void/Band Above Keyboard)**:
-    - Root container `.diwa-workspace-root.has-mobile-keyboard` remains the **sole vertical scroller** (`overflow-y: auto !important; height: 100% !important; -webkit-overflow-scrolling: touch;`).
-    - Internal containers (`.pos-desktop-cockpit-layout`, `.pos-cockpit-body`, `.pos-cockpit-main-stage`, `.pos-document-stream`) are set to `height: auto !important; min-height: 100% !important; overflow: visible !important; flex: 0 0 auto !important;`.
-    - Eliminates iOS WebKit's nested flexbox height collapse where `overflow-y: auto` inside child elements caused the document stream to shrink to 0px or leave a black gap above the virtual keyboard.
-  - **Horizontal Axis (Eliminating Left Drift & Empty Right Void)**:
-    - When `flex: 0 0 auto !important` was previously set without explicit column widths, the child panels in `.pos-cockpit-body` (`flex-direction: row`) shrank to their content width and bunched up to the left edge, leaving a black void on the right.
-    - Locked exact width percentages when keyboard is open in landscape mode:
-      - Main Stage (`.pos-cockpit-main-stage`): `flex: 0 0 68% !important; width: 68% !important; max-width: 68% !important; box-sizing: border-box !important;`.
-      - Agenda Rail (`.pos-cockpit-side-rail`): `flex: 0 0 32% !important; width: 32% !important; max-width: 32% !important; box-sizing: border-box !important;`.
-    - Portrait Mode Override (`.is-tablet.is-tablet-portrait` / `.is-tablet-portrait`): Main Stage takes `100%` width and Side Rail stays anchored as a slide-over drawer (`position: absolute; right: 0; width: 320px;`).
+## Current State: Recent Notes Tab in Agenda Side Rail Deployed
+- **Option 1 Dedicated "📚 Notes" Tab in Agenda Panel (`DesktopHubView.ts` & `styles.css`)**:
+  - **3-Tab Segmented Header Control**: Expanded `.pos-rail-tabs` to `[ ☀️ Horizon ]  [ 📋 Tasks ]  [ 📚 Notes ]` with streamlined padding and `white-space: nowrap` for compact desktop and tablet viewing.
+  - **Live Filterable Recent Notes Stream**:
+    - Embedded search input `.pos-rail-notes-search-input` (`Filter recent notes...`) preserving input text and user focus during background re-indexes.
+    - High-density list displaying the latest 40 updated permanent notes across the vault (excluding inbox captures and trash).
+    - Row anatomy: note title (bold, truncated, hover accent), folder capsule (`📁 Folder/Path`), tags (`#tag`), and relative timestamp (`12m`, `2h`, `Yesterday`).
+    - Standard navigation: clicking opens the permanent note in the active editor leaf, while `Cmd/Ctrl + Click` opens in a new tab and `Alt + Click` opens in a separate window.
+  - **Automatic Live Synchronization (`RefreshCoordinator.ts` & `main.ts`)**:
+    - Vault modify and metadata cache events on permanent notes now notify refresh, keeping the Agenda Recent Notes feed synchronized in real time.
+  - **Persistent Rail Tab State**: Saved in `diwa-cockpit-state-v2` (`localStorage`), preserving tab selection across sessions.
 - **Production Build & Vault Deployment**:
   - Strict TypeScript check (`tsc --noEmit --skipLibCheck`) and ESBuild production build passed cleanly with 0 errors.
   - Deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin directories.

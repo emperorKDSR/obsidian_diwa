@@ -1,7 +1,7 @@
 import { ItemView, WorkspaceLeaf, TFile, MarkdownRenderer, moment, Notice, Platform, Menu, Component, setIcon } from 'obsidian';
 import type DiwaPlugin from '../main';
 import { VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID } from '../constants';
-import { CaptureEntry, ScratchpadFilterMode } from '../types';
+import { CaptureEntry, ScratchpadFilterMode, PermanentNoteRecord } from '../types';
 import { MergeNotesModal } from '../modals/MergeNotesModal';
 import { DatePickerModal } from '../modals/DatePickerModal';
 import { WikilinkPeekModal } from '../modals/WikilinkPeekModal';
@@ -49,10 +49,11 @@ export class DesktopHubView extends ItemView {
 
     // Cockpit dual-pane state & layout elements (Desktop & Tablet)
     private _cockpitRailOpen: boolean = true;
-    private _cockpitRailTab: 'karon' | 'tasks' = 'karon';
+    private _cockpitRailTab: 'karon' | 'tasks' | 'notes' = 'karon';
     private _cockpitSplitRatio: number = 0.62;
     private _desktopComposerExpanded: boolean = false;
     private _isResizingCockpit: boolean = false;
+    private _railNotesSearchQuery: string = '';
     private _cockpitLayoutEl: HTMLElement | null = null;
     private _cockpitBackdropEl: HTMLElement | null = null;
     private _mainStageEl: HTMLElement | null = null;
@@ -437,7 +438,7 @@ export class DesktopHubView extends ItemView {
             if (raw) {
                 const parsed = JSON.parse(raw);
                 if (typeof parsed.railOpen === 'boolean') this._cockpitRailOpen = parsed.railOpen;
-                if (parsed.railTab === 'karon' || parsed.railTab === 'tasks') this._cockpitRailTab = parsed.railTab;
+                if (parsed.railTab === 'karon' || parsed.railTab === 'tasks' || parsed.railTab === 'notes') this._cockpitRailTab = parsed.railTab;
                 if (typeof parsed.splitRatio === 'number' && parsed.splitRatio >= 0.35 && parsed.splitRatio <= 0.85) {
                     this._cockpitSplitRatio = parsed.splitRatio;
                 }
@@ -688,6 +689,16 @@ export class DesktopHubView extends ItemView {
             this.renderRightRail(rail);
         };
 
+        const notesTabBtn = tabsContainer.createEl('button', {
+            cls: `pos-rail-tab-btn ${this._cockpitRailTab === 'notes' ? 'is-active' : ''}`,
+            text: '📚 Notes'
+        });
+        notesTabBtn.onclick = () => {
+            this._cockpitRailTab = 'notes';
+            this.saveCockpitState();
+            this.renderRightRail(rail);
+        };
+
         const actions = header.createDiv({ cls: 'pos-rail-actions' });
         const collapseBtn = actions.createEl('button', {
             cls: 'pos-icon-btn pos-rail-collapse-btn',
@@ -707,12 +718,15 @@ export class DesktopHubView extends ItemView {
     public renderRightRailContent(container?: HTMLElement): void {
         const contentEl = container ?? (this._sideRailEl?.querySelector('.pos-rail-content') as HTMLElement | null);
         if (!contentEl) return;
-        contentEl.empty();
 
         if (this._cockpitRailTab === 'karon') {
+            contentEl.empty();
             this.renderHorizonRail(contentEl);
-        } else {
+        } else if (this._cockpitRailTab === 'tasks') {
+            contentEl.empty();
             this.renderTasksRail(contentEl);
+        } else if (this._cockpitRailTab === 'notes') {
+            this.renderRecentNotesRail(contentEl);
         }
     }
 
@@ -900,6 +914,93 @@ export class DesktopHubView extends ItemView {
         jumpBtn.onclick = (e) => {
             e.stopPropagation();
             new WikilinkPeekModal(this.app, this.plugin, task.filePath, task.filePath, (target) => this.filterStreamByWikilink(target)).open();
+        };
+    }
+
+    private renderRecentNotesRail(container: HTMLElement): void {
+        let searchWrap = container.querySelector('.pos-rail-notes-search-wrap') as HTMLElement | null;
+        let searchInput = container.querySelector('.pos-rail-notes-search-input') as HTMLInputElement | null;
+        let listContainer = container.querySelector('.pos-rail-notes-list') as HTMLElement | null;
+
+        if (!searchWrap || !searchInput || !listContainer) {
+            container.empty();
+            searchWrap = container.createDiv({ cls: 'pos-rail-notes-search-wrap' });
+            searchInput = searchWrap.createEl('input', {
+                type: 'search',
+                placeholder: 'Filter recent notes...',
+                cls: 'pos-rail-notes-search-input',
+                attr: {
+                    autocomplete: 'off',
+                    spellcheck: 'false',
+                    autocorrect: 'off',
+                    autocapitalize: 'off',
+                }
+            });
+            searchInput.value = this._railNotesSearchQuery;
+            listContainer = container.createDiv({ cls: 'pos-rail-notes-list' });
+
+            searchInput.addEventListener('input', () => {
+                this._railNotesSearchQuery = searchInput?.value || '';
+                if (listContainer) this.updateRailNotesList(listContainer);
+            });
+        }
+
+        this.updateRailNotesList(listContainer);
+    }
+
+    private updateRailNotesList(listContainer: HTMLElement): void {
+        listContainer.empty();
+        const records = this.plugin.index?.getRecentlyUpdatedPermanentNotes(40, this._railNotesSearchQuery) || [];
+
+        if (records.length === 0) {
+            const emptyEl = listContainer.createDiv({ cls: 'pos-rail-notes-empty' });
+            emptyEl.createSpan({ cls: 'pos-rail-notes-empty-icon', text: '📝' });
+            emptyEl.createEl('p', {
+                text: this._railNotesSearchQuery.trim()
+                    ? 'No matching notes found.'
+                    : 'No permanent notes updated recently.'
+            });
+            return;
+        }
+
+        for (const record of records) {
+            this.renderRailNoteItem(listContainer, record);
+        }
+    }
+
+    private renderRailNoteItem(parent: HTMLElement, record: PermanentNoteRecord): void {
+        const itemEl = parent.createDiv({ cls: 'pos-rail-note-item' });
+
+        const mainCol = itemEl.createDiv({ cls: 'pos-rail-note-main' });
+        const titleEl = mainCol.createDiv({ cls: 'pos-rail-note-title', text: record.title });
+        titleEl.title = record.title;
+
+        const metaRow = mainCol.createDiv({ cls: 'pos-rail-note-meta' });
+        if (record.folder) {
+            const folderBadge = metaRow.createSpan({ cls: 'pos-rail-note-folder' });
+            const folderIcon = folderBadge.createSpan({ cls: 'pos-rail-note-folder-icon' });
+            setIcon(folderIcon, 'folder');
+            folderBadge.createSpan({ text: record.folder });
+        }
+        if (record.tags && record.tags.length > 0) {
+            for (const tag of record.tags.slice(0, 2)) {
+                metaRow.createSpan({ cls: 'pos-rail-note-tag', text: `#${tag}` });
+            }
+        }
+
+        const timeCol = itemEl.createDiv({ cls: 'pos-rail-note-time-wrap' });
+        timeCol.createSpan({ cls: 'pos-rail-note-time', text: record.modifiedRelative });
+
+        itemEl.onclick = async (e: MouseEvent) => {
+            if (e.metaKey || e.ctrlKey) {
+                await this.app.workspace.openLinkText(record.filePath, '', 'tab');
+                return;
+            }
+            if (e.altKey) {
+                await this.app.workspace.openLinkText(record.filePath, '', 'window');
+                return;
+            }
+            await this.app.workspace.openLinkText(record.filePath, '', false);
         };
     }
 

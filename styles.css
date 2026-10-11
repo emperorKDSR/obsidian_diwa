@@ -1952,8 +1952,9 @@ body.is-tablet .pos-rail-header,
 
 body.is-tablet .pos-rail-tab-btn,
 .pos-desktop-cockpit-layout.is-tablet .pos-rail-tab-btn {
-    font-size: 0.76em;
-    padding: 3px 10px;
+    font-size: 0.74em;
+    padding: 3px 8px;
+    white-space: nowrap;
 }
 
 body.is-tablet .pos-rail-content,
@@ -5279,18 +5280,22 @@ body.is-resizing-cockpit {
     padding: 2px;
     border: 1px solid var(--background-modifier-border-faint);
     gap: 2px;
+    min-width: 0;
+    flex-shrink: 1;
 }
 
 .pos-rail-tab-btn {
     font-size: 0.8em;
     font-weight: 600;
-    padding: 4px 12px;
+    padding: 4px 10px;
     border-radius: var(--diwa-radius-pill);
     border: none;
     background: transparent;
     color: var(--text-muted);
     cursor: pointer;
     transition: var(--diwa-transition);
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .pos-rail-tab-btn:hover {
@@ -5495,25 +5500,150 @@ body.is-resizing-cockpit {
     border-color: var(--interactive-accent);
 }
 
-/* Rail Note Item */
+/* ── Agenda Rail Recent Notes ── */
+.pos-rail-notes-search-wrap {
+    padding: 0 0 8px 0;
+    flex-shrink: 0;
+}
+
+.pos-rail-notes-search-input {
+    width: 100%;
+    padding: 6px 10px;
+    font-size: 0.82em;
+    border-radius: var(--diwa-radius-sm, 6px);
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pos-rail-notes-search-input:focus {
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
+}
+
+.pos-rail-notes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
 .pos-rail-note-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    padding: 6px 10px;
-    border-radius: var(--diwa-radius-sm);
+    padding: 8px 10px;
+    border-radius: var(--diwa-radius-sm, 6px);
     background: var(--background-primary);
     border: 1px solid var(--background-modifier-border-faint);
     font-size: 0.84em;
     color: var(--text-normal);
     cursor: pointer;
     transition: var(--diwa-transition);
+    user-select: none;
 }
 
 .pos-rail-note-item:hover {
     border-color: var(--interactive-accent);
+    background: var(--background-secondary);
+}
+
+.pos-rail-note-item:active {
+    background: var(--background-modifier-hover);
+    transform: scale(0.99);
+}
+
+.pos-rail-note-main {
+    flex: 1;
+    min-width: 0;
+    margin-right: 8px;
+}
+
+.pos-rail-note-title {
+    font-size: 0.88em;
+    font-weight: 600;
+    color: var(--text-normal);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+.pos-rail-note-item:hover .pos-rail-note-title {
     color: var(--interactive-accent);
-    background: var(--background-primary-alt, var(--background-primary));
+}
+
+.pos-rail-note-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 3px;
+    flex-wrap: wrap;
+}
+
+.pos-rail-note-folder {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.72em;
+    color: var(--text-muted);
+    background: var(--background-secondary-alt);
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid var(--background-modifier-border-faint);
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pos-rail-note-folder-icon svg {
+    width: 10px;
+    height: 10px;
+    color: var(--text-muted);
+}
+
+.pos-rail-note-tag {
+    font-size: 0.72em;
+    color: var(--text-accent);
+}
+
+.pos-rail-note-time-wrap {
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.pos-rail-note-time {
+    font-size: 0.72em;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.pos-rail-notes-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 10px;
+    color: var(--text-muted);
+    text-align: center;
+    gap: 6px;
+}
+
+.pos-rail-notes-empty-icon {
+    font-size: 1.6rem;
+    opacity: 0.6;
+}
+
+.pos-rail-notes-empty p {
+    margin: 0;
+    font-size: 0.82em;
 }
 
 .pos-rail-empty-msg {

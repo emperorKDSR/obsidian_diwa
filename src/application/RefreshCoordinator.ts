@@ -32,6 +32,8 @@ export class RefreshCoordinator {
         } else if (this.index.isAdditionalTaskFile(file.path) || this.index.isTrackedProjectFile(file.path)) {
             await this.index.indexProjectTaskFile(file);
             this.notifyRefresh('tasks');
+        } else if (this.index.isPermanentNoteFile(file)) {
+            this.notifyRefresh('capture');
         }
     }
 

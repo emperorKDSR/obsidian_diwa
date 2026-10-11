@@ -362,7 +362,7 @@ export default class DiwaPlugin extends Plugin {
         }));
 
         this.registerEvent(this.app.metadataCache.on('changed', async (file) => {
-            if (this.index.isCaptureFile(file.path) || this.index.isAdditionalTaskFile(file.path) || this.index.isTrackedProjectFile(file.path)) {
+            if (this.index.isCaptureFile(file.path) || this.index.isAdditionalTaskFile(file.path) || this.index.isTrackedProjectFile(file.path) || this.index.isPermanentNoteFile(file)) {
                 await this.refreshCoordinator.reindexFile(file, true);
             }
         }));
