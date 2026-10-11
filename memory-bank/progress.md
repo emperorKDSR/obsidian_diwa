@@ -1,10 +1,11 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Stream Dates as Normal Wikilinks & Completed Task Strike-Through
+## Current Phase: Stream Dates as Normal Wikilinks, Task "Due: " Prefix & Relative Dates, and Completed Task Strike-Through
 
 ---
 
-### 0. Stream Dates as Normal Wikilinks & Completed Task Strike-Through (Complete)
+### 0. Stream Dates as Normal Wikilinks, Task "Due: " Prefix & Relative Dates, and Completed Task Strike-Through (Complete)
+*   [x] **Stream Task Due Date Relative Substitution (`DesktopHubView.ts`)** — When an internal date link (`YYYY-MM-DD`) is inside a task item (`li.task-list-item, li:has(input[type="checkbox"])`), prepends `"Due: "` and dynamically substitutes relative labels: `"Due: Today"`, `"Due: Yesterday"`, `"Due: Tomorrow"`, or `"Due: YYYY-MM-DD"`. Includes double-prefix protection (if markdown already ends with `Due:`, prevents `Due: Due:`). Visual decoration only — vault markdown retains standard Obsidian wikilinks `[[YYYY-MM-DD]]` and date menu actions stay intact.
 *   [x] **Stream Date Wikilink Styling (`DesktopHubView.ts` & `styles.css`)** — Stream date links (`.pos-rendered-date-link`) now render as standard editorial wikilinks (`color: var(--text-normal) !important; font-weight: 600 !important; underline solid var(--background-modifier-border) !important; text-underline-offset: 3.5px !important; text-decoration-thickness: 1px !important;`). Stripped out subtle pill backgrounds, padding, and muted colors.
 *   [x] **Completed Task Full Strike-Through (`DesktopHubView.ts` & `styles.css`)** — When a task is completed, all child wikilinks, date links, and text elements are included in being striked through (`text-decoration: line-through !important; color: var(--text-muted) !important;`). Initial completed task state is hydrated immediately on render via `attachInteractiveElements()`, and consistent across Gawa task rows, subtasks, Karon rows, and Agenda side rail.
 *   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.

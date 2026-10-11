@@ -3289,19 +3289,41 @@ export class DesktopHubView extends ItemView {
 
         // 2. Rendered internal date links and note wikilinks
         const internalLinks = container.querySelectorAll<HTMLAnchorElement>('a.internal-link');
+        const todayStr = moment().format('YYYY-MM-DD');
+        const yesterdayStr = moment().subtract(1, 'day').format('YYYY-MM-DD');
+        const tomorrowStr = moment().add(1, 'day').format('YYYY-MM-DD');
+
         internalLinks.forEach(link => {
             const href = link.getAttribute('data-href') || link.textContent || '';
             const match = href.match(/^(\d{4}-\d{2}-\d{2})$/);
             if (match) {
                 const dateStr = match[1];
-                const isToday = this.plugin.index.isDateToday(dateStr);
-                const isPast = this.plugin.index.isDatePast(dateStr);
+                const isToday = dateStr === todayStr;
+                const isPast = dateStr < todayStr;
 
                 link.addClass('pos-rendered-date-link');
                 link.addClass('pos-stream-wikilink');
                 if (isToday) link.addClass('pos-date-link-today');
                 else if (isPast) link.addClass('pos-date-link-past');
                 else link.addClass('pos-date-link-future');
+
+                // If inside a task list item, prepend "Due: " and substitute relative date (Today, Yesterday, Tomorrow)
+                const taskLi = link.closest('li.task-list-item, li:has(input[type="checkbox"])');
+                if (taskLi) {
+                    let relativeLabel = dateStr;
+                    if (dateStr === todayStr) {
+                        relativeLabel = 'Today';
+                    } else if (dateStr === yesterdayStr) {
+                        relativeLabel = 'Yesterday';
+                    } else if (dateStr === tomorrowStr) {
+                        relativeLabel = 'Tomorrow';
+                    }
+
+                    // Check if previous text already contains "Due:" or "due:" to avoid double prefix
+                    const prevText = link.previousSibling?.textContent?.trim() || '';
+                    const alreadyHasDue = /(?:due|Due):\s*$/.test(prevText);
+                    link.textContent = alreadyHasDue ? relativeLabel : `Due: ${relativeLabel}`;
+                }
 
                 link.onclick = (e) => {
                     if (e.metaKey || e.ctrlKey || e.shiftKey) return;

@@ -1,6 +1,16 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Stream Dates as Normal Wikilinks & Completed Task Strike-Through
+## Current State: Stream Dates as Normal Wikilinks, Task "Due: " Prefix & Relative Dates, and Completed Task Strike-Through
+- **Stream Task Due Date Relative Substitution (`DesktopHubView.ts`)**:
+  - When a date link (`a.internal-link` matching `YYYY-MM-DD`) is located inside a task item (`li.task-list-item, li:has(input[type="checkbox"])`):
+    - Evaluates relative status dynamically against current date:
+      - Today $\rightarrow$ **`Due: Today`**
+      - Yesterday $\rightarrow$ **`Due: Yesterday`**
+      - Tomorrow $\rightarrow$ **`Due: Tomorrow`**
+      - Other dates $\rightarrow$ **`Due: YYYY-MM-DD`**
+    - Includes double-prefix guard: if the preceding text already ends with `Due:` or `due:`, avoids duplicating `Due:`.
+    - Purely visual substitution on `link.textContent`; underlying file retains valid Obsidian wikilink `[[YYYY-MM-DD]]` syntax.
+    - Click interactions (`data-href="YYYY-MM-DD"`) remain intact for date snooze/reschedule menus and daily note navigation.
 - **Stream Date Wikilink Styling (`DesktopHubView.ts` & `styles.css`)**:
   - Date links inside note markdown bodies (`.pos-rendered-date-link`) are now treated like normal editorial wikilinks:
     - Displayed inline with regular text color (`var(--text-normal) !important; font-weight: 600 !important;`).
@@ -10,7 +20,7 @@
     - Date click action menu (`openDateActionMenu` for snooze/reschedule) remains fully interactive.
 - **Completed Task Full Strike-Through (`DesktopHubView.ts` & `styles.css`)**:
   - In the stream, when a task is completed (`- [x]` / `li.is-checked` / `li[data-task="x"]`), **all child elements are included in being striked through**:
-    - Child wikilinks (`a.internal-link`, `.pos-stream-wikilink`), date links (`.pos-rendered-date-link`), text, tags, code, and bold/italic elements all receive `text-decoration: line-through !important; color: var(--text-muted) !important; text-decoration-color: var(--text-muted) !important;`.
+    - Child wikilinks (`a.internal-link`, `.pos-stream-wikilink`), date links (`.pos-rendered-date-link`, `Due: Today`), text, tags, code, and bold/italic elements all receive `text-decoration: line-through !important; color: var(--text-muted) !important; text-decoration-color: var(--text-muted) !important;`.
     - `attachInteractiveElements()` initializes `listItem.toggleClass('is-checked', cb.checked)` and `data-task="x"` immediately on view mount, guaranteeing completed tasks are striked through upon note loading as well as on interactive toggle.
     - Extended across Gawa task rows (`.pos-gawa-row.is-completed`), subtasks, Karon task rows, and Agenda side rail tasks (`.pos-rail-task-title.is-completed`).
 - **Production Build & Vault Deployment**:
