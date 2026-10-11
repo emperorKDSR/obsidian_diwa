@@ -1155,17 +1155,14 @@ export class IndexService {
         return matchingSnippets;
     }
 
-    isDigestBlock(text: string): boolean {
-        if (!text) return false;
-        // 1. DIWA deterministic block anchor: ^dw-xxxxxx-bx
-        if (/\^dw-[a-z0-9]+-b\d+/i.test(text)) return true;
-        // 2. DIWA digest wrapper comment
-        if (text.includes('diwa-digested:')) return true;
-        // 3. DIWA digest timestamp heading: #### [[YYYY-MM-DD]] HH:mm
-        if (/^#{1,6}\s+\[\[\d{4}-\d{2}-\d{2}\]\]\s+\d{2}:\d{2}/m.test(text)) return true;
-        // 4. Any line with date and time heading with block reference
-        if (/\[\[\d{4}-\d{2}-\d{2}\]\]\s+\d{2}:\d{2}/.test(text) && /\^[a-z0-9\-]+/i.test(text)) return true;
-        return false;
+    stripDigestMetadata(text: string): string {
+        if (!text) return '';
+        return text
+            .replace(/^#{1,6}\s+\[\[\d{4}-\d{2}-\d{2}\]\](?:\s+\d{2}:\d{2})?\s*\n*/m, '')
+            .replace(/\^dw-[a-z0-9]+-b\d+/gi, '')
+            .replace(/<!--\s*diwa-digest:[\s\S]*?-->/g, '')
+            .replace(/%%\r?\n(?:diwa-digested:dest=[^\r\n]*\r?\n)?([\s\S]*?)\r?\n%%/g, '$1')
+            .trim();
     }
 
     async getVaultNoteBlocksForDate(dateStr: string): Promise<HorizonNoteBlock[]> {
@@ -1176,7 +1173,7 @@ export class IndexService {
         for (const entry of this.captureIndex.values()) {
             if (!entry) continue;
             if (entry.filePath.toLowerCase().includes('handumanan')) continue;
-            // Exclude already digested capture notes
+            // Exclude already digested capture notes (their contents live authoritatively in destination notes)
             if (entry.digested || (entry.tags && entry.tags.includes('digested')) || (entry.body && entry.body.includes('diwa-digested:'))) continue;
 
             const dates = Array.isArray(entry.allDates) ? entry.allDates : [];
@@ -1191,7 +1188,6 @@ export class IndexService {
                 if (!trimmed) continue;
                 // Exclude tasks (open/completed tasks are handled by getTasksForDueDate)
                 if (/^[ \t]*-[ \t]+\[[ xX]\]/.test(trimmed)) continue;
-                if (this.isDigestBlock(trimmed)) continue;
 
                 const key = `${entry.filePath}::${trimmed}`;
                 if (!seenKeys.has(key)) {
@@ -1249,31 +1245,36 @@ export class IndexService {
                 if (!body) continue;
 
                 const paragraphs = body.split(/\n\s*\n/);
-                const matchingParagraphs = paragraphs.filter(p => {
-                    const pt = p.trim();
-                    if (!pt.includes(`[[${dateStr}]]`) && !pt.includes(dateStr)) return false;
-                    // Exclude any blocks/snippets originating from DIWA digest
-                    if (this.isDigestBlock(pt)) return false;
-                    return true;
-                });
+                const matchingParagraphs: string[] = [];
 
-                // Do not fallback to unrelated paragraphs if all matches were digest entries
+                for (const p of paragraphs) {
+                    const pt = p.trim();
+                    if (!pt) continue;
+
+                    // Exclude checklist lines (handled by getTasksForDueDate)
+                    if (/^[ \t]*-[ \t]+\[[ xX]\]/.test(pt)) continue;
+
+                    // Option B Smart Date Isolation:
+                    // Strip auto-generated digest headers (#### [[YYYY-MM-DD]] HH:mm) and anchors (^dw-...)
+                    const cleanText = this.stripDigestMetadata(pt);
+                    if (!cleanText) continue;
+
+                    // Match if the intentional note body explicitly contains the target date
+                    if (cleanText.includes(`[[${dateStr}]]`) || cleanText.includes(dateStr)) {
+                        matchingParagraphs.push(cleanText);
+                    }
+                }
+
                 if (matchingParagraphs.length === 0) continue;
 
                 for (const snippet of matchingParagraphs) {
-                    const trimmed = snippet.trim();
-                    if (!trimmed) continue;
-                    // Exclude checklist lines
-                    if (/^[ \t]*-[ \t]+\[[ xX]\]/.test(trimmed)) continue;
-                    if (this.isDigestBlock(trimmed)) continue;
-
-                    const key = `${file.path}::${trimmed}`;
+                    const key = `${file.path}::${snippet}`;
                     if (!seenKeys.has(key)) {
                         seenKeys.add(key);
                         results.push({
                             filePath: file.path,
                             noteTitle: file.basename,
-                            snippet: trimmed.length > 220 ? trimmed.slice(0, 217) + '...' : trimmed,
+                            snippet: snippet.length > 220 ? snippet.slice(0, 217) + '...' : snippet,
                             date: dateStr,
                         });
                     }

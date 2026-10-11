@@ -1,16 +1,13 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Digest Items & Dates Excluded from Horizon (Agenda Rail)
-- **Exclusion of Digest Dates & Blocks from Horizon (`IndexService.ts`)**:
-  - Implemented `isDigestBlock(text: string): boolean` helper checking for DIWA digest fingerprints:
-    - Deterministic block anchors: `^dw-[a-z0-9]+-b\d+`
-    - Stamped timestamp headers: `#### [[YYYY-MM-DD]] HH:mm`
-    - Wrapped comments: `diwa-digested:`
+## Current State: Option B Smart Date Isolation for Horizon (Agenda Rail)
+- **Option B Smart Date Isolation (`IndexService.ts`)**:
+  - Implemented `stripDigestMetadata(text: string): string` to strip auto-generated digest headers (`#### [[YYYY-MM-DD]] HH:mm`), block anchors (`^dw-...`), and comment wrappers (`diwa-digest:`, `diwa-digested:`).
   - In `getVaultNoteBlocksForDate(dateStr)`:
-    - Excludes stream notes where `entry.digested === true`, `entry.tags.includes('digested')`, or containing `diwa-digested:`.
-    - In vault markdown files, filters out paragraphs matching `isDigestBlock(pt)`.
-    - Removed fallback to unrelated paragraphs if matches were digest blocks, ensuring notes only containing digested logs for that date are omitted.
-    - Prevents "ghost" horizon date sections from appearing purely due to archived digest log entries.
+    - **Digest Timestamp Disregarded**: Auto-stamped digest timestamps (`#### [[today]] HH:mm`) are stripped before matching, preventing target notes from cluttering today's Horizon simply because they received a digest today.
+    - **Intentional Body Dates Preserved**: If the actual note body contains a future target date (e.g. `Client demo [[tomorrow]]`), `stripDigestMetadata` retains it, and the note **will appear** under that future date in the Horizon agenda rail!
+    - **Clean Display Snippets**: When rendered in Horizon cards, snippets display the clean note content with technical digest headers/anchors stripped.
+    - **No Duplicates**: Digested stream notes (`entry.digested: true`) in `captureIndex` are skipped because their content lives authoritatively in their permanent destination notes.
 - **1 Note = 1 Digestible Block Logic (`CaptureService.ts`)**:
   - Transitioned `parseDigestibleBlocks` from fragmented line-by-line block splitting to **1 note = 1 digestible block** (`[singleBlock]`).
   - The entire note body remains cohesive and intact during digestion, preserving markdown structures, lists, and subtasks together.

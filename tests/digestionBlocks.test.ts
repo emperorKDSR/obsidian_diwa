@@ -70,17 +70,22 @@ test('wrapBlockAsDigested wraps content non-destructively in Markdown comments',
     assert.ok(!unwrapped.includes('diwa-digested:'));
 });
 
-test('IndexService.isDigestBlock correctly detects digest anchors, headings, and comments', () => {
+test('IndexService.stripDigestMetadata strips digest timestamps and anchors while preserving body dates', () => {
     const service = new IndexService({} as any, { ...DEFAULT_SETTINGS });
-    assert.strictEqual(service.isDigestBlock('Some normal reflection [[2026-10-11]]'), false);
-    assert.strictEqual(service.isDigestBlock('- [ ] Regular task @2026-10-11'), false);
 
-    // Anchor fingerprint
-    assert.strictEqual(service.isDigestBlock('Digested thought ^dw-a1b2c3-b1'), true);
+    // Normal non-digest text remains unchanged
+    assert.strictEqual(service.stripDigestMetadata('Some normal reflection [[2026-10-12]]'), 'Some normal reflection [[2026-10-12]]');
 
-    // Digest comment fingerprint
-    assert.strictEqual(service.isDigestBlock('%%\ndiwa-digested:dest=[[Project]]\nTask\n%%'), true);
+    // Digest timestamp header stripped, intentional body date preserved
+    const digestParagraph = `#### [[2026-10-11]] 19:30\nClient kickoff meeting [[2026-10-12]]\n^dw-a1b2c3-b1`;
+    const clean = service.stripDigestMetadata(digestParagraph);
+    assert.strictEqual(clean, 'Client kickoff meeting [[2026-10-12]]');
+    assert.ok(!clean.includes('2026-10-11'));
+    assert.ok(clean.includes('2026-10-12'));
 
-    // Digest timestamp heading fingerprint
-    assert.strictEqual(service.isDigestBlock('#### [[2026-10-11]] 14:30\nMeeting notes'), true);
+    // Pure digest entry with no body date produces clean body without timestamp
+    const pureDigest = `#### [[2026-10-11]] 14:00\nGeneral reflection on sprint\n^dw-abcdef-b1`;
+    const cleanPure = service.stripDigestMetadata(pureDigest);
+    assert.strictEqual(cleanPure, 'General reflection on sprint');
+    assert.ok(!cleanPure.includes('2026-10-11'));
 });
