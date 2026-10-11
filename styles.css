@@ -6330,22 +6330,15 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
     opacity: 0.65;
 }
 
-/* Action pills (+ Subtask, + Note) hidden by default on desktop, reveal smoothly on row hover */
-@media (hover: hover) {
-    .pos-rail-task-row .pos-rail-meta-action-pill {
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.15s ease;
-    }
-    .pos-rail-task-row:hover .pos-rail-meta-action-pill {
-        opacity: 1;
-        pointer-events: auto;
-    }
+/* Action pills (+ Subtask, + Note) strictly hidden by default; only shown when hovering the task card */
+.pos-rail-task-row .pos-rail-meta-action-pill,
+.pos-rail-task-item .pos-rail-meta-action-pill {
+    display: none !important;
 }
-@media (hover: none) {
-    .pos-rail-task-row .pos-rail-meta-action-pill {
-        opacity: 0.7;
-    }
+
+.pos-rail-task-row:hover .pos-rail-meta-action-pill,
+.pos-rail-task-item:hover .pos-rail-meta-action-pill {
+    display: inline-flex !important;
 }
 
 /* ── Rail Task Subtasks & Comments ── */

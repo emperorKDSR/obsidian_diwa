@@ -3,7 +3,7 @@
 ## Current State: Agenda Rail Hover-Reveal Subtasks & Notes with Multi-Way Dismissal
 - **Compact Resting Card Layout (`DesktopHubView.ts` & `styles.css`)**:
   - Subtasks and comments/notes containers are hidden by default (`display: none;`), eliminating vertical clutter so each task card occupies a compact ~40px row with title, due date, and subtle count badges (`☑ done/total`, `💬 count`).
-  - Action buttons (`+ Subtask`, `+ Note`) for tasks with no existing items are hidden by default (`opacity: 0; pointer-events: none;`) and fade in smoothly on card hover (`.pos-rail-task-row:hover .pos-rail-meta-action-pill`).
+  - Action buttons (`+ Subtask`, `+ Note`) for tasks with no existing items are strictly hidden by default (`display: none !important;`) and only reveal when hovering over the task card (`.pos-rail-task-row:hover .pos-rail-meta-action-pill`).
 - **Hover-Reveal Behavior (`styles.css`)**:
   - Hovering a task card (`.pos-rail-task-row:hover`) automatically reveals its subtask and comment containers (`.pos-rail-subtasks-wrap.is-hover-reveal`, `.pos-rail-comments-wrap.is-hover-reveal`), allowing immediate inspection and interaction without clicking.
   - Moving the mouse away automatically collapses the card back to its ultra-compact resting state.
