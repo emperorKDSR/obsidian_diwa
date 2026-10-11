@@ -6326,6 +6326,28 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
     border-color: var(--text-muted);
 }
 
+.pos-rail-meta-pill.is-collapsed-pill {
+    opacity: 0.65;
+}
+
+/* Action pills (+ Subtask, + Note) hidden by default on desktop, reveal smoothly on row hover */
+@media (hover: hover) {
+    .pos-rail-task-row .pos-rail-meta-action-pill {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.15s ease;
+    }
+    .pos-rail-task-row:hover .pos-rail-meta-action-pill {
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+@media (hover: none) {
+    .pos-rail-task-row .pos-rail-meta-action-pill {
+        opacity: 0.7;
+    }
+}
+
 /* ── Rail Task Subtasks & Comments ── */
 .pos-rail-subtasks-wrap,
 .pos-rail-comments-wrap {
@@ -6336,6 +6358,71 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
     margin-left: 2px;
     padding-left: 8px;
     border-left: 1.5px solid var(--background-modifier-border-faint);
+}
+
+/* Hover-reveal by default */
+.pos-rail-subtasks-wrap.is-hover-reveal,
+.pos-rail-comments-wrap.is-hover-reveal {
+    display: none;
+}
+
+.pos-rail-task-row:hover .pos-rail-subtasks-wrap.is-hover-reveal,
+.pos-rail-task-row:hover .pos-rail-comments-wrap.is-hover-reveal {
+    display: flex;
+}
+
+/* Pinned open state */
+.pos-rail-subtasks-wrap.is-pinned-open,
+.pos-rail-comments-wrap.is-pinned-open {
+    display: flex !important;
+}
+
+/* Manually collapsed state */
+.pos-rail-subtasks-wrap.is-collapsed,
+.pos-rail-comments-wrap.is-collapsed {
+    display: none !important;
+}
+
+/* Box header bar */
+.pos-rail-box-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 0 3px 0;
+    margin-bottom: 2px;
+    border-bottom: 1px solid var(--background-modifier-border-faint);
+}
+
+.pos-rail-box-title {
+    font-size: 0.70em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-faint);
+}
+
+.pos-rail-box-close-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-faint);
+    font-size: 0.70em;
+    padding: 1px 4px;
+    border-radius: 3px;
+    gap: 3px;
+    transition: var(--diwa-transition);
+}
+
+.pos-rail-box-close-btn:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+}
+
+.pos-rail-box-close-btn svg {
+    width: 10px;
+    height: 10px;
+    stroke-width: 2px;
 }
 
 .pos-rail-subtask-item {
@@ -6432,11 +6519,16 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
 }
 
 .pos-rail-quick-input-row {
-    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 3px;
 }
 
 .pos-rail-quick-input {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
+    width: auto;
     padding: 3px 6px;
     font-size: 0.78em;
     background: transparent;
@@ -6455,6 +6547,28 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
     border-style: solid;
     border-color: var(--text-muted);
     background: var(--background-secondary-alt);
+}
+
+.pos-rail-quick-input-cancel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-faint);
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: var(--diwa-transition);
+}
+
+.pos-rail-quick-input-cancel:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+}
+
+.pos-rail-quick-input-cancel svg {
+    width: 11px;
+    height: 11px;
+    stroke-width: 2px;
 }
 
 /* ── Agenda Rail Note Items ── */

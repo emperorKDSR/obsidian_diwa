@@ -1,19 +1,17 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Agenda Rail Interactive Due Date, Visible Subtasks & Comments
-- **Rail Task Interactive Due Date (`DesktopHubView.ts`)**:
-  - The due date pill on task cards is now fully interactive (`📅 Due: YYYY-MM-DD ▾` or `📅 Set Due ▾`).
-  - Clicking opens a quick menu with presets (Today, Tomorrow, In 3 Days, Next Week), custom date picker modal (`DatePickerModal`), and clear date action.
-  - Updates persist directly to the note file via `updateTaskDetailsInFile` with immediate zero-lag index sync.
-- **Visible Subtasks & Inline Quick-Add (`DesktopHubView.ts` & `styles.css`)**:
-  - Subtasks are rendered directly beneath the task with an indented hairline spine (`.pos-rail-subtasks-wrap`).
-  - Each subtask features an interactive checkbox (toggling syncs `- [x]` into the note file), completed strikethrough, and a hover delete button.
-  - Features an inline quick-add input (`+ Add subtask... [Enter]`) for rapid keyboard-driven subtask creation.
-  - Counter pill `☑ {done}/{total}` in meta row toggles visibility.
-- **Visible Comments/Remarks & Inline Quick-Add (`DesktopHubView.ts` & `styles.css`)**:
-  - Remarks are rendered directly beneath the task with `message-square` icons and live Markdown rendering.
-  - Includes hover delete button and inline quick-add input (`+ Add comment... [Enter]`).
-  - Counter pill `💬 {count}` in meta row toggles visibility.
+## Current State: Agenda Rail Hover-Reveal Subtasks & Notes with Multi-Way Dismissal
+- **Compact Resting Card Layout (`DesktopHubView.ts` & `styles.css`)**:
+  - Subtasks and comments/notes containers are hidden by default (`display: none;`), eliminating vertical clutter so each task card occupies a compact ~40px row with title, due date, and subtle count badges (`☑ done/total`, `💬 count`).
+  - Action buttons (`+ Subtask`, `+ Note`) for tasks with no existing items are hidden by default (`opacity: 0; pointer-events: none;`) and fade in smoothly on card hover (`.pos-rail-task-row:hover .pos-rail-meta-action-pill`).
+- **Hover-Reveal Behavior (`styles.css`)**:
+  - Hovering a task card (`.pos-rail-task-row:hover`) automatically reveals its subtask and comment containers (`.pos-rail-subtasks-wrap.is-hover-reveal`, `.pos-rail-comments-wrap.is-hover-reveal`), allowing immediate inspection and interaction without clicking.
+  - Moving the mouse away automatically collapses the card back to its ultra-compact resting state.
+- **Multi-Way Box Dismissal & Collapse (`DesktopHubView.ts` & `styles.css`)**:
+  - **Header "✕ Hide" Button**: Both subtask and comment boxes include a dedicated mini-header (`SUBTASKS` / `NOTES`) with a `✕ Hide` button (`pos-rail-box-close-btn`). Clicking it immediately collapses the box and remembers it in `_collapsedRailSubtasks` / `_collapsedRailComments`, suppressing hover-reveal.
+  - **Badge Pill Toggle (`☑` / `💬`)**: Clicking count badges in the meta row toggles between pinned-open (`_pinnedRailSubtasks` / `_pinnedRailComments`) and collapsed.
+  - **Quick-Input Cancel Button (`✕`) & `Escape` Key**: Both quick-add input rows feature an `✕` dismiss button (`pos-rail-quick-input-cancel`) and handle `Esc` to instantly close and remove the input box.
+  - **Auto-Dismiss on Empty Blur**: If an input was opened on an item with no items, clicking outside with an empty field automatically dismisses the box.
 - **Full 5-Day Rolling Horizon (Clean Note Snippets & Handumanan Excluded)**:
   - Excludes everything under Handumanan paths (`handumanan`).
   - Note cards in Horizon directly display the excerpted snippet without a title header.

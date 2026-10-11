@@ -60,6 +60,8 @@ export class DesktopHubView extends ItemView {
     private _railNotesSearchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private _collapsedRailSubtasks: Set<string> = new Set();
     private _collapsedRailComments: Set<string> = new Set();
+    private _pinnedRailSubtasks: Set<string> = new Set();
+    private _pinnedRailComments: Set<string> = new Set();
     private _expandedRailSubtaskInputs: Set<string> = new Set();
     private _expandedRailCommentInputs: Set<string> = new Set();
     private _cockpitLayoutEl: HTMLElement | null = null;
@@ -1079,14 +1081,14 @@ export class DesktopHubView extends ItemView {
         };
 
         const hasSubtasks = Array.isArray(task.subtasks) && task.subtasks.length > 0;
-        const showSubtasksInput = this._expandedRailSubtaskInputs.has(taskKey);
-        const subtasksCollapsed = this._collapsedRailSubtasks.has(taskKey);
-        const isSubtasksVisible = (hasSubtasks && !subtasksCollapsed) || showSubtasksInput;
+        const isSubtasksInputOpen = this._expandedRailSubtaskInputs.has(taskKey);
+        const isSubtasksCollapsed = this._collapsedRailSubtasks.has(taskKey);
+        const isSubtasksPinned = this._pinnedRailSubtasks.has(taskKey);
 
         const hasComments = Array.isArray(task.remarks) && task.remarks.length > 0;
-        const showCommentInput = this._expandedRailCommentInputs.has(taskKey);
-        const commentsCollapsed = this._collapsedRailComments.has(taskKey);
-        const isCommentsVisible = (hasComments && !commentsCollapsed) || showCommentInput;
+        const isCommentInputOpen = this._expandedRailCommentInputs.has(taskKey);
+        const isCommentsCollapsed = this._collapsedRailComments.has(taskKey);
+        const isCommentsPinned = this._pinnedRailComments.has(taskKey);
 
         // Metadata Pills Row
         const metaRow = content.createDiv({ cls: 'pos-rail-task-meta' });
@@ -1107,18 +1109,29 @@ export class DesktopHubView extends ItemView {
         if (hasSubtasks) {
             const doneCount = task.subtasks.filter((s: any) => s.completed).length;
             const subtaskPill = metaRow.createSpan({
-                cls: `pos-rail-meta-pill ${subtasksCollapsed ? '' : 'is-active-filter'}`,
-                attr: { 'aria-label': 'Toggle subtasks' }
+                cls: `pos-rail-meta-pill ${isSubtasksPinned ? 'is-active-filter' : ''} ${isSubtasksCollapsed ? 'is-collapsed-pill' : ''}`,
+                attr: {
+                    'aria-label': isSubtasksCollapsed
+                        ? 'Subtasks hidden (Click to show)'
+                        : (isSubtasksPinned ? 'Subtasks pinned (Click to hide)' : 'Subtasks (Hover to view, Click to pin)')
+                }
             });
             const stIcon = subtaskPill.createSpan({ cls: 'pos-btn-icon' });
             setIcon(stIcon, 'check-square');
             subtaskPill.createSpan({ text: ` ${doneCount}/${task.subtasks.length}` });
             subtaskPill.onclick = (e) => {
                 e.stopPropagation();
-                if (this._collapsedRailSubtasks.has(taskKey)) {
-                    this._collapsedRailSubtasks.delete(taskKey);
-                } else {
+                if (this._pinnedRailSubtasks.has(taskKey)) {
+                    // Was pinned open -> hide/collapse it
+                    this._pinnedRailSubtasks.delete(taskKey);
                     this._collapsedRailSubtasks.add(taskKey);
+                } else if (this._collapsedRailSubtasks.has(taskKey)) {
+                    // Was collapsed -> uncollapse and pin open
+                    this._collapsedRailSubtasks.delete(taskKey);
+                    this._pinnedRailSubtasks.add(taskKey);
+                } else {
+                    // Was in default hover mode -> pin it open
+                    this._pinnedRailSubtasks.add(taskKey);
                 }
                 this.renderRightRailContent();
             };
@@ -1133,6 +1146,7 @@ export class DesktopHubView extends ItemView {
             addSubtaskBtn.onclick = (e) => {
                 e.stopPropagation();
                 this._expandedRailSubtaskInputs.add(taskKey);
+                this._pinnedRailSubtasks.add(taskKey);
                 this._collapsedRailSubtasks.delete(taskKey);
                 this.renderRightRailContent();
             };
@@ -1141,18 +1155,29 @@ export class DesktopHubView extends ItemView {
         // 3. Comments Badge / Add Button
         if (hasComments) {
             const commentPill = metaRow.createSpan({
-                cls: `pos-rail-meta-pill ${commentsCollapsed ? '' : 'is-active-filter'}`,
-                attr: { 'aria-label': 'Toggle comments' }
+                cls: `pos-rail-meta-pill ${isCommentsPinned ? 'is-active-filter' : ''} ${isCommentsCollapsed ? 'is-collapsed-pill' : ''}`,
+                attr: {
+                    'aria-label': isCommentsCollapsed
+                        ? 'Notes hidden (Click to show)'
+                        : (isCommentsPinned ? 'Notes pinned (Click to hide)' : 'Notes (Hover to view, Click to pin)')
+                }
             });
             const cIcon = commentPill.createSpan({ cls: 'pos-btn-icon' });
             setIcon(cIcon, 'message-square');
             commentPill.createSpan({ text: ` ${task.remarks.length}` });
             commentPill.onclick = (e) => {
                 e.stopPropagation();
-                if (this._collapsedRailComments.has(taskKey)) {
-                    this._collapsedRailComments.delete(taskKey);
-                } else {
+                if (this._pinnedRailComments.has(taskKey)) {
+                    // Was pinned open -> hide/collapse it
+                    this._pinnedRailComments.delete(taskKey);
                     this._collapsedRailComments.add(taskKey);
+                } else if (this._collapsedRailComments.has(taskKey)) {
+                    // Was collapsed -> uncollapse and pin open
+                    this._collapsedRailComments.delete(taskKey);
+                    this._pinnedRailComments.add(taskKey);
+                } else {
+                    // Was in default hover mode -> pin it open
+                    this._pinnedRailComments.add(taskKey);
                 }
                 this.renderRightRailContent();
             };
@@ -1167,14 +1192,46 @@ export class DesktopHubView extends ItemView {
             addCommentBtn.onclick = (e) => {
                 e.stopPropagation();
                 this._expandedRailCommentInputs.add(taskKey);
+                this._pinnedRailComments.add(taskKey);
                 this._collapsedRailComments.delete(taskKey);
                 this.renderRightRailContent();
             };
         }
 
-        // Subtasks Section (Visible directly on card)
-        if (isSubtasksVisible) {
-            const subtasksContainer = content.createDiv({ cls: 'pos-rail-subtasks-wrap' });
+        // Subtasks Section (Hover-reveal by default, or pinned open / collapsed)
+        const isSubtasksOpen = (hasSubtasks && !isSubtasksCollapsed) || isSubtasksPinned || isSubtasksInputOpen;
+        if (isSubtasksOpen) {
+            let subtaskWrapCls = 'pos-rail-subtasks-wrap';
+            if (isSubtasksCollapsed) {
+                subtaskWrapCls += ' is-collapsed';
+            } else if (isSubtasksPinned || isSubtasksInputOpen) {
+                subtaskWrapCls += ' is-pinned-open';
+            } else {
+                subtaskWrapCls += ' is-hover-reveal';
+            }
+
+            const subtasksContainer = content.createDiv({ cls: subtaskWrapCls });
+
+            // Subtasks header with count and "✕ Hide" button
+            const boxHeader = subtasksContainer.createDiv({ cls: 'pos-rail-box-header' });
+            const doneCount = (task.subtasks || []).filter((s: any) => s.completed).length;
+            boxHeader.createSpan({
+                cls: 'pos-rail-box-title',
+                text: hasSubtasks ? `Subtasks (${doneCount}/${task.subtasks.length})` : 'New Subtask'
+            });
+            const closeBtn = boxHeader.createSpan({
+                cls: 'pos-rail-box-close-btn',
+                attr: { 'aria-label': 'Hide subtasks', title: 'Hide subtasks' }
+            });
+            setIcon(closeBtn, 'x');
+            closeBtn.createSpan({ text: ' Hide' });
+            closeBtn.onclick = (e) => {
+                e.stopPropagation();
+                this._collapsedRailSubtasks.add(taskKey);
+                this._pinnedRailSubtasks.delete(taskKey);
+                this._expandedRailSubtaskInputs.delete(taskKey);
+                this.renderRightRailContent();
+            };
 
             if (hasSubtasks) {
                 task.subtasks.forEach((st: any, idx: number) => {
@@ -1236,17 +1293,51 @@ export class DesktopHubView extends ItemView {
                 });
             }
 
-            // Inline quick-add subtask input
+            // Inline quick-add subtask input row
             const stAddRow = subtasksContainer.createDiv({ cls: 'pos-rail-quick-input-row' });
             const stInput = stAddRow.createEl('input', {
                 type: 'text',
                 cls: 'pos-rail-quick-input',
-                placeholder: '+ Add subtask... (Enter)'
+                placeholder: '+ Add subtask... (Enter, Esc to close)'
             });
-            if (showSubtasksInput && !hasSubtasks) {
+            const stCancelBtn = stAddRow.createSpan({
+                cls: 'pos-rail-quick-input-cancel',
+                attr: { 'aria-label': 'Close input (Esc)', title: 'Close input (Esc)' }
+            });
+            setIcon(stCancelBtn, 'x');
+            stCancelBtn.onclick = (e) => {
+                e.stopPropagation();
+                this._expandedRailSubtaskInputs.delete(taskKey);
+                if (!hasSubtasks) {
+                    this._pinnedRailSubtasks.delete(taskKey);
+                }
+                this.renderRightRailContent();
+            };
+
+            if (isSubtasksInputOpen && !hasSubtasks) {
                 setTimeout(() => stInput.focus(), 50);
             }
+
+            stInput.onblur = () => {
+                // If input opened via + Subtask on item with no subtasks and user clicks away empty, auto-dismiss
+                if (!stInput.value.trim() && !hasSubtasks) {
+                    this._expandedRailSubtaskInputs.delete(taskKey);
+                    this._pinnedRailSubtasks.delete(taskKey);
+                    this.renderRightRailContent();
+                }
+            };
+
             stInput.onkeydown = async (e) => {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this._expandedRailSubtaskInputs.delete(taskKey);
+                    if (!hasSubtasks) {
+                        this._pinnedRailSubtasks.delete(taskKey);
+                    }
+                    this.renderRightRailContent();
+                    return;
+                }
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     const val = stInput.value.trim();
@@ -1261,7 +1352,8 @@ export class DesktopHubView extends ItemView {
                         });
                         const file = this.app.vault.getAbstractFileByPath(task.filePath);
                         if (file instanceof TFile) await this.plugin.index.indexCaptureFile(file);
-                        this._expandedRailSubtaskInputs.add(taskKey);
+                        this._pinnedRailSubtasks.add(taskKey);
+                        this._collapsedRailSubtasks.delete(taskKey);
                         this.plugin.refreshCoordinator.notifyRefresh('tasks');
                         new Notice('Subtask added ✓');
                     } catch (err) {
@@ -1272,9 +1364,39 @@ export class DesktopHubView extends ItemView {
             };
         }
 
-        // Comments Section (Visible directly on card)
-        if (isCommentsVisible) {
-            const commentsContainer = content.createDiv({ cls: 'pos-rail-comments-wrap' });
+        // Comments Section (Hover-reveal by default, or pinned open / collapsed)
+        const isCommentsOpen = (hasComments && !isCommentsCollapsed) || isCommentsPinned || isCommentInputOpen;
+        if (isCommentsOpen) {
+            let commentWrapCls = 'pos-rail-comments-wrap';
+            if (isCommentsCollapsed) {
+                commentWrapCls += ' is-collapsed';
+            } else if (isCommentsPinned || isCommentInputOpen) {
+                commentWrapCls += ' is-pinned-open';
+            } else {
+                commentWrapCls += ' is-hover-reveal';
+            }
+
+            const commentsContainer = content.createDiv({ cls: commentWrapCls });
+
+            // Notes header with count and "✕ Hide" button
+            const remBoxHeader = commentsContainer.createDiv({ cls: 'pos-rail-box-header' });
+            remBoxHeader.createSpan({
+                cls: 'pos-rail-box-title',
+                text: hasComments ? `Notes (${task.remarks.length})` : 'New Note'
+            });
+            const remCloseBtn = remBoxHeader.createSpan({
+                cls: 'pos-rail-box-close-btn',
+                attr: { 'aria-label': 'Hide notes', title: 'Hide notes' }
+            });
+            setIcon(remCloseBtn, 'x');
+            remCloseBtn.createSpan({ text: ' Hide' });
+            remCloseBtn.onclick = (e) => {
+                e.stopPropagation();
+                this._collapsedRailComments.add(taskKey);
+                this._pinnedRailComments.delete(taskKey);
+                this._expandedRailCommentInputs.delete(taskKey);
+                this.renderRightRailContent();
+            };
 
             if (hasComments) {
                 task.remarks.forEach((rem: string, idx: number) => {
@@ -1320,17 +1442,51 @@ export class DesktopHubView extends ItemView {
                 });
             }
 
-            // Inline quick-add comment input
+            // Inline quick-add comment input row
             const remAddRow = commentsContainer.createDiv({ cls: 'pos-rail-quick-input-row' });
             const remInput = remAddRow.createEl('input', {
                 type: 'text',
                 cls: 'pos-rail-quick-input',
-                placeholder: '+ Add comment... (Enter)'
+                placeholder: '+ Add comment... (Enter, Esc to close)'
             });
-            if (showCommentInput && !hasComments) {
+            const remCancelBtn = remAddRow.createSpan({
+                cls: 'pos-rail-quick-input-cancel',
+                attr: { 'aria-label': 'Close input (Esc)', title: 'Close input (Esc)' }
+            });
+            setIcon(remCancelBtn, 'x');
+            remCancelBtn.onclick = (e) => {
+                e.stopPropagation();
+                this._expandedRailCommentInputs.delete(taskKey);
+                if (!hasComments) {
+                    this._pinnedRailComments.delete(taskKey);
+                }
+                this.renderRightRailContent();
+            };
+
+            if (isCommentInputOpen && !hasComments) {
                 setTimeout(() => remInput.focus(), 50);
             }
+
+            remInput.onblur = () => {
+                // If input opened via + Note on item with no comments and user clicks away empty, auto-dismiss
+                if (!remInput.value.trim() && !hasComments) {
+                    this._expandedRailCommentInputs.delete(taskKey);
+                    this._pinnedRailComments.delete(taskKey);
+                    this.renderRightRailContent();
+                }
+            };
+
             remInput.onkeydown = async (e) => {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this._expandedRailCommentInputs.delete(taskKey);
+                    if (!hasComments) {
+                        this._pinnedRailComments.delete(taskKey);
+                    }
+                    this.renderRightRailContent();
+                    return;
+                }
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     const val = remInput.value.trim();
@@ -1345,7 +1501,8 @@ export class DesktopHubView extends ItemView {
                         });
                         const file = this.app.vault.getAbstractFileByPath(task.filePath);
                         if (file instanceof TFile) await this.plugin.index.indexCaptureFile(file);
-                        this._expandedRailCommentInputs.add(taskKey);
+                        this._pinnedRailComments.add(taskKey);
+                        this._collapsedRailComments.delete(taskKey);
                         this.plugin.refreshCoordinator.notifyRefresh('tasks');
                         new Notice('Comment added ✓');
                     } catch (err) {
