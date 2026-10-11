@@ -1207,11 +1207,6 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
     user-select: none;
 }
 
-/* Subtle vertical accent indicator for notes with open tasks */
-.pos-note-stream-item.has-tasks {
-    border-left: 2px solid rgba(var(--interactive-accent-rgb), 0.55);
-}
-
 /* Gold accent indicator for starred / important notes */
 .pos-note-stream-item.is-important {
     border-left: 2px solid #eab308;
@@ -1220,10 +1215,6 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
 
 .pos-note-stream-item.is-important:hover {
     background: rgba(234, 179, 8, 0.06);
-}
-
-.pos-note-stream-item.is-important.has-tasks {
-    border-left: 2px solid #eab308;
 }
 
 .pos-note-stream-item.is-editing {
@@ -2094,14 +2085,6 @@ body.is-phone .pos-inline-textarea {
     .pos-note-stream-item.is-mobile-card.is-important {
         border-left: 3px solid #eab308 !important;
         background: rgba(234, 179, 8, 0.04) !important;
-    }
-
-    .pos-note-stream-item.is-mobile-card.has-tasks {
-        border-left: 3px solid rgba(var(--interactive-accent-rgb, 120, 120, 255), 0.6) !important;
-    }
-
-    .pos-note-stream-item.is-mobile-card.is-important.has-tasks {
-        border-left: 3px solid #eab308 !important;
     }
 
     .pos-note-stream-item.is-mobile-card.is-selected {

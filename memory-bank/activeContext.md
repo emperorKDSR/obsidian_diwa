@@ -9,6 +9,7 @@
     - Top Right: Compact static action buttons capsule (`pos-mobile-card-actions`) with Star (`☆`) and More options (`...`).
   - Full-Width Content Body (`.pos-note-content-wrap`): Note markdown and tasks span **100% full width of the card** directly below the header row, doubling usable text width from ~180px to ~350px (+95%) and eliminating awkward 3-word line wrapping.
   - Consistent visual card design: `background: var(--background-secondary)`, `border-radius: 12px`, subtle border, soft elevation, and gold left border for important/starred notes.
+  - Removed task color accents (`.has-tasks` border-left) across all desktop and mobile cards to preserve the unified palette and theme of the plugin.
 
 ## Previous State: Agenda Rail Hover-Reveal Subtasks & Notes with Multi-Way Dismissal
 - **Compact Resting Card Layout (`DesktopHubView.ts` & `styles.css`)**:

@@ -7,6 +7,7 @@
 ### 0. Mobile Micro-Card Stream Layout (Option 1 Complete for Mobile Only)
 *   [x] **Full-Width Mobile Micro-Cards (`DesktopHubView.ts` & `styles.css`)** — Swapped out the desktop 3-column outliner row layout on mobile phones (`Platform.isMobile && !isTablet(this.app)`) for an edge-to-edge iOS-style card layout (`.is-mobile-card`). Eliminated the 68px left gutter and 96px right hover padding, expanding readable text width from ~180px to ~350px (+95%) and eliminating awkward word wrapping.
 *   [x] **Dedicated Mobile Card Header & Static Actions (`DesktopHubView.ts` & `styles.css`)** — Built `.pos-mobile-card-header` pairing the note timestamp (`3:42 PM`) on the left with a static action capsule (`pos-mobile-card-actions`, Star & More) on the right. Note body and task checkboxes span 100% full width directly below the header row.
+*   [x] **Removal of Task Color Accents (`styles.css`)** — Removed `.has-tasks` colored vertical accent borders (`border-left`) across both desktop and mobile stream cards to maintain the clean, distraction-free neutral theme and palette of the plugin.
 *   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults. Desktop and tablet remain 100% untouched.
 
 ---
