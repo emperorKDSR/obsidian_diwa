@@ -111,3 +111,11 @@ export interface PermanentNoteRecord {
 }
 
 export type FileOrCreate = TFile | string;
+
+export interface HorizonNoteBlock {
+    filePath: string;
+    noteTitle: string;
+    snippet: string;
+    date: string;
+    area?: string;
+}

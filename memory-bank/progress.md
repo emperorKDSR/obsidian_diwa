@@ -1,6 +1,20 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Horizon Empty Section Suppression & Minimalist Agenda Panel
+## Current Phase: Agenda Rail Interactive Due Date, Visible Subtasks & Comments (Complete)
+
+---
+
+### 0. Agenda Rail Interactive Due Date, Visible Subtasks & Comments (Complete)
+*   [x] **Interactive Due Date Modification (`DesktopHubView.ts`)** — Due date badge on task cards in Horizon and Tasks rail tabs is an interactive button (`📅 Due: YYYY-MM-DD ▾` or `📅 Set Due ▾`). Clicking opens a dropdown menu with presets (Today, Tomorrow, In 3 Days, Next Week), custom `DatePickerModal`, and clear option. Updates are persisted directly via `updateTaskDetailsInFile` and indexed immediately.
+*   [x] **Visible Subtasks & Inline Quick-Add (`DesktopHubView.ts` & `styles.css`)** — Subtasks are rendered directly under task cards with indented hairline border (`.pos-rail-subtasks-wrap`). Interactive checkboxes sync completed status (`- [x]`), apply strikethrough styling, and offer hover delete. Users can rapidly add subtasks via inline input (`+ Add subtask... [Enter]`). Meta row counter pill (`☑ {done}/{total}`) toggles subtask visibility.
+*   [x] **Visible Comments/Remarks & Inline Quick-Add (`DesktopHubView.ts` & `styles.css`)** — Remarks are displayed under task cards with Markdown rendering and hover delete. Users can rapidly add comments via inline input (`+ Add comment... [Enter]`). Meta row counter pill (`💬 {count}`) toggles comment visibility.
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+### 0. Full 5-Day Rolling Horizon (Clean Note Snippets & Handumanan Excluded) (Complete)
+*   [x] **Remove Note Title in Horizon Rail (`DesktopHubView.ts` & `styles.css`)** — Streamlined `.pos-rail-note-item` to directly display the excerpted note snippet/block formatted as markdown without an explicit note title header, matching task row density and typography. Card retains source note tooltip and click-to-peek modal.
+*   [x] **Exclude Everything from Handumanan (`DesktopHubView.ts` & `IndexService.ts`)** — Strictly excluded any files, notes, blocks, or tasks under the Handumanan path (`handumanan`) from both vault block scanning (`getVaultNoteBlocksForDate`) and task rendering (`renderHorizonRail`).
+*   [x] **5-Day Rolling Horizon with Vault Note Scanning (`DesktopHubView.ts`, `IndexService.ts`, & `styles.css`)** — Upgraded the Horizon Agenda tab to cover Today, Tomorrow, and Next 3 Days ($D+2$, $D+3$, $D+4$). Strictly filters open tasks only (`!t.completed`). Added `getVaultNoteBlocksForDate` to scan both stream notes and vault-wide markdown files for target dates, extracting paragraphs/blocks mentioning the date (excluding completed tasks and task lines). Empty days are cleanly omitted.
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

@@ -1,5 +1,5 @@
 import { App, TFile, moment } from 'obsidian';
-import { DiwaSettings, CaptureEntry, CaptureTaskItem, GawaTaskRecord, GawaSubtaskItem, DayDigestSummary, PermanentNoteRecord } from '../types';
+import { DiwaSettings, CaptureEntry, CaptureTaskItem, GawaTaskRecord, GawaSubtaskItem, DayDigestSummary, PermanentNoteRecord, HorizonNoteBlock } from '../types';
 import { extractWikiLinks } from '../utils/wikilinks';
 import { normalizeConfiguredSettingPath } from '../utils/settingsPaths';
 import { normalizeVaultRelativePath } from '../utils/vaultFiles';
@@ -1153,6 +1153,114 @@ export class IndexService {
         }
 
         return matchingSnippets;
+    }
+
+    async getVaultNoteBlocksForDate(dateStr: string): Promise<HorizonNoteBlock[]> {
+        const results: HorizonNoteBlock[] = [];
+        const seenKeys = new Set<string>();
+
+        // 1. In-memory captureIndex (stream notes)
+        for (const entry of this.captureIndex.values()) {
+            if (!entry) continue;
+            if (entry.filePath.toLowerCase().includes('handumanan')) continue;
+            const dates = Array.isArray(entry.allDates) ? entry.allDates : [];
+            const hasDate = dates.includes(dateStr) || (entry.body && (entry.body.includes(`[[${dateStr}]]`) || entry.body.includes(dateStr)));
+            if (!hasDate) continue;
+
+            const snippets = this.extractTargetDateSnippets(entry, dateStr);
+            const noteTitle = entry.filePath.split('/').pop()?.replace(/\.md$/, '') || entry.id;
+
+            for (const snippet of snippets) {
+                const trimmed = snippet.trim();
+                if (!trimmed) continue;
+                // Exclude tasks (open/completed tasks are handled by getTasksForDueDate)
+                if (/^[ \t]*-[ \t]+\[[ xX]\]/.test(trimmed)) continue;
+
+                const key = `${entry.filePath}::${trimmed}`;
+                if (!seenKeys.has(key)) {
+                    seenKeys.add(key);
+                    results.push({
+                        filePath: entry.filePath,
+                        noteTitle,
+                        snippet: trimmed.length > 220 ? trimmed.slice(0, 217) + '...' : trimmed,
+                        date: dateStr,
+                        area: entry.area
+                    });
+                }
+            }
+        }
+
+        // 2. Vault-wide markdown files outside captureIndex
+        const allFiles = this.app.vault.getMarkdownFiles();
+        for (const file of allFiles) {
+            if (this.isCaptureFile(file.path)) continue; // Already processed
+            const normPath = file.path.toLowerCase();
+            if (normPath.includes('/trash/') || normPath.includes('/.trash/')) continue;
+            if (normPath.includes('handumanan')) continue;
+
+            const cache = this.app.metadataCache.getFileCache(file);
+            let matchesDate = false;
+
+            // Check frontmatter
+            const fm = cache?.frontmatter;
+            if (fm) {
+                const candidateFmDates = [fm.due, fm.scheduled, fm.day, fm.date, fm.targetDate];
+                for (const candidate of candidateFmDates) {
+                    if (candidate && String(candidate).replace(/\[\[|\]\]/g, '').trim() === dateStr) {
+                        matchesDate = true;
+                        break;
+                    }
+                }
+            }
+
+            // Check links
+            if (!matchesDate && cache?.links) {
+                for (const l of cache.links) {
+                    const cleanLink = l.link.replace(/\[\[|\]\]/g, '').trim();
+                    if (cleanLink === dateStr || cleanLink.endsWith('/' + dateStr)) {
+                        matchesDate = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!matchesDate) continue;
+
+            try {
+                const content = await this.app.vault.read(file);
+                const body = content.replace(/^---[\s\S]*?---\r?\n*/, '').trim();
+                if (!body) continue;
+
+                const paragraphs = body.split(/\n\s*\n/);
+                const matchingParagraphs = paragraphs.filter(p => {
+                    const pt = p.trim();
+                    return pt.includes(`[[${dateStr}]]`) || pt.includes(dateStr);
+                });
+
+                const snippetsToUse = matchingParagraphs.length > 0 ? matchingParagraphs : [paragraphs[0]];
+                for (const snippet of snippetsToUse) {
+                    const trimmed = snippet.trim();
+                    if (!trimmed) continue;
+                    // Exclude checklist lines
+                    if (/^[ \t]*-[ \t]+\[[ xX]\]/.test(trimmed)) continue;
+
+                    const key = `${file.path}::${trimmed}`;
+                    if (!seenKeys.has(key)) {
+                        seenKeys.add(key);
+                        results.push({
+                            filePath: file.path,
+                            noteTitle: file.basename,
+                            snippet: trimmed.length > 220 ? trimmed.slice(0, 217) + '...' : trimmed,
+                            date: dateStr,
+                        });
+                    }
+                }
+            } catch (err) {
+                console.warn('[DIWA IndexService] error reading vault note for date', { path: file.path, err });
+            }
+        }
+
+        return results;
     }
 
     getDayDigestSummary(dateStr: string): DayDigestSummary {

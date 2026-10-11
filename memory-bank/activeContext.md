@@ -1,12 +1,22 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Horizon Empty Section Suppression & Minimalist Agenda Panel
-- **Horizon Rail Empty Section Suppression (`DesktopHubView.ts`)**:
-  - In the Rolling Horizon (`renderHorizonRail`) view of the Agenda side rail, sections for **Today's Tasks** and **Tomorrow** are now strictly conditional:
-    - If `todayTasks.length === 0`, the Today section and its placeholder (`"No tasks scheduled for today."`) are omitted completely.
-    - If `tomorrowTasks.length === 0`, the Tomorrow section and its placeholder (`"Nothing due tomorrow."`) are omitted completely.
-    - Overdue section remains conditional on `overdueTasks.length > 0`.
-    - If all three sections are empty, a clean, subtle all-clear message (`"All caught up — no tasks scheduled."`) is displayed under the date header.
+## Current State: Agenda Rail Interactive Due Date, Visible Subtasks & Comments
+- **Rail Task Interactive Due Date (`DesktopHubView.ts`)**:
+  - The due date pill on task cards is now fully interactive (`📅 Due: YYYY-MM-DD ▾` or `📅 Set Due ▾`).
+  - Clicking opens a quick menu with presets (Today, Tomorrow, In 3 Days, Next Week), custom date picker modal (`DatePickerModal`), and clear date action.
+  - Updates persist directly to the note file via `updateTaskDetailsInFile` with immediate zero-lag index sync.
+- **Visible Subtasks & Inline Quick-Add (`DesktopHubView.ts` & `styles.css`)**:
+  - Subtasks are rendered directly beneath the task with an indented hairline spine (`.pos-rail-subtasks-wrap`).
+  - Each subtask features an interactive checkbox (toggling syncs `- [x]` into the note file), completed strikethrough, and a hover delete button.
+  - Features an inline quick-add input (`+ Add subtask... [Enter]`) for rapid keyboard-driven subtask creation.
+  - Counter pill `☑ {done}/{total}` in meta row toggles visibility.
+- **Visible Comments/Remarks & Inline Quick-Add (`DesktopHubView.ts` & `styles.css`)**:
+  - Remarks are rendered directly beneath the task with `message-square` icons and live Markdown rendering.
+  - Includes hover delete button and inline quick-add input (`+ Add comment... [Enter]`).
+  - Counter pill `💬 {count}` in meta row toggles visibility.
+- **Full 5-Day Rolling Horizon (Clean Note Snippets & Handumanan Excluded)**:
+  - Excludes everything under Handumanan paths (`handumanan`).
+  - Note cards in Horizon directly display the excerpted snippet without a title header.
 - **Stream Life Area Badge Hidden (`DesktopHubView.ts` & `styles.css`)**:
   - Removed the `.pos-area-badge` DOM creation from note cards in `renderNoteItem`.
   - Added `.pos-stream-item .pos-area-badge { display: none !important; }` in `styles.css` as a defense-in-depth safety rule.

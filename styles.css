@@ -6307,6 +6307,219 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
     border-color: var(--background-modifier-border);
 }
 
+.pos-rail-meta-pill.pos-rail-meta-date-btn,
+.pos-rail-meta-pill.pos-rail-meta-action-pill {
+    cursor: pointer;
+    transition: var(--diwa-transition);
+}
+
+.pos-rail-meta-pill.pos-rail-meta-date-btn:hover,
+.pos-rail-meta-pill.pos-rail-meta-action-pill:hover {
+    color: var(--text-normal);
+    border-color: var(--text-muted);
+    background: var(--background-modifier-hover);
+}
+
+.pos-rail-meta-pill.is-active-filter {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+    border-color: var(--text-muted);
+}
+
+/* ── Rail Task Subtasks & Comments ── */
+.pos-rail-subtasks-wrap,
+.pos-rail-comments-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+    margin-left: 2px;
+    padding-left: 8px;
+    border-left: 1.5px solid var(--background-modifier-border-faint);
+}
+
+.pos-rail-subtask-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82em;
+    color: var(--text-normal);
+    line-height: 1.35;
+    padding: 1px 0;
+    transition: var(--diwa-transition);
+}
+
+.pos-rail-subtask-item.is-completed .pos-rail-subtask-title {
+    text-decoration: line-through !important;
+    color: var(--text-muted) !important;
+}
+
+.pos-rail-subtask-checkbox {
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--text-muted);
+    filter: grayscale(1) opacity(0.7);
+    width: 12px;
+    height: 12px;
+}
+
+.pos-rail-subtask-title {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+}
+
+.pos-rail-comment-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 0.8em;
+    color: var(--text-muted);
+    line-height: 1.35;
+    padding: 2px 0;
+}
+
+.pos-rail-comment-icon {
+    margin-top: 2px;
+    color: var(--text-faint);
+    flex-shrink: 0;
+    display: inline-flex;
+}
+
+.pos-rail-comment-icon svg {
+    width: 11px;
+    height: 11px;
+    stroke-width: 2px;
+}
+
+.pos-rail-comment-text {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+}
+
+.pos-rail-comment-text p {
+    margin: 0 !important;
+    display: inline;
+}
+
+.pos-rail-subtask-del-btn {
+    opacity: 0;
+    cursor: pointer;
+    color: var(--text-faint);
+    padding: 1px 3px;
+    border-radius: 3px;
+    transition: var(--diwa-transition);
+    display: inline-flex;
+    align-items: center;
+}
+
+.pos-rail-subtask-item:hover .pos-rail-subtask-del-btn,
+.pos-rail-comment-item:hover .pos-rail-subtask-del-btn {
+    opacity: 0.7;
+}
+
+.pos-rail-subtask-del-btn:hover {
+    opacity: 1 !important;
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+}
+
+.pos-rail-subtask-del-btn svg {
+    width: 11px;
+    height: 11px;
+    stroke-width: 2px;
+}
+
+.pos-rail-quick-input-row {
+    margin-top: 2px;
+}
+
+.pos-rail-quick-input {
+    width: 100%;
+    padding: 3px 6px;
+    font-size: 0.78em;
+    background: transparent;
+    border: 1px dashed var(--background-modifier-border-faint);
+    border-radius: 4px;
+    color: var(--text-normal);
+    outline: none;
+    transition: var(--diwa-transition);
+}
+
+.pos-rail-quick-input::placeholder {
+    color: var(--text-faint);
+}
+
+.pos-rail-quick-input:focus {
+    border-style: solid;
+    border-color: var(--text-muted);
+    background: var(--background-secondary-alt);
+}
+
+/* ── Agenda Rail Note Items ── */
+.pos-rail-note-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: var(--diwa-radius-sm);
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border-faint);
+    transition: var(--diwa-transition);
+    cursor: pointer;
+}
+
+.pos-rail-note-item:hover {
+    border-color: var(--text-muted);
+    background: var(--background-modifier-hover);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.pos-rail-note-icon {
+    margin-top: 2px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pos-rail-note-icon svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 1.75px;
+    color: var(--text-muted);
+    stroke: currentColor;
+}
+
+.pos-rail-note-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.pos-rail-note-snippet {
+    font-size: 0.88em;
+    color: var(--text-normal);
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.pos-rail-note-snippet p {
+    margin: 0 !important;
+    display: inline;
+}
+
+.pos-rail-note-snippet a.internal-link {
+    color: var(--text-normal);
+    text-decoration: underline solid var(--background-modifier-border);
+    text-underline-offset: 3.5px;
+    text-decoration-thickness: 1px;
+}
+
 
 /* ── Agenda Rail Recent Notes ── */
 .pos-rail-notes-search-wrap {

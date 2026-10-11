@@ -1,7 +1,7 @@
 import { ItemView, WorkspaceLeaf, TFile, MarkdownRenderer, moment, Notice, Platform, Menu, Component, setIcon } from 'obsidian';
 import type DiwaPlugin from '../main';
 import { VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID } from '../constants';
-import { CaptureEntry, ScratchpadFilterMode, PermanentNoteRecord } from '../types';
+import { CaptureEntry, ScratchpadFilterMode, PermanentNoteRecord, HorizonNoteBlock } from '../types';
 import { MergeNotesModal } from '../modals/MergeNotesModal';
 import { DatePickerModal } from '../modals/DatePickerModal';
 import { WikilinkPeekModal } from '../modals/WikilinkPeekModal';
@@ -58,6 +58,10 @@ export class DesktopHubView extends ItemView {
     private _isResizingCockpit: boolean = false;
     private _railNotesSearchQuery: string = '';
     private _railNotesSearchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    private _collapsedRailSubtasks: Set<string> = new Set();
+    private _collapsedRailComments: Set<string> = new Set();
+    private _expandedRailSubtaskInputs: Set<string> = new Set();
+    private _expandedRailCommentInputs: Set<string> = new Set();
     private _cockpitLayoutEl: HTMLElement | null = null;
     private _cockpitBackdropEl: HTMLElement | null = null;
     private _mainStageEl: HTMLElement | null = null;
@@ -758,7 +762,7 @@ export class DesktopHubView extends ItemView {
 
         if (this._cockpitRailTab === 'karon') {
             contentEl.empty();
-            this.renderHorizonRail(contentEl);
+            void this.renderHorizonRail(contentEl);
         } else if (this._cockpitRailTab === 'tasks') {
             contentEl.empty();
             this.renderTasksRail(contentEl);
@@ -767,7 +771,8 @@ export class DesktopHubView extends ItemView {
         }
     }
 
-    private renderHorizonRail(container: HTMLElement): void {
+    private async renderHorizonRail(container: HTMLElement): Promise<void> {
+        container.empty();
         const today = moment();
         const todayStr = today.format('YYYY-MM-DD');
 
@@ -777,10 +782,10 @@ export class DesktopHubView extends ItemView {
         const sunIcon = todayHeaderWrap.createSpan({ cls: 'pos-btn-icon' });
         setIcon(sunIcon, 'sun');
         todayHeaderWrap.createSpan({ text: ` ${today.format('dddd, MMM D')}` });
-        dateHeader.createSpan({ cls: 'pos-rail-horizon-subtitle', text: 'Rolling Horizon' });
+        dateHeader.createSpan({ cls: 'pos-rail-horizon-subtitle', text: 'Rolling Horizon (5 Days)' });
 
-        // Overdue section
-        const overdueTasks = this.plugin.index.getOverdueTasks(todayStr);
+        // Overdue section (strictly open overdue tasks, excluding Handumanan)
+        const overdueTasks = this.plugin.index.getOverdueTasks(todayStr).filter(t => !t.completed && !t.filePath?.toLowerCase().includes('handumanan'));
         if (overdueTasks.length > 0) {
             const overdueBox = container.createDiv({ cls: 'pos-rail-overdue-box' });
             const titleRow = overdueBox.createDiv({ cls: 'pos-rail-overdue-title' });
@@ -796,37 +801,90 @@ export class DesktopHubView extends ItemView {
             }
         }
 
-        // Today Due Tasks Section
-        const todayTasks = this.plugin.index.getTasksForDueDate(todayStr);
-        if (todayTasks.length > 0) {
-            const todaySection = container.createDiv({ cls: 'pos-rail-section' });
-            const todaySecHeader = todaySection.createDiv({ cls: 'pos-rail-section-header' });
-            todaySecHeader.createSpan({ text: "Today's Tasks" });
-            todaySecHeader.createSpan({ cls: 'pos-rail-section-badge', text: `${todayTasks.length}` });
+        let totalHorizonItems = overdueTasks.length;
 
-            for (const task of todayTasks) {
-                this.renderRailTaskRow(todaySection, task, false);
+        // Rolling 5-day window: Today (0), Tomorrow (1), Next 3 Days (2, 3, 4)
+        for (let dayOffset = 0; dayOffset < 5; dayOffset++) {
+            const targetMoment = moment(todayStr).add(dayOffset, 'days');
+            const targetDateStr = targetMoment.format('YYYY-MM-DD');
+
+            // Strictly open tasks only, excluding Handumanan
+            const dayTasks = this.plugin.index.getTasksForDueDate(targetDateStr).filter(t => !t.completed && !t.filePath?.toLowerCase().includes('handumanan'));
+            // Scan note blocks (stream notes + vault notes, excluding Handumanan)
+            const dayNotes = await this.plugin.index.getVaultNoteBlocksForDate(targetDateStr);
+
+            const dayTotal = dayTasks.length + dayNotes.length;
+            if (dayTotal === 0) continue; // Suppress empty days
+
+            totalHorizonItems += dayTotal;
+
+            let sectionTitle = '';
+            if (dayOffset === 0) {
+                sectionTitle = "Today's Agenda";
+            } else if (dayOffset === 1) {
+                sectionTitle = "Tomorrow";
+            } else {
+                sectionTitle = targetMoment.format('dddd, MMM D');
+            }
+
+            const daySection = container.createDiv({ cls: 'pos-rail-section' });
+            const daySecHeader = daySection.createDiv({ cls: 'pos-rail-section-header' });
+            daySecHeader.createSpan({ text: sectionTitle });
+            daySecHeader.createSpan({ cls: 'pos-rail-section-badge', text: `${dayTotal}` });
+
+            // 1. Render open tasks
+            for (const task of dayTasks) {
+                this.renderRailTaskRow(daySection, task, false);
+            }
+
+            // 2. Render note blocks
+            for (const note of dayNotes) {
+                this.renderRailNoteRow(daySection, note);
             }
         }
 
-        // Tomorrow Glance
-        const tomorrowStr = moment(todayStr).add(1, 'days').format('YYYY-MM-DD');
-        const tomorrowTasks = this.plugin.index.getTasksForDueDate(tomorrowStr);
-        if (tomorrowTasks.length > 0) {
-            const tomorrowSection = container.createDiv({ cls: 'pos-rail-section' });
-            const tomorrowSecHeader = tomorrowSection.createDiv({ cls: 'pos-rail-section-header' });
-            tomorrowSecHeader.createSpan({ text: 'Tomorrow' });
-            tomorrowSecHeader.createSpan({ cls: 'pos-rail-section-badge', text: `${tomorrowTasks.length}` });
+        // All-clear message if no overdue tasks, today items, or upcoming items
+        if (totalHorizonItems === 0) {
+            container.createDiv({ cls: 'pos-rail-empty-msg', text: 'All caught up — no tasks or notes scheduled.' });
+        }
+    }
 
-            for (const task of tomorrowTasks.slice(0, 4)) {
-                this.renderRailTaskRow(tomorrowSection, task, false);
-            }
+    private renderRailNoteRow(parent: HTMLElement, note: HorizonNoteBlock): void {
+        const row = parent.createDiv({
+            cls: 'pos-rail-note-item',
+            attr: { 'aria-label': `Open ${note.noteTitle}` }
+        });
+
+        const iconEl = row.createDiv({ cls: 'pos-rail-note-icon' });
+        setIcon(iconEl, 'file-text');
+
+        const content = row.createDiv({ cls: 'pos-rail-note-content' });
+        const snippetText = (note.snippet || note.noteTitle || '').trim();
+
+        if (snippetText) {
+            const snippetEl = content.createDiv({ cls: 'pos-rail-note-snippet markdown-rendered' });
+            void MarkdownRenderer.render(
+                this.app,
+                snippetText,
+                snippetEl,
+                note.filePath,
+                this._streamComponent ?? this
+            ).then(() => {
+                const links = snippetEl.querySelectorAll<HTMLAnchorElement>('a.internal-link');
+                links.forEach(link => {
+                    const href = link.getAttribute('data-href') || link.textContent || '';
+                    link.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        void this.app.workspace.openLinkText(href, note.filePath, false);
+                    };
+                });
+            });
         }
 
-        // All-clear message if no overdue, today, or tomorrow tasks
-        if (overdueTasks.length === 0 && todayTasks.length === 0 && tomorrowTasks.length === 0) {
-            container.createDiv({ cls: 'pos-rail-empty-msg', text: 'All caught up — no tasks scheduled.' });
-        }
+        row.onclick = () => {
+            new WikilinkPeekModal(this.app, this.plugin, note.noteTitle, note.filePath, (target) => this.filterStreamByWikilink(target)).open();
+        };
     }
 
     private renderTasksRail(container: HTMLElement): void {
@@ -892,6 +950,7 @@ export class DesktopHubView extends ItemView {
     }
 
     private renderRailTaskRow(parent: HTMLElement, task: any, isOverdue: boolean): void {
+        const taskKey = `${task.filePath}::${task.lineIndex}`;
         const row = parent.createDiv({ cls: `pos-rail-task-item ${isOverdue ? 'is-overdue' : ''}` });
 
         const checkbox = row.createEl('input', {
@@ -935,14 +994,366 @@ export class DesktopHubView extends ItemView {
             });
         });
 
-        if (task.dueDate) {
-            const metaRow = content.createDiv({ cls: 'pos-rail-task-meta' });
+        // Due date picker helper
+        const openDueDatePicker = (e: MouseEvent) => {
+            e.stopPropagation();
+            const menu = new Menu();
+
             const todayStr = moment().format('YYYY-MM-DD');
-            const pillCls = isOverdue ? 'is-overdue' : (task.dueDate === todayStr ? 'is-today' : '');
-            const datePill = metaRow.createSpan({ cls: `pos-rail-meta-pill ${pillCls}` });
-            const calIcon = datePill.createSpan({ cls: 'pos-btn-icon' });
-            setIcon(calIcon, 'calendar');
-            datePill.createSpan({ text: ` Due: ${task.dueDate}` });
+            const tomorrowStr = moment().add(1, 'day').format('YYYY-MM-DD');
+            const in3DaysStr = moment().add(3, 'days').format('YYYY-MM-DD');
+            const nextWeekStr = moment().add(7, 'days').format('YYYY-MM-DD');
+
+            const applyDueDate = async (newDate: string | null) => {
+                try {
+                    await this.plugin.capture.updateTaskDetailsInFile({
+                        filePath: task.filePath,
+                        lineIndex: task.lineIndex,
+                        taskTitleFallback: task.rawTitle,
+                        newDueDate: newDate
+                    });
+                    const file = this.app.vault.getAbstractFileByPath(task.filePath);
+                    if (file instanceof TFile) {
+                        await this.plugin.index.indexCaptureFile(file);
+                    }
+                    this.plugin.refreshCoordinator.notifyRefresh('tasks');
+                    new Notice(newDate ? `Due date set to ${newDate}` : 'Due date cleared');
+                } catch (err) {
+                    console.error('[DIWA] Error updating task due date', err);
+                    new Notice('Failed to update due date');
+                }
+            };
+
+            menu.addItem(item => {
+                item.setTitle('Today')
+                    .setIcon('sun')
+                    .setChecked(task.dueDate === todayStr)
+                    .onClick(() => applyDueDate(todayStr));
+            });
+
+            menu.addItem(item => {
+                item.setTitle('Tomorrow')
+                    .setIcon('sunrise')
+                    .setChecked(task.dueDate === tomorrowStr)
+                    .onClick(() => applyDueDate(tomorrowStr));
+            });
+
+            menu.addItem(item => {
+                item.setTitle('In 3 Days')
+                    .setIcon('calendar')
+                    .setChecked(task.dueDate === in3DaysStr)
+                    .onClick(() => applyDueDate(in3DaysStr));
+            });
+
+            menu.addItem(item => {
+                item.setTitle('Next Week')
+                    .setIcon('calendar-days')
+                    .setChecked(task.dueDate === nextWeekStr)
+                    .onClick(() => applyDueDate(nextWeekStr));
+            });
+
+            menu.addSeparator();
+
+            menu.addItem(item => {
+                item.setTitle('Pick Specific Date...')
+                    .setIcon('calendar-clock')
+                    .onClick(() => {
+                        new DatePickerModal(this.app, task.dueDate || todayStr, (chosenDate: string) => {
+                            if (chosenDate) {
+                                void applyDueDate(chosenDate);
+                            }
+                        }).open();
+                    });
+            });
+
+            if (task.dueDate) {
+                menu.addSeparator();
+                menu.addItem(item => {
+                    item.setTitle('Clear Due Date')
+                        .setIcon('x')
+                        .onClick(() => applyDueDate(null));
+                });
+            }
+
+            menu.showAtMouseEvent(e);
+        };
+
+        const hasSubtasks = Array.isArray(task.subtasks) && task.subtasks.length > 0;
+        const showSubtasksInput = this._expandedRailSubtaskInputs.has(taskKey);
+        const subtasksCollapsed = this._collapsedRailSubtasks.has(taskKey);
+        const isSubtasksVisible = (hasSubtasks && !subtasksCollapsed) || showSubtasksInput;
+
+        const hasComments = Array.isArray(task.remarks) && task.remarks.length > 0;
+        const showCommentInput = this._expandedRailCommentInputs.has(taskKey);
+        const commentsCollapsed = this._collapsedRailComments.has(taskKey);
+        const isCommentsVisible = (hasComments && !commentsCollapsed) || showCommentInput;
+
+        // Metadata Pills Row
+        const metaRow = content.createDiv({ cls: 'pos-rail-task-meta' });
+
+        // 1. Due date pill
+        const todayStr = moment().format('YYYY-MM-DD');
+        const pillCls = isOverdue ? 'is-overdue' : (task.dueDate === todayStr ? 'is-today' : '');
+        const datePill = metaRow.createSpan({
+            cls: `pos-rail-meta-pill pos-rail-meta-date-btn ${pillCls}`,
+            attr: { 'aria-label': 'Click to change due date' }
+        });
+        const calIcon = datePill.createSpan({ cls: 'pos-btn-icon' });
+        setIcon(calIcon, 'calendar');
+        datePill.createSpan({ text: task.dueDate ? ` Due: ${task.dueDate} ▾` : ' Set Due ▾' });
+        datePill.onclick = (e) => openDueDatePicker(e);
+
+        // 2. Subtasks Badge / Add Button
+        if (hasSubtasks) {
+            const doneCount = task.subtasks.filter((s: any) => s.completed).length;
+            const subtaskPill = metaRow.createSpan({
+                cls: `pos-rail-meta-pill ${subtasksCollapsed ? '' : 'is-active-filter'}`,
+                attr: { 'aria-label': 'Toggle subtasks' }
+            });
+            const stIcon = subtaskPill.createSpan({ cls: 'pos-btn-icon' });
+            setIcon(stIcon, 'check-square');
+            subtaskPill.createSpan({ text: ` ${doneCount}/${task.subtasks.length}` });
+            subtaskPill.onclick = (e) => {
+                e.stopPropagation();
+                if (this._collapsedRailSubtasks.has(taskKey)) {
+                    this._collapsedRailSubtasks.delete(taskKey);
+                } else {
+                    this._collapsedRailSubtasks.add(taskKey);
+                }
+                this.renderRightRailContent();
+            };
+        } else {
+            const addSubtaskBtn = metaRow.createSpan({
+                cls: 'pos-rail-meta-pill pos-rail-meta-action-pill',
+                attr: { 'aria-label': 'Add subtask' }
+            });
+            const stIcon = addSubtaskBtn.createSpan({ cls: 'pos-btn-icon' });
+            setIcon(stIcon, 'plus');
+            addSubtaskBtn.createSpan({ text: ' Subtask' });
+            addSubtaskBtn.onclick = (e) => {
+                e.stopPropagation();
+                this._expandedRailSubtaskInputs.add(taskKey);
+                this._collapsedRailSubtasks.delete(taskKey);
+                this.renderRightRailContent();
+            };
+        }
+
+        // 3. Comments Badge / Add Button
+        if (hasComments) {
+            const commentPill = metaRow.createSpan({
+                cls: `pos-rail-meta-pill ${commentsCollapsed ? '' : 'is-active-filter'}`,
+                attr: { 'aria-label': 'Toggle comments' }
+            });
+            const cIcon = commentPill.createSpan({ cls: 'pos-btn-icon' });
+            setIcon(cIcon, 'message-square');
+            commentPill.createSpan({ text: ` ${task.remarks.length}` });
+            commentPill.onclick = (e) => {
+                e.stopPropagation();
+                if (this._collapsedRailComments.has(taskKey)) {
+                    this._collapsedRailComments.delete(taskKey);
+                } else {
+                    this._collapsedRailComments.add(taskKey);
+                }
+                this.renderRightRailContent();
+            };
+        } else {
+            const addCommentBtn = metaRow.createSpan({
+                cls: 'pos-rail-meta-pill pos-rail-meta-action-pill',
+                attr: { 'aria-label': 'Add note or comment' }
+            });
+            const cIcon = addCommentBtn.createSpan({ cls: 'pos-btn-icon' });
+            setIcon(cIcon, 'plus');
+            addCommentBtn.createSpan({ text: ' Note' });
+            addCommentBtn.onclick = (e) => {
+                e.stopPropagation();
+                this._expandedRailCommentInputs.add(taskKey);
+                this._collapsedRailComments.delete(taskKey);
+                this.renderRightRailContent();
+            };
+        }
+
+        // Subtasks Section (Visible directly on card)
+        if (isSubtasksVisible) {
+            const subtasksContainer = content.createDiv({ cls: 'pos-rail-subtasks-wrap' });
+
+            if (hasSubtasks) {
+                task.subtasks.forEach((st: any, idx: number) => {
+                    const stItem = subtasksContainer.createDiv({ cls: `pos-rail-subtask-item ${st.completed ? 'is-completed' : ''}` });
+                    
+                    const stCheck = stItem.createEl('input', {
+                        type: 'checkbox',
+                        cls: 'pos-rail-subtask-checkbox'
+                    });
+                    stCheck.checked = Boolean(st.completed);
+                    stCheck.onclick = async (e) => {
+                        e.stopPropagation();
+                        const updated = [...task.subtasks];
+                        updated[idx] = { ...updated[idx], completed: stCheck.checked };
+                        try {
+                            await this.plugin.capture.updateTaskDetailsInFile({
+                                filePath: task.filePath,
+                                lineIndex: task.lineIndex,
+                                taskTitleFallback: task.rawTitle,
+                                newSubtasks: updated
+                            });
+                            const file = this.app.vault.getAbstractFileByPath(task.filePath);
+                            if (file instanceof TFile) await this.plugin.index.indexCaptureFile(file);
+                            this.plugin.refreshCoordinator.notifyRefresh('tasks');
+                        } catch (err) {
+                            console.error('[DIWA] Error updating subtask', err);
+                            stCheck.checked = !stCheck.checked;
+                            new Notice('Failed to update subtask');
+                        }
+                    };
+
+                    stItem.createSpan({ cls: 'pos-rail-subtask-title', text: st.title });
+
+                    const stDelete = stItem.createSpan({
+                        cls: 'pos-rail-subtask-del-btn',
+                        attr: { 'aria-label': 'Delete subtask' }
+                    });
+                    setIcon(stDelete, 'x');
+                    stDelete.onclick = async (e) => {
+                        e.stopPropagation();
+                        const updated = [...task.subtasks];
+                        updated.splice(idx, 1);
+                        try {
+                            await this.plugin.capture.updateTaskDetailsInFile({
+                                filePath: task.filePath,
+                                lineIndex: task.lineIndex,
+                                taskTitleFallback: task.rawTitle,
+                                newSubtasks: updated
+                            });
+                            const file = this.app.vault.getAbstractFileByPath(task.filePath);
+                            if (file instanceof TFile) await this.plugin.index.indexCaptureFile(file);
+                            this.plugin.refreshCoordinator.notifyRefresh('tasks');
+                            new Notice('Subtask removed');
+                        } catch (err) {
+                            console.error('[DIWA] Error deleting subtask', err);
+                            new Notice('Failed to remove subtask');
+                        }
+                    };
+                });
+            }
+
+            // Inline quick-add subtask input
+            const stAddRow = subtasksContainer.createDiv({ cls: 'pos-rail-quick-input-row' });
+            const stInput = stAddRow.createEl('input', {
+                type: 'text',
+                cls: 'pos-rail-quick-input',
+                placeholder: '+ Add subtask... (Enter)'
+            });
+            if (showSubtasksInput && !hasSubtasks) {
+                setTimeout(() => stInput.focus(), 50);
+            }
+            stInput.onkeydown = async (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const val = stInput.value.trim();
+                    if (!val) return;
+                    const updated = [...(task.subtasks || []), { title: val, completed: false }];
+                    try {
+                        await this.plugin.capture.updateTaskDetailsInFile({
+                            filePath: task.filePath,
+                            lineIndex: task.lineIndex,
+                            taskTitleFallback: task.rawTitle,
+                            newSubtasks: updated
+                        });
+                        const file = this.app.vault.getAbstractFileByPath(task.filePath);
+                        if (file instanceof TFile) await this.plugin.index.indexCaptureFile(file);
+                        this._expandedRailSubtaskInputs.add(taskKey);
+                        this.plugin.refreshCoordinator.notifyRefresh('tasks');
+                        new Notice('Subtask added ✓');
+                    } catch (err) {
+                        console.error('[DIWA] Error adding subtask', err);
+                        new Notice('Failed to add subtask');
+                    }
+                }
+            };
+        }
+
+        // Comments Section (Visible directly on card)
+        if (isCommentsVisible) {
+            const commentsContainer = content.createDiv({ cls: 'pos-rail-comments-wrap' });
+
+            if (hasComments) {
+                task.remarks.forEach((rem: string, idx: number) => {
+                    const remItem = commentsContainer.createDiv({ cls: 'pos-rail-comment-item' });
+                    
+                    const remIcon = remItem.createSpan({ cls: 'pos-rail-comment-icon' });
+                    setIcon(remIcon, 'message-square');
+
+                    const remText = remItem.createSpan({ cls: 'pos-rail-comment-text markdown-rendered' });
+                    void MarkdownRenderer.render(
+                        this.app,
+                        rem,
+                        remText,
+                        task.filePath || '',
+                        this._streamComponent ?? this
+                    );
+
+                    const remDelete = remItem.createSpan({
+                        cls: 'pos-rail-subtask-del-btn',
+                        attr: { 'aria-label': 'Delete note' }
+                    });
+                    setIcon(remDelete, 'x');
+                    remDelete.onclick = async (e) => {
+                        e.stopPropagation();
+                        const updated = [...task.remarks];
+                        updated.splice(idx, 1);
+                        try {
+                            await this.plugin.capture.updateTaskDetailsInFile({
+                                filePath: task.filePath,
+                                lineIndex: task.lineIndex,
+                                taskTitleFallback: task.rawTitle,
+                                newRemarks: updated
+                            });
+                            const file = this.app.vault.getAbstractFileByPath(task.filePath);
+                            if (file instanceof TFile) await this.plugin.index.indexCaptureFile(file);
+                            this.plugin.refreshCoordinator.notifyRefresh('tasks');
+                            new Notice('Note removed');
+                        } catch (err) {
+                            console.error('[DIWA] Error deleting comment', err);
+                            new Notice('Failed to remove note');
+                        }
+                    };
+                });
+            }
+
+            // Inline quick-add comment input
+            const remAddRow = commentsContainer.createDiv({ cls: 'pos-rail-quick-input-row' });
+            const remInput = remAddRow.createEl('input', {
+                type: 'text',
+                cls: 'pos-rail-quick-input',
+                placeholder: '+ Add comment... (Enter)'
+            });
+            if (showCommentInput && !hasComments) {
+                setTimeout(() => remInput.focus(), 50);
+            }
+            remInput.onkeydown = async (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const val = remInput.value.trim();
+                    if (!val) return;
+                    const updated = [...(task.remarks || []), val];
+                    try {
+                        await this.plugin.capture.updateTaskDetailsInFile({
+                            filePath: task.filePath,
+                            lineIndex: task.lineIndex,
+                            taskTitleFallback: task.rawTitle,
+                            newRemarks: updated
+                        });
+                        const file = this.app.vault.getAbstractFileByPath(task.filePath);
+                        if (file instanceof TFile) await this.plugin.index.indexCaptureFile(file);
+                        this._expandedRailCommentInputs.add(taskKey);
+                        this.plugin.refreshCoordinator.notifyRefresh('tasks');
+                        new Notice('Comment added ✓');
+                    } catch (err) {
+                        console.error('[DIWA] Error adding comment', err);
+                        new Notice('Failed to add comment');
+                    }
+                }
+            };
         }
     }
 
