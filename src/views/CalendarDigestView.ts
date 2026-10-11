@@ -68,9 +68,11 @@ export class CalendarDigestView extends ItemView {
         if (isNarrow) {
             const tabsWrap = headerEl.createDiv({ cls: 'pos-digest-mobile-tabs' });
             const calTab = tabsWrap.createEl('button', {
-                cls: `pos-digest-tab-btn ${this._mobileTab === 'calendar' ? 'is-active' : ''}`,
-                text: '📅 Calendar'
+                cls: `pos-digest-tab-btn ${this._mobileTab === 'calendar' ? 'is-active' : ''}`
             });
+            const calIcon = calTab.createSpan({ cls: 'pos-btn-icon' });
+            setIcon(calIcon, 'calendar');
+            calTab.createSpan({ text: ' Calendar' });
             calTab.onclick = () => {
                 this._mobileTab = 'calendar';
                 this.renderView();
@@ -78,9 +80,11 @@ export class CalendarDigestView extends ItemView {
 
             const entries = this.plugin.index.getCapturesForDate(this._selectedDate);
             const streamTab = tabsWrap.createEl('button', {
-                cls: `pos-digest-tab-btn ${this._mobileTab === 'stream' ? 'is-active' : ''}`,
-                text: `📝 Stream (${entries.length})`
+                cls: `pos-digest-tab-btn ${this._mobileTab === 'stream' ? 'is-active' : ''}`
             });
+            const streamIcon = streamTab.createSpan({ cls: 'pos-btn-icon' });
+            setIcon(streamIcon, 'file-text');
+            streamTab.createSpan({ text: ` Stream (${entries.length})` });
             streamTab.onclick = () => {
                 this._mobileTab = 'stream';
                 this.renderView();
@@ -199,9 +203,11 @@ export class CalendarDigestView extends ItemView {
         // Quick Horizons Footer
         const horizonsEl = container.createDiv({ cls: 'pos-calendar-horizons' });
         const todayBtn = horizonsEl.createEl('button', {
-            cls: `pos-horizon-pill ${this._selectedDate === todayStr ? 'is-active' : ''}`,
-            text: '📅 Today'
+            cls: `pos-horizon-pill ${this._selectedDate === todayStr ? 'is-active' : ''}`
         });
+        const todayIcon = todayBtn.createSpan({ cls: 'pos-btn-icon' });
+        setIcon(todayIcon, 'calendar');
+        todayBtn.createSpan({ text: ' Today' });
         todayBtn.onclick = () => {
             this._selectedDate = todayStr;
             this._currentMonth = moment().format('YYYY-MM');
@@ -210,9 +216,11 @@ export class CalendarDigestView extends ItemView {
 
         const yesterdayStr = moment().subtract(1, 'day').format('YYYY-MM-DD');
         const yesterdayBtn = horizonsEl.createEl('button', {
-            cls: `pos-horizon-pill ${this._selectedDate === yesterdayStr ? 'is-active' : ''}`,
-            text: '⏪ Yesterday'
+            cls: `pos-horizon-pill ${this._selectedDate === yesterdayStr ? 'is-active' : ''}`
         });
+        const yesterdayIcon = yesterdayBtn.createSpan({ cls: 'pos-btn-icon' });
+        setIcon(yesterdayIcon, 'rewind');
+        yesterdayBtn.createSpan({ text: ' Yesterday' });
         yesterdayBtn.onclick = () => {
             this._selectedDate = yesterdayStr;
             this._currentMonth = moment(yesterdayStr).format('YYYY-MM');
@@ -249,9 +257,11 @@ export class CalendarDigestView extends ItemView {
 
         if (entries.length > 0) {
             const digestBtn = actionsWrap.createEl('button', {
-                cls: `pos-digest-action-btn ${summary.status === 'digested' ? 'is-secondary' : 'mod-cta'}`,
-                text: summary.status === 'digested' ? '↺ Re-digest Day' : '⚡ Digest Day'
+                cls: `pos-digest-action-btn ${summary.status === 'digested' ? 'is-secondary' : 'mod-cta'}`
             });
+            const digestIcon = digestBtn.createSpan({ cls: 'pos-btn-icon' });
+            setIcon(digestIcon, summary.status === 'digested' ? 'rotate-ccw' : 'sparkles');
+            digestBtn.createSpan({ text: summary.status === 'digested' ? ' Re-digest Day' : ' Digest Day' });
             digestBtn.onclick = () => {
                 this.openPreFlightDigest();
             };
@@ -324,7 +334,10 @@ export class CalendarDigestView extends ItemView {
             }
 
             const cardActions = cardFooter.createDiv({ cls: 'pos-card-actions' });
-            const viewFileBtn = cardActions.createEl('button', { cls: 'pos-card-btn', text: 'Open Note ↗' });
+            const viewFileBtn = cardActions.createEl('button', { cls: 'pos-card-btn', attr: { 'aria-label': 'Open note' } });
+            viewFileBtn.createSpan({ text: 'Open Note ' });
+            const jumpIcon = viewFileBtn.createSpan({ cls: 'pos-btn-icon' });
+            setIcon(jumpIcon, 'arrow-up-right');
             viewFileBtn.onclick = () => {
                 const file = this.app.vault.getAbstractFileByPath(entry.filePath);
                 if (file) {

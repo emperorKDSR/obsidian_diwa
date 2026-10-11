@@ -1,6 +1,62 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Muted Red Overdue Outlines & Notes Tag Muting Deployed
+## Current State: Digest and Gawa Views Monochrome & Architectural Unification Deployed
+- **Calendar Digest View Theme Alignment (`src/views/CalendarDigestView.ts` & `styles.css`)**:
+  - Replaced colorful emojis in mobile tab switches (`📅 Calendar`, `📝 Stream`), horizons (`📅 Today`, `⏪ Yesterday`), and digest actions (`↺ Re-digest Day`, `⚡ Digest Day`) with crisp Lucide vector SVG icons (`calendar`, `file-text`, `rewind`, `rotate-ccw`, `sparkles`, `arrow-up-right`).
+  - Added mid-heavy 2px architectural divider below `.pos-digest-header` (`border-bottom: 2px solid var(--background-modifier-border)`) on `var(--background-primary)`.
+  - Harmonized stage status pills, buttons (`.pos-digest-action-btn`, `.pos-undigest-btn`), and date pills to the muted cockpit standard without bright accent saturations.
+  - Softened digested block indicators and stage cards to subtle borders and backgrounds.
+- **Gawa Task Cockpit Theme Alignment (`styles.css`)**:
+  - Added mid-heavy 2px architectural divider below `.pos-gawa-header` (`border-bottom: 2px solid var(--background-modifier-border)`) on `var(--background-primary)`.
+  - Replaced loud accent backgrounds on active filter chips (`.pos-gawa-chip.is-active`), view buttons, and inspector save buttons with understated muted hover styles (`background: var(--background-modifier-hover); color: var(--text-normal); border: 1px solid var(--text-muted);`).
+  - Softened checkboxes (`accent-color: var(--text-faint); filter: grayscale(1) opacity(0.6)`).
+  - Outlined overdue dates (`.date-overdue`) with subtle muted red (`rgba(239, 68, 68, 0.32)` border, `rgba(239, 68, 68, 0.04)` background, `rgba(239, 68, 68, 0.85)` text).
+  - Muted wikilinks (`color: var(--text-muted); border-bottom: 1px dotted var(--background-modifier-border)`) and inline tags.
+- **Production Build & Vault Deployment**:
+  - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
+  - Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Agenda Rail Due Date Explicit "Due:" Prefix Deployed
+- **Explicit "Due:" Prefix in Agenda Panel (`DesktopHubView.ts`)**:
+  - Updated `renderRailTaskRow()` to render due date badges as `[ 📅 Due: <date> ]` instead of raw dates.
+  - Automatically applies across all sections in the Agenda panel:
+    - **Horizon Tab**: Overdue Tasks (`[ 📅 Due: YYYY-MM-DD ]`), Today's Tasks, and Tomorrow's Tasks.
+    - **Tasks Tab**: All, Overdue, Today, and Upcoming task lists.
+- **Production Build & Vault Deployment**:
+  - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
+  - Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Tasks Filter Consolidated into Unified View Dropdown
+- **Unified Filter Dropdown Integration (`DesktopHubView.ts`)**:
+  - Moved the **Tasks** filter directly into the `[ All Notes ▾ ]` dropdown menu alongside `All Notes` (showing vector `check-square` Lucide SVG and active `openTaskCount` count badge).
+  - When Tasks is selected, the header button automatically reflects the active state: `[ ☑️ Tasks ▾ ]` with active styling.
+  - Selecting any other view (`All Notes`, `Important`, `Today`, `Upcoming`, `Untagged`, or life area) cleanly switches the stream and clears the task-only restriction.
+  - Eliminated the standalone `[ ☑️ Tasks (N) ]` header button, yielding a minimal, distraction-free top header bar:
+    `[ 🔍 Search / ]   [ 🎛️ All Notes ▾ ]   [ ◨ Agenda ]   [ ⋯ ]`
+- **Production Build & Vault Deployment**:
+  - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
+  - Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Day Stream Divider Line Visibility Restored & Left Pane Anchored
+- **Day Stream Divider Line Visibility (`styles.css`)**:
+  - Restored `.pos-date-line` from invisible `background: var(--text-faint); opacity: 0.25;` to Obsidian's standard architectural border: `background: var(--background-modifier-border); display: block; height: 1px;`.
+  - Set `.pos-date-divider` to `width: 100%; max-width: 100%;` across base and cockpit main stage layouts, allowing the horizontal divider line to span cleanly all the way across to the right edge of the stage (resizer boundary), creating a distinct architectural day separator (`TODAY [ 2 ] ─────────────────`).
+- **Left-Anchored Stream & Capture Layout (`styles.css`)**:
+  - Replaced all horizontal auto centering (`margin: 0 auto;`) across the left pane / main stage with left-anchored margins:
+    - `.pos-cockpit-composer-wrapper .pos-composer-compact, .pos-cockpit-composer-wrapper .pos-desktop-composer`: `margin: 0;`
+    - `.pos-cockpit-main-stage .pos-document-stream .pos-date-divider`: `margin: 32px 0 10px 0;`
+    - `.pos-cockpit-main-stage .pos-document-stream .pos-note-stream-item`: `margin: 0 0 2px 0;`
+    - `.pos-cockpit-main-stage .pos-selection-bar`: `margin: 0;`
+    - `.pos-cockpit-main-stage .pos-filter-carousel`: `margin: 0;`
+    - `.pos-cockpit-main-stage .pos-document-stream .pos-empty-state`: `margin: 32px 0 0 0; text-align: left; align-items: flex-start; padding: 32px 8px;`
+    - Base `.pos-date-divider` and `.pos-note-stream-item`, plus tablet responsive rules: `margin: 14px 0 6px 0 !important;` and `margin: 0 0 2px 0;`.
+  - Preserved optimal line length reading comfort (`max-width: var(--diwa-stream-max-width, 820px)` for notes), anchored solidly to the left gutter padding (`padding-left: 24px`).
+  - **Result**: The left edge of all notes, capture box, date dividers, and indicators remains completely stationary when the Obsidian window is resized, eliminating horizontal shifting.
+- **Production Build & Vault Deployment**:
+  - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
+  - Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Muted Red Overdue Outlines & Notes Tag Muting Deployed
 - **Subtle Muted Red Outlines for Overdue Items (`styles.css` & `DesktopHubView.ts`)**:
   - Outlined the Horizon "Overdue Tasks" Card (`.pos-rail-overdue-box`) with a refined muted red border (`border: 1px solid rgba(239, 68, 68, 0.32); background: rgba(239, 68, 68, 0.04);`), pairing with soft red header typography and alert icon (`color: rgba(239, 68, 68, 0.85);`).
   - Added `is-overdue` class to overdue task rows in `renderRailTaskRow()` (`.pos-rail-task-item.is-overdue`), applying a matching subtle muted red border (`border-color: rgba(239, 68, 68, 0.32); background: rgba(239, 68, 68, 0.03);`) across both Horizon and the Tasks rail tab.

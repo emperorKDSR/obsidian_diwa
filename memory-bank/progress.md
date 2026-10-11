@@ -1,6 +1,19 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Agenda Rail Subtle Overdue Accents & Muted Note Tags (Complete)
+## Current Phase: Digest and Gawa Views Monochrome & Architectural Unification (Complete)
+
+---
+
+### 0. Digest and Gawa Views Monochrome & Architectural Unification (Complete)
+*   [x] **Calendar Digest View Theme Alignment (`src/views/CalendarDigestView.ts` & `styles.css`)** — Replaced colorful emojis in tab buttons, horizons, and actions with Lucide vector icons (`calendar`, `file-text`, `rewind`, `rotate-ccw`, `sparkles`, `arrow-up-right`). Added mid-heavy 2px architectural border below header. Muted status badges, stage cards, and action buttons to align with the DIWA cockpit aesthetic.
+*   [x] **Gawa Task Cockpit Theme Alignment (`styles.css`)** — Added mid-heavy 2px architectural border below `.pos-gawa-header`. Replaced high-saturation accent backgrounds on active filter chips and buttons with muted hover styles (`var(--background-modifier-hover)` with `var(--text-muted)` border). Muted checkboxes, wikilinks, and tags. Aligned overdue dates with the subtle muted red outline pattern (`rgba(239, 68, 68, 0.32)`).
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+---
+
+### 0. Agenda Rail Explicit "Due:" Prefix for Due Dates (Complete)
+*   [x] **Explicit "Due:" Prefix in Agenda Tasks (`DesktopHubView.ts`)** — Updated `renderRailTaskRow()` to render due date badges as `[ 📅 Due: <date> ]`. Automatically applies across Horizon (Overdue, Today, Tomorrow) and Tasks (All, Overdue, Today, Upcoming) sections.
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

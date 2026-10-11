@@ -1124,9 +1124,9 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 32px auto 10px auto;
+    margin: 32px 0 10px 0;
     width: 100%;
-    max-width: var(--diwa-stream-max-width, 820px);
+    max-width: 100%;
     padding: 0 8px;
     box-sizing: border-box;
 }
@@ -1166,8 +1166,7 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
 .pos-date-line {
     flex: 1;
     height: 1px;
-    background: var(--text-faint);
-    opacity: 0.25;
+    background: var(--background-modifier-border);
     display: block;
 }
 
@@ -1175,7 +1174,7 @@ body:not(.diwa-hide-mobile-navbar) .pos-mobile-sticky-composer {
 .pos-note-stream-item {
     width: 100%;
     max-width: var(--diwa-stream-max-width, 820px);
-    margin: 0 auto 2px auto;
+    margin: 0 0 2px 0;
     background: transparent;
     border: 1px solid transparent;
     border-radius: var(--diwa-radius-sm, 6px);
@@ -2172,7 +2171,7 @@ body.is-tablet .pos-cockpit-main-stage .pos-document-stream,
 
 body.is-tablet .pos-cockpit-main-stage .pos-document-stream .pos-date-divider,
 .pos-desktop-cockpit-layout.is-tablet .pos-cockpit-main-stage .pos-document-stream .pos-date-divider {
-    margin: 14px auto 6px auto !important;
+    margin: 14px 0 6px 0 !important;
     padding: 0 4px;
     font-size: 0.58em;
 }
@@ -2184,7 +2183,7 @@ body.is-tablet .pos-cockpit-main-stage .pos-document-stream .pos-date-divider:fi
 
 body.is-tablet .pos-cockpit-main-stage .pos-document-stream .pos-note-stream-item,
 .pos-desktop-cockpit-layout.is-tablet .pos-cockpit-main-stage .pos-document-stream .pos-note-stream-item {
-    margin: 0 auto 2px auto;
+    margin: 0 0 2px 0;
     padding: 3px 6px;
 }
 
@@ -2878,7 +2877,8 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     flex-wrap: wrap;
     gap: 12px;
     padding-bottom: 12px;
-    border-bottom: 1px solid var(--background-modifier-border);
+    border-bottom: 2px solid var(--background-modifier-border);
+    background: var(--background-primary);
 }
 
 .pos-gawa-header-left {
@@ -2890,9 +2890,15 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 .pos-gawa-logo {
     display: flex;
     align-items: center;
-    color: var(--interactive-accent);
+    color: var(--text-muted);
     width: 22px;
     height: 22px;
+}
+
+.pos-gawa-logo svg {
+    color: var(--text-muted);
+    stroke: currentColor;
+    stroke-width: 2px;
 }
 
 .pos-gawa-title {
@@ -2938,9 +2944,9 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 
 .pos-gawa-search-input:focus {
     outline: none;
-    border-color: var(--interactive-accent);
+    border-color: var(--text-muted);
     width: 260px;
-    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.15);
+    box-shadow: none;
 }
 
 .pos-gawa-area-select {
@@ -3009,9 +3015,9 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-chip.is-active {
-    background: var(--interactive-accent);
-    color: var(--text-on-accent);
-    border-color: var(--interactive-accent);
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border-color: var(--text-muted);
     font-weight: 600;
 }
 
@@ -3024,8 +3030,9 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-chip.is-active .chip-count {
-    background: rgba(255, 255, 255, 0.25);
-    color: var(--text-on-accent);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border-faint);
 }
 
 /* ── Main Stage (Table + Inspector) ── */
@@ -3106,7 +3113,7 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-row.is-selected {
-    background: rgba(var(--accent-rgb), 0.08);
+    background: var(--background-modifier-hover);
 }
 
 .pos-gawa-row.is-completed {
@@ -3148,16 +3155,24 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-table .td-title .task-title-markdown a.internal-link {
-    color: var(--text-accent);
-    text-decoration: underline;
+    color: var(--text-muted);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--background-modifier-border);
     cursor: pointer;
     font-weight: 500;
 }
 
+.pos-gawa-table .td-title .task-title-markdown a.internal-link:hover {
+    color: var(--text-normal);
+    border-bottom-color: var(--text-normal);
+}
+
 .pos-gawa-checkbox {
     cursor: pointer;
-    width: 16px;
-    height: 16px;
+    width: 15px;
+    height: 15px;
+    accent-color: var(--text-faint, rgba(255, 255, 255, 0.35));
+    filter: grayscale(1) opacity(0.6);
 }
 
 .pos-gawa-tags-wrap {
@@ -3166,11 +3181,18 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-inline-tag {
-    font-size: 0.74rem;
-    color: var(--text-accent);
-    background: rgba(var(--accent-rgb), 0.08);
-    padding: 1px 6px;
-    border-radius: 4px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    background: var(--background-secondary-alt);
+    border: 1px solid var(--background-modifier-border-faint);
+    padding: 1px 5px;
+    border-radius: 3px;
+    transition: var(--diwa-transition);
+}
+
+.pos-gawa-inline-tag:hover {
+    color: var(--text-normal);
+    border-color: var(--background-modifier-border);
 }
 
 .pos-gawa-subtask-progress-pill {
@@ -3179,58 +3201,59 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     padding: 1px 7px;
     border-radius: var(--diwa-radius-pill);
     font-size: 0.73rem;
-    font-weight: 600;
-    background: rgba(var(--accent-rgb), 0.1);
-    color: var(--text-accent);
-    border: 1px solid rgba(var(--accent-rgb), 0.25);
+    font-weight: 500;
+    background: var(--background-secondary-alt);
+    color: var(--text-muted);
+    border: 1px solid var(--background-modifier-border);
     cursor: pointer;
     white-space: nowrap;
     transition: var(--diwa-transition);
 }
 
 .pos-gawa-subtask-progress-pill:hover {
-    background: rgba(var(--accent-rgb), 0.2);
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
 }
 
 .pos-gawa-subtask-progress-pill.is-all-done {
-    background: rgba(39, 174, 96, 0.12);
-    color: #27ae60;
-    border-color: rgba(39, 174, 96, 0.3);
+    background: rgba(34, 197, 94, 0.08);
+    color: rgba(34, 197, 94, 0.85);
+    border-color: rgba(34, 197, 94, 0.25);
 }
 
 /* ── Date Pills ── */
 .pos-gawa-date-pill {
     display: inline-flex;
     align-items: center;
-    padding: 3px 8px;
+    padding: 2px 7px;
     border-radius: var(--diwa-radius-pill);
-    font-size: 0.78rem;
-    font-weight: 600;
+    font-size: 0.74rem;
+    font-weight: 500;
     white-space: nowrap;
 }
 
 .pos-gawa-date-pill.date-overdue {
-    background: rgba(235, 87, 87, 0.15);
-    color: #eb5757;
-    border: 1px solid rgba(235, 87, 87, 0.3);
+    background: rgba(239, 68, 68, 0.04);
+    color: rgba(239, 68, 68, 0.85);
+    border: 1px solid rgba(239, 68, 68, 0.32);
 }
 
 .pos-gawa-date-pill.date-today {
-    background: rgba(242, 153, 74, 0.15);
-    color: #f2994a;
-    border: 1px solid rgba(242, 153, 74, 0.3);
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
 }
 
 .pos-gawa-date-pill.date-tomorrow {
-    background: rgba(39, 174, 96, 0.15);
-    color: #27ae60;
-    border: 1px solid rgba(39, 174, 96, 0.3);
+    background: var(--background-secondary-alt);
+    color: var(--text-muted);
+    border: 1px solid var(--background-modifier-border-faint);
 }
 
 .pos-gawa-date-pill.date-upcoming {
     background: var(--background-secondary-alt);
-    color: var(--text-normal);
-    border: 1px solid var(--background-modifier-border);
+    color: var(--text-muted);
+    border: 1px solid var(--background-modifier-border-faint);
 }
 
 .pos-gawa-table .date-none,
@@ -3788,9 +3811,9 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-add-comment-btn:hover {
-    background: var(--interactive-accent);
-    color: var(--text-on-accent);
-    border-color: var(--interactive-accent);
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border-color: var(--text-muted);
 }
 
 .pos-gawa-insp-meta {
@@ -3808,19 +3831,20 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-save-btn {
-    background: var(--interactive-accent);
-    color: var(--text-on-accent);
-    border: none;
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border: 1px solid var(--text-muted);
     border-radius: var(--diwa-radius-sm);
-    padding: 8px 16px;
+    padding: 7px 16px;
     font-weight: 600;
-    font-size: 0.88rem;
+    font-size: 0.85rem;
     cursor: pointer;
     transition: var(--diwa-transition);
 }
 
 .pos-gawa-save-btn:hover {
-    opacity: 0.9;
+    background: var(--background-modifier-border);
+    color: var(--text-normal);
 }
 
 /* ── Gawa Inspector Mobile Backdrop ── */
@@ -4059,9 +4083,9 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 20px;
-    border-bottom: 1px solid var(--background-modifier-border);
-    background: var(--background-secondary);
+    padding: 14px 20px 10px 20px;
+    border-bottom: 2px solid var(--background-modifier-border);
+    background: var(--background-primary);
 }
 
 .pos-digest-title-wrap {
@@ -4073,7 +4097,13 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 .pos-digest-icon {
     display: flex;
     align-items: center;
-    color: var(--interactive-accent);
+    color: var(--text-muted);
+}
+
+.pos-digest-icon svg {
+    color: var(--text-muted);
+    stroke: currentColor;
+    stroke-width: 2px;
 }
 
 .pos-digest-title {
@@ -4325,57 +4355,78 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-stage-status-pill {
-    font-size: 0.78rem;
-    padding: 3px 10px;
+    font-size: 0.74rem;
+    padding: 2px 8px;
     border-radius: var(--diwa-radius-pill);
     font-weight: 500;
-    background: var(--background-secondary);
+    background: var(--background-secondary-alt);
     color: var(--text-muted);
-    border: 1px solid var(--background-modifier-border);
+    border: 1px solid var(--background-modifier-border-faint);
 }
 
 .pos-stage-status-pill.status-digested {
-    background: rgba(39, 174, 96, 0.12);
-    color: var(--text-success, #27ae60);
-    border-color: rgba(39, 174, 96, 0.3);
+    background: rgba(34, 197, 94, 0.08);
+    color: rgba(34, 197, 94, 0.85);
+    border-color: rgba(34, 197, 94, 0.25);
 }
 
 .pos-stage-status-pill.status-partial {
-    background: rgba(242, 153, 74, 0.12);
-    color: #f2994a;
-    border-color: rgba(242, 153, 74, 0.3);
+    background: rgba(245, 158, 11, 0.08);
+    color: rgba(245, 158, 11, 0.85);
+    border-color: rgba(245, 158, 11, 0.25);
 }
 
 .pos-stage-status-pill.status-raw {
-    background: rgba(226, 185, 59, 0.12);
-    color: #b78a00;
-    border-color: rgba(226, 185, 59, 0.3);
+    background: var(--background-secondary-alt);
+    color: var(--text-muted);
+    border-color: var(--background-modifier-border);
 }
 
 .pos-stage-actions {
     display: flex;
-    gap: 10px;
+    gap: 8px;
 }
 
 .pos-digest-action-btn {
     font-weight: 600;
-    padding: 6px 16px;
-    border-radius: var(--diwa-radius-sm);
+    padding: 6px 14px;
+    border-radius: var(--diwa-radius-pill);
     cursor: pointer;
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border: 1px solid var(--text-muted);
+    font-size: 0.82rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--diwa-transition);
+}
+
+.pos-digest-action-btn:hover {
+    background: var(--background-modifier-border);
+}
+
+.pos-digest-action-btn .pos-btn-icon svg {
+    width: 14px;
+    height: 14px;
+    color: var(--text-muted);
+    stroke: currentColor;
 }
 
 .pos-undigest-btn {
-    background: none;
+    background: transparent;
     border: 1px solid var(--background-modifier-border);
     color: var(--text-muted);
     font-size: 0.8rem;
-    border-radius: var(--diwa-radius-sm);
+    border-radius: var(--diwa-radius-pill);
     cursor: pointer;
     padding: 6px 12px;
+    transition: var(--diwa-transition);
 }
 
 .pos-undigest-btn:hover {
     color: var(--text-normal);
+    background: var(--background-modifier-hover);
     border-color: var(--text-muted);
 }
 
@@ -4384,24 +4435,28 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     padding: 20px 24px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
     max-width: 820px;
 }
 
 .pos-digest-card {
-    background: var(--background-secondary);
+    background: var(--background-secondary-alt);
     border: 1px solid var(--background-modifier-border);
-    border-radius: var(--diwa-radius-md);
-    padding: 14px 18px;
+    border-radius: var(--diwa-radius-sm, 6px);
+    padding: 12px 16px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     transition: border-color 0.15s ease;
 }
 
+.pos-digest-card:hover {
+    border-color: var(--background-modifier-border-hover, var(--text-muted));
+}
+
 .pos-digest-card.is-digested {
-    opacity: 0.82;
-    border-left: 3px solid var(--text-success, #27ae60);
+    opacity: 0.85;
+    border-left: 2px solid rgba(34, 197, 94, 0.6);
 }
 
 .pos-card-meta {
@@ -4417,19 +4472,21 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-card-area-badge {
-    padding: 2px 6px;
-    border-radius: var(--diwa-radius-sm);
+    padding: 1px 5px;
+    border-radius: 3px;
     background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border-faint);
+    color: var(--text-muted);
     font-size: 0.7rem;
     letter-spacing: 0.04em;
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .pos-card-digested-badge {
     display: flex;
     align-items: center;
     gap: 4px;
-    color: var(--text-success, #27ae60);
+    color: rgba(34, 197, 94, 0.85);
     font-weight: 500;
     margin-left: auto;
 }
@@ -4542,8 +4599,9 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-preflight-pill.is-task {
-    background: rgba(var(--interactive-accent-rgb), 0.15);
-    color: var(--interactive-accent);
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
 }
 
 .pos-preflight-pill.is-log {
@@ -4625,13 +4683,14 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-pill-btn:hover {
-    border-color: var(--interactive-accent);
+    border-color: var(--text-muted);
+    background: var(--background-modifier-hover);
 }
 
 .pos-pill-btn.is-active {
-    background: var(--interactive-accent);
-    color: var(--text-on-accent);
-    border-color: var(--interactive-accent);
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border-color: var(--text-muted);
     font-weight: 600;
 }
 
@@ -4640,7 +4699,7 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-pill-btn.is-action {
-    color: var(--interactive-accent);
+    color: var(--text-normal);
 }
 
 .pos-preflight-actions {
@@ -5407,7 +5466,7 @@ body.is-resizing-cockpit {
 .pos-cockpit-main-stage .pos-filter-carousel {
     width: 100%;
     max-width: var(--diwa-stream-max-width, 820px);
-    margin: 0 auto;
+    margin: 0;
     padding: 0 12px 4px 12px;
     box-sizing: border-box;
 }
@@ -5421,7 +5480,7 @@ body.is-resizing-cockpit {
 .pos-cockpit-main-stage .pos-selection-bar {
     width: 100%;
     max-width: var(--diwa-stream-max-width, 820px);
-    margin: 0 auto;
+    margin: 0;
     box-sizing: border-box;
 }
 
@@ -5437,7 +5496,7 @@ body.is-resizing-cockpit {
 .pos-cockpit-composer-wrapper .pos-desktop-composer {
     width: 100%;
     max-width: var(--diwa-stream-max-width, 820px);
-    margin: 0 auto;
+    margin: 0;
     box-sizing: border-box;
 }
 
@@ -5455,8 +5514,8 @@ body.is-resizing-cockpit {
     align-items: center;
     gap: 10px;
     width: 100%;
-    max-width: var(--diwa-stream-max-width, 820px);
-    margin: 32px auto 10px auto;
+    max-width: 100%;
+    margin: 32px 0 10px 0;
     padding: 0 8px;
     box-sizing: border-box;
 }
@@ -5468,9 +5527,17 @@ body.is-resizing-cockpit {
 .pos-cockpit-main-stage .pos-document-stream .pos-note-stream-item {
     width: 100%;
     max-width: var(--diwa-stream-max-width, 820px);
-    margin: 0 auto 2px auto;
+    margin: 0 0 2px 0;
     padding: 5px 8px;
     box-sizing: border-box;
+}
+
+.pos-cockpit-main-stage .pos-document-stream .pos-empty-state {
+    max-width: var(--diwa-stream-max-width, 820px);
+    margin: 32px 0 0 0;
+    align-items: flex-start;
+    text-align: left;
+    padding: 32px 8px;
 }
 
 /* Center Resizer Divider */

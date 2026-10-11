@@ -915,7 +915,7 @@ export class DesktopHubView extends ItemView {
             const datePill = metaRow.createSpan({ cls: `pos-rail-meta-pill ${pillCls}` });
             const calIcon = datePill.createSpan({ cls: 'pos-btn-icon' });
             setIcon(calIcon, 'calendar');
-            datePill.createSpan({ text: ` ${task.dueDate}` });
+            datePill.createSpan({ text: ` Due: ${task.dueDate}` });
         }
 
         // Jump to source button
@@ -1147,9 +1147,11 @@ export class DesktopHubView extends ItemView {
                 };
             }
 
-            // 2. Unified Filter Dropdown Pill (All Notes + Life Areas + Today/Upcoming/Important/Untagged)
+            // 2. Unified Filter Dropdown Pill (All Notes + Tasks + Life Areas + Today/Upcoming/Important/Untagged)
             let filterLabel = 'All Notes';
-            if (this._activeFilter === 'important') {
+            if (this._activeFilter === 'tasks_only') {
+                filterLabel = 'Tasks';
+            } else if (this._activeFilter === 'important') {
                 filterLabel = 'Important';
             } else if (this._activeFilter === 'today') {
                 filterLabel = 'Today';
@@ -1157,7 +1159,7 @@ export class DesktopHubView extends ItemView {
                 filterLabel = 'Upcoming';
             } else if (this._activeFilter === 'untagged') {
                 filterLabel = 'Untagged';
-            } else if (this._activeFilter !== 'all' && this._activeFilter !== 'tasks_only') {
+            } else if (this._activeFilter !== 'all') {
                 const areas = this.plugin.settings.lifeAreas || [];
                 const matchedArea = areas.find(a => a.id.toLowerCase() === this._activeFilter.toLowerCase());
                 if (matchedArea) {
@@ -1172,13 +1174,15 @@ export class DesktopHubView extends ItemView {
                 attr: { 'aria-label': 'Filter by view or life area' }
             });
             const filterIconWrap = filterBtn.createSpan({ cls: 'pos-btn-icon' });
-            if (this._activeFilter === 'important') {
+            if (this._activeFilter === 'tasks_only') {
+                setIcon(filterIconWrap, 'check-square');
+            } else if (this._activeFilter === 'important') {
                 setIcon(filterIconWrap, 'star');
             } else if (this._activeFilter === 'today' || this._activeFilter === 'upcoming') {
                 setIcon(filterIconWrap, 'calendar');
             } else if (this._activeFilter === 'untagged') {
                 setIcon(filterIconWrap, 'file-text');
-            } else if (this._activeFilter !== 'all' && this._activeFilter !== 'tasks_only') {
+            } else if (this._activeFilter !== 'all') {
                 const areas = this.plugin.settings.lifeAreas || [];
                 const matchedArea = areas.find(a => a.id.toLowerCase() === this._activeFilter.toLowerCase());
                 if (matchedArea?.icon) {
@@ -1200,6 +1204,20 @@ export class DesktopHubView extends ItemView {
                         .setChecked(this._activeFilter === 'all')
                         .onClick(() => {
                             this._activeFilter = 'all';
+                            this._filterTasksOnly = false;
+                            this._renderedCount = BATCH_SIZE;
+                            this.renderHeaderBar(header);
+                            this.updateStreamOnly();
+                        });
+                });
+
+                const openTaskCount = this.plugin.index?.getOpenTaskCount() || 0;
+                menu.addItem(item => {
+                    item.setTitle(this.createMutedMenuItemTitle('Tasks', 'check-square', openTaskCount))
+                        .setChecked(this._activeFilter === 'tasks_only')
+                        .onClick(() => {
+                            this._activeFilter = 'tasks_only';
+                            this._filterTasksOnly = true;
                             this._renderedCount = BATCH_SIZE;
                             this.renderHeaderBar(header);
                             this.updateStreamOnly();
@@ -1214,6 +1232,7 @@ export class DesktopHubView extends ItemView {
                         .setChecked(this._activeFilter === 'important')
                         .onClick(() => {
                             this._activeFilter = 'important';
+                            this._filterTasksOnly = false;
                             this._renderedCount = BATCH_SIZE;
                             this.renderHeaderBar(header);
                             this.updateStreamOnly();
@@ -1226,6 +1245,7 @@ export class DesktopHubView extends ItemView {
                         .setChecked(this._activeFilter === 'today')
                         .onClick(() => {
                             this._activeFilter = 'today';
+                            this._filterTasksOnly = false;
                             this._renderedCount = BATCH_SIZE;
                             this.renderHeaderBar(header);
                             this.updateStreamOnly();
@@ -1238,6 +1258,7 @@ export class DesktopHubView extends ItemView {
                         .setChecked(this._activeFilter === 'upcoming')
                         .onClick(() => {
                             this._activeFilter = 'upcoming';
+                            this._filterTasksOnly = false;
                             this._renderedCount = BATCH_SIZE;
                             this.renderHeaderBar(header);
                             this.updateStreamOnly();
@@ -1251,6 +1272,7 @@ export class DesktopHubView extends ItemView {
                             .setChecked(this._activeFilter === 'untagged')
                             .onClick(() => {
                                 this._activeFilter = 'untagged';
+                                this._filterTasksOnly = false;
                                 this._renderedCount = BATCH_SIZE;
                                 this.renderHeaderBar(header);
                                 this.updateStreamOnly();
@@ -1269,6 +1291,7 @@ export class DesktopHubView extends ItemView {
                                 .setChecked(this._activeFilter.toLowerCase() === area.id.toLowerCase())
                                 .onClick(() => {
                                     this._activeFilter = area.id;
+                                    this._filterTasksOnly = false;
                                     this._renderedCount = BATCH_SIZE;
                                     this.renderHeaderBar(header);
                                     this.updateStreamOnly();
@@ -1280,23 +1303,7 @@ export class DesktopHubView extends ItemView {
                 menu.showAtMouseEvent(e);
             };
 
-            // 3. Open Tasks Filter Pill
-            const openTaskCount = this.plugin.index?.getOpenTaskCount() || 0;
-            const tasksBtn = actions.createEl('button', {
-                cls: `pos-header-text-btn pos-tasks-toggle-btn ${this._filterTasksOnly ? 'is-active' : ''}`,
-                attr: { 'aria-label': 'Filter stream to open tasks only' }
-            });
-            const taskIconWrap = tasksBtn.createSpan({ cls: 'pos-btn-icon' });
-            setIcon(taskIconWrap, 'check-square');
-            tasksBtn.createSpan({ text: ` Tasks (${openTaskCount})` });
-            tasksBtn.onclick = () => {
-                this._filterTasksOnly = !this._filterTasksOnly;
-                this._renderedCount = BATCH_SIZE;
-                this.renderHeaderBar(header);
-                this.updateStreamOnly();
-            };
-
-            // 4. Right Rail Toggle Button
+            // 3. Right Rail Toggle Button
             const railToggleBtn = actions.createEl('button', {
                 cls: `pos-header-text-btn pos-rail-toggle-btn ${this._cockpitRailOpen ? 'is-active' : ''}`,
                 attr: { 'aria-label': 'Toggle Agenda panel (\\)' }
@@ -1347,8 +1354,9 @@ export class DesktopHubView extends ItemView {
                 });
 
                 // 3. Open Gawa Task Cockpit in Split
+                const gawaTaskCount = this.plugin.index?.getOpenTaskCount() || 0;
                 menu.addItem((item) => {
-                    item.setTitle(`Open Gawa Task Cockpit (${openTaskCount})`)
+                    item.setTitle(`Open Gawa Task Cockpit (${gawaTaskCount})`)
                         .setIcon('list-todo')
                         .onClick(() => {
                             void this.plugin.activateGawaCockpit();
