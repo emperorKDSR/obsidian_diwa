@@ -1,11 +1,12 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Option B Smart Date Isolation for Horizon (Agenda Rail)
+## Current State: Option B Smart Date Isolation & Bugfix for Digested Tasks in Horizon
 - **Option B Smart Date Isolation (`IndexService.ts`)**:
   - Implemented `stripDigestMetadata(text: string): string` to strip auto-generated digest headers (`#### [[YYYY-MM-DD]] HH:mm`), block anchors (`^dw-...`), and comment wrappers (`diwa-digest:`, `diwa-digested:`).
   - In `getVaultNoteBlocksForDate(dateStr)`:
     - **Digest Timestamp Disregarded**: Auto-stamped digest timestamps (`#### [[today]] HH:mm`) are stripped before matching, preventing target notes from cluttering today's Horizon simply because they received a digest today.
     - **Intentional Body Dates Preserved**: If the actual note body contains a future target date (e.g. `Client demo [[tomorrow]]`), `stripDigestMetadata` retains it, and the note **will appear** under that future date in the Horizon agenda rail!
+    - **Checklist & Completed Task Exclusion**: Applied checklist regex (`/^[ \t]*-[ \t]+\[[ xX]\]/m`) *after* stripping digest metadata, ensuring digested tasks (such as completed tasks archived under `## Log`) are never misclassified as note blocks or displayed in the Horizon.
     - **Clean Display Snippets**: When rendered in Horizon cards, snippets display the clean note content with technical digest headers/anchors stripped.
     - **No Duplicates**: Digested stream notes (`entry.digested: true`) in `captureIndex` are skipped because their content lives authoritatively in their permanent destination notes.
 - **1 Note = 1 Digestible Block Logic (`CaptureService.ts`)**:

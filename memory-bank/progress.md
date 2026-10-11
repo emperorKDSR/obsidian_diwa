@@ -1,6 +1,17 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Option B Smart Date Isolation for Horizon (Complete)
+## Current Phase: Option B Smart Date Isolation & Bugfix for Digested Tasks in Horizon (Complete)
+
+---
+
+### 0. Option B Smart Date Isolation & Bugfix for Digested Tasks in Horizon (Complete)
+*   [x] **Digest Metadata Stripping (`IndexService.ts`)** — Implemented `stripDigestMetadata(text: string): string` to remove auto-generated digest headers (`#### [[YYYY-MM-DD]] HH:mm`), anchors (`^dw-...`), and comment wrappers while leaving actual note body text intact.
+*   [x] **Smart Date Evaluation in Horizon (`IndexService.ts`)** — In `getVaultNoteBlocksForDate`:
+    - Auto-generated digest timestamp headings (e.g. `#### [[today]] HH:mm`) are stripped prior to date matching, preventing digested target notes from cluttering today's Horizon simply because they were digested today.
+    - If the intentional note body explicitly contains a future date (e.g. `Client kickoff [[tomorrow]]`), it matches that future date and **will display** under that date's Horizon section.
+    - Checklist items (whether open `- [ ]` or completed `- [x]`) are filtered on `cleanText` *after* stripping digest headers, guaranteeing completed tasks are never misclassified as note blocks.
+    - Rendered snippets display the clean note content with technical digest headings and anchors removed.
+*   [x] **Unit Tests & Production Deployment** — Added tests in `tests/digestionBlocks.test.ts` for `stripDigestMetadata` on digested tasks. Passed `npm test` (15/15 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

@@ -1187,7 +1187,7 @@ export class IndexService {
                 const trimmed = snippet.trim();
                 if (!trimmed) continue;
                 // Exclude tasks (open/completed tasks are handled by getTasksForDueDate)
-                if (/^[ \t]*-[ \t]+\[[ xX]\]/.test(trimmed)) continue;
+                if (/^[ \t]*-[ \t]+\[[ xX]\]/m.test(trimmed)) continue;
 
                 const key = `${entry.filePath}::${trimmed}`;
                 if (!seenKeys.has(key)) {
@@ -1251,13 +1251,13 @@ export class IndexService {
                     const pt = p.trim();
                     if (!pt) continue;
 
-                    // Exclude checklist lines (handled by getTasksForDueDate)
-                    if (/^[ \t]*-[ \t]+\[[ xX]\]/.test(pt)) continue;
-
                     // Option B Smart Date Isolation:
                     // Strip auto-generated digest headers (#### [[YYYY-MM-DD]] HH:mm) and anchors (^dw-...)
                     const cleanText = this.stripDigestMetadata(pt);
                     if (!cleanText) continue;
+
+                    // Exclude checklist lines (handled by getTasksForDueDate; completed tasks are never shown in Horizon)
+                    if (/^[ \t]*-[ \t]+\[[ xX]\]/m.test(cleanText)) continue;
 
                     // Match if the intentional note body explicitly contains the target date
                     if (cleanText.includes(`[[${dateStr}]]`) || cleanText.includes(dateStr)) {

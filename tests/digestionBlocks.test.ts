@@ -89,3 +89,12 @@ test('IndexService.stripDigestMetadata strips digest timestamps and anchors whil
     assert.strictEqual(cleanPure, 'General reflection on sprint');
     assert.ok(!cleanPure.includes('2026-10-11'));
 });
+
+test('IndexService.stripDigestMetadata on digested task paragraph preserves task prefix so task filter catches it', () => {
+    const service = new IndexService({} as any, { ...DEFAULT_SETTINGS });
+    const digestedTask = `<!-- diwa-digest:src=note.md:idx=1 -->\n#### [[2026-10-11]] 15:55\n- [x] submit documents to [[ARC Immigration Firm]] for the company transfer [[2026-10-11]] #personal ^dw-mqyydu-b1\n<!-- diwa-digest:end -->`;
+    const clean = service.stripDigestMetadata(digestedTask);
+    assert.ok(clean.startsWith('- [x] submit documents'));
+    // Ensure task regex properly matches clean text
+    assert.strictEqual(/^[ \t]*-[ \t]+\[[ xX]\]/m.test(clean), true);
+});
