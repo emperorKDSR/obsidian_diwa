@@ -5782,3 +5782,83 @@ body.is-resizing-cockpit {
     border-color: var(--interactive-accent);
 }
 
+/* ── Confirm Delete Modal ── */
+.pos-confirm-delete-modal {
+    max-width: 400px;
+    padding: 24px 24px 20px 24px !important;
+    border-radius: var(--diwa-radius-lg, 14px);
+    background: var(--background-primary);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--background-modifier-border);
+    text-align: center;
+}
+
+.pos-confirm-delete-icon-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(var(--color-red-rgb, 239, 68, 68), 0.12);
+    color: var(--text-error, #e53935);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+
+.pos-confirm-delete-icon-wrap svg {
+    width: 22px;
+    height: 22px;
+}
+
+.pos-confirm-delete-title {
+    margin: 0 0 8px 0 !important;
+    font-size: 1.15rem !important;
+    font-weight: 650 !important;
+    color: var(--text-normal) !important;
+}
+
+.pos-confirm-delete-desc {
+    margin: 0 0 20px 0 !important;
+    font-size: 0.88rem !important;
+    color: var(--text-muted) !important;
+    line-height: 1.45 !important;
+    word-break: break-word;
+}
+
+.pos-confirm-delete-btn-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.pos-confirm-btn {
+    padding: 8px 18px;
+    border-radius: var(--diwa-radius-pill, 20px);
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--diwa-transition);
+}
+
+.pos-confirm-btn-cancel {
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-normal);
+}
+
+.pos-confirm-btn-cancel:hover {
+    background: var(--background-modifier-hover);
+}
+
+.pos-confirm-btn-delete {
+    background: var(--color-red, #e53935);
+    border: 1px solid var(--color-red, #e53935);
+    color: #ffffff;
+}
+
+.pos-confirm-btn-delete:hover {
+    opacity: 0.9;
+}
+
+

@@ -1,6 +1,14 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Full Production Hardening (Phases A-E Complete)
+## Current Phase: Agenda Rail Persistence & Stream Deletion Input Activation (Complete)
+
+---
+
+### 0. Agenda Rail Persistence & Stream Deletion Input Activation (Complete)
+*   [x] **Multi-Tab Agenda Rail Persistence (`DesktopHubView.ts`)** — Added zero-dimension guard `if (width <= 0) return;` in `setupResizeObserver()`, preventing backgrounded/transitioning Obsidian tabs from collapsing the Agenda panel. Eliminated auto-collapse overrides on resize, ensuring the Agenda rail persists according to user intent.
+*   [x] **Non-Blocking ConfirmDeleteModal (`src/modals/ConfirmDeleteModal.ts` & `styles.css`)** — Replaced native blocking `window.confirm()` calls with a dedicated Obsidian modal, preventing WebKit and Electron from dropping window focus and keyboard input activation.
+*   [x] **Stream Deletion Input Activation Hardening (`DesktopHubView.ts`)** — Unified note deletion in `promptDeleteNote()`: clears any stale `_editingEntryId`, updates composer visibility, and re-mounts the capture composer. Added `tabindex="0"`, `role="button"`, and keyboard triggers (Enter/Space) to `pos-composer-compact`.
+*   [x] **Zero Build Errors & Production Deployment** — Passed `npm run build` cleanly; deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

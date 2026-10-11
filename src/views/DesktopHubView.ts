@@ -7,6 +7,7 @@ import { DatePickerModal } from '../modals/DatePickerModal';
 import { WikilinkPeekModal } from '../modals/WikilinkPeekModal';
 import { MobileFilterSheetModal } from '../modals/MobileFilterSheetModal';
 import { RecentPermanentNotesModal } from '../modals/RecentPermanentNotesModal';
+import { ConfirmDeleteModal } from '../modals/ConfirmDeleteModal';
 import { isTablet, attachInlineTriggers, attachMediaPasteHandler } from '../utils';
 import { attachMobileSheetViewportBehavior } from '../utils/mobileSheetViewport';
 
@@ -484,21 +485,16 @@ export class DesktopHubView extends ItemView {
         this._resizeObserver = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 const width = entry.contentRect.width;
+                // Ignore zero-width backgrounded, detached, or transitioning tabs
+                if (width <= 0) return;
+
                 if (isTablet(this.app) && this._cockpitLayoutEl) {
                     const isPortrait = width < 900;
                     const wasPortrait = this._cockpitLayoutEl.hasClass('is-tablet-portrait');
                     if (isPortrait !== wasPortrait) {
                         this._cockpitLayoutEl.toggleClass('is-tablet-portrait', isPortrait);
-                        if (isPortrait && this._cockpitRailOpen) {
-                            this._cockpitRailOpen = false;
-                        }
                         this.updateCockpitRailState();
                     }
-                }
-                // Only auto-collapse on small mobile screens (< 768px)
-                if (width < 768 && this._cockpitRailOpen && !isTablet(this.app)) {
-                    this._cockpitRailOpen = false;
-                    this.updateCockpitRailState();
                 }
             }
         });
@@ -1826,7 +1822,14 @@ export class DesktopHubView extends ItemView {
 
         if (!isExpanded) {
             // Sleek Reflect-style fluid capture line
-            const compactWrapper = targetParent.createDiv({ cls: 'pos-composer-compact pos-reflect-composer-compact' });
+            const compactWrapper = targetParent.createDiv({
+                cls: 'pos-composer-compact pos-reflect-composer-compact',
+                attr: {
+                    tabindex: '0',
+                    role: 'button',
+                    'aria-label': 'Click to capture note or task'
+                }
+            });
             this._composerEl = compactWrapper;
 
             const triggerArea = compactWrapper.createDiv({ cls: 'pos-compact-trigger-area' });
@@ -1855,12 +1858,24 @@ export class DesktopHubView extends ItemView {
             actions.createSpan({ cls: 'pos-compact-kbd', text: 'C' });
             actions.createSpan({ cls: 'pos-compact-kbd', text: cmdSymbol });
 
-            compactWrapper.onclick = () => {
+            const activateComposer = () => {
                 this._desktopComposerExpanded = true;
                 this.renderComposer(targetParent, false);
                 const ta = this._composerEl?.querySelector('textarea');
                 if (ta) {
                     ta.focus({ preventScroll: true });
+                }
+            };
+
+            compactWrapper.onclick = (e) => {
+                if ((e.target as HTMLElement)?.closest('.pos-composer-pill-btn')) return;
+                activateComposer();
+            };
+
+            compactWrapper.onkeydown = (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    activateComposer();
                 }
             };
             return;
@@ -2647,15 +2662,9 @@ export class DesktopHubView extends ItemView {
                 text: '🗑️',
                 attr: { 'aria-label': 'Delete note' }
             });
-            trashBtn.onclick = async (e) => {
+            trashBtn.onclick = (e) => {
                 e.stopPropagation();
-                if (confirm('Move this note to trash?')) {
-                    await this.plugin.capture.deleteNote(entry.filePath);
-                    this._selectedEntryIds.delete(entry.id);
-                    this.invalidateRenderCacheForFile(entry.filePath);
-                    this.updateStreamOnly();
-                    this.updateFilterCounts();
-                }
+                this.promptDeleteNote(entry);
             };
         }
         const cacheKey = `${entry.filePath}_${entry.modified}`;
@@ -2864,18 +2873,32 @@ export class DesktopHubView extends ItemView {
         menu.addItem((item) => {
             item.setTitle('🗑️ Delete Note')
                 .setIcon('trash')
-                .onClick(async () => {
-                    if (confirm('Move this note to trash?')) {
-                        await this.plugin.capture.deleteNote(entry.filePath);
-                        this._selectedEntryIds.delete(entry.id);
-                        this.invalidateRenderCacheForFile(entry.filePath);
-                        this.updateStreamOnly();
-                        this.updateFilterCounts();
-                    }
+                .onClick(() => {
+                    this.promptDeleteNote(entry);
                 });
         });
 
         menu.showAtMouseEvent(e);
+    }
+
+    private promptDeleteNote(entry: CaptureEntry): void {
+        const title = entry.body.slice(0, 80) || 'Note';
+        new ConfirmDeleteModal(this.app, title, async () => {
+            await this.plugin.capture.deleteNote(entry.filePath);
+            this._selectedEntryIds.delete(entry.id);
+            if (this._editingEntryId === entry.id) {
+                this._editingEntryId = null;
+            }
+            this.invalidateRenderCacheForFile(entry.filePath);
+            this.updateStreamOnly();
+            this.updateFilterCounts();
+            this.updateComposerVisibility();
+            const targetParent = this._desktopComposerWrapperEl || this._mainStageEl;
+            if (targetParent) {
+                this.renderComposer(targetParent, false);
+            }
+            new Notice('Note moved to trash');
+        }).open();
     }
 
     public filterStreamByWikilink(linkName: string): void {

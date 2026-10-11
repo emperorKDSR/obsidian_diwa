@@ -1,6 +1,19 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Full Production-Grade Hardening (Phases A-E Complete)
+## Current State: Agenda Rail Persistence & Stream Deletion Input Activation Fix Deployed
+- **Agenda Panel Multi-Tab Persistence (`DesktopHubView.ts`)**:
+  - Added zero-dimension guard `if (width <= 0) return;` in `setupResizeObserver()`, preventing backgrounded, transitioning, or newly opened Obsidian tabs from misreporting as narrow layouts.
+  - Eliminated automatic `this._cockpitRailOpen = false` mutations from `ResizeObserver`. The Agenda rail now strictly respects the user's manual toggle state and persists reliably across tab switches, window resizes, and app restarts.
+- **Stream Note Deletion & Input Activation Hardening (`ConfirmDeleteModal.ts`, `DesktopHubView.ts`, `styles.css`)**:
+  - Replaced native blocking `window.confirm()` calls with a dedicated non-blocking Obsidian modal (`ConfirmDeleteModal`). Prevents WebKit and Electron from dropping window focus, detaching virtual keyboard coordinators, or breaking transient user activation on subsequent clicks.
+  - In `promptDeleteNote()`, explicitly cleans up `this._editingEntryId = null` if the deleted note was in inline edit mode, and syncs `updateComposerVisibility()`.
+  - Re-mounts the capture composer (`renderComposer()`) immediately after note deletion to ensure the input box is freshly bound and unblocked.
+  - Added `tabindex="0"`, `role="button"`, and Enter/Space keyboard handlers to `pos-composer-compact` for effortless input activation.
+- **Production Build & Vault Deployment**:
+  - Strict TypeScript check (`tsc --noEmit --skipLibCheck`) and ESBuild production build passed cleanly with 0 errors.
+  - Deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin directories.
+
+## Previous State: Full Production-Grade Hardening (Phases A-E Complete)
 - **Phase A — Search & Query Performance Optimization**:
   - Implemented `_cachedPermanentNotes` and `invalidatePermanentNotesCache()` in `src/services/IndexService.ts`, avoiding redundant $O(N \log N)$ disk scans and sorting on repetitive keystrokes.
   - Connected cache invalidation to `RefreshCoordinator.ts` on vault file modification events.
