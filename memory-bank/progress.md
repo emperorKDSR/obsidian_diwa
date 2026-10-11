@@ -1,6 +1,15 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Rail Task Markdown Rendering, Referenced Notes Removal, & Icon Muting (Complete)
+## Current Phase: Agenda Rail Subtle Overdue Accents & Muted Note Tags (Complete)
+
+---
+
+### 0. Agenda Rail Subtle Overdue Accents & Muted Note Tags (Complete)
+*   [x] **Horizon Overdue Box Accent (`styles.css`)** — Outlined `.pos-rail-overdue-box` with subtle muted red (`1px solid rgba(239, 68, 68, 0.32)`), softly tinted background (`rgba(239, 68, 68, 0.04)`), and aligned alert title and SVG icon to matching muted red (`rgba(239, 68, 68, 0.85)`).
+*   [x] **Overdue Task Card Outlines (`DesktopHubView.ts` & `styles.css`)** — Added dynamic `.is-overdue` class on overdue task rows in `renderRailTaskRow()` across Horizon and Tasks tabs. Styled with subtle red boundary (`border-color: rgba(239, 68, 68, 0.32); background: rgba(239, 68, 68, 0.03)`) and refined hover state.
+*   [x] **Muted Note Tags in Notes Tab (`styles.css`)** — Substituted default glowing green `var(--text-accent)` tags with understated muted pills (`color: var(--text-muted); background: var(--background-secondary-alt); border: 1px solid var(--background-modifier-border-faint)`).
+*   [x] **Muted Vector Empty Icon (`DesktopHubView.ts` & `styles.css`)** — Replaced raw emoji `📝` with vector Lucide `file-text` SVG icon for cross-platform muted consistency.
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

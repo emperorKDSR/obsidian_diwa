@@ -865,7 +865,7 @@ export class DesktopHubView extends ItemView {
     }
 
     private renderRailTaskRow(parent: HTMLElement, task: any, isOverdue: boolean): void {
-        const row = parent.createDiv({ cls: 'pos-rail-task-item' });
+        const row = parent.createDiv({ cls: `pos-rail-task-item ${isOverdue ? 'is-overdue' : ''}` });
 
         const checkbox = row.createEl('input', {
             type: 'checkbox',
@@ -973,7 +973,8 @@ export class DesktopHubView extends ItemView {
 
         if (records.length === 0) {
             const emptyEl = listContainer.createDiv({ cls: 'pos-rail-notes-empty' });
-            emptyEl.createSpan({ cls: 'pos-rail-notes-empty-icon', text: '📝' });
+            const emptyIcon = emptyEl.createSpan({ cls: 'pos-rail-notes-empty-icon' });
+            setIcon(emptyIcon, 'file-text');
             emptyEl.createEl('p', {
                 text: this._railNotesSearchQuery.trim()
                     ? 'No matching notes found.'

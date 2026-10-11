@@ -5676,24 +5676,34 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
 }
 
 .pos-rail-overdue-box {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--background-modifier-border);
+    background: rgba(239, 68, 68, 0.04);
+    border: 1px solid rgba(239, 68, 68, 0.32);
     border-radius: var(--diwa-radius-sm);
     padding: 10px 12px;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    transition: border-color 0.15s ease;
+}
+
+.pos-rail-overdue-box:hover {
+    border-color: rgba(239, 68, 68, 0.48);
 }
 
 .pos-rail-overdue-title {
     font-size: 0.8em;
     font-weight: 700;
-    color: var(--text-muted);
+    color: rgba(239, 68, 68, 0.85);
     display: flex;
     align-items: center;
     gap: 6px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+}
+
+.pos-rail-overdue-title svg {
+    color: rgba(239, 68, 68, 0.85) !important;
+    stroke: currentColor !important;
 }
 
 .pos-rail-section {
@@ -5739,6 +5749,16 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
 
 .pos-rail-task-item:hover {
     border-color: var(--text-muted);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.pos-rail-task-item.is-overdue {
+    border-color: rgba(239, 68, 68, 0.32);
+    background: rgba(239, 68, 68, 0.03);
+}
+
+.pos-rail-task-item.is-overdue:hover {
+    border-color: rgba(239, 68, 68, 0.52);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
@@ -5978,7 +5998,17 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
 
 .pos-rail-note-tag {
     font-size: 0.72em;
-    color: var(--text-accent);
+    color: var(--text-muted);
+    background: var(--background-secondary-alt);
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid var(--background-modifier-border-faint);
+    transition: var(--diwa-transition);
+}
+
+.pos-rail-note-item:hover .pos-rail-note-tag {
+    color: var(--text-normal);
+    border-color: var(--background-modifier-border);
 }
 
 .pos-rail-note-time-wrap {
@@ -6005,8 +6035,17 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
 }
 
 .pos-rail-notes-empty-icon {
-    font-size: 1.6rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     opacity: 0.6;
+}
+
+.pos-rail-notes-empty-icon svg {
+    width: 24px;
+    height: 24px;
+    color: var(--text-muted);
+    stroke: currentColor;
 }
 
 .pos-rail-notes-empty p {
