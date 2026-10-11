@@ -95,19 +95,20 @@ export class GawaFilterSheetModal extends Modal {
         const horizonGrid = horizonSection.createDiv({ cls: 'pos-filter-sheet-grid' });
 
         const horizons: Array<{ id: DateFilterType; label: string; icon: string; count: number }> = [
-            { id: 'all', label: 'All Open', icon: '📋', count: totalCount },
-            { id: 'overdue', label: 'Overdue', icon: '🔴', count: overdueCount },
-            { id: 'today', label: 'Today', icon: '🟡', count: todayCount },
-            { id: 'upcoming', label: 'Upcoming', icon: '🟢', count: upcomingCount },
-            { id: 'undated', label: 'Undated', icon: '⚪', count: undatedCount },
+            { id: 'all', label: 'All Open', icon: 'check-square', count: totalCount },
+            { id: 'overdue', label: 'Overdue', icon: 'alert-circle', count: overdueCount },
+            { id: 'today', label: 'Today', icon: 'calendar', count: todayCount },
+            { id: 'upcoming', label: 'Upcoming', icon: 'calendar-clock', count: upcomingCount },
+            { id: 'undated', label: 'Undated', icon: 'help-circle', count: undatedCount },
         ];
 
         for (const h of horizons) {
             const isSelected = this.activeDateFilter === h.id;
             const chip = horizonGrid.createDiv({
-                cls: `pos-filter-sheet-chip ${isSelected ? 'is-active' : ''}`
+                cls: `pos-filter-sheet-chip ${h.id === 'overdue' ? 'chip-overdue' : ''} ${isSelected ? 'is-active' : ''}`
             });
-            chip.createSpan({ cls: 'pos-sheet-chip-icon', text: h.icon });
+            const iconSpan = chip.createSpan({ cls: 'pos-sheet-chip-icon' });
+            setIcon(iconSpan, h.icon);
             chip.createSpan({ cls: 'pos-sheet-chip-label', text: h.label });
             chip.createSpan({ cls: 'pos-sheet-chip-badge', text: `${h.count}` });
             chip.onclick = () => {
@@ -130,7 +131,8 @@ export class GawaFilterSheetModal extends Modal {
             const allAreaChip = areaGrid.createDiv({
                 cls: `pos-filter-sheet-chip ${isAllArea ? 'is-active' : ''}`
             });
-            allAreaChip.createSpan({ cls: 'pos-sheet-chip-icon', text: '🌐' });
+            const allIcon = allAreaChip.createSpan({ cls: 'pos-sheet-chip-icon' });
+            setIcon(allIcon, 'globe');
             allAreaChip.createSpan({ cls: 'pos-sheet-chip-label', text: 'All Areas' });
             allAreaChip.createSpan({ cls: 'pos-sheet-chip-badge', text: `${totalCount}` });
             allAreaChip.onclick = () => {
@@ -148,7 +150,7 @@ export class GawaFilterSheetModal extends Modal {
                     cls: `pos-filter-sheet-chip ${isSelected ? 'is-active' : ''}`
                 });
                 if (area.icon) {
-                    areaChip.createSpan({ cls: 'pos-sheet-chip-icon', text: area.icon });
+                    areaChip.createSpan({ cls: 'pos-sheet-chip-icon pos-emoji-muted', text: area.icon });
                 }
                 areaChip.createSpan({ cls: 'pos-sheet-chip-label', text: area.label || areaId });
                 areaChip.createSpan({ cls: 'pos-sheet-chip-badge', text: `${areaCount}` });

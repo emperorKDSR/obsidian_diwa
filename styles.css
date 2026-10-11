@@ -1561,20 +1561,21 @@ body.is-tablet .pos-action-icon {
     margin-bottom: 4px !important;
 }
 
-/* Muted Wikilinks in Note Body (Regular Text Color, Bold, Dotted Underline) */
+/* Editorial Wikilinks in Note Body (Regular Text Color, Bold, Solid Subtle Hairline) */
 .pos-note-body a.internal-link,
 .pos-note-body .internal-link {
     color: var(--text-normal) !important;
-    text-decoration: underline dotted var(--text-muted, currentColor) !important;
-    text-underline-offset: 3px;
+    text-decoration: underline solid var(--background-modifier-border, rgba(255, 255, 255, 0.2)) !important;
+    text-underline-offset: 3.5px;
+    text-decoration-thickness: 1px;
     font-weight: 600;
     transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
 
 .pos-note-body a.internal-link:hover,
 .pos-note-body .internal-link:hover {
-    color: var(--text-accent, var(--interactive-accent)) !important;
-    text-decoration-color: var(--interactive-accent) !important;
+    color: var(--text-normal) !important;
+    text-decoration-color: var(--text-muted) !important;
 }
 
 /* Standard bullet and numbered lists */
@@ -2391,15 +2392,16 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 .pos-stream-wikilink {
     color: var(--text-normal) !important;
     font-weight: 600;
-    text-decoration: underline dotted var(--text-muted, currentColor) !important;
-    text-underline-offset: 3px;
+    text-decoration: underline solid var(--background-modifier-border, rgba(255, 255, 255, 0.2)) !important;
+    text-underline-offset: 3.5px;
+    text-decoration-thickness: 1px;
     cursor: pointer;
     transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
 
 .pos-stream-wikilink:hover {
-    color: var(--text-accent, var(--interactive-accent)) !important;
-    text-decoration-color: var(--interactive-accent) !important;
+    color: var(--text-normal) !important;
+    text-decoration-color: var(--text-muted) !important;
 }
 
 /* Desktop Peek Modal Card */
@@ -2806,23 +2808,31 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     color: var(--text-normal);
 }
 
-.pos-filter-sheet-chip.is-active {
-    background: rgba(var(--accent-rgb), 0.16);
-    border-color: var(--interactive-accent);
+.pos-filter-sheet-chip.is-active,
+.pos-filter-sheet-chip.pos-chip-tasks.is-active {
+    background: var(--background-modifier-hover);
+    border-color: var(--text-muted);
     color: var(--text-normal);
     font-weight: 600;
 }
 
-.pos-filter-sheet-chip.pos-chip-tasks.is-active {
-    background: rgba(var(--accent-rgb), 0.2);
-    border-color: var(--interactive-accent);
-    color: var(--text-accent);
+.pos-filter-sheet-chip.chip-overdue.is-active {
+    border-color: rgba(239, 68, 68, 0.32);
+    background: rgba(239, 68, 68, 0.04);
 }
 
 .pos-sheet-chip-icon {
     font-size: 0.95rem;
     display: inline-flex;
     align-items: center;
+    color: var(--text-muted);
+}
+
+.pos-sheet-chip-icon svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    stroke-width: 2px;
 }
 
 .pos-sheet-chip-label {
@@ -2842,8 +2852,9 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-filter-sheet-chip.is-active .pos-sheet-chip-badge {
-    background: var(--interactive-accent);
-    color: var(--text-on-accent);
+    background: var(--background-secondary-alt);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border-faint);
 }
 
 /* ==========================================================================
@@ -3021,6 +3032,32 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     font-weight: 600;
 }
 
+.pos-gawa-chip .pos-chip-icon {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-muted);
+}
+
+.pos-gawa-chip .pos-chip-icon svg {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
+    stroke-width: 2px;
+}
+
+.pos-gawa-chip.is-active .pos-chip-icon {
+    color: var(--text-normal);
+}
+
+.pos-gawa-chip.chip-overdue .pos-chip-icon {
+    color: rgba(239, 68, 68, 0.85);
+}
+
+.pos-gawa-chip.chip-overdue.is-active {
+    border-color: rgba(239, 68, 68, 0.32);
+    background: rgba(239, 68, 68, 0.04);
+}
+
 .pos-gawa-chip .chip-count {
     font-size: 0.75rem;
     padding: 1px 6px;
@@ -3155,16 +3192,18 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-table .td-title .task-title-markdown a.internal-link {
-    color: var(--text-muted);
-    text-decoration: none;
-    border-bottom: 1px dotted var(--background-modifier-border);
+    color: var(--text-normal);
+    text-decoration: underline solid var(--background-modifier-border, rgba(255, 255, 255, 0.2));
+    text-underline-offset: 3.5px;
+    text-decoration-thickness: 1px;
     cursor: pointer;
     font-weight: 500;
+    transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
 
 .pos-gawa-table .td-title .task-title-markdown a.internal-link:hover {
     color: var(--text-normal);
-    border-bottom-color: var(--text-normal);
+    text-decoration-color: var(--text-muted);
 }
 
 .pos-gawa-checkbox {
@@ -3216,9 +3255,22 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-subtask-progress-pill.is-all-done {
-    background: rgba(34, 197, 94, 0.08);
-    color: rgba(34, 197, 94, 0.85);
-    border-color: rgba(34, 197, 94, 0.25);
+    background: var(--background-secondary-alt);
+    color: var(--text-muted);
+    border-color: var(--background-modifier-border);
+}
+
+.pos-gawa-subtask-progress-pill .pos-subtask-icon {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 2px;
+}
+
+.pos-gawa-subtask-progress-pill .pos-subtask-icon svg {
+    width: 12px;
+    height: 12px;
+    stroke: currentColor;
+    stroke-width: 2px;
 }
 
 /* ── Date Pills ── */
@@ -3266,20 +3318,26 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 .pos-gawa-area-pill {
     display: inline-flex;
     align-items: center;
+    gap: 4px;
     padding: 3px 8px;
     border-radius: var(--diwa-radius-pill);
     font-size: 0.78rem;
     font-weight: 500;
     background: var(--background-secondary);
     border: 1px solid var(--background-modifier-border);
-    color: var(--text-normal);
+    color: var(--text-muted);
     white-space: nowrap;
+}
+
+.pos-gawa-area-pill:hover {
+    color: var(--text-normal);
 }
 
 /* ── Remarks Badge ── */
 .pos-gawa-remarks-badge {
     display: inline-flex;
     align-items: center;
+    gap: 4px;
     padding: 2px 7px;
     border-radius: 10px;
     font-size: 0.75rem;
@@ -3290,9 +3348,23 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     cursor: pointer;
 }
 
+.pos-gawa-remarks-badge .pos-badge-icon {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-muted);
+}
+
+.pos-gawa-remarks-badge .pos-badge-icon svg {
+    width: 12px;
+    height: 12px;
+    stroke: currentColor;
+    stroke-width: 2px;
+}
+
 .pos-gawa-remarks-badge:hover {
-    color: var(--text-accent);
-    border-color: var(--interactive-accent);
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+    border-color: var(--text-muted);
 }
 
 /* ── Source Column & Button ── */
@@ -3320,7 +3392,7 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-source-btn:hover {
-    color: var(--text-accent);
+    color: var(--text-normal);
     background: var(--background-modifier-hover);
 }
 
@@ -3333,7 +3405,7 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-source-link:hover {
-    color: var(--text-accent);
+    color: var(--text-normal);
     text-decoration: underline;
 }
 
@@ -3354,6 +3426,23 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     text-align: center;
     color: var(--text-muted);
     font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.pos-gawa-empty-state .pos-empty-icon {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-muted);
+}
+
+.pos-gawa-empty-state .pos-empty-icon svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    stroke-width: 2px;
 }
 
 /* ── Slide-Over Task Inspector ── */
@@ -3459,8 +3548,8 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 .pos-gawa-insp-select:focus,
 .pos-gawa-insp-textarea:focus {
     outline: none;
-    border-color: var(--interactive-accent);
-    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.15);
+    border-color: var(--text-muted);
+    box-shadow: none;
 }
 
 .pos-gawa-insp-quick-dates {
@@ -3497,13 +3586,14 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 .pos-gawa-insp-area-chip {
     display: inline-flex;
     align-items: center;
+    gap: 4px;
     padding: 6px 12px;
     border-radius: var(--diwa-radius-pill);
     font-size: 0.84rem;
     font-weight: 500;
     background: var(--background-primary);
     border: 1px solid var(--background-modifier-border);
-    color: var(--text-normal);
+    color: var(--text-muted);
     cursor: pointer;
     transition: var(--diwa-transition);
     user-select: none;
@@ -3511,15 +3601,16 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 
 .pos-gawa-insp-area-chip:hover {
     background: var(--background-modifier-hover);
-    border-color: var(--interactive-accent);
+    border-color: var(--background-modifier-border);
+    color: var(--text-normal);
 }
 
 .pos-gawa-insp-area-chip.is-active {
-    background: var(--interactive-accent);
-    color: var(--text-on-accent);
-    border-color: var(--interactive-accent);
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border-color: var(--text-muted);
     font-weight: 600;
-    box-shadow: 0 2px 8px rgba(var(--accent-rgb), 0.25);
+    box-shadow: none;
 }
 
 /* ── Task Inspector Subtasks ── */
@@ -3531,23 +3622,23 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 
 .pos-gawa-subtask-progress-rail {
     width: 100%;
-    height: 5px;
+    height: 4px;
     background: var(--background-modifier-border);
-    border-radius: 3px;
+    border-radius: 2px;
     overflow: hidden;
-    margin-top: 2px;
-    margin-bottom: 2px;
+    margin-top: 4px;
+    margin-bottom: 4px;
 }
 
 .pos-gawa-subtask-progress-fill {
     height: 100%;
-    background: var(--interactive-accent);
-    border-radius: 3px;
+    background: var(--text-muted);
+    border-radius: 2px;
     transition: width 0.25s ease-out;
 }
 
 .pos-gawa-subtask-progress-fill.is-complete {
-    background: #27ae60;
+    background: var(--text-normal);
 }
 
 .pos-gawa-subtask-list {
@@ -3572,7 +3663,7 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-subtask-item:hover {
-    border-color: var(--background-modifier-border-hover, var(--interactive-accent));
+    border-color: var(--background-modifier-border-hover, var(--text-muted));
 }
 
 .pos-gawa-subtask-item.is-completed {
@@ -3584,6 +3675,8 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     width: 15px;
     height: 15px;
     flex-shrink: 0;
+    accent-color: var(--text-faint, rgba(255, 255, 255, 0.35));
+    filter: grayscale(1) opacity(0.6);
 }
 
 .pos-gawa-subtask-title {
@@ -3604,9 +3697,17 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-subtask-title a.internal-link {
-    color: var(--text-accent);
-    text-decoration: underline;
+    color: var(--text-normal);
+    text-decoration: underline solid var(--background-modifier-border, rgba(255, 255, 255, 0.2));
+    text-underline-offset: 3.5px;
+    text-decoration-thickness: 1px;
     cursor: pointer;
+    transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+
+.pos-gawa-subtask-title a.internal-link:hover {
+    color: var(--text-normal);
+    text-decoration-color: var(--text-muted);
 }
 
 .pos-gawa-subtask-delete-btn {
@@ -3624,8 +3725,8 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-subtask-delete-btn:hover {
-    color: var(--text-error, #eb5757);
-    background: rgba(235, 87, 87, 0.1);
+    color: rgba(239, 68, 68, 0.85);
+    background: rgba(239, 68, 68, 0.08);
 }
 
 .pos-gawa-subtasks-empty {
@@ -3660,8 +3761,8 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 
 .pos-gawa-add-subtask-input:focus {
     outline: none;
-    border-color: var(--interactive-accent);
-    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.15);
+    border-color: var(--text-muted);
+    box-shadow: none;
 }
 
 .pos-gawa-add-subtask-btn {
@@ -3678,9 +3779,9 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-add-subtask-btn:hover {
-    background: var(--interactive-accent);
-    color: var(--text-on-accent);
-    border-color: var(--interactive-accent);
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border-color: var(--text-muted);
 }
 
 /* ── Task Inspector Notes & Comments List ── */
@@ -3706,11 +3807,11 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-insp-comment-item:hover {
-    border-color: var(--background-modifier-border-hover, var(--interactive-accent));
+    border-color: var(--background-modifier-border-hover, var(--text-muted));
 }
 
 .pos-gawa-comment-bullet {
-    color: var(--interactive-accent);
+    color: var(--text-muted);
     font-weight: 700;
     line-height: 1.4;
     user-select: none;
@@ -3730,9 +3831,17 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-comment-content a.internal-link {
-    color: var(--text-accent);
-    text-decoration: underline;
+    color: var(--text-normal);
+    text-decoration: underline solid var(--background-modifier-border, rgba(255, 255, 255, 0.2));
+    text-underline-offset: 3.5px;
+    text-decoration-thickness: 1px;
     cursor: pointer;
+    transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+
+.pos-gawa-comment-content a.internal-link:hover {
+    color: var(--text-normal);
+    text-decoration-color: var(--text-muted);
 }
 
 .pos-gawa-comment-delete-btn {
@@ -3750,8 +3859,8 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-comment-delete-btn:hover {
-    color: var(--text-error, #eb5757);
-    background: rgba(235, 87, 87, 0.1);
+    color: rgba(239, 68, 68, 0.85);
+    background: rgba(239, 68, 68, 0.08);
 }
 
 .pos-gawa-comments-empty {
@@ -3789,8 +3898,8 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 
 .pos-gawa-insp-comment-input:focus {
     outline: none;
-    border-color: var(--interactive-accent);
-    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.15);
+    border-color: var(--text-muted);
+    box-shadow: none;
 }
 
 .pos-gawa-add-comment-actions {
@@ -3923,8 +4032,28 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-gawa-mobile-due.is-overdue {
-    color: var(--text-error, #eb5757);
+    color: rgba(239, 68, 68, 0.85);
     opacity: 0.9;
+}
+
+.pos-gawa-mobile-action-bar .pos-mobile-action-btn.is-primary {
+    background: var(--text-normal);
+    color: var(--background-primary);
+    border-color: transparent;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.pos-gawa-mobile-action-bar .pos-mobile-action-btn.is-active {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+    border-color: var(--text-muted);
+}
+
+.pos-gawa-area-pill .pos-emoji-muted,
+.pos-gawa-insp-area-chip .pos-emoji-muted,
+.pos-filter-sheet-chip .pos-emoji-muted {
+    filter: grayscale(0.85) opacity(0.8);
+    display: inline-block;
 }
 
 .pos-gawa-mobile-container {
@@ -4004,7 +4133,7 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 
 .pos-quick-task-input:focus {
     outline: none;
-    border-color: var(--interactive-accent);
+    border-color: var(--text-muted);
 }
 
 .pos-quick-task-label {
@@ -4033,15 +4162,20 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     transition: var(--diwa-transition);
 }
 
+.pos-quick-task-chip:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
 .pos-quick-task-chip.is-active {
-    background: var(--interactive-accent);
-    color: var(--text-on-accent);
-    border-color: var(--interactive-accent);
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border-color: var(--text-muted);
     font-weight: 600;
 }
 
 .pos-quick-task-chip.pos-chip-clear {
-    color: var(--text-error, #eb5757);
+    color: rgba(239, 68, 68, 0.85);
 }
 
 .pos-quick-task-actions {
@@ -4054,6 +4188,15 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     padding: 8px 18px;
     font-weight: 600;
     border-radius: var(--diwa-radius-sm);
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border: 1px solid var(--text-muted);
+    cursor: pointer;
+    transition: var(--diwa-transition);
+}
+
+.pos-quick-task-submit:hover {
+    background: var(--background-modifier-border);
 }
 
 
@@ -5858,14 +6001,15 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
 
 .pos-rail-task-title a.internal-link {
     color: var(--text-normal);
-    text-decoration: underline;
-    text-decoration-color: var(--text-faint);
+    text-decoration: underline solid var(--background-modifier-border, rgba(255, 255, 255, 0.2));
+    text-underline-offset: 3.5px;
+    text-decoration-thickness: 1px;
     cursor: pointer;
     transition: var(--diwa-transition);
 }
 
 .pos-rail-task-title a.internal-link:hover {
-    color: var(--text-accent, var(--text-normal));
+    color: var(--text-normal);
     text-decoration-color: var(--text-muted);
 }
 

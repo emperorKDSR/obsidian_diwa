@@ -1,6 +1,20 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Capture Bar Hotkey Guides Removal & Pencil Icon Circle Outline (Complete)
+## Current Phase: Clean Solid Hairline Wikilinks (Complete)
+
+---
+
+### 0. Clean Solid Hairline Wikilinks (Complete)
+*   [x] **Elimination of Dotted Spellcheck-Style Underlines (`styles.css`)** — Replaced all dotted underlines across note stream body (`.pos-note-body a.internal-link`), modal peek links (`.pos-stream-wikilink`), Gawa table titles, subtasks, and comments (`.pos-gawa-table ... a.internal-link`, `.pos-gawa-subtask-title a.internal-link`, `.pos-gawa-comment-content a.internal-link`), and Agenda rail task titles (`.pos-rail-task-title a.internal-link`). Swapped with an editorial, clean solid hairline (`text-decoration: underline solid var(--background-modifier-border, rgba(255, 255, 255, 0.2)); text-underline-offset: 3.5px; text-decoration-thickness: 1px; font-weight: 600;`).
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+---
+
+### 0. Gawa Task Cockpit Complete Monochrome & Color Muting (Complete)
+*   [x] **Horizon Filter Chips Monochroming (`GawaCockpitView.ts` & `styles.css`)** — Replaced colored circle emojis (`🔴`, `🟡`, `🟢`, `⚪`) with Lucide vector icons (`alert-circle`, `calendar`, `calendar-clock`, `help-circle`, `check-square`) and added subtle muted red outline for active overdue horizon.
+*   [x] **Table Badges & Icons Muted (`GawaCockpitView.ts` & `styles.css`)** — Replaced unicode characters and green fills on subtask pills with Lucide icons (`check`, `check-square`) and muted pills; replaced speech balloon emoji `💬` on remarks badge with Lucide `message-square`; muted life area emojis with `.pos-emoji-muted`; replaced `✨` with Lucide `check-circle`.
+*   [x] **Inspector & Modals Muted (`styles.css`, `GawaFilterSheetModal.ts`, `GawaQuickTaskModal.ts`)** — Replaced accent backgrounds, progress fills, and glowing focus rings with muted dark mode standards; stripped colored emojis from filter sheets and quick task modals.
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

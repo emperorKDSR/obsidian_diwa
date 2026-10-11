@@ -1,6 +1,33 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Capture Bar Hotkey Guides Removed & Pencil Icon Circle Outline Deployed
+## Current State: Clean Solid Hairline Wikilinks Deployed (Spellcheck Look Eliminated)
+- **Elimination of Dotted Spellcheck-Style Underlines (`styles.css`)**:
+  - Replaced all dotted underlines across note stream body (`.pos-note-body a.internal-link`), modal peek links (`.pos-stream-wikilink`), Gawa table titles, subtasks, and comments (`.pos-gawa-table ... a.internal-link`, `.pos-gawa-subtask-title a.internal-link`, `.pos-gawa-comment-content a.internal-link`), and Agenda rail task titles (`.pos-rail-task-title a.internal-link`).
+  - Swapped with an editorial, clean solid hairline:
+    `text-decoration: underline solid var(--background-modifier-border, rgba(255, 255, 255, 0.2)); text-underline-offset: 3.5px; text-decoration-thickness: 1px; font-weight: 600;`
+  - Generous `3.5px` offset prevents descenders ('p', 'g', 'j', 'y', 'q') from colliding into the line.
+  - On hover, the hairline softly illuminates to `var(--text-muted)` without neon accent saturation.
+- **Production Build & Vault Deployment**:
+  - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
+  - Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Gawa Task Cockpit Complete Monochrome & Color Muting Deployed
+- **Horizon Filter Chips Monochroming (`GawaCockpitView.ts` & `styles.css`)**:
+  - Replaced bright colored circle emojis (`🔴 Overdue`, `🟡 Today`, `🟢 Upcoming`, `⚪ Undated`) with clean vector Lucide SVG icons (`alert-circle`, `calendar`, `calendar-clock`, `help-circle`, `check-square`).
+  - Added subtle muted red outline for active overdue chip (`border-color: rgba(239, 68, 68, 0.32); background: rgba(239, 68, 68, 0.04);`).
+- **Table Elements & Badges Muted (`GawaCockpitView.ts` & `styles.css`)**:
+  - Subtask Progress Pill: Replaced raw unicode characters (`✓`, `☑`) and green accent fill with Lucide vector icons (`check`, `check-square`) and muted card borders.
+  - Remarks Badge: Replaced bright speech balloon emoji `💬` with Lucide `message-square` SVG icon; removed accent hover glow.
+  - Life Area Pills: Wrapped emojis in `.pos-emoji-muted` (`filter: grayscale(0.85) opacity(0.8)`).
+  - Empty State: Replaced sparkles emoji `✨` with Lucide `check-circle` SVG.
+- **Inspector & Modals Complete Accent Removal (`styles.css`, `GawaFilterSheetModal.ts`, `GawaQuickTaskModal.ts`)**:
+  - Replaced bright accent backgrounds on area chips (`.pos-gawa-insp-area-chip.is-active`), subtask progress fills (`.pos-gawa-subtask-progress-fill.is-complete`), and focus rings with muted dark mode standards (`var(--background-modifier-hover)`, `var(--text-muted)`).
+  - Removed bright accent fills from `GawaFilterSheetModal` and `GawaQuickTaskModal` chips, submit buttons, and inputs.
+- **Production Build & Vault Deployment**:
+  - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
+  - Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Capture Bar Hotkey Guides Removed & Pencil Icon Circle Outline Deployed
 - **Pencil Icon Circle Outline & Hotkey Cleanliness (`DesktopHubView.ts` & `styles.css`)**:
   - **Circular Pencil Badge (`.pos-compact-icon`)**: Enclosed the idle pencil icon in a dedicated 26px circular badge (`border-radius: 50%`, `border: 1px solid var(--background-modifier-border)`, `background: var(--background-primary)`). On capsule hover, the circle border and icon illuminate with `var(--interactive-accent)`.
   - **Removed Idle Hotkey Guides**: Removed `pos-compact-actions` rendering `[ C ]` and `[ ⌘↵ ]` badges on the right side of the idle capsule, giving full visual focus to the clean prompt.
