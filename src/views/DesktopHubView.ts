@@ -32,6 +32,7 @@ export class DesktopHubView extends ItemView {
     private _headerBarEl: HTMLElement | null = null;
     private _composerEl: HTMLElement | null = null;
     private _mobileSearchOpen: boolean = false;
+    private _desktopSearchOpen: boolean = false;
     private _mobileFiltersOpen: boolean = false;
     private _mobileComposerOpen: boolean = false;
     private _viewportCleanup: (() => void) | null = null;
@@ -378,9 +379,8 @@ export class DesktopHubView extends ItemView {
             this._mainStageEl.style.flex = '1';
         }
 
-        // Filter / Life Area carousel bar
-        this._filterBarEl = this._mainStageEl.createDiv({ cls: 'pos-filter-bar' });
-        this.renderFilterBar(this._filterBarEl);
+        // Filter / Life Area carousel bar removed (consolidated into header)
+        this._filterBarEl = null;
 
         // Multi-select bulk action bar (if in selection mode)
         this._selectionBarEl = this._mainStageEl.createDiv({ cls: 'pos-selection-bar-wrapper' });
@@ -549,10 +549,14 @@ export class DesktopHubView extends ItemView {
 
             if (isInsideInput) return;
 
-            // Hotkey: '/' or 'Cmd+F' -> Focus search
+            // Hotkey: '/' or 'Cmd+F' -> Focus / open search
             if (e.key === '/' || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f')) {
                 e.preventDefault();
-                const searchInput = this.contentEl.querySelector('.pos-search-input') as HTMLInputElement | null;
+                this._desktopSearchOpen = true;
+                if (this._headerBarEl) {
+                    this.renderHeaderBar(this._headerBarEl);
+                }
+                const searchInput = this.contentEl.querySelector('.pos-search-inline-input, .pos-search-input') as HTMLInputElement | null;
                 if (searchInput) {
                     searchInput.focus();
                     searchInput.select();
@@ -1007,8 +1011,36 @@ export class DesktopHubView extends ItemView {
                 await this.app.workspace.openLinkText(record.filePath, '', 'window');
                 return;
             }
-            await this.app.workspace.openLinkText(record.filePath, '', false);
+            new WikilinkPeekModal(
+                this.app,
+                this.plugin,
+                record.filePath,
+                record.filePath,
+                (target) => this.filterStreamByWikilink(target)
+            ).open();
         };
+    }
+
+    private createMutedMenuItemTitle(label: string, iconName: string, count?: number): DocumentFragment {
+        const frag = document.createDocumentFragment();
+        const iconWrap = frag.createSpan({ cls: 'pos-menu-icon' });
+        setIcon(iconWrap, iconName);
+        const textSuffix = typeof count === 'number' ? ` ${label} (${count})` : ` ${label}`;
+        frag.createSpan({ text: textSuffix });
+        return frag;
+    }
+
+    private createMutedAreaTitle(label: string, icon?: string, count?: number): DocumentFragment {
+        const frag = document.createDocumentFragment();
+        const iconWrap = frag.createSpan({ cls: 'pos-menu-icon' });
+        if (icon) {
+            iconWrap.createSpan({ cls: 'pos-emoji-muted', text: icon });
+        } else {
+            setIcon(iconWrap, 'folder');
+        }
+        const textSuffix = typeof count === 'number' ? ` ${label} (${count})` : ` ${label}`;
+        frag.createSpan({ text: textSuffix });
+        return frag;
     }
 
     private renderHeaderBar(header: HTMLElement): void {
@@ -1022,99 +1054,252 @@ export class DesktopHubView extends ItemView {
         const subtitleText = horizonLabel && horizonLabel !== 'All Notes' ? `Personal OS · ${horizonLabel}` : 'Personal OS';
         titleSection.createSpan({ cls: 'pos-header-subtitle', text: subtitleText });
 
-        // Search bar (Desktop & Tablet: prominent search with [ / ] hotkey hint)
+        // Actions - Desktop/Tablet
         if (!isMobile) {
-            const searchContainer = header.createDiv({ cls: 'pos-search-container' });
-            const searchInput = searchContainer.createEl('input', {
-                type: 'search',
-                placeholder: 'Search notes, #tags, or tasks...',
-                cls: 'pos-search-input',
-                value: this._searchQuery,
-                attr: {
-                    enterkeyhint: 'search',
-                    autocomplete: 'off',
-                    autocorrect: 'off',
-                    autocapitalize: 'off',
-                    spellcheck: 'false',
-                }
-            });
+            const actions = header.createDiv({ cls: 'pos-header-actions' });
 
-            // Hotkey badge [ / ]
-            searchContainer.createSpan({ cls: 'pos-search-kbd-badge', text: '/' });
-
-            const triggerSearch = (query: string, dismissKeyboard = false) => {
-                if (this._searchDebounceTimer) clearTimeout(this._searchDebounceTimer);
-                this._searchQuery = query;
-                this._renderedCount = BATCH_SIZE;
-                this.updateStreamOnly();
-                this.updateComposerVisibility();
-                if (dismissKeyboard) {
-                    searchInput.blur();
-                }
-            };
-
-            searchInput.oninput = (e) => {
-                const val = (e.target as HTMLInputElement).value;
-                if (this._searchDebounceTimer) clearTimeout(this._searchDebounceTimer);
-                this._searchDebounceTimer = setTimeout(() => {
-                    triggerSearch(val, false);
-                }, 120);
-            };
-
-            searchInput.onkeydown = (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    triggerSearch(searchInput.value, false);
-                } else if (e.key === 'Escape') {
-                    e.preventDefault();
-                    this._searchQuery = '';
-                    this.renderHeaderBar(header);
-                    triggerSearch('', true);
-                }
-            };
-
-            if (this._searchQuery) {
-                const clearBtn = searchContainer.createSpan({
-                    cls: 'pos-search-clear',
-                    text: '✕',
-                    attr: { 'aria-label': 'Clear search' }
+            // 1. Modern Minimalist Search Pill / Inline Capsule
+            if (this._desktopSearchOpen || Boolean(this._searchQuery)) {
+                const searchCapsule = actions.createDiv({ cls: 'pos-search-inline-capsule' });
+                const searchCapsuleIcon = searchCapsule.createSpan({ cls: 'pos-search-inline-icon' });
+                setIcon(searchCapsuleIcon, 'search');
+                const searchInput = searchCapsule.createEl('input', {
+                    type: 'search',
+                    placeholder: 'Search notes, #tags, tasks...',
+                    cls: 'pos-search-inline-input',
+                    value: this._searchQuery,
+                    attr: {
+                        enterkeyhint: 'search',
+                        autocomplete: 'off',
+                        autocorrect: 'off',
+                        autocapitalize: 'off',
+                        spellcheck: 'false',
+                    }
                 });
-                clearBtn.onclick = () => {
+                setTimeout(() => searchInput.focus(), 20);
+
+                const triggerSearch = (query: string, dismissKeyboard = false) => {
+                    if (this._searchDebounceTimer) clearTimeout(this._searchDebounceTimer);
+                    this._searchQuery = query;
+                    this._renderedCount = BATCH_SIZE;
+                    this.updateStreamOnly();
+                    this.updateComposerVisibility();
+                    if (dismissKeyboard) {
+                        searchInput.blur();
+                    }
+                };
+
+                searchInput.oninput = (e) => {
+                    const val = (e.target as HTMLInputElement).value;
+                    if (this._searchDebounceTimer) clearTimeout(this._searchDebounceTimer);
+                    this._searchDebounceTimer = setTimeout(() => {
+                        triggerSearch(val, false);
+                    }, 120);
+                };
+
+                searchInput.onkeydown = (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        triggerSearch(searchInput.value, false);
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        this._searchQuery = '';
+                        this._desktopSearchOpen = false;
+                        this.renderHeaderBar(header);
+                        triggerSearch('', true);
+                    }
+                };
+
+                const closeBtn = searchCapsule.createSpan({
+                    cls: 'pos-search-inline-close',
+                    attr: { 'aria-label': 'Close search' }
+                });
+                setIcon(closeBtn, 'x');
+                closeBtn.onclick = () => {
                     this._searchQuery = '';
+                    this._desktopSearchOpen = false;
                     this._renderedCount = BATCH_SIZE;
                     this.renderHeaderBar(header);
                     this.updateStreamOnly();
                     this.updateComposerVisibility();
                 };
+            } else {
+                const searchBtn = actions.createEl('button', {
+                    cls: 'pos-header-text-btn pos-search-trigger-btn',
+                    attr: { 'aria-label': 'Search notes (/)' }
+                });
+                const searchIcon = searchBtn.createSpan({ cls: 'pos-btn-icon' });
+                setIcon(searchIcon, 'search');
+                searchBtn.createSpan({ text: ' Search' });
+                searchBtn.createSpan({ cls: 'pos-header-kbd-hint', text: '/' });
+                searchBtn.onclick = () => {
+                    this._desktopSearchOpen = true;
+                    this.renderHeaderBar(header);
+                };
             }
-        }
 
-        // Actions - Desktop/Tablet
-        if (!isMobile) {
-            const actions = header.createDiv({ cls: 'pos-header-actions' });
+            // 2. Unified Filter Dropdown Pill (All Notes + Life Areas + Today/Upcoming/Important/Untagged)
+            let filterLabel = 'All Notes';
+            if (this._activeFilter === 'important') {
+                filterLabel = 'Important';
+            } else if (this._activeFilter === 'today') {
+                filterLabel = 'Today';
+            } else if (this._activeFilter === 'upcoming') {
+                filterLabel = 'Upcoming';
+            } else if (this._activeFilter === 'untagged') {
+                filterLabel = 'Untagged';
+            } else if (this._activeFilter !== 'all' && this._activeFilter !== 'tasks_only') {
+                const areas = this.plugin.settings.lifeAreas || [];
+                const matchedArea = areas.find(a => a.id.toLowerCase() === this._activeFilter.toLowerCase());
+                if (matchedArea) {
+                    filterLabel = matchedArea.label;
+                } else {
+                    filterLabel = this._activeFilter;
+                }
+            }
 
-            // 1. Right Rail Toggle Button [ ◨ ]
+            const filterBtn = actions.createEl('button', {
+                cls: `pos-header-text-btn pos-filter-dropdown-btn ${this._activeFilter !== 'all' ? 'is-active' : ''}`,
+                attr: { 'aria-label': 'Filter by view or life area' }
+            });
+            const filterIconWrap = filterBtn.createSpan({ cls: 'pos-btn-icon' });
+            if (this._activeFilter === 'important') {
+                setIcon(filterIconWrap, 'star');
+            } else if (this._activeFilter === 'today' || this._activeFilter === 'upcoming') {
+                setIcon(filterIconWrap, 'calendar');
+            } else if (this._activeFilter === 'untagged') {
+                setIcon(filterIconWrap, 'file-text');
+            } else if (this._activeFilter !== 'all' && this._activeFilter !== 'tasks_only') {
+                const areas = this.plugin.settings.lifeAreas || [];
+                const matchedArea = areas.find(a => a.id.toLowerCase() === this._activeFilter.toLowerCase());
+                if (matchedArea?.icon) {
+                    filterIconWrap.createSpan({ cls: 'pos-emoji-muted', text: matchedArea.icon });
+                } else {
+                    setIcon(filterIconWrap, 'folder');
+                }
+            } else {
+                setIcon(filterIconWrap, 'sliders-horizontal');
+            }
+            filterBtn.createSpan({ text: ` ${filterLabel} ▾` });
+            filterBtn.onclick = (e) => {
+                e.stopPropagation();
+                const menu = new Menu();
+
+                const allCount = this.plugin.index?.getAllCaptures()?.length || 0;
+                menu.addItem(item => {
+                    item.setTitle(this.createMutedMenuItemTitle('All Notes', 'sliders-horizontal', allCount))
+                        .setChecked(this._activeFilter === 'all')
+                        .onClick(() => {
+                            this._activeFilter = 'all';
+                            this._renderedCount = BATCH_SIZE;
+                            this.renderHeaderBar(header);
+                            this.updateStreamOnly();
+                        });
+                });
+
+                menu.addSeparator();
+
+                const importantCount = this.plugin.index?.getImportantCount() || 0;
+                menu.addItem(item => {
+                    item.setTitle(this.createMutedMenuItemTitle('Important', 'star', importantCount))
+                        .setChecked(this._activeFilter === 'important')
+                        .onClick(() => {
+                            this._activeFilter = 'important';
+                            this._renderedCount = BATCH_SIZE;
+                            this.renderHeaderBar(header);
+                            this.updateStreamOnly();
+                        });
+                });
+
+                const todayCount = this.plugin.index?.getTodayCapturesCount?.() || 0;
+                menu.addItem(item => {
+                    item.setTitle(this.createMutedMenuItemTitle('Today', 'calendar', todayCount))
+                        .setChecked(this._activeFilter === 'today')
+                        .onClick(() => {
+                            this._activeFilter = 'today';
+                            this._renderedCount = BATCH_SIZE;
+                            this.renderHeaderBar(header);
+                            this.updateStreamOnly();
+                        });
+                });
+
+                const upcomingCount = this.plugin.index?.getUpcomingCapturesCount?.() || 0;
+                menu.addItem(item => {
+                    item.setTitle(this.createMutedMenuItemTitle('Upcoming', 'calendar-days', upcomingCount))
+                        .setChecked(this._activeFilter === 'upcoming')
+                        .onClick(() => {
+                            this._activeFilter = 'upcoming';
+                            this._renderedCount = BATCH_SIZE;
+                            this.renderHeaderBar(header);
+                            this.updateStreamOnly();
+                        });
+                });
+
+                const untaggedCount = this.plugin.index?.getUntaggedCount() || 0;
+                if (untaggedCount > 0) {
+                    menu.addItem(item => {
+                        item.setTitle(this.createMutedMenuItemTitle('Untagged', 'file-text', untaggedCount))
+                            .setChecked(this._activeFilter === 'untagged')
+                            .onClick(() => {
+                                this._activeFilter = 'untagged';
+                                this._renderedCount = BATCH_SIZE;
+                                this.renderHeaderBar(header);
+                                this.updateStreamOnly();
+                            });
+                    });
+                }
+
+                const areas = this.plugin.settings.lifeAreas || [];
+                if (areas.length > 0) {
+                    menu.addSeparator();
+                    const areaCounts = this.plugin.index?.getAreaCounts?.() || {};
+                    for (const area of areas) {
+                        const count = areaCounts[area.id] || 0;
+                        menu.addItem(item => {
+                            item.setTitle(this.createMutedAreaTitle(area.label, area.icon, count))
+                                .setChecked(this._activeFilter.toLowerCase() === area.id.toLowerCase())
+                                .onClick(() => {
+                                    this._activeFilter = area.id;
+                                    this._renderedCount = BATCH_SIZE;
+                                    this.renderHeaderBar(header);
+                                    this.updateStreamOnly();
+                                });
+                        });
+                    }
+                }
+
+                menu.showAtMouseEvent(e);
+            };
+
+            // 3. Open Tasks Filter Pill
+            const openTaskCount = this.plugin.index?.getOpenTaskCount() || 0;
+            const tasksBtn = actions.createEl('button', {
+                cls: `pos-header-text-btn pos-tasks-toggle-btn ${this._filterTasksOnly ? 'is-active' : ''}`,
+                attr: { 'aria-label': 'Filter stream to open tasks only' }
+            });
+            const taskIconWrap = tasksBtn.createSpan({ cls: 'pos-btn-icon' });
+            setIcon(taskIconWrap, 'check-square');
+            tasksBtn.createSpan({ text: ` Tasks (${openTaskCount})` });
+            tasksBtn.onclick = () => {
+                this._filterTasksOnly = !this._filterTasksOnly;
+                this._renderedCount = BATCH_SIZE;
+                this.renderHeaderBar(header);
+                this.updateStreamOnly();
+            };
+
+            // 4. Right Rail Toggle Button
             const railToggleBtn = actions.createEl('button', {
                 cls: `pos-header-text-btn pos-rail-toggle-btn ${this._cockpitRailOpen ? 'is-active' : ''}`,
-                text: this._cockpitRailOpen ? '◧ Agenda' : '◨ Agenda',
                 attr: { 'aria-label': 'Toggle Agenda panel (\\)' }
             });
+            const railIconWrap = railToggleBtn.createSpan({ cls: 'pos-btn-icon' });
+            setIcon(railIconWrap, 'panel-right');
+            railToggleBtn.createSpan({ text: ' Agenda' });
             railToggleBtn.onclick = () => {
                 this.toggleCockpitRail();
             };
 
-            // 2. Daily Digest quick-launcher button
-            const todayDigestSummary = this.plugin.index.getDayDigestSummary(moment().format('YYYY-MM-DD'));
-            const digestBtn = actions.createEl('button', {
-                cls: 'pos-header-text-btn pos-digest-header-trigger',
-                text: todayDigestSummary.status === 'digested' ? '📅 Digest ✓' : '📅 Digest',
-                attr: { 'aria-label': 'Open Daily Digest & Review' }
-            });
-            digestBtn.onclick = () => {
-                void this.plugin.activateCalendarDigest();
-            };
-
-            // 3. More Menu [ ⋯ ] consolidating utility actions
+            // 5. More Menu [ ⋯ ] consolidating utility actions + Daily Digest
             const moreBtn = actions.createEl('button', {
                 cls: 'pos-icon-btn pos-header-more-btn',
                 attr: { 'aria-label': 'More workspace actions' }
@@ -1124,7 +1309,20 @@ export class DesktopHubView extends ItemView {
                 e.stopPropagation();
                 const menu = new Menu();
 
-                // Select mode toggle
+                // 1. Daily Digest & Review (moved from top header to more menu)
+                const todayDigestSummary = this.plugin.index.getDayDigestSummary(moment().format('YYYY-MM-DD'));
+                const isDigested = todayDigestSummary.status === 'digested';
+                menu.addItem((item) => {
+                    item.setTitle(isDigested ? 'Daily Digest & Review (✓ Done)' : 'Daily Digest & Review')
+                        .setIcon('calendar-check')
+                        .onClick(() => {
+                            void this.plugin.activateCalendarDigest();
+                        });
+                });
+
+                menu.addSeparator();
+
+                // 2. Select mode toggle
                 menu.addItem((item) => {
                     item.setTitle(this._selectionMode ? 'Exit Selection Mode' : 'Select Notes to Merge')
                         .setIcon('check-square')
@@ -1139,25 +1337,7 @@ export class DesktopHubView extends ItemView {
                         });
                 });
 
-                // Sweeper button (if untagged notes exist)
-                const untaggedCount = this.plugin.index.getUntaggedCount();
-                if (untaggedCount > 0) {
-                    menu.addItem((item) => {
-                        item.setTitle(`🧹 Sweep Untagged (${untaggedCount})`)
-                            .setChecked(this._activeFilter === 'untagged')
-                            .onClick(() => {
-                                this._activeFilter = this._activeFilter === 'untagged' ? 'all' : 'untagged';
-                                this._renderedCount = BATCH_SIZE;
-                                this.updateFilterActiveStates();
-                                this.updateStreamOnly();
-                            });
-                    });
-                }
-
-                menu.addSeparator();
-
-                // Open Gawa Task Cockpit in Split
-                const openTaskCount = this.plugin.index.getOpenTaskCount();
+                // 3. Open Gawa Task Cockpit in Split
                 menu.addItem((item) => {
                     item.setTitle(`Open Gawa Task Cockpit (${openTaskCount})`)
                         .setIcon('list-todo')
@@ -1166,7 +1346,7 @@ export class DesktopHubView extends ItemView {
                         });
                 });
 
-                // Open Karon Horizon in Tab
+                // 4. Open Karon Horizon in Tab
                 menu.addItem((item) => {
                     item.setTitle('Open Karon Today & Horizon')
                         .setIcon('sun')
@@ -1175,7 +1355,7 @@ export class DesktopHubView extends ItemView {
                         });
                 });
 
-                // Show Recently Updated Permanent Notes
+                // 5. Show Recently Updated Permanent Notes
                 menu.addItem((item) => {
                     item.setTitle('Recent Permanent Notes')
                         .setIcon('book-open')
@@ -1186,7 +1366,7 @@ export class DesktopHubView extends ItemView {
 
                 menu.addSeparator();
 
-                // Settings
+                // 6. Settings
                 menu.addItem((item) => {
                     item.setTitle('DIWA Settings')
                         .setIcon('settings')
@@ -1329,6 +1509,9 @@ export class DesktopHubView extends ItemView {
     }
 
     private updateFilterActiveStates(): void {
+        if (this._headerBarEl && this._headerBarEl.isConnected) {
+            this.renderHeaderBar(this._headerBarEl);
+        }
         if (this._filterBarEl) {
             const chips = this._filterBarEl.querySelectorAll<HTMLElement>('.pos-filter-chip');
             chips.forEach(chip => {
@@ -1352,14 +1535,11 @@ export class DesktopHubView extends ItemView {
     }
 
     public updateFilterCounts(): void {
+        if (this._headerBarEl && this._headerBarEl.isConnected) {
+            this.renderHeaderBar(this._headerBarEl);
+        }
         if (this._filterBarEl && this._filterBarEl.isConnected) {
             this.renderFilterBar(this._filterBarEl);
-        } else if (this._containerEl) {
-            const existingBar = this._containerEl.querySelector<HTMLElement>('.pos-filter-bar');
-            if (existingBar) {
-                this._filterBarEl = existingBar;
-                this.renderFilterBar(this._filterBarEl);
-            }
         }
     }
 
@@ -1604,18 +1784,26 @@ export class DesktopHubView extends ItemView {
                 cls: 'pos-composer-area-pill pos-composer-task-pill',
                 attr: { 'aria-label': 'Insert task checkbox' }
             });
-            taskBtn.setText('☑️ Task');
+            const mobileTaskIcon = taskBtn.createSpan({ cls: 'pos-btn-icon' });
+            setIcon(mobileTaskIcon, 'check-square');
+            taskBtn.createSpan({ text: 'Task' });
 
             // Star toggle pill
             const starPill = pillsRow.createEl('button', {
                 cls: `pos-composer-area-pill pos-composer-star-pill ${this._selectedImportantForNewNote ? 'is-selected' : ''}`,
                 attr: { 'aria-label': 'Toggle important flag' }
             });
-            starPill.setText(this._selectedImportantForNewNote ? '⭐ Important' : '☆ Important');
+            const updateMobileStarBtn = () => {
+                starPill.empty();
+                const starIcon = starPill.createSpan({ cls: 'pos-btn-icon' });
+                setIcon(starIcon, 'star');
+                starPill.createSpan({ text: 'Important' });
+                starPill.toggleClass('is-selected', this._selectedImportantForNewNote);
+            };
+            updateMobileStarBtn();
             starPill.onclick = () => {
                 this._selectedImportantForNewNote = !this._selectedImportantForNewNote;
-                starPill.toggleClass('is-selected', this._selectedImportantForNewNote);
-                starPill.setText(this._selectedImportantForNewNote ? '⭐ Important' : '☆ Important');
+                updateMobileStarBtn();
             };
 
             // Life Area Single Dropdown Capsule
@@ -1625,14 +1813,20 @@ export class DesktopHubView extends ItemView {
             });
 
             const updateMobileAreaDropdownText = () => {
+                areaDropdownBtn.empty();
                 const areas = this.plugin.settings.lifeAreas || [];
                 const activeArea = areas.find(a => a.id === this._selectedAreaForNewNote);
+                const areaIcon = areaDropdownBtn.createSpan({ cls: 'pos-btn-icon' });
                 if (activeArea) {
                     areaDropdownBtn.addClass('is-selected');
-                    areaDropdownBtn.empty();
-                    const icon = activeArea.icon || '🏷️';
-                    areaDropdownBtn.createSpan({ text: `${icon} ${activeArea.label}` });
-                    const clearSpan = areaDropdownBtn.createSpan({ cls: 'pos-area-clear-btn', text: ' ✕' });
+                    if (activeArea.icon) {
+                        areaIcon.createSpan({ cls: 'pos-emoji-muted', text: activeArea.icon });
+                    } else {
+                        setIcon(areaIcon, 'folder');
+                    }
+                    areaDropdownBtn.createSpan({ text: activeArea.label });
+                    const clearSpan = areaDropdownBtn.createSpan({ cls: 'pos-area-clear-btn', attr: { 'aria-label': 'Clear area' } });
+                    setIcon(clearSpan, 'x');
                     clearSpan.onclick = (e) => {
                         e.stopPropagation();
                         this._selectedAreaForNewNote = '';
@@ -1640,7 +1834,8 @@ export class DesktopHubView extends ItemView {
                     };
                 } else {
                     areaDropdownBtn.removeClass('is-selected');
-                    areaDropdownBtn.setText('🏷️ Area ▾');
+                    setIcon(areaIcon, 'tag');
+                    areaDropdownBtn.createSpan({ text: 'Area ▾' });
                 }
             };
             updateMobileAreaDropdownText();
@@ -1663,8 +1858,7 @@ export class DesktopHubView extends ItemView {
 
                 for (const area of areas) {
                     menu.addItem((item) => {
-                        const iconText = area.icon ? `${area.icon} ` : '';
-                        item.setTitle(`${iconText}${area.label}`)
+                        item.setTitle(this.createMutedAreaTitle(area.label, area.icon))
                             .setChecked(this._selectedAreaForNewNote === area.id)
                             .onClick(() => {
                                 this._selectedAreaForNewNote = area.id;
@@ -1681,7 +1875,9 @@ export class DesktopHubView extends ItemView {
                 cls: 'pos-composer-area-pill pos-composer-close-pill',
                 attr: { 'aria-label': 'Close composer' }
             });
-            closeBtn.setText('✕ Close');
+            const closeIcon = closeBtn.createSpan({ cls: 'pos-btn-icon' });
+            setIcon(closeIcon, 'x');
+            closeBtn.createSpan({ text: 'Close' });
             closeBtn.onclick = () => {
                 this._mobileComposerOpen = false;
                 this.renderComposer(parent, true);
@@ -1833,27 +2029,11 @@ export class DesktopHubView extends ItemView {
             this._composerEl = compactWrapper;
 
             const triggerArea = compactWrapper.createDiv({ cls: 'pos-compact-trigger-area' });
-            triggerArea.createSpan({ cls: 'pos-compact-icon', text: '✏️' });
+            const editIcon = triggerArea.createSpan({ cls: 'pos-compact-icon' });
+            setIcon(editIcon, 'edit-3');
             triggerArea.createSpan({ cls: 'pos-compact-placeholder', text: "What's on your mind? Capture a thought, task (- [ ]), or note..." });
 
             const actions = compactWrapper.createDiv({ cls: 'pos-compact-actions' });
-            const taskChip = actions.createEl('button', {
-                cls: 'pos-composer-pill-btn',
-                text: '☑️ Task',
-                attr: { 'aria-label': 'Start new task' }
-            });
-            taskChip.onclick = (e) => {
-                e.stopPropagation();
-                this._desktopComposerExpanded = true;
-                this.renderComposer(targetParent, false);
-                const ta = this._composerEl?.querySelector('textarea');
-                if (ta) {
-                    ta.value = '- [ ] ';
-                    ta.focus({ preventScroll: true });
-                    ta.setSelectionRange(6, 6);
-                }
-            };
-
             const cmdSymbol = Platform.isMacOS ? '⌘↵' : 'Ctrl↵';
             actions.createSpan({ cls: 'pos-compact-kbd', text: 'C' });
             actions.createSpan({ cls: 'pos-compact-kbd', text: cmdSymbol });
@@ -1867,8 +2047,7 @@ export class DesktopHubView extends ItemView {
                 }
             };
 
-            compactWrapper.onclick = (e) => {
-                if ((e.target as HTMLElement)?.closest('.pos-composer-pill-btn')) return;
+            compactWrapper.onclick = () => {
                 activateComposer();
             };
 
@@ -1949,10 +2128,12 @@ export class DesktopHubView extends ItemView {
 
         // Task toggle button
         const taskBtn = leftControls.createEl('button', {
-            cls: 'pos-composer-pill-btn',
+            cls: 'pos-composer-pill-btn pos-composer-task-btn',
             attr: { 'aria-label': 'Insert task checkbox' }
         });
-        taskBtn.setText('☑️ Task');
+        const taskIcon = taskBtn.createSpan({ cls: 'pos-btn-icon' });
+        setIcon(taskIcon, 'check-square');
+        taskBtn.createSpan({ text: 'Task' });
         taskBtn.onclick = () => {
             const cursor = textarea.selectionStart || 0;
             const text = textarea.value;
@@ -1969,11 +2150,17 @@ export class DesktopHubView extends ItemView {
             cls: `pos-composer-pill-btn pos-composer-star-btn ${this._selectedImportantForNewNote ? 'is-selected' : ''}`,
             attr: { 'aria-label': 'Toggle important flag' }
         });
-        starBtn.setText(this._selectedImportantForNewNote ? '⭐ Important' : '☆ Important');
+        const updateDesktopStarBtn = () => {
+            starBtn.empty();
+            const starIcon = starBtn.createSpan({ cls: 'pos-btn-icon' });
+            setIcon(starIcon, 'star');
+            starBtn.createSpan({ text: 'Important' });
+            starBtn.toggleClass('is-selected', this._selectedImportantForNewNote);
+        };
+        updateDesktopStarBtn();
         starBtn.onclick = () => {
             this._selectedImportantForNewNote = !this._selectedImportantForNewNote;
-            starBtn.toggleClass('is-selected', this._selectedImportantForNewNote);
-            starBtn.setText(this._selectedImportantForNewNote ? '⭐ Important' : '☆ Important');
+            updateDesktopStarBtn();
         };
 
         // Life Area Single Dropdown Capsule
@@ -1983,14 +2170,20 @@ export class DesktopHubView extends ItemView {
         });
 
         const updateDesktopAreaDropdownText = () => {
+            areaDropdownBtn.empty();
             const areas = this.plugin.settings.lifeAreas || [];
             const activeArea = areas.find(a => a.id === this._selectedAreaForNewNote);
+            const areaIcon = areaDropdownBtn.createSpan({ cls: 'pos-btn-icon' });
             if (activeArea) {
                 areaDropdownBtn.addClass('is-selected');
-                areaDropdownBtn.empty();
-                const icon = activeArea.icon || '🏷️';
-                areaDropdownBtn.createSpan({ text: `${icon} ${activeArea.label}` });
-                const clearSpan = areaDropdownBtn.createSpan({ cls: 'pos-area-clear-btn', text: ' ✕' });
+                if (activeArea.icon) {
+                    areaIcon.createSpan({ cls: 'pos-emoji-muted', text: activeArea.icon });
+                } else {
+                    setIcon(areaIcon, 'folder');
+                }
+                areaDropdownBtn.createSpan({ text: activeArea.label });
+                const clearSpan = areaDropdownBtn.createSpan({ cls: 'pos-area-clear-btn', attr: { 'aria-label': 'Clear area' } });
+                setIcon(clearSpan, 'x');
                 clearSpan.onclick = (e) => {
                     e.stopPropagation();
                     this._selectedAreaForNewNote = '';
@@ -1998,7 +2191,8 @@ export class DesktopHubView extends ItemView {
                 };
             } else {
                 areaDropdownBtn.removeClass('is-selected');
-                areaDropdownBtn.setText('🏷️ Area ▾');
+                setIcon(areaIcon, 'tag');
+                areaDropdownBtn.createSpan({ text: 'Area ▾' });
             }
         };
         updateDesktopAreaDropdownText();
@@ -2021,8 +2215,7 @@ export class DesktopHubView extends ItemView {
 
             for (const area of areas) {
                 menu.addItem((item) => {
-                    const iconText = area.icon ? `${area.icon} ` : '';
-                    item.setTitle(`${iconText}${area.label}`)
+                    item.setTitle(this.createMutedAreaTitle(area.label, area.icon))
                         .setChecked(this._selectedAreaForNewNote === area.id)
                         .onClick(() => {
                             this._selectedAreaForNewNote = area.id;
@@ -2037,12 +2230,13 @@ export class DesktopHubView extends ItemView {
         // Right controls: Save button & Shortcut hint
         const rightControls = toolbar.createDiv({ cls: 'pos-composer-right' });
 
-        // Collapse pill button
+        // Collapse button
         const collapseBtn = rightControls.createEl('button', {
-            cls: 'pos-composer-pill-btn',
-            text: '✕',
+            cls: 'pos-composer-pill-btn pos-composer-close-btn',
             attr: { 'aria-label': 'Collapse composer' }
         });
+        const collapseIcon = collapseBtn.createSpan({ cls: 'pos-btn-icon' });
+        setIcon(collapseIcon, 'x');
         collapseBtn.onclick = () => {
             this._desktopComposerExpanded = false;
             this.renderComposer(targetParent, false);
@@ -2135,14 +2329,20 @@ export class DesktopHubView extends ItemView {
     private renderComposerPillSelection(container: HTMLElement): void {
         const dropdownBtn = container.querySelector<HTMLButtonElement>('.pos-composer-area-dropdown');
         if (dropdownBtn) {
+            dropdownBtn.empty();
             const areas = this.plugin.settings.lifeAreas || [];
             const activeArea = areas.find(a => a.id === this._selectedAreaForNewNote);
+            const areaIcon = dropdownBtn.createSpan({ cls: 'pos-btn-icon' });
             if (activeArea) {
                 dropdownBtn.addClass('is-selected');
-                dropdownBtn.empty();
-                const icon = activeArea.icon || '🏷️';
-                dropdownBtn.createSpan({ text: `${icon} ${activeArea.label}` });
-                const clearSpan = dropdownBtn.createSpan({ cls: 'pos-area-clear-btn', text: ' ✕' });
+                if (activeArea.icon) {
+                    areaIcon.createSpan({ cls: 'pos-emoji-muted', text: activeArea.icon });
+                } else {
+                    setIcon(areaIcon, 'folder');
+                }
+                dropdownBtn.createSpan({ text: activeArea.label });
+                const clearSpan = dropdownBtn.createSpan({ cls: 'pos-area-clear-btn', attr: { 'aria-label': 'Clear area' } });
+                setIcon(clearSpan, 'x');
                 clearSpan.onclick = (e) => {
                     e.stopPropagation();
                     this._selectedAreaForNewNote = '';
@@ -2150,7 +2350,8 @@ export class DesktopHubView extends ItemView {
                 };
             } else {
                 dropdownBtn.removeClass('is-selected');
-                dropdownBtn.setText('🏷️ Area ▾');
+                setIcon(areaIcon, 'tag');
+                dropdownBtn.createSpan({ text: 'Area ▾' });
             }
         }
     }
@@ -2308,12 +2509,8 @@ export class DesktopHubView extends ItemView {
                 const divider = container.createDiv({ cls: 'pos-date-divider' });
                 divider.createSpan({ cls: 'pos-date-heading', text: dateKey });
                 const count = dateCounts.get(dateKey) || 1;
-                divider.createSpan({ cls: 'pos-date-count', text: `${count} note${count === 1 ? '' : 's'}` });
-                const dateLine = divider.createDiv({ cls: 'pos-date-line' });
-                dateLine.style.flex = '1';
-                dateLine.style.height = '1px';
-                dateLine.style.background = 'var(--background-modifier-border, rgba(255, 255, 255, 0.15))';
-                dateLine.style.display = 'block';
+                divider.createSpan({ cls: 'pos-date-count', text: `${count}` });
+                divider.createDiv({ cls: 'pos-date-line' });
             }
 
             this.renderNoteItem(container, entry);
@@ -2365,12 +2562,8 @@ export class DesktopHubView extends ItemView {
                 const divider = container.createDiv({ cls: 'pos-date-divider' });
                 divider.createSpan({ cls: 'pos-date-heading', text: dateKey });
                 const count = dateCounts.get(dateKey) || 1;
-                divider.createSpan({ cls: 'pos-date-count', text: `${count} note${count === 1 ? '' : 's'}` });
-                const dateLine = divider.createDiv({ cls: 'pos-date-line' });
-                dateLine.style.flex = '1';
-                dateLine.style.height = '1px';
-                dateLine.style.background = 'var(--background-modifier-border, rgba(255, 255, 255, 0.15))';
-                dateLine.style.display = 'block';
+                divider.createSpan({ cls: 'pos-date-count', text: `${count}` });
+                divider.createDiv({ cls: 'pos-date-line' });
             }
 
             this.renderNoteItem(container, entry);
@@ -2529,7 +2722,7 @@ export class DesktopHubView extends ItemView {
                     const menu = new Menu();
                     for (const area of areas) {
                         menu.addItem((mItem) => {
-                            mItem.setTitle(`${area.icon || ''} ${area.label}`.trim())
+                            mItem.setTitle(this.createMutedAreaTitle(area.label, area.icon))
                                 .setChecked(entry.area.toLowerCase() === area.id.toLowerCase())
                                 .onClick(async () => {
                                     try {
@@ -2547,7 +2740,8 @@ export class DesktopHubView extends ItemView {
                     }
                     menu.addSeparator();
                     menu.addItem((mItem) => {
-                        mItem.setTitle('✕ Remove Area (Untagged)')
+                        mItem.setTitle('Remove Area (Untagged)')
+                            .setIcon('cross')
                             .onClick(async () => {
                                 try {
                                     this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
@@ -2577,34 +2771,6 @@ export class DesktopHubView extends ItemView {
                     };
                 }
             }
-
-            // Date reminder badges
-            if (entry.allDates && entry.allDates.length > 0) {
-                for (const dateStr of entry.allDates) {
-                    const isToday = this.plugin.index.isDateToday(dateStr);
-                    const isPast = this.plugin.index.isDatePast(dateStr);
-
-                    const badgeCls = isToday
-                        ? 'pos-date-badge-today'
-                        : isPast
-                        ? 'pos-date-badge-past'
-                        : 'pos-date-badge-future';
-
-                    const icon = isToday ? '📅' : isPast ? '⏳' : '📆';
-                    const label = isToday ? 'Today' : dateStr;
-
-                    const dateBadge = badgesEl.createSpan({
-                        cls: `pos-date-badge ${badgeCls}`,
-                        text: `${icon} ${label}`,
-                        attr: { 'aria-label': `Reminder date: ${dateStr}. Click to snooze or reschedule.` }
-                    });
-
-                    dateBadge.onclick = (e) => {
-                        e.stopPropagation();
-                        this.openDateActionMenu(e, entry, dateStr);
-                    };
-                }
-            }
         }
 
         // Col 3: Action buttons (Hover)
@@ -2612,9 +2778,9 @@ export class DesktopHubView extends ItemView {
 
         const starBtn = actionsEl.createSpan({
             cls: `pos-action-icon pos-star-btn ${isImportant ? 'is-starred' : ''}`,
-            text: isImportant ? '⭐' : '☆',
             attr: { 'aria-label': isImportant ? 'Unmark important' : 'Mark as important' }
         });
+        setIcon(starBtn, 'star');
         starBtn.onclick = async (e) => {
             e.stopPropagation();
             try {
@@ -2623,7 +2789,7 @@ export class DesktopHubView extends ItemView {
                 entry.important = newState;
                 entry.pinned = newState;
                 this.plugin.index?.setCaptureImportance?.(entry.filePath, newState);
-                new Notice(newState ? 'Marked as Important ⭐' : 'Unmarked from Important');
+                new Notice(newState ? 'Marked as Important' : 'Unmarked from Important');
                 this.updateFilterCounts();
                 this.updateStreamOnly();
             } catch (err) {
@@ -2634,10 +2800,10 @@ export class DesktopHubView extends ItemView {
 
         if (!isMobile) {
             const editBtn = actionsEl.createSpan({
-                cls: 'pos-action-icon',
-                text: '✏️',
+                cls: 'pos-action-icon pos-edit-btn',
                 attr: { 'aria-label': 'Edit note' }
             });
+            setIcon(editBtn, 'edit-3');
             editBtn.onclick = (e) => {
                 e.stopPropagation();
                 this._editingEntryId = entry.id;
@@ -2648,9 +2814,9 @@ export class DesktopHubView extends ItemView {
 
         const moreBtn = actionsEl.createSpan({
             cls: 'pos-action-icon pos-action-more',
-            text: '⋯',
             attr: { 'aria-label': 'More note options' }
         });
+        setIcon(moreBtn, 'more-horizontal');
         moreBtn.onclick = (e) => {
             e.stopPropagation();
             this.openNoteActionMenu(e, entry);
@@ -2658,10 +2824,10 @@ export class DesktopHubView extends ItemView {
 
         if (!isMobile) {
             const trashBtn = actionsEl.createSpan({
-                cls: 'pos-action-icon',
-                text: '🗑️',
+                cls: 'pos-action-icon pos-trash-btn',
                 attr: { 'aria-label': 'Delete note' }
             });
+            setIcon(trashBtn, 'trash-2');
             trashBtn.onclick = (e) => {
                 e.stopPropagation();
                 this.promptDeleteNote(entry);
@@ -2694,7 +2860,7 @@ export class DesktopHubView extends ItemView {
         const menu = new Menu();
 
         menu.addItem((item) => {
-            item.setTitle('⏰ Snooze to Tomorrow')
+            item.setTitle('Snooze to Tomorrow')
                 .setIcon('clock')
                 .onClick(async () => {
                     const tomorrow = moment().add(1, 'day').format('YYYY-MM-DD');
@@ -2707,7 +2873,7 @@ export class DesktopHubView extends ItemView {
         });
 
         menu.addItem((item) => {
-            item.setTitle('📅 Snooze +3 Days')
+            item.setTitle('Snooze +3 Days')
                 .setIcon('calendar')
                 .onClick(async () => {
                     const in3Days = moment().add(3, 'days').format('YYYY-MM-DD');
@@ -2720,7 +2886,7 @@ export class DesktopHubView extends ItemView {
         });
 
         menu.addItem((item) => {
-            item.setTitle('🗓️ Snooze +1 Week')
+            item.setTitle('Snooze +1 Week')
                 .setIcon('calendar-with-checkmark')
                 .onClick(async () => {
                     const in1Week = moment().add(7, 'days').format('YYYY-MM-DD');
@@ -2733,7 +2899,7 @@ export class DesktopHubView extends ItemView {
         });
 
         menu.addItem((item) => {
-            item.setTitle('📌 Pick Custom Date...')
+            item.setTitle('Pick Custom Date...')
                 .setIcon('calendar')
                 .onClick(() => {
                     new DatePickerModal(this.app, dateStr, async (chosenDate) => {
@@ -2749,7 +2915,7 @@ export class DesktopHubView extends ItemView {
         menu.addSeparator();
 
         menu.addItem((item) => {
-            item.setTitle('✕ Clear Reminder Date')
+            item.setTitle('Clear Reminder Date')
                 .setIcon('cross')
                 .onClick(async () => {
                     await this.plugin.capture.removeDateLink(entry.filePath, dateStr);
@@ -2761,7 +2927,7 @@ export class DesktopHubView extends ItemView {
         });
 
         menu.addItem((item) => {
-            item.setTitle('📖 Open Daily Note')
+            item.setTitle('Open Daily Note')
                 .setIcon('document')
                 .onClick(async () => {
                     await this.app.workspace.openLinkText(dateStr, entry.filePath, false);
@@ -2776,7 +2942,7 @@ export class DesktopHubView extends ItemView {
         const isImportant = this.plugin.index.isImportant(entry);
 
         menu.addItem((item) => {
-            item.setTitle(isImportant ? '☆ Remove from Important' : '⭐ Mark as Important')
+            item.setTitle(isImportant ? 'Remove from Important' : 'Mark as Important')
                 .setIcon(isImportant ? 'star-off' : 'star')
                 .onClick(async () => {
                     try {
@@ -2785,7 +2951,7 @@ export class DesktopHubView extends ItemView {
                         entry.important = newState;
                         entry.pinned = newState;
                         this.plugin.index?.setCaptureImportance?.(entry.filePath, newState);
-                        new Notice(newState ? 'Marked as Important ⭐' : 'Unmarked from Important');
+                        new Notice(newState ? 'Marked as Important' : 'Unmarked from Important');
                         this.updateFilterCounts();
                         this.updateStreamOnly();
                     } catch (err) {
@@ -2796,7 +2962,7 @@ export class DesktopHubView extends ItemView {
         });
 
         menu.addItem((item) => {
-            item.setTitle('✏️ Edit Note (Inline)')
+            item.setTitle('Edit Note (Inline)')
                 .setIcon('edit')
                 .onClick(() => {
                     this._editingEntryId = entry.id;
@@ -2806,7 +2972,7 @@ export class DesktopHubView extends ItemView {
         });
 
         menu.addItem((item) => {
-            item.setTitle('📖 Open in Obsidian Editor')
+            item.setTitle('Open in Obsidian Editor')
                 .setIcon('document')
                 .onClick(async () => {
                     await this.app.workspace.openLinkText(entry.filePath, '', false);
@@ -2814,14 +2980,14 @@ export class DesktopHubView extends ItemView {
         });
 
         menu.addItem((item) => {
-            item.setTitle('🏷️ Set Life Area...')
+            item.setTitle('Set Life Area...')
                 .setIcon('tag')
                 .onClick(() => {
                     const areaMenu = new Menu();
                     const areas = this.plugin.settings.lifeAreas || [];
                     for (const area of areas) {
                         areaMenu.addItem((subItem) => {
-                            subItem.setTitle(`${area.icon || ''} ${area.label}`.trim())
+                            subItem.setTitle(this.createMutedAreaTitle(area.label, area.icon))
                                 .setChecked(entry.area.toLowerCase() === area.id.toLowerCase())
                                 .onClick(async () => {
                                     try {
@@ -2840,7 +3006,8 @@ export class DesktopHubView extends ItemView {
                     if (entry.area) {
                         areaMenu.addSeparator();
                         areaMenu.addItem((subItem) => {
-                            subItem.setTitle('✕ Remove Area (Untagged)')
+                            subItem.setTitle('Remove Area (Untagged)')
+                                .setIcon('cross')
                                 .onClick(async () => {
                                     try {
                                         this._renderedMarkdownCache.delete(`${entry.filePath}_${entry.modified}`);
@@ -2860,7 +3027,7 @@ export class DesktopHubView extends ItemView {
         });
 
         menu.addItem((item) => {
-            item.setTitle('📋 Copy Note Content')
+            item.setTitle('Copy Note Content')
                 .setIcon('copy')
                 .onClick(async () => {
                     await navigator.clipboard.writeText(entry.body);
@@ -2871,7 +3038,7 @@ export class DesktopHubView extends ItemView {
         menu.addSeparator();
 
         menu.addItem((item) => {
-            item.setTitle('🗑️ Delete Note')
+            item.setTitle('Delete Note')
                 .setIcon('trash')
                 .onClick(() => {
                     this.promptDeleteNote(entry);
@@ -2921,7 +3088,7 @@ export class DesktopHubView extends ItemView {
         const cleanName = linkText.split('#')[0];
 
         menu.addItem((item) => {
-            item.setTitle('👁️ Quick Preview')
+            item.setTitle('Quick Preview')
                 .setIcon('eye')
                 .onClick(() => {
                     new WikilinkPeekModal(
@@ -2935,7 +3102,7 @@ export class DesktopHubView extends ItemView {
         });
 
         menu.addItem((item) => {
-            item.setTitle(`🔍 Filter Stream for [[${cleanName}]]`)
+            item.setTitle(`Filter Stream for [[${cleanName}]]`)
                 .setIcon('search')
                 .onClick(() => {
                     this.filterStreamByWikilink(cleanName);
@@ -2945,7 +3112,7 @@ export class DesktopHubView extends ItemView {
         menu.addSeparator();
 
         menu.addItem((item) => {
-            item.setTitle('📖 Open in Adjacent Split')
+            item.setTitle('Open in Adjacent Split')
                 .setIcon('split')
                 .onClick(async () => {
                     const splitLeaf = this.app.workspace.getLeaf('split', 'vertical');
@@ -2959,7 +3126,7 @@ export class DesktopHubView extends ItemView {
         });
 
         menu.addItem((item) => {
-            item.setTitle('🗂️ Open in New Tab')
+            item.setTitle('Open in New Tab')
                 .setIcon('tab')
                 .onClick(async () => {
                     await this.app.workspace.openLinkText(linkText, sourcePath, 'tab');
@@ -2967,7 +3134,7 @@ export class DesktopHubView extends ItemView {
         });
 
         menu.addItem((item) => {
-            item.setTitle('📋 Copy Wikilink')
+            item.setTitle('Copy Wikilink')
                 .setIcon('copy')
                 .onClick(async () => {
                     await navigator.clipboard.writeText(`[[${linkText}]]`);

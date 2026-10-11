@@ -31,6 +31,12 @@ export class WikilinkPeekModal extends Modal {
         }
 
         this.targetFile = this.app.metadataCache.getFirstLinkpathDest(this.cleanLinkName, this.sourcePath);
+        if (!this.targetFile) {
+            const direct = this.app.vault.getAbstractFileByPath(this.cleanLinkName);
+            if (direct instanceof TFile) {
+                this.targetFile = direct;
+            }
+        }
     }
 
     async onOpen(): Promise<void> {

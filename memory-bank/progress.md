@@ -1,6 +1,66 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Agenda Rail Persistence & Stream Deletion Input Activation (Complete)
+## Current Phase: Muted Stream Note Action Hover Toolbar & Authoritative Header Active Highlights (Complete)
+
+---
+
+### 0. Note Action Toolbar De-Emojification & Header Highlight Muting (Complete)
+*   [x] **Stream Note Actions Toolbar (`DesktopHubView.ts` & `styles.css`)** — Replaced all emojis (`⭐`/`☆`, `✏️`, `⋯`, `🗑️`) in `.pos-note-actions` with Obsidian Lucide vector SVGs (`star`, `edit-3`, `more-horizontal`, `trash-2`). Muted starred state to monochrome fill (`fill: var(--text-muted) !important`), removing bright yellow `#eab308`.
+*   [x] **Header Button Active Highlight Neutralization (`styles.css`)** — Applied authoritative `!important` rules on `.pos-header-text-btn.is-active`, `.pos-rail-toggle-btn.is-active`, and `button.pos-header-text-btn.is-active` to eliminate theme neon-green `var(--interactive-accent)` highlights on `[ ◫ Agenda ]`, `[ ☑ Tasks ]`, etc., enforcing dark mode muted highlight (`background: var(--background-modifier-hover); color: var(--text-normal); border: 1px solid var(--text-muted)`). Muted `.pos-composer-save-btn:hover`.
+*   [x] **Mobile Bottom Sheet Lens Icons (`MobileFilterSheetModal.ts`)** — Replaced raw emojis (`⭐`, `📅`, `📆`, `🧹`) with vector icons (`star`, `calendar`, `calendar-days`, `file-text`).
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+---
+
+### 0. Capture Box Action Pills Unified to Identical Dimensions (Complete)
+*   [x] **Strictly Identical Capture Pill Dimensions (`DesktopHubView.ts` & `styles.css`)** — Bound `.pos-composer-left .pos-composer-pill-btn` (`Task`, `Important`, `Area`) to identical dimensions: `width: 100px`, `height: 28px`, `border: 1px solid var(--background-modifier-border)`, `border-radius: 9999px`, and `background: var(--background-secondary)`. Fixed `renderComposerPillSelection()` to preserve monochrome Lucide `tag` SVG. Standardized `[ ✕ ]` to 28px circular button and `[ Capture ⌘↵ ]` to 28px height.
+*   [x] **Muted Monochrome Iconography (`DesktopHubView.ts` & `styles.css`)** — Substituted bright colorful emojis (`🔍`, `🏷️`, `☑️`, `⭐`, `✏️`) with Obsidian's native Lucide vector SVG icons (`search`, `sliders-horizontal`, `check-square`, `star`, `edit-3`, `panel-right`). Styled all icons with `color: var(--text-muted); stroke: currentColor; stroke-width: 2px;`. Added `.pos-emoji-muted` with `filter: grayscale(0.85) opacity(0.8)` for custom life area icons.
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+---
+
+### 0. Mid-Heavy Architectural Divider Line Between Header & Stream (Complete)
+*   [x] **Mid-Heavy Divider Styling (`styles.css`)** — Upgraded `.pos-cockpit-header-wrapper`, `body.is-tablet .pos-cockpit-header-wrapper`, and `.pos-header-bar` bottom border from a faint hairline (`1px solid var(--background-modifier-border-faint)`) to a mid-heavy architectural boundary (`2px solid var(--background-modifier-border)`). Creates a clean physical separation between the top cockpit controls and the stream below.
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+---
+
+### 0. Streamlined Minimalist Header & Unified Filter Architecture (Complete)
+*   [x] **On-Demand Search Pill (`DesktopHubView.ts` & `styles.css`)** — Replaced permanent center search box with a minimalist `[ 🔍 Search / ]` trigger pill that expands on click or `/` hotkey into an inline search capsule with auto-focus, real-time debounced filtering, and `✕` / `Escape` dismiss.
+*   [x] **Unified Filter Dropdown Pill (`DesktopHubView.ts`)** — Created a single dynamic view lens button (`[ 🏷️ All Notes ▾ ]`, `[ 💼 Work ▾ ]`, etc.) providing instant menu-based switching across All Notes, Important, Today, Upcoming, Untagged, and configured Life Areas with real-time count badges.
+*   [x] **Dedicated Open Tasks Pill (`DesktopHubView.ts`)** — Added `[ ☑️ Tasks (N) ]` toggle button on the same level as Agenda to quickly filter the continuous stream to open tasks only.
+*   [x] **Digest Consolidated into More Menu (`DesktopHubView.ts`)** — Relocated `📅 Daily Digest & Review` from the top-right header into the `⋯` menu with completion badge (`✓ Done`).
+*   [x] **Elimination of Multi-Chip Carousel Below Header (`styles.css` & `DesktopHubView.ts`)** — Removed `pos-filter-bar` entirely (`display: none !important`), eliminating all vertical space between the header and capture box.
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+---
+
+### 0. Date Divider Color Synchronized with Timestamps (Complete)
+*   [x] **Date Divider Color Harmonization (`styles.css` & `DesktopHubView.ts`)** — Set `.pos-date-heading` and `.pos-date-count` to `color: var(--text-faint) !important`, perfectly matching the `.pos-note-time` timestamp palette. Styled `.pos-date-line` divider with `background: var(--text-faint); opacity: 0.25;` for a cohesive, understated day boundary.
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+---
+
+### 0. Flush Stream Task Checkbox (Option 1) & Muted Completed Tick Box (Complete)
+*   [x] **Flush Stream Task Alignment (Option 1, `styles.css`)** — Stripped all list padding and margins (`padding-inline-start: 0 !important; margin: 2px 0 4px 0 !important; margin-inline-start: 0 !important;`) from `ul.contains-task-list` and `.markdown-rendered ul.contains-task-list`. Positioned task checkboxes flush with the horizontal note text guideline (`left: 0`), followed by a tight 22px text indent.
+*   [x] **Muted Completed Task Checkbox (`styles.css`)** — Replaced default vibrant accent color with `accent-color: var(--text-faint, rgba(255, 255, 255, 0.35))` and `filter: grayscale(1) opacity(0.5)`, rendering completed tick boxes in a soft, non-distracting monochrome.
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+---
+
+### 0. Stream Date Divider Typography, Clean Note Count & Idle Task Button Removal (Complete)
+*   [x] **Stream Date Divider Typography (`styles.css`)** — Lowered `.pos-date-heading` font size to `0.58em` (~9.5px, down 2pt from earlier 0.68em), set `font-weight: 600`, and muted color to `var(--text-faint, var(--text-muted))`. Streamlined `.pos-date-count` to `font-size: 0.56em` (~9px), `padding: 0 4px`, and `min-width: 14px` for an understated, high-density hierarchy.
+*   [x] **Numeric-Only Note Count Indicator (`DesktopHubView.ts`)** — Updated note count pill in `renderStream()` and `appendBatchToStream()` to render only the count number (`${count}`) and exclude "note"/"notes" (e.g. `TODAY [ 2 ] ───────`).
+*   [x] **Idle Capture Box Task Button Removal (`DesktopHubView.ts`)** — Removed `taskChip` (`☑️ Task`) button from `pos-compact-actions`. The idle state presents a distraction-free placeholder bar with keyboard shortcut hints, expanding immediately upon clicking anywhere on the bar.
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+---
+
+### 0. Muted Wikilinks, Stream Date Badge Removal & Recent Notes Peek Modal (Complete)
+*   [x] **Muted Wikilink Styling (`styles.css`)** — Configured `.pos-note-body a.internal-link`, `.pos-note-body .internal-link`, and `.pos-stream-wikilink` to regular text color (`var(--text-normal)`), bold weight (`600`), and dotted underline (`text-decoration: underline dotted var(--text-muted, currentColor)` with `text-underline-offset: 3px`), highlighting with accent on hover.
+*   [x] **Stream Date Badge Pruning (`DesktopHubView.ts`)** — Removed `.pos-date-badge` loop in `renderStreamItem()`. Cleans visual clutter while preserving day dividers, note markdown dates, and `⋯` date action menu.
+*   [x] **Recent Notes Peek Modal Integration (`WikilinkPeekModal.ts`, `DesktopHubView.ts`, `RecentPermanentNotesModal.ts`)** — Wired recent notes click to open `WikilinkPeekModal` for instant preview and action dispatching without leaving the scratchpad. Added `getAbstractFileByPath` fallback in `WikilinkPeekModal` for reliable path resolution.
+*   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

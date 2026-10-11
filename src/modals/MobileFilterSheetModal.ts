@@ -126,7 +126,8 @@ export class MobileFilterSheetModal extends Modal {
         const importantChip = lensGrid.createDiv({
             cls: `pos-filter-sheet-chip pos-chip-important ${this.activeFilter === 'important' ? 'is-active' : ''} ${importantCount > 0 ? 'has-items' : ''}`
         });
-        importantChip.createSpan({ cls: 'pos-sheet-chip-icon', text: '⭐' });
+        const importantIcon = importantChip.createSpan({ cls: 'pos-sheet-chip-icon' });
+        setIcon(importantIcon, 'star');
         importantChip.createSpan({ cls: 'pos-sheet-chip-label', text: 'Important' });
         importantChip.createSpan({ cls: 'pos-sheet-chip-badge', text: `${importantCount}` });
         importantChip.onclick = () => {
@@ -139,7 +140,8 @@ export class MobileFilterSheetModal extends Modal {
         const todayChip = lensGrid.createDiv({
             cls: `pos-filter-sheet-chip pos-chip-today ${this.activeFilter === 'today' ? 'is-active' : ''} ${todayCount > 0 ? 'has-items' : ''}`
         });
-        todayChip.createSpan({ cls: 'pos-sheet-chip-icon', text: '📅' });
+        const todayIcon = todayChip.createSpan({ cls: 'pos-sheet-chip-icon' });
+        setIcon(todayIcon, 'calendar');
         todayChip.createSpan({ cls: 'pos-sheet-chip-label', text: 'Today' });
         todayChip.createSpan({ cls: 'pos-sheet-chip-badge', text: `${todayCount}` });
         todayChip.onclick = () => {
@@ -152,7 +154,8 @@ export class MobileFilterSheetModal extends Modal {
         const upcomingChip = lensGrid.createDiv({
             cls: `pos-filter-sheet-chip pos-chip-upcoming ${this.activeFilter === 'upcoming' ? 'is-active' : ''} ${upcomingCount > 0 ? 'has-items' : ''}`
         });
-        upcomingChip.createSpan({ cls: 'pos-sheet-chip-icon', text: '📆' });
+        const upcomingIcon = upcomingChip.createSpan({ cls: 'pos-sheet-chip-icon' });
+        setIcon(upcomingIcon, 'calendar-days');
         upcomingChip.createSpan({ cls: 'pos-sheet-chip-label', text: 'Upcoming' });
         upcomingChip.createSpan({ cls: 'pos-sheet-chip-badge', text: `${upcomingCount}` });
         upcomingChip.onclick = () => {
@@ -165,7 +168,8 @@ export class MobileFilterSheetModal extends Modal {
         const untaggedChip = lensGrid.createDiv({
             cls: `pos-filter-sheet-chip pos-chip-untagged ${this.activeFilter === 'untagged' ? 'is-active' : ''} ${untaggedCount > 0 ? 'has-items' : ''}`
         });
-        untaggedChip.createSpan({ cls: 'pos-sheet-chip-icon', text: '🧹' });
+        const untaggedIcon = untaggedChip.createSpan({ cls: 'pos-sheet-chip-icon' });
+        setIcon(untaggedIcon, 'file-text');
         untaggedChip.createSpan({ cls: 'pos-sheet-chip-label', text: 'Untagged' });
         untaggedChip.createSpan({ cls: 'pos-sheet-chip-badge', text: `${untaggedCount}` });
         untaggedChip.onclick = () => {

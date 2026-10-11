@@ -1,6 +1,85 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Agenda Rail Persistence & Stream Deletion Input Activation Fix Deployed
+## Current State: Muted Stream Note Action Hover Toolbar & Authoritative Header Active Highlights Deployed
+- **Stream Note Action Capsule De-Emojification (`DesktopHubView.ts` & `styles.css`)**:
+  - Replaced text emojis with Obsidian's vector SVG Lucide icons in `.pos-note-actions`:
+    - Star/Important: `setIcon(starBtn, 'star')` with monochrome fill (`fill: var(--text-muted) !important; color: var(--text-normal) !important;`) on starred items instead of bright yellow `#eab308`.
+    - Edit Note: replaced `✏️` with `setIcon(editBtn, 'edit-3')`.
+    - More Options: replaced `⋯` with `setIcon(moreBtn, 'more-horizontal')`.
+    - Delete Note: replaced `🗑️` with `setIcon(trashBtn, 'trash-2')`.
+  - Standardized `.pos-action-icon svg` bounds to 14px with `color: var(--text-muted)` transitioning cleanly to `color: var(--text-normal)` on hover.
+  - Replaced emojis in [`MobileFilterSheetModal.ts`](file:///Users/K26/Development/diwa/src/modals/MobileFilterSheetModal.ts) (`star`, `calendar`, `calendar-days`, `file-text`).
+- **Authoritative Muted Header Active Highlight (`styles.css`)**:
+  - Applied high-specificity selectors with `!important` across `.pos-header-text-btn.is-active`, `.pos-rail-toggle-btn.is-active`, and `button.pos-header-text-btn.is-active` to completely neutralize Obsidian theme neon-green `var(--interactive-accent)` bleeding into `[ ◫ Agenda ]` and `[ ☑ Tasks ]`.
+  - Explicitly set `background: var(--background-modifier-hover) !important; background-color: var(--background-modifier-hover) !important; color: var(--text-normal) !important; border: 1px solid var(--text-muted) !important;`.
+  - Muted `.pos-composer-save-btn:hover` from neon green to `background: var(--background-modifier-hover) !important; color: var(--text-normal) !important;`.
+- **Production Build & Vault Deployment**:
+  - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
+  - Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Mid-Heavy Architectural Divider Line Between Header & Stream Deployed
+- **Mid-Heavy Divider Line (`styles.css`)**:
+  - Upgraded the hairline divider beneath the header (`.pos-cockpit-header-wrapper`, `body.is-tablet .pos-cockpit-header-wrapper`, and standalone `.pos-header-bar`) to a prominent mid-heavy architectural boundary: `border-bottom: 2px solid var(--background-modifier-border)`.
+  - Establishes a crisp, clean physical separation between the top cockpit controls (`DIWA`, on-demand search capsule, life area filter, tasks toggle, agenda rail toggle) and the note stream below.
+- **Header Actions Restructuring (`DesktopHubView.ts` & `styles.css`)**:
+  - **On-Demand Search Pill**: Replaced the wide permanent center search bar with an elegant `[ 🔍 Search / ]` pill. Clicking or pressing `/` smoothly expands a sleek, low-profile inline search capsule with auto-focus, real-time debounced filtering, and instant `✕` / `Escape` dismiss.
+  - **Unified Filter Dropdown Pill**: Added a single view lens pill (`[ 🏷️ All Notes ▾ ]`, `[ 💼 Work ▾ ]`, etc.) providing instant 1-tap switching across All Notes, Important, Today, Upcoming, Untagged, and configured Life Areas with real-time count badges.
+  - **Tasks Toggle Pill**: Added a dedicated `[ ☑️ Tasks (N) ]` pill alongside Agenda to quickly filter the stream to open tasks only.
+  - **Digest Moved to More Menu**: Removed the top-right `📅 Digest` pill, integrating it as the primary action inside the `⋯` menu with completion status (`✓ Done`).
+- **Complete Elimination of Multi-Chip Carousel (`styles.css` & `DesktopHubView.ts`)**:
+  - Removed `pos-filter-bar` (`display: none !important`), eliminating all vertical clutter between the header and capture box. The interface flows seamlessly from header directly to the capture box and stream.
+- **Production Build & Vault Deployment**:
+  - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
+  - Deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Date Divider Color Synchronized with Timestamps (var(--text-faint))
+- **Date Divider Palette Harmonization (`styles.css` & `DesktopHubView.ts`)**:
+  - Bound `.pos-date-heading` and `.pos-date-count` color to `var(--text-faint) !important`, perfectly matching the stream timestamp font color (`.pos-note-time`).
+  - Styled `.pos-date-line` with `background: var(--text-faint); opacity: 0.25;` directly in the stylesheet, giving the divider rule a unified, soft aesthetic that integrates naturally with the outliner grid.
+- **Production Build & Vault Deployment**:
+  - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
+  - Deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Flush Stream Task Checkbox (Option 1) & Muted Completed Tick Box Deployed
+- **Stream Task List Indentation Elimination (Option 1, `styles.css`)**:
+  - Overrode Obsidian's default `padding-inline-start: var(--list-indent)` and margin offsets on `ul.contains-task-list` and `.markdown-rendered ul.contains-task-list` (`padding: 0 !important; margin: 2px 0 4px 0 !important; margin-left: 0 !important; margin-inline-start: 0 !important;`).
+  - Positioned the task checkbox flush at the exact same horizontal guideline as normal notes (`left: 0; top: 3px;`), followed cleanly by task text with a compact 22px padding indent, completely removing the awkward ~24px / ~48px jagged list indentation.
+- **Muted Completed Task Tick Box (`styles.css`)**:
+  - Replaced the vibrant default theme `accent-color: var(--interactive-accent)` on completed checkboxes (`li.is-checked input[type="checkbox"]`, `.task-list-item-checkbox:checked`, `.pos-interactive-checkbox:checked`) with a subtle `accent-color: var(--text-faint, rgba(255, 255, 255, 0.35))` and `filter: grayscale(1) opacity(0.5)`.
+  - Completed tick boxes now settle quietly into the background in monochrome without screaming for visual attention.
+- **Production Build & Vault Deployment**:
+  - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
+  - Deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Stream Date Divider Typography, Clean Note Count & Idle Task Button Removal Deployed
+- **Stream Date Divider Typography & Note Count (`styles.css` & `DesktopHubView.ts`)**:
+  - Lowered `.pos-date-heading` font size to `0.58em` (~9.5px, down 2pt from earlier 0.68em), with `font-weight: 600`, letter tracking (`0.08em`), and muted `var(--text-faint, var(--text-muted))` color, creating an understated, clean hierarchy that does not compete with note body text.
+  - Condensed `.pos-date-count` to `font-size: 0.56em` (~9px), `padding: 0 4px`, `min-width: 14px`, and simplified indicator text to just `${count}` (e.g. `TODAY [ 2 ] ───────`).
+  - Aligned tablet date divider styling to match (`font-size: 0.58em`).
+- **Idle Capture State Decluttering (`DesktopHubView.ts`)**:
+  - Removed the `taskChip` (`☑️ Task`) button from `pos-compact-actions` in the idle capture bar.
+  - The idle state now presents a minimalist single input prompt (`✏️ What's on your mind?...`) alongside shortcut hints (`C`, `⌘↵`), with 1-tap/click activation anywhere on the bar expanding the full composer.
+- **Production Build & Vault Deployment**:
+  - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
+  - Deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Muted Wikilinks, Stream Date Badge Removal & Recent Notes Peek Modal Deployed
+- **Muted Wikilink Styling (`styles.css`)**:
+  - Restyled `.pos-note-body a.internal-link`, `.pos-note-body .internal-link`, and `.pos-stream-wikilink` to neutral body text color (`var(--text-normal)`), bold weight (`600`), and a dotted underline (`text-decoration: underline dotted var(--text-muted, currentColor)` with `text-underline-offset: 3px`).
+  - Preserved gentle hover highlighting (`var(--text-accent, var(--interactive-accent))`) without jarring idle neon vibration.
+- **Redundant Stream Date Badges Removed (`DesktopHubView.ts`)**:
+  - Removed the `.pos-date-badge` loop in `renderStreamItem()`.
+  - Date boundaries are already prominently delineated by chronological day dividers (`TODAY`, `YESTERDAY`, etc.) and dates remain naturally visible in note markdown.
+  - Full date reminder and rescheduling workflows remain accessible via the note `⋯` action menu.
+- **Recent Notes Peek Modal Integration (`WikilinkPeekModal.ts`, `DesktopHubView.ts`, `RecentPermanentNotesModal.ts`)**:
+  - Clicking recent notes in the Agenda rail (`renderRailNoteItem`) opens `WikilinkPeekModal` for instant preview, stream filtering, and note actions without losing context. Power user modifiers (`⌘/Ctrl + Click` for tab, `Alt + Click` for window) remain active.
+  - Clicking recent notes in `RecentPermanentNotesModal` or selecting first match on Enter also opens `WikilinkPeekModal`.
+  - Hardened `WikilinkPeekModal` constructor with `app.vault.getAbstractFileByPath()` fallback resolution for full file paths.
+- **Production Build & Vault Deployment**:
+  - Passed all 13 unit tests via `npm test` and clean production build with `npm run build`.
+  - Deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Agenda Rail Persistence & Stream Deletion Input Activation Fix Deployed
 - **Agenda Panel Multi-Tab Persistence (`DesktopHubView.ts`)**:
   - Added zero-dimension guard `if (width <= 0) return;` in `setupResizeObserver()`, preventing backgrounded, transitioning, or newly opened Obsidian tabs from misreporting as narrow layouts.
   - Eliminated automatic `this._cockpitRailOpen = false` mutations from `ResizeObserver`. The Agenda rail now strictly respects the user's manual toggle state and persists reliably across tab switches, window resizes, and app restarts.

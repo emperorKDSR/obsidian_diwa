@@ -1,6 +1,7 @@
 import { App, Modal, Platform, setIcon } from 'obsidian';
 import type DiwaPlugin from '../main';
 import type { PermanentNoteRecord } from '../types';
+import { WikilinkPeekModal } from './WikilinkPeekModal';
 
 export class RecentPermanentNotesModal extends Modal {
     private plugin: DiwaPlugin;
@@ -147,10 +148,10 @@ export class RecentPermanentNotesModal extends Modal {
         const timeCol = itemEl.createDiv({ cls: 'pos-recent-note-time-wrap' });
         timeCol.createSpan({ cls: 'pos-recent-note-time', text: record.modifiedRelative });
 
-        // Click to open
+        // Click to open peek modal
         itemEl.onclick = () => {
             this.close();
-            this.app.workspace.openLinkText(record.filePath, '', false);
+            new WikilinkPeekModal(this.app, this.plugin, record.filePath, record.filePath).open();
         };
     }
 
@@ -158,7 +159,7 @@ export class RecentPermanentNotesModal extends Modal {
         const records = this.plugin.index?.getRecentlyUpdatedPermanentNotes(1, this.searchQuery) || [];
         if (records.length > 0) {
             this.close();
-            this.app.workspace.openLinkText(records[0].filePath, '', false);
+            new WikilinkPeekModal(this.app, this.plugin, records[0].filePath, records[0].filePath).open();
         }
     }
 
