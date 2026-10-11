@@ -5764,8 +5764,30 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
     word-break: break-word;
 }
 
+.pos-rail-task-title p {
+    margin: 0 !important;
+    display: inline;
+}
+
+.pos-rail-task-title a.internal-link {
+    color: var(--text-normal);
+    text-decoration: underline;
+    text-decoration-color: var(--text-faint);
+    cursor: pointer;
+    transition: var(--diwa-transition);
+}
+
+.pos-rail-task-title a.internal-link:hover {
+    color: var(--text-accent, var(--text-normal));
+    text-decoration-color: var(--text-muted);
+}
+
 .pos-rail-task-title.is-completed {
     text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.pos-rail-task-title.is-completed a.internal-link {
     color: var(--text-muted);
 }
 
@@ -5778,12 +5800,29 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
 }
 
 .pos-rail-meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     font-size: 0.74em;
-    padding: 1px 6px;
+    padding: 2px 6px;
     border-radius: 4px;
     background: var(--background-secondary-alt);
     color: var(--text-muted);
     border: 1px solid var(--background-modifier-border-faint);
+}
+
+.pos-rail-meta-pill .pos-btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pos-rail-meta-pill .pos-btn-icon svg {
+    width: 11px;
+    height: 11px;
+    stroke-width: 2px;
+    color: var(--text-muted);
+    stroke: currentColor;
 }
 
 .pos-rail-meta-pill.is-overdue {
@@ -5799,7 +5838,7 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
 }
 
 .pos-rail-source-btn {
-    padding: 1px 5px;
+    padding: 3px 4px;
     font-size: 0.72em;
     background: transparent;
     border: 1px solid var(--background-modifier-border-faint);
@@ -5807,11 +5846,26 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
     color: var(--text-faint);
     cursor: pointer;
     transition: var(--diwa-transition);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pos-rail-source-btn svg {
+    width: 12px;
+    height: 12px;
+    stroke-width: 2px;
+    color: var(--text-muted);
+    stroke: currentColor;
 }
 
 .pos-rail-source-btn:hover {
     color: var(--text-normal);
     border-color: var(--text-muted);
+}
+
+.pos-rail-source-btn:hover svg {
+    color: var(--text-normal);
 }
 
 /* ── Agenda Rail Recent Notes ── */

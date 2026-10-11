@@ -785,24 +785,6 @@ export class DesktopHubView extends ItemView {
             }
         }
 
-        // Notes Intended for Today
-        const todayCaptures = this.plugin.index.getCapturesForTargetDate(todayStr);
-        if (todayCaptures.length > 0) {
-            const notesSection = container.createDiv({ cls: 'pos-rail-section' });
-            const notesSecHeader = notesSection.createDiv({ cls: 'pos-rail-section-header' });
-            notesSecHeader.createSpan({ text: 'Referenced Notes' });
-            notesSecHeader.createSpan({ cls: 'pos-rail-section-badge', text: `${todayCaptures.length}` });
-
-            for (const capture of todayCaptures.slice(0, 6)) {
-                const noteRow = notesSection.createDiv({ cls: 'pos-rail-note-item' });
-                const baseTitle = capture.filePath.split('/').pop()?.replace(/\.md$/, '') || 'Untitled Note';
-                noteRow.createSpan({ text: `📄 ${baseTitle}` });
-                noteRow.onclick = () => {
-                    new WikilinkPeekModal(this.app, this.plugin, capture.filePath, capture.filePath, (target) => this.filterStreamByWikilink(target)).open();
-                };
-            }
-        }
-
         // Tomorrow Glance
         const tomorrowStr = moment(todayStr).add(1, 'days').format('YYYY-MM-DD');
         const tomorrowTasks = this.plugin.index.getTasksForDueDate(tomorrowStr);
@@ -833,9 +815,9 @@ export class DesktopHubView extends ItemView {
         const chipsRow = container.createDiv({ cls: 'pos-rail-tasks-chips' });
         const chips: { id: 'all' | 'overdue' | 'today' | 'upcoming'; label: string }[] = [
             { id: 'all', label: `All (${openTasks.length})` },
-            { id: 'overdue', label: `🔴 Overdue (${overdueCount})` },
-            { id: 'today', label: `🟡 Today (${todayCount})` },
-            { id: 'upcoming', label: `🟢 Upcoming (${upcomingCount})` },
+            { id: 'overdue', label: `Overdue (${overdueCount})` },
+            { id: 'today', label: `Today (${todayCount})` },
+            { id: 'upcoming', label: `Upcoming (${upcomingCount})` },
         ];
 
         for (const chip of chips) {
@@ -904,27 +886,44 @@ export class DesktopHubView extends ItemView {
         };
 
         const content = row.createDiv({ cls: 'pos-rail-task-content' });
-        content.createSpan({
+        const titleEl = content.createDiv({
             cls: `pos-rail-task-title ${task.completed ? 'is-completed' : ''}`,
-            text: task.cleanTitle || task.rawTitle
+        });
+        const taskText = (task.cleanTitle || task.rawTitle || '').trim();
+        void MarkdownRenderer.render(
+            this.app,
+            taskText,
+            titleEl,
+            task.filePath || '',
+            this._streamComponent ?? this
+        ).then(() => {
+            const links = titleEl.querySelectorAll<HTMLAnchorElement>('a.internal-link');
+            links.forEach(link => {
+                const href = link.getAttribute('data-href') || link.textContent || '';
+                link.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    void this.app.workspace.openLinkText(href, task.filePath || '', false);
+                };
+            });
         });
 
-        const metaRow = content.createDiv({ cls: 'pos-rail-task-meta' });
         if (task.dueDate) {
+            const metaRow = content.createDiv({ cls: 'pos-rail-task-meta' });
             const todayStr = moment().format('YYYY-MM-DD');
             const pillCls = isOverdue ? 'is-overdue' : (task.dueDate === todayStr ? 'is-today' : '');
-            metaRow.createSpan({ cls: `pos-rail-meta-pill ${pillCls}`, text: `📅 ${task.dueDate}` });
-        }
-        if (task.areaLabel) {
-            metaRow.createSpan({ cls: 'pos-rail-meta-pill', text: `${task.areaIcon || ''} ${task.areaLabel}`.trim() });
+            const datePill = metaRow.createSpan({ cls: `pos-rail-meta-pill ${pillCls}` });
+            const calIcon = datePill.createSpan({ cls: 'pos-btn-icon' });
+            setIcon(calIcon, 'calendar');
+            datePill.createSpan({ text: ` ${task.dueDate}` });
         }
 
         // Jump to source button
         const jumpBtn = row.createEl('button', {
             cls: 'pos-rail-source-btn',
-            text: '↗',
             attr: { 'aria-label': `Open ${task.noteTitle || 'note'}` }
         });
+        setIcon(jumpBtn, 'arrow-up-right');
         jumpBtn.onclick = (e) => {
             e.stopPropagation();
             new WikilinkPeekModal(this.app, this.plugin, task.filePath, task.filePath, (target) => this.filterStreamByWikilink(target)).open();

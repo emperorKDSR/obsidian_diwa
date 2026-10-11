@@ -1,12 +1,14 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Equal Shape/Size Buttons & Cross-Platform Lucide SVG Rail Tabs (Complete)
+## Current Phase: Rail Task Markdown Rendering, Referenced Notes Removal, & Icon Muting (Complete)
 
 ---
 
-### 0. Equal Rail Tab Geometry & Cross-Platform Vector Icons (Complete)
-*   [x] **Identical Shape & Size Tab Pills (`styles.css`)** — Set `.pos-rail-tabs` to full width (`width: 100%`) and each `.pos-rail-tab-btn` to `flex: 1 1 0; min-width: 0; height: 28px; padding: 0 8px; border: 1px solid transparent; border-radius: var(--diwa-radius-pill);`. Guarantees strictly identical widths, heights, and pill curvature across `Horizon`, `Tasks`, and `Notes` tabs with seamless active states.
-*   [x] **Cross-Platform Muted Vector SVG Icons (`DesktopHubView.ts` & `styles.css`)** — Replaced raw Unicode emojis (`☀️`, `📋`, `📚`) in Agenda rail tabs with native Lucide SVGs (`sun`, `check-square`, `book-open`). Replaced `☀️ [Date]` in Horizon date header with `sun` SVG. Replaced empty stream emojis (`🔍`, `☑️`, `📝`) with vector icons. Completely resolves unmuted full-color emoji rendering on Windows (Segoe UI Emoji).
+### 0. Rail Task Markdown Rendering & Clutter Cleanup (Complete)
+*   [x] **Proper Markdown Rendering in Rail Tasks (`DesktopHubView.ts` & `styles.css`)** — Swapped text node rendering for Obsidian's native `MarkdownRenderer.render()` in `.pos-rail-task-title`, transforming raw `[[wikilinks]]` into clickable internal links. Added click handlers and inline markdown typography styles.
+*   [x] **Elimination of "Referenced Notes" (`DesktopHubView.ts`)** — Removed the `Referenced Notes` section entirely from `renderHorizonRail()`.
+*   [x] **Removal of Life Area from Rail View (`DesktopHubView.ts`)** — Stripped `task.areaLabel` and `task.areaIcon` pill badges from task items in `renderRailTaskRow()`.
+*   [x] **Muted Vector SVG Icons in Rail Tasks (`DesktopHubView.ts` & `styles.css`)** — Replaced raw calendar emoji `📅` with vector Lucide `calendar` SVG. Replaced jump text `'↗'` with Lucide `arrow-up-right` SVG. Removed colored circles (`🔴`, `🟡`, `🟢`) from task rail filter chips.
 *   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---

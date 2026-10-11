@@ -1,18 +1,18 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Equal Shape/Size Buttons & Cross-Platform Lucide SVG Rail Tabs Deployed
-- **Identical Shape & Equal Size Agenda Rail Tabs (`styles.css`)**:
-  - Bound `.pos-rail-tabs` to full container width (`width: 100%; flex: 1; box-sizing: border-box;`).
-  - Standardized `.pos-rail-tab-btn` with `flex: 1 1 0; min-width: 0; height: 28px; padding: 0 8px; border: 1px solid transparent; border-radius: var(--diwa-radius-pill);`, guaranteeing all three buttons (`Horizon`, `Tasks`, `Notes`) have **strictly identical width, height, and curvature**.
-  - On active state, `.is-active` applies `border-color: var(--text-muted); background: var(--background-modifier-hover);` without resizing or shifting geometry.
-- **Cross-Platform Muted Vector SVG Icons (`DesktopHubView.ts` & `styles.css`)**:
-  - Replaced raw emojis (`☀️`, `📋`, `📚`) with native Lucide vector SVGs:
-    - Horizon: `sun` SVG + `Horizon` text label.
-    - Tasks: `check-square` SVG + `Tasks` text label.
-    - Notes: `book-open` SVG + `Notes` text label.
-  - Converted Horizon date header from `☀️ [Date]` to Lucide `sun` SVG + formatted date string.
-  - Converted empty stream icon and search feedback from `🔍`, `☑️`, `📝` to Lucide `search`, `check-square`, and `file-text` SVGs.
-  - Fixes unmuted color rendering on Windows (Segoe UI Emoji) by eliminating raw Unicode emoji characters in favor of true monochrome SVGs that inherit `color: var(--text-muted)`.
+## Current State: Rail Task Markdown Rendering, Referenced Notes Removal, & Icon Muting Deployed
+- **Proper Markdown Rendering in Rail Tasks (`DesktopHubView.ts` & `styles.css`)**:
+  - Replaced plain text rendering with Obsidian's `MarkdownRenderer.render()` for all rail task titles in `.pos-rail-task-title`.
+  - Parses wikilinks (`[[Ole Bech-Lisberg]]`, `[[long term sales horizon]]`, etc.) into clickable Obsidian internal links. Added click handlers to open notes smoothly.
+  - Added inline reset CSS for `.pos-rail-task-title p { margin: 0 !important; display: inline; }` and `.pos-rail-task-title a.internal-link`.
+- **Elimination of "Referenced Notes" Section (`DesktopHubView.ts`)**:
+  - Completely removed the `Referenced Notes` block from `renderHorizonRail()` to keep the Agenda view strictly focused on actionable scheduled items.
+- **Removed Life Area Badges from Rail Tasks (`DesktopHubView.ts`)**:
+  - Removed `[ 💼 Grundfos ]` and `[ -- ]` badge rendering from `renderRailTaskRow()`. Task rows now show only the checkbox, markdown title, due date pill (if scheduled), and jump icon.
+- **Muted Icons Across Rail Task Rows (`DesktopHubView.ts` & `styles.css`)**:
+  - Replaced raw calendar emoji `📅` in task due date pills with Obsidian's monochrome Lucide `calendar` vector SVG icon.
+  - Replaced jump-to-source text arrow `'↗'` with Lucide `arrow-up-right` vector SVG icon with subtle hover transitions.
+  - Removed colored circles (`🔴`, `🟡`, `🟢`) from task rail filter chips.
 - **Production Build & Vault Deployment**:
   - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
   - Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
