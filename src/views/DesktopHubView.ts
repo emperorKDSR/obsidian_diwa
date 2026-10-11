@@ -2947,21 +2947,22 @@ export class DesktopHubView extends ItemView {
             cb.disabled = false;
             cb.addClass('pos-interactive-checkbox');
 
-            const taskItem = entry.tasks[idx];
+            const listItem = cb.closest('li');
+            const cleanLiText = listItem ? (listItem.textContent || '').replace(/^\[[ xX]\]\s*/, '').trim() : '';
+            const matchedTask = entry.tasks.find(t => t.title && cleanLiText && (cleanLiText.includes(t.title) || t.title.includes(cleanLiText))) || entry.tasks[idx];
 
             cb.onclick = async (e) => {
                 e.stopPropagation();
                 const isChecked = cb.checked;
                 
                 // Optimistic visual strike-through update with theme data-task support
-                const listItem = cb.closest('li');
                 if (listItem) {
                     listItem.toggleClass('is-checked', isChecked);
                     listItem.setAttribute('data-task', isChecked ? 'x' : ' ');
                 }
 
-                if (taskItem) {
-                    taskItem.completed = isChecked;
+                if (matchedTask) {
+                    matchedTask.completed = isChecked;
                 }
 
                 // Invalidate render cache for this entry
@@ -2969,8 +2970,8 @@ export class DesktopHubView extends ItemView {
 
                 // Update file directly in background
                 try {
-                    const lineIdx = taskItem ? taskItem.lineIndex : -1;
-                    const taskTitle = taskItem ? taskItem.title : undefined;
+                    const lineIdx = matchedTask ? matchedTask.lineIndex : -1;
+                    const taskTitle = matchedTask ? matchedTask.title : (cleanLiText || undefined);
                     await this.plugin.capture.toggleTaskInFile(
                         entry.filePath,
                         lineIdx,
@@ -2984,8 +2985,8 @@ export class DesktopHubView extends ItemView {
                         listItem.toggleClass('is-checked', !isChecked);
                         listItem.setAttribute('data-task', !isChecked ? 'x' : ' ');
                     }
-                    if (taskItem) {
-                        taskItem.completed = !isChecked;
+                    if (matchedTask) {
+                        matchedTask.completed = !isChecked;
                     }
                     new Notice('Failed to update task state in note');
                 }

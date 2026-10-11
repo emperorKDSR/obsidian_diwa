@@ -1,6 +1,21 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Recent Notes Tab in Agenda Side Rail Deployed
+## Current State: Production Hardening (Phase 1 & Phase 2 Complete)
+- **Phase 1 Functional Defect Remediation**:
+  - **Subtask Checkbox Alignment (`src/views/DesktopHubView.ts`)**: Enhanced `attachInteractiveElements()` to detect list item text content and match top-level tasks from `entry.tasks` or pass subtask text fallback to `CaptureService.toggleTaskInFile()`. Tapping nested subtasks in the scratchpad feed now toggles accurately without throwing index errors.
+  - **KaronView Async Markdown Rendering (`src/views/KaronView.ts`)**: Upgraded deprecated `renderMarkdown()` to standard `MarkdownRenderer.render()` and chained `attachInteractiveLinks()` to each snippet's render promise, resolving the race condition on internal wikilink interceptors.
+  - **Dangling Timer Cleanup (`src/views/GawaCockpitView.ts`)**: Added `clearTimeout(this._searchDebounceTimer)` in `onClose()`, preventing unhandled background calls against detached elements.
+  - **Multi-Leaf Broadcast Query (`src/application/RefreshCoordinator.ts`)**: Expanded `hubLeaves` to query `VIEW_TYPE_MOBILE_HUB` and `VIEW_TYPE_TABLET_HUB` alongside `VIEW_TYPE_DESKTOP_HUB`, ensuring all open workspace leaves receive refresh signals.
+- **Phase 2 Distribution & Configuration Alignment**:
+  - **Manifest & Versions Compatibility (`manifest.json` & `versions.json`)**: Formatted name to `"DIWA"` and bumped `minAppVersion` to `"1.5.0"`, accurately reflecting required Obsidian APIs (`vault.process`, `processFrontMatter`). Updated `versions.json` entry for `11.1.3` to `"1.5.0"`.
+  - **Release Workflow Title (`.github/workflows/release.yml`)**: Corrected release name from `MINA V2` to `DIWA ${{ github.ref_name }}`.
+  - **Scratch Script Deletion**: Removed legacy root migration scripts (`implement_redesign.js`, `implement_swipe.js`, `replace1.js`).
+  - **CSS Scoping (`styles.css`)**: Scoped `.date-none, .area-none, .rem-none` strictly to `.pos-gawa-table`, eliminating unnamespaced selectors.
+- **Production Build & Vault Deployment**:
+  - `tsc --noEmit --skipLibCheck` and `npm run build` passed cleanly with 0 errors.
+  - Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous Phase: Recent Notes Tab in Agenda Side Rail Deployed
 - **Option 1 Dedicated "📚 Notes" Tab in Agenda Panel (`DesktopHubView.ts` & `styles.css`)**:
   - **3-Tab Segmented Header Control**: Expanded `.pos-rail-tabs` to `[ ☀️ Horizon ]  [ 📋 Tasks ]  [ 📚 Notes ]` with streamlined padding and `white-space: nowrap` for compact desktop and tablet viewing.
   - **Live Filterable Recent Notes Stream**:
@@ -11,9 +26,6 @@
   - **Automatic Live Synchronization (`RefreshCoordinator.ts` & `main.ts`)**:
     - Vault modify and metadata cache events on permanent notes now notify refresh, keeping the Agenda Recent Notes feed synchronized in real time.
   - **Persistent Rail Tab State**: Saved in `diwa-cockpit-state-v2` (`localStorage`), preserving tab selection across sessions.
-- **Production Build & Vault Deployment**:
-  - Strict TypeScript check (`tsc --noEmit --skipLibCheck`) and ESBuild production build passed cleanly with 0 errors.
-  - Deployed fresh `main.js` and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` vault plugin directories.
 
 ## Previous Phase: Single-Line Inline Outliner (`HH:MM PM <content>`) Deployed
 - **Single-Line Inline Outliner Architecture (`src/views/DesktopHubView.ts` & `styles.css`)**:

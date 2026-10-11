@@ -1,6 +1,19 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Recent Notes in Agenda Side Rail (Complete)
+## Current Phase: Production Hardening (Phase 1 & Phase 2 Complete)
+
+---
+
+### 0. Production Hardening: Defect Remediation & Distribution Alignment (Complete)
+*   [x] **Subtask Checkbox Alignment (`DesktopHubView.ts`)** — Resolved subtask checkbox mismatch by reading `listItem.textContent` and matching indexed tasks or passing subtask title fallback to `CaptureService.toggleTaskInFile()`. Tapping nested subtasks in the continuous feed now toggles safely without index error notices.
+*   [x] **KaronView Async Markdown Link Interception (`KaronView.ts`)** — Replaced deprecated `MarkdownRenderer.renderMarkdown()` with modern `MarkdownRenderer.render()` and chained `attachInteractiveLinks()` directly to each snippet's render promise, eliminating the race condition on internal link previews.
+*   [x] **Debounce Timer Cleanup (`GawaCockpitView.ts`)** — Added explicit `clearTimeout(this._searchDebounceTimer)` in `onClose()` to prevent unhandled background calls after view destruction.
+*   [x] **Complete Leaf Refresh Scope (`RefreshCoordinator.ts`)** — Extended `hubLeaves` query to include `VIEW_TYPE_MOBILE_HUB` and `VIEW_TYPE_TABLET_HUB` alongside `VIEW_TYPE_DESKTOP_HUB`.
+*   [x] **Manifest & Version Alignment (`manifest.json` & `versions.json`)** — Formatted plugin name to `"DIWA"` and updated `minAppVersion` to `"1.5.0"` (matching modern Obsidian `vault.process` and frontmatter APIs).
+*   [x] **Release Workflow Title (`.github/workflows/release.yml`)** — Renamed release title from `MINA V2` to `DIWA ${{ github.ref_name }}`.
+*   [x] **Scratch Migration Script Removal** — Deleted obsolete root scripts (`implement_redesign.js`, `implement_swipe.js`, `replace1.js`).
+*   [x] **CSS Global Leak Scoping (`styles.css`)** — Scoped `.date-none, .area-none, .rem-none` under `.pos-gawa-table`.
+*   [x] **Production Build & Vault Deployment** — `tsc --noEmit --skipLibCheck` and `npm run build` passed with 0 errors; deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

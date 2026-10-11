@@ -2977,7 +2977,9 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     border: 1px solid var(--background-modifier-border);
 }
 
-.date-none, .area-none, .rem-none {
+.pos-gawa-table .date-none,
+.pos-gawa-table .area-none,
+.pos-gawa-table .rem-none {
     color: var(--text-faint);
 }
 

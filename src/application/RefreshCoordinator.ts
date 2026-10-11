@@ -1,5 +1,12 @@
 import { App, TFile } from 'obsidian';
-import { VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_GAWA_COCKPIT, VIEW_TYPE_CALENDAR_DIGEST, VIEW_TYPE_KARON } from '../constants';
+import {
+    VIEW_TYPE_DESKTOP_HUB,
+    VIEW_TYPE_MOBILE_HUB,
+    VIEW_TYPE_TABLET_HUB,
+    VIEW_TYPE_GAWA_COCKPIT,
+    VIEW_TYPE_CALENDAR_DIGEST,
+    VIEW_TYPE_KARON
+} from '../constants';
 import { DesktopHubView } from '../views/DesktopHubView';
 import type { IndexService } from '../services/IndexService';
 
@@ -54,8 +61,10 @@ export class RefreshCoordinator {
         const scope = this._pendingRefreshScope ?? 'all';
         this._pendingRefreshScope = null;
 
-        // Refresh all open Desktop Hub (Workspace) views
-        const hubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB);
+        // Refresh all open Workspace views (Desktop, Mobile, Tablet)
+        const hubLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB)
+            .concat(this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB))
+            .concat(this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB));
         for (const leaf of hubLeaves) {
             const view = leaf.view as DesktopHubView;
             if (view && typeof view.renderView === 'function') {

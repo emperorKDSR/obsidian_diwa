@@ -370,16 +370,16 @@ export class KaronView extends ItemView {
 
         for (const snippet of snippets) {
             const snippetEl = cardBody.createDiv({ cls: 'pos-karon-snippet' });
-            void MarkdownRenderer.renderMarkdown(
+            void MarkdownRenderer.render(
+                this.app,
                 snippet,
                 snippetEl,
                 entry.filePath,
                 this
-            );
+            ).then(() => {
+                this.attachInteractiveLinks(snippetEl, entry.filePath);
+            });
         }
-
-        // Attach interactive clicks to internal links within snippets
-        this.attachInteractiveLinks(cardBody, entry.filePath);
     }
 
     /**

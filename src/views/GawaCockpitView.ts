@@ -65,6 +65,10 @@ export class GawaCockpitView extends ItemView {
     }
 
     async onClose(): Promise<void> {
+        if (this._searchDebounceTimer) {
+            clearTimeout(this._searchDebounceTimer);
+            this._searchDebounceTimer = null;
+        }
         if (this._mobileBackdropEl) {
             this._mobileBackdropEl.remove();
             this._mobileBackdropEl = null;
