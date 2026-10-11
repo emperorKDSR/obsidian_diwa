@@ -1,18 +1,18 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Muted Stream Note Action Hover Toolbar & Authoritative Header Active Highlights Deployed
-- **Stream Note Action Capsule De-Emojification (`DesktopHubView.ts` & `styles.css`)**:
-  - Replaced text emojis with Obsidian's vector SVG Lucide icons in `.pos-note-actions`:
-    - Star/Important: `setIcon(starBtn, 'star')` with monochrome fill (`fill: var(--text-muted) !important; color: var(--text-normal) !important;`) on starred items instead of bright yellow `#eab308`.
-    - Edit Note: replaced `✏️` with `setIcon(editBtn, 'edit-3')`.
-    - More Options: replaced `⋯` with `setIcon(moreBtn, 'more-horizontal')`.
-    - Delete Note: replaced `🗑️` with `setIcon(trashBtn, 'trash-2')`.
-  - Standardized `.pos-action-icon svg` bounds to 14px with `color: var(--text-muted)` transitioning cleanly to `color: var(--text-normal)` on hover.
-  - Replaced emojis in [`MobileFilterSheetModal.ts`](file:///Users/K26/Development/diwa/src/modals/MobileFilterSheetModal.ts) (`star`, `calendar`, `calendar-days`, `file-text`).
-- **Authoritative Muted Header Active Highlight (`styles.css`)**:
-  - Applied high-specificity selectors with `!important` across `.pos-header-text-btn.is-active`, `.pos-rail-toggle-btn.is-active`, and `button.pos-header-text-btn.is-active` to completely neutralize Obsidian theme neon-green `var(--interactive-accent)` bleeding into `[ ◫ Agenda ]` and `[ ☑ Tasks ]`.
-  - Explicitly set `background: var(--background-modifier-hover) !important; background-color: var(--background-modifier-hover) !important; color: var(--text-normal) !important; border: 1px solid var(--text-muted) !important;`.
-  - Muted `.pos-composer-save-btn:hover` from neon green to `background: var(--background-modifier-hover) !important; color: var(--text-normal) !important;`.
+## Current State: Equal Shape/Size Buttons & Cross-Platform Lucide SVG Rail Tabs Deployed
+- **Identical Shape & Equal Size Agenda Rail Tabs (`styles.css`)**:
+  - Bound `.pos-rail-tabs` to full container width (`width: 100%; flex: 1; box-sizing: border-box;`).
+  - Standardized `.pos-rail-tab-btn` with `flex: 1 1 0; min-width: 0; height: 28px; padding: 0 8px; border: 1px solid transparent; border-radius: var(--diwa-radius-pill);`, guaranteeing all three buttons (`Horizon`, `Tasks`, `Notes`) have **strictly identical width, height, and curvature**.
+  - On active state, `.is-active` applies `border-color: var(--text-muted); background: var(--background-modifier-hover);` without resizing or shifting geometry.
+- **Cross-Platform Muted Vector SVG Icons (`DesktopHubView.ts` & `styles.css`)**:
+  - Replaced raw emojis (`☀️`, `📋`, `📚`) with native Lucide vector SVGs:
+    - Horizon: `sun` SVG + `Horizon` text label.
+    - Tasks: `check-square` SVG + `Tasks` text label.
+    - Notes: `book-open` SVG + `Notes` text label.
+  - Converted Horizon date header from `☀️ [Date]` to Lucide `sun` SVG + formatted date string.
+  - Converted empty stream icon and search feedback from `🔍`, `☑️`, `📝` to Lucide `search`, `check-square`, and `file-text` SVGs.
+  - Fixes unmuted color rendering on Windows (Segoe UI Emoji) by eliminating raw Unicode emoji characters in favor of true monochrome SVGs that inherit `color: var(--text-muted)`.
 - **Production Build & Vault Deployment**:
   - Passed all 13 unit tests via `npm test` and compiled clean production bundle with `npm run build`.
   - Deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.

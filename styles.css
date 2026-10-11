@@ -5544,21 +5544,46 @@ body.is-resizing-cockpit {
     padding: 2px;
     border: 1px solid var(--background-modifier-border-faint);
     gap: 2px;
+    width: 100%;
     min-width: 0;
-    flex-shrink: 1;
+    flex: 1;
+    box-sizing: border-box;
 }
 
 .pos-rail-tab-btn {
     font-size: 0.8em;
     font-weight: 600;
-    padding: 4px 10px;
+    padding: 0 8px;
     border-radius: var(--diwa-radius-pill);
-    border: none;
+    border: 1px solid transparent;
     background: transparent;
     color: var(--text-muted);
     cursor: pointer;
     transition: var(--diwa-transition);
     white-space: nowrap;
+    flex: 1 1 0;
+    min-width: 0;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    box-sizing: border-box;
+}
+
+.pos-rail-tab-btn .pos-btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.pos-rail-tab-btn .pos-btn-icon svg {
+    width: 13px;
+    height: 13px;
+    stroke-width: 2px;
+    color: var(--text-muted);
+    stroke: currentColor;
     flex-shrink: 0;
 }
 
@@ -5566,11 +5591,23 @@ body.is-resizing-cockpit {
     color: var(--text-normal);
 }
 
-.pos-rail-tab-btn.is-active {
-    background: var(--background-modifier-hover);
+.pos-rail-tab-btn:hover .pos-btn-icon svg {
     color: var(--text-normal);
-    border: 1px solid var(--text-muted);
-    font-weight: 600;
+}
+
+.pos-rail-tab-btn.is-active,
+button.pos-rail-tab-btn.is-active {
+    background: var(--background-modifier-hover) !important;
+    background-color: var(--background-modifier-hover) !important;
+    color: var(--text-normal) !important;
+    border: 1px solid var(--text-muted) !important;
+    border-color: var(--text-muted) !important;
+    font-weight: 600 !important;
+}
+
+.pos-rail-tab-btn.is-active .pos-btn-icon svg,
+button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
+    color: var(--text-normal) !important;
 }
 
 .pos-rail-actions {
@@ -5618,9 +5655,19 @@ body.is-resizing-cockpit {
 }
 
 .pos-rail-horizon-today {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: 0.95em;
     font-weight: 700;
     color: var(--text-normal);
+}
+
+.pos-rail-horizon-today .pos-btn-icon svg {
+    width: 14px;
+    height: 14px;
+    color: var(--text-muted);
+    stroke: currentColor;
 }
 
 .pos-rail-horizon-subtitle {

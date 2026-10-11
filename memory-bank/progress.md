@@ -1,13 +1,12 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Muted Stream Note Action Hover Toolbar & Authoritative Header Active Highlights (Complete)
+## Current Phase: Equal Shape/Size Buttons & Cross-Platform Lucide SVG Rail Tabs (Complete)
 
 ---
 
-### 0. Note Action Toolbar De-Emojification & Header Highlight Muting (Complete)
-*   [x] **Stream Note Actions Toolbar (`DesktopHubView.ts` & `styles.css`)** — Replaced all emojis (`⭐`/`☆`, `✏️`, `⋯`, `🗑️`) in `.pos-note-actions` with Obsidian Lucide vector SVGs (`star`, `edit-3`, `more-horizontal`, `trash-2`). Muted starred state to monochrome fill (`fill: var(--text-muted) !important`), removing bright yellow `#eab308`.
-*   [x] **Header Button Active Highlight Neutralization (`styles.css`)** — Applied authoritative `!important` rules on `.pos-header-text-btn.is-active`, `.pos-rail-toggle-btn.is-active`, and `button.pos-header-text-btn.is-active` to eliminate theme neon-green `var(--interactive-accent)` highlights on `[ ◫ Agenda ]`, `[ ☑ Tasks ]`, etc., enforcing dark mode muted highlight (`background: var(--background-modifier-hover); color: var(--text-normal); border: 1px solid var(--text-muted)`). Muted `.pos-composer-save-btn:hover`.
-*   [x] **Mobile Bottom Sheet Lens Icons (`MobileFilterSheetModal.ts`)** — Replaced raw emojis (`⭐`, `📅`, `📆`, `🧹`) with vector icons (`star`, `calendar`, `calendar-days`, `file-text`).
+### 0. Equal Rail Tab Geometry & Cross-Platform Vector Icons (Complete)
+*   [x] **Identical Shape & Size Tab Pills (`styles.css`)** — Set `.pos-rail-tabs` to full width (`width: 100%`) and each `.pos-rail-tab-btn` to `flex: 1 1 0; min-width: 0; height: 28px; padding: 0 8px; border: 1px solid transparent; border-radius: var(--diwa-radius-pill);`. Guarantees strictly identical widths, heights, and pill curvature across `Horizon`, `Tasks`, and `Notes` tabs with seamless active states.
+*   [x] **Cross-Platform Muted Vector SVG Icons (`DesktopHubView.ts` & `styles.css`)** — Replaced raw Unicode emojis (`☀️`, `📋`, `📚`) in Agenda rail tabs with native Lucide SVGs (`sun`, `check-square`, `book-open`). Replaced `☀️ [Date]` in Horizon date header with `sun` SVG. Replaced empty stream emojis (`🔍`, `☑️`, `📝`) with vector icons. Completely resolves unmuted full-color emoji rendering on Windows (Segoe UI Emoji).
 *   [x] **Automated Tests & Production Deployment** — Passed `npm test` (13/13 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---

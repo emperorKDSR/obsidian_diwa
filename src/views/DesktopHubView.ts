@@ -675,9 +675,11 @@ export class DesktopHubView extends ItemView {
 
         const tabsContainer = header.createDiv({ cls: 'pos-rail-tabs' });
         const karonTabBtn = tabsContainer.createEl('button', {
-            cls: `pos-rail-tab-btn ${this._cockpitRailTab === 'karon' ? 'is-active' : ''}`,
-            text: '☀️ Horizon'
+            cls: `pos-rail-tab-btn ${this._cockpitRailTab === 'karon' ? 'is-active' : ''}`
         });
+        const karonIcon = karonTabBtn.createSpan({ cls: 'pos-btn-icon' });
+        setIcon(karonIcon, 'sun');
+        karonTabBtn.createSpan({ text: 'Horizon' });
         karonTabBtn.onclick = () => {
             this._cockpitRailTab = 'karon';
             this.saveCockpitState();
@@ -685,9 +687,11 @@ export class DesktopHubView extends ItemView {
         };
 
         const tasksTabBtn = tabsContainer.createEl('button', {
-            cls: `pos-rail-tab-btn ${this._cockpitRailTab === 'tasks' ? 'is-active' : ''}`,
-            text: '📋 Tasks'
+            cls: `pos-rail-tab-btn ${this._cockpitRailTab === 'tasks' ? 'is-active' : ''}`
         });
+        const tasksIcon = tasksTabBtn.createSpan({ cls: 'pos-btn-icon' });
+        setIcon(tasksIcon, 'check-square');
+        tasksTabBtn.createSpan({ text: 'Tasks' });
         tasksTabBtn.onclick = () => {
             this._cockpitRailTab = 'tasks';
             this.saveCockpitState();
@@ -695,9 +699,11 @@ export class DesktopHubView extends ItemView {
         };
 
         const notesTabBtn = tabsContainer.createEl('button', {
-            cls: `pos-rail-tab-btn ${this._cockpitRailTab === 'notes' ? 'is-active' : ''}`,
-            text: '📚 Notes'
+            cls: `pos-rail-tab-btn ${this._cockpitRailTab === 'notes' ? 'is-active' : ''}`
         });
+        const notesIcon = notesTabBtn.createSpan({ cls: 'pos-btn-icon' });
+        setIcon(notesIcon, 'book-open');
+        notesTabBtn.createSpan({ text: 'Notes' });
         notesTabBtn.onclick = () => {
             this._cockpitRailTab = 'notes';
             this.saveCockpitState();
@@ -741,7 +747,10 @@ export class DesktopHubView extends ItemView {
 
         // Date row
         const dateHeader = container.createDiv({ cls: 'pos-rail-horizon-date-header' });
-        dateHeader.createSpan({ cls: 'pos-rail-horizon-today', text: `☀️ ${today.format('dddd, MMM D')}` });
+        const todayHeaderWrap = dateHeader.createSpan({ cls: 'pos-rail-horizon-today' });
+        const sunIcon = todayHeaderWrap.createSpan({ cls: 'pos-btn-icon' });
+        setIcon(sunIcon, 'sun');
+        todayHeaderWrap.createSpan({ text: ` ${today.format('dddd, MMM D')}` });
         dateHeader.createSpan({ cls: 'pos-rail-horizon-subtitle', text: 'Rolling Horizon' });
 
         // Overdue section
@@ -2446,7 +2455,8 @@ export class DesktopHubView extends ItemView {
             const emptyEl = container.createDiv({
                 cls: `pos-empty-state ${trimmedQuery ? 'pos-search-empty-state' : ''}`
             });
-            emptyEl.createDiv({ cls: 'pos-empty-icon', text: trimmedQuery ? '🔍' : (this._filterTasksOnly ? '☑️' : '📝') });
+            const emptyIconEl = emptyEl.createDiv({ cls: 'pos-empty-icon' });
+            setIcon(emptyIconEl, trimmedQuery ? 'search' : (this._filterTasksOnly ? 'check-square' : 'file-text'));
 
             const horizonLabel = this.plugin.index?.getScratchpadHorizonLabel?.();
             let emptyTitle = 'Your workspace is clean and ready';
@@ -2484,9 +2494,11 @@ export class DesktopHubView extends ItemView {
         // Search feedback header when query is active
         if (trimmedQuery) {
             const searchSummary = container.createDiv({ cls: 'pos-search-results-summary' });
+            const searchIconSpan = searchSummary.createSpan({ cls: 'pos-btn-icon' });
+            setIcon(searchIconSpan, 'search');
             searchSummary.createSpan({
                 cls: 'pos-search-results-text',
-                text: `🔍 Found ${filtered.length} note${filtered.length === 1 ? '' : 's'} matching "${trimmedQuery}"`
+                text: ` Found ${filtered.length} note${filtered.length === 1 ? '' : 's'} matching "${trimmedQuery}"`
             });
         }
 
