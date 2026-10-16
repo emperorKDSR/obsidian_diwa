@@ -52,7 +52,8 @@ export class DesktopHubView extends ItemView {
 
     // Cockpit dual-pane state & layout elements (Desktop & Tablet)
     private _cockpitRailOpen: boolean = true;
-    private _cockpitRailTab: 'karon' | 'tasks' | 'notes' = 'karon';
+    private _cockpitRailTab: 'karon' | 'notes' = 'karon';
+    private _horizonUndatedExpanded: boolean = false;
     private _cockpitRailWidth: number = 340;
     private _cockpitSplitRatio: number = 0.62;
     private _desktopComposerExpanded: boolean = false;
@@ -72,7 +73,6 @@ export class DesktopHubView extends ItemView {
     private _resizerEl: HTMLElement | null = null;
     private _resizeObserver: ResizeObserver | null = null;
     private _keyHandler: ((e: KeyboardEvent) => void) | null = null;
-    private _tasksRailFilter: 'all' | 'overdue' | 'today' | 'upcoming' = 'all';
     private _desktopComposerWrapperEl: HTMLElement | null = null;
 
     constructor(leaf: WorkspaceLeaf, plugin: DiwaPlugin) {
@@ -452,7 +452,14 @@ export class DesktopHubView extends ItemView {
             if (raw) {
                 const parsed = JSON.parse(raw);
                 if (typeof parsed.railOpen === 'boolean') this._cockpitRailOpen = parsed.railOpen;
-                if (parsed.railTab === 'karon' || parsed.railTab === 'tasks' || parsed.railTab === 'notes') this._cockpitRailTab = parsed.railTab;
+                if (parsed.railTab === 'karon' || parsed.railTab === 'notes') {
+                    this._cockpitRailTab = parsed.railTab;
+                } else {
+                    this._cockpitRailTab = 'karon';
+                }
+                if (typeof parsed.undatedExpanded === 'boolean') {
+                    this._horizonUndatedExpanded = parsed.undatedExpanded;
+                }
                 if (typeof parsed.railWidth === 'number' && parsed.railWidth >= 260 && parsed.railWidth <= 600) {
                     this._cockpitRailWidth = parsed.railWidth;
                 } else if (typeof parsed.splitRatio === 'number' && parsed.splitRatio >= 0.35 && parsed.splitRatio <= 0.85) {
@@ -473,6 +480,7 @@ export class DesktopHubView extends ItemView {
             localStorage.setItem('diwa-cockpit-state-v2', JSON.stringify({
                 railOpen: this._cockpitRailOpen,
                 railTab: this._cockpitRailTab,
+                undatedExpanded: this._horizonUndatedExpanded,
                 railWidth: this._cockpitRailWidth,
                 splitRatio: this._cockpitSplitRatio
             }));
@@ -719,18 +727,6 @@ export class DesktopHubView extends ItemView {
             this.renderRightRail(rail);
         };
 
-        const tasksTabBtn = tabsContainer.createEl('button', {
-            cls: `pos-rail-tab-btn ${this._cockpitRailTab === 'tasks' ? 'is-active' : ''}`
-        });
-        const tasksIcon = tasksTabBtn.createSpan({ cls: 'pos-btn-icon' });
-        setIcon(tasksIcon, 'check-square');
-        tasksTabBtn.createSpan({ text: 'Tasks' });
-        tasksTabBtn.onclick = () => {
-            this._cockpitRailTab = 'tasks';
-            this.saveCockpitState();
-            this.renderRightRail(rail);
-        };
-
         const notesTabBtn = tabsContainer.createEl('button', {
             cls: `pos-rail-tab-btn ${this._cockpitRailTab === 'notes' ? 'is-active' : ''}`
         });
@@ -766,9 +762,6 @@ export class DesktopHubView extends ItemView {
         if (this._cockpitRailTab === 'karon') {
             contentEl.empty();
             void this.renderHorizonRail(contentEl);
-        } else if (this._cockpitRailTab === 'tasks') {
-            contentEl.empty();
-            this.renderTasksRail(contentEl);
         } else if (this._cockpitRailTab === 'notes') {
             this.renderRecentNotesRail(contentEl);
         }
@@ -846,7 +839,51 @@ export class DesktopHubView extends ItemView {
             }
         }
 
-        // All-clear message if no overdue tasks, today items, or upcoming items
+        // Collapsible Undated section (strictly open undated tasks, excluding Handumanan)
+        const undatedTasks = this.plugin.index
+            .getGawaTasks()
+            .filter(t => !t.completed && !t.dueDate && !t.filePath?.toLowerCase().includes('handumanan'));
+
+        if (undatedTasks.length > 0) {
+            totalHorizonItems += undatedTasks.length;
+            const undatedSection = container.createDiv({
+                cls: `pos-rail-section pos-rail-undated-section ${this._horizonUndatedExpanded ? 'is-expanded' : 'is-collapsed'}`
+            });
+            const undatedHeader = undatedSection.createDiv({
+                cls: 'pos-rail-section-header is-collapsible',
+                attr: {
+                    role: 'button',
+                    tabindex: '0',
+                    'aria-expanded': String(this._horizonUndatedExpanded)
+                }
+            });
+            const headerLeft = undatedHeader.createSpan({ cls: 'pos-rail-section-header-left' });
+            const chevronEl = headerLeft.createSpan({ cls: 'pos-rail-section-chevron' });
+            setIcon(chevronEl, this._horizonUndatedExpanded ? 'chevron-down' : 'chevron-right');
+            headerLeft.createSpan({ text: 'Undated' });
+            undatedHeader.createSpan({ cls: 'pos-rail-section-badge', text: `${undatedTasks.length}` });
+
+            const toggleUndated = () => {
+                this._horizonUndatedExpanded = !this._horizonUndatedExpanded;
+                this.saveCockpitState();
+                void this.renderHorizonRail(container);
+            };
+            undatedHeader.onclick = toggleUndated;
+            undatedHeader.onkeydown = (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggleUndated();
+                }
+            };
+
+            if (this._horizonUndatedExpanded) {
+                for (const task of undatedTasks) {
+                    this.renderRailTaskRow(undatedSection, task, false);
+                }
+            }
+        }
+
+        // All-clear message if no overdue tasks, today items, upcoming items, or undated tasks
         if (totalHorizonItems === 0) {
             container.createDiv({ cls: 'pos-rail-empty-msg', text: 'All caught up — no tasks or notes scheduled.' });
         }
@@ -876,10 +913,24 @@ export class DesktopHubView extends ItemView {
                 const links = snippetEl.querySelectorAll<HTMLAnchorElement>('a.internal-link');
                 links.forEach(link => {
                     const href = link.getAttribute('data-href') || link.textContent || '';
-                    link.onclick = (e) => {
+                    link.onclick = async (e: MouseEvent) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        void this.app.workspace.openLinkText(href, note.filePath, false);
+                        if (e.metaKey || e.ctrlKey) {
+                            await this.app.workspace.openLinkText(href, note.filePath, 'tab');
+                            return;
+                        }
+                        if (e.altKey) {
+                            await this.app.workspace.openLinkText(href, note.filePath, 'window');
+                            return;
+                        }
+                        new WikilinkPeekModal(
+                            this.app,
+                            this.plugin,
+                            href,
+                            note.filePath,
+                            (target) => this.filterStreamByWikilink(target)
+                        ).open();
                     };
                 });
             });
@@ -888,68 +939,6 @@ export class DesktopHubView extends ItemView {
         row.onclick = () => {
             new WikilinkPeekModal(this.app, this.plugin, note.noteTitle, note.filePath, (target) => this.filterStreamByWikilink(target)).open();
         };
-    }
-
-    private renderTasksRail(container: HTMLElement): void {
-        const allTasks = this.plugin.index.getGawaTasks();
-        const openTasks = allTasks.filter(t => !t.completed);
-        const todayStr = moment().format('YYYY-MM-DD');
-
-        const overdueCount = openTasks.filter(t => t.dueDate && t.dueDate < todayStr).length;
-        const todayCount = openTasks.filter(t => t.dueDate === todayStr).length;
-        const upcomingCount = openTasks.filter(t => t.dueDate && t.dueDate > todayStr).length;
-
-        // Filter chips row
-        const chipsRow = container.createDiv({ cls: 'pos-rail-tasks-chips' });
-        const chips: { id: 'all' | 'overdue' | 'today' | 'upcoming'; label: string }[] = [
-            { id: 'all', label: `All (${openTasks.length})` },
-            { id: 'overdue', label: `Overdue (${overdueCount})` },
-            { id: 'today', label: `Today (${todayCount})` },
-            { id: 'upcoming', label: `Upcoming (${upcomingCount})` },
-        ];
-
-        for (const chip of chips) {
-            const btn = chipsRow.createEl('button', {
-                cls: `pos-rail-chip ${this._tasksRailFilter === chip.id ? 'is-active' : ''}`,
-                text: chip.label
-            });
-            btn.onclick = () => {
-                this._tasksRailFilter = chip.id;
-                this.renderTasksRail(container);
-            };
-        }
-
-        // Filter tasks
-        let filtered = openTasks;
-        if (this._tasksRailFilter === 'overdue') {
-            filtered = openTasks.filter(t => t.dueDate && t.dueDate < todayStr);
-        } else if (this._tasksRailFilter === 'today') {
-            filtered = openTasks.filter(t => t.dueDate === todayStr);
-        } else if (this._tasksRailFilter === 'upcoming') {
-            filtered = openTasks.filter(t => t.dueDate && t.dueDate > todayStr);
-        }
-
-        // Sort ascending by due date
-        filtered.sort((a, b) => {
-            if (!a.dueDate && !b.dueDate) return 0;
-            if (!a.dueDate) return 1;
-            if (!b.dueDate) return -1;
-            return a.dueDate.localeCompare(b.dueDate);
-        });
-
-        const listEl = container.createDiv({ cls: 'pos-rail-section' });
-        if (filtered.length === 0) {
-            listEl.createDiv({ cls: 'pos-rail-empty-msg', text: 'No tasks matching this filter.' });
-            return;
-        }
-
-        for (const task of filtered.slice(0, 30)) {
-            this.renderRailTaskRow(listEl, task, Boolean(task.dueDate && task.dueDate < todayStr));
-        }
-
-        if (filtered.length > 30) {
-            listEl.createDiv({ cls: 'pos-rail-empty-msg', text: `+ ${filtered.length - 30} more tasks (open Gawa Cockpit for full list)` });
-        }
     }
 
     private renderRailTaskRow(parent: HTMLElement, task: any, isOverdue: boolean): void {
@@ -989,10 +978,24 @@ export class DesktopHubView extends ItemView {
             const links = titleEl.querySelectorAll<HTMLAnchorElement>('a.internal-link');
             links.forEach(link => {
                 const href = link.getAttribute('data-href') || link.textContent || '';
-                link.onclick = (e) => {
+                link.onclick = async (e: MouseEvent) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    void this.app.workspace.openLinkText(href, task.filePath || '', false);
+                    if (e.metaKey || e.ctrlKey) {
+                        await this.app.workspace.openLinkText(href, task.filePath || '', 'tab');
+                        return;
+                    }
+                    if (e.altKey) {
+                        await this.app.workspace.openLinkText(href, task.filePath || '', 'window');
+                        return;
+                    }
+                    new WikilinkPeekModal(
+                        this.app,
+                        this.plugin,
+                        href,
+                        task.filePath || '',
+                        (target) => this.filterStreamByWikilink(target)
+                    ).open();
                 };
             });
         });
@@ -1413,7 +1416,31 @@ export class DesktopHubView extends ItemView {
                         remText,
                         task.filePath || '',
                         this._streamComponent ?? this
-                    );
+                    ).then(() => {
+                        const links = remText.querySelectorAll<HTMLAnchorElement>('a.internal-link');
+                        links.forEach(link => {
+                            const href = link.getAttribute('data-href') || link.textContent || '';
+                            link.onclick = async (e: MouseEvent) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (e.metaKey || e.ctrlKey) {
+                                    await this.app.workspace.openLinkText(href, task.filePath || '', 'tab');
+                                    return;
+                                }
+                                if (e.altKey) {
+                                    await this.app.workspace.openLinkText(href, task.filePath || '', 'window');
+                                    return;
+                                }
+                                new WikilinkPeekModal(
+                                    this.app,
+                                    this.plugin,
+                                    href,
+                                    task.filePath || '',
+                                    (target) => this.filterStreamByWikilink(target)
+                                ).open();
+                            };
+                        });
+                    });
 
                     const remDelete = remItem.createSpan({
                         cls: 'pos-rail-subtask-del-btn',
@@ -1568,33 +1595,67 @@ export class DesktopHubView extends ItemView {
             return;
         }
 
+        const todayStart = moment().startOf('day');
+        const yesterdayStart = moment().subtract(1, 'day').startOf('day');
+        const weekStart = moment().subtract(7, 'days').startOf('day');
+
+        const buckets: { label: string; items: PermanentNoteRecord[] }[] = [
+            { label: 'Today', items: [] },
+            { label: 'Yesterday', items: [] },
+            { label: 'This Week', items: [] },
+            { label: 'Earlier', items: [] }
+        ];
+
         for (const record of records) {
-            this.renderRailNoteItem(listContainer, record);
+            const modMoment = moment(record.mtime);
+            if (modMoment.isSameOrAfter(todayStart)) {
+                buckets[0].items.push(record);
+            } else if (modMoment.isSameOrAfter(yesterdayStart)) {
+                buckets[1].items.push(record);
+            } else if (modMoment.isSameOrAfter(weekStart)) {
+                buckets[2].items.push(record);
+            } else {
+                buckets[3].items.push(record);
+            }
+        }
+
+        for (const bucket of buckets) {
+            if (bucket.items.length === 0) continue;
+
+            const sectionEl = listContainer.createDiv({ cls: 'pos-rail-section pos-rail-notes-section' });
+            const headerEl = sectionEl.createDiv({ cls: 'pos-rail-section-header' });
+            headerEl.createSpan({ text: bucket.label });
+            headerEl.createSpan({ cls: 'pos-rail-section-badge', text: `${bucket.items.length}` });
+
+            const itemsWrap = sectionEl.createDiv({ cls: 'pos-rail-notes-group-list' });
+            for (const record of bucket.items) {
+                this.renderRailNoteItem(itemsWrap, record);
+            }
         }
     }
 
     private renderRailNoteItem(parent: HTMLElement, record: PermanentNoteRecord): void {
-        const itemEl = parent.createDiv({ cls: 'pos-rail-note-item' });
+        const itemEl = parent.createDiv({ cls: 'pos-rail-permanent-note-row' });
 
-        const mainCol = itemEl.createDiv({ cls: 'pos-rail-note-main' });
-        const titleEl = mainCol.createDiv({ cls: 'pos-rail-note-title', text: record.title });
+        const topRow = itemEl.createDiv({ cls: 'pos-rail-note-top' });
+        const titleEl = topRow.createSpan({ cls: 'pos-rail-note-title', text: record.title });
         titleEl.title = record.title;
+        topRow.createSpan({ cls: 'pos-rail-note-time', text: record.modifiedRelative });
 
-        const metaRow = mainCol.createDiv({ cls: 'pos-rail-note-meta' });
+        const metaParts: string[] = [];
         if (record.folder) {
-            const folderBadge = metaRow.createSpan({ cls: 'pos-rail-note-folder' });
-            const folderIcon = folderBadge.createSpan({ cls: 'pos-rail-note-folder-icon' });
-            setIcon(folderIcon, 'folder');
-            folderBadge.createSpan({ text: record.folder });
+            metaParts.push(record.folder);
         }
         if (record.tags && record.tags.length > 0) {
             for (const tag of record.tags.slice(0, 2)) {
-                metaRow.createSpan({ cls: 'pos-rail-note-tag', text: `#${tag}` });
+                metaParts.push(`#${tag}`);
             }
         }
 
-        const timeCol = itemEl.createDiv({ cls: 'pos-rail-note-time-wrap' });
-        timeCol.createSpan({ cls: 'pos-rail-note-time', text: record.modifiedRelative });
+        if (metaParts.length > 0) {
+            const subRow = itemEl.createDiv({ cls: 'pos-rail-note-sub' });
+            subRow.setText(metaParts.join(' · '));
+        }
 
         itemEl.onclick = async (e: MouseEvent) => {
             if (e.metaKey || e.ctrlKey) {
@@ -1888,23 +1949,7 @@ export class DesktopHubView extends ItemView {
                 menu.showAtMouseEvent(e);
             };
 
-            // 3. Right Rail Toggle Button
-            const isTabletPortrait = Boolean(this._cockpitLayoutEl?.hasClass('is-tablet-portrait'));
-            const railToggleBtn = actions.createEl('button', {
-                cls: `pos-header-text-btn pos-rail-toggle-btn ${this._cockpitRailOpen ? 'is-active' : ''} ${isTabletPortrait ? 'is-hidden' : ''}`,
-                attr: { 'aria-label': 'Toggle Agenda panel (\\)' }
-            });
-            if (isTabletPortrait) {
-                railToggleBtn.style.display = 'none';
-            }
-            const railIconWrap = railToggleBtn.createSpan({ cls: 'pos-btn-icon' });
-            setIcon(railIconWrap, 'panel-right');
-            railToggleBtn.createSpan({ text: ' Agenda' });
-            railToggleBtn.onclick = () => {
-                this.toggleCockpitRail();
-            };
-
-            // 5. More Menu [ ⋯ ] consolidating utility actions + Daily Digest
+            // 3. More Menu [ ⋯ ] consolidating Agenda toggle + Daily Digest + utility actions
             const moreBtn = actions.createEl('button', {
                 cls: 'pos-icon-btn pos-header-more-btn',
                 attr: { 'aria-label': 'More workspace actions' }
@@ -1913,6 +1958,20 @@ export class DesktopHubView extends ItemView {
             moreBtn.onclick = (e) => {
                 e.stopPropagation();
                 const menu = new Menu();
+
+                // 0. Agenda Panel Toggle (unless in tablet portrait mode)
+                const isTabletPortrait = Boolean(this._cockpitLayoutEl?.hasClass('is-tablet-portrait'));
+                if (!isTabletPortrait) {
+                    menu.addItem((item) => {
+                        item.setTitle(this._cockpitRailOpen ? 'Hide Agenda Panel (\\)' : 'Show Agenda Panel (\\)')
+                            .setIcon('panel-right')
+                            .setChecked(this._cockpitRailOpen)
+                            .onClick(() => {
+                                this.toggleCockpitRail();
+                            });
+                    });
+                    menu.addSeparator();
+                }
 
                 // 1. Daily Digest & Review (moved from top header to more menu)
                 const todayDigestSummary = this.plugin.index.getDayDigestSummary(moment().format('YYYY-MM-DD'));
@@ -4009,55 +4068,29 @@ export class DesktopHubView extends ItemView {
                     this.openWikilinkActionMenu(e, href, entry.filePath);
                 };
 
-                // Click / Tap handler
+                // Click / Tap handler: Open WikilinkPeekModal by default (with Desktop modifier support)
                 link.onclick = async (e: MouseEvent) => {
                     e.preventDefault();
                     e.stopPropagation();
 
-                    // Mobile: Slide-Up Bottom Sheet (Peek Sheet)
-                    if (Platform.isMobile) {
-                        new WikilinkPeekModal(
-                            this.app,
-                            this.plugin,
-                            href,
-                            entry.filePath,
-                            (target) => this.filterStreamByWikilink(target)
-                        ).open();
-                        return;
-                    }
-
-                    // Desktop Modifier Clicks
-                    if (e.metaKey || e.ctrlKey) {
-                        await this.app.workspace.openLinkText(href, entry.filePath, 'tab');
-                        return;
-                    }
-                    if (e.altKey) {
-                        await this.app.workspace.openLinkText(href, entry.filePath, 'window');
-                        return;
-                    }
-
-                    // Desktop Standard Left-Click: Protected Split Navigation
-                    const cleanName = href.split('#')[0];
-                    const leaves = this.app.workspace.getLeavesOfType('markdown');
-                    const targetLeaf = leaves.find(l => l !== this.leaf);
-
-                    if (targetLeaf) {
-                        this.app.workspace.setActiveLeaf(targetLeaf, { focus: true });
-                        const destFile = this.app.metadataCache.getFirstLinkpathDest(cleanName, entry.filePath);
-                        if (destFile) {
-                            await targetLeaf.openFile(destFile);
-                        } else {
-                            await this.app.workspace.openLinkText(href, entry.filePath, false);
+                    if (!Platform.isMobile) {
+                        if (e.metaKey || e.ctrlKey) {
+                            await this.app.workspace.openLinkText(href, entry.filePath, 'tab');
+                            return;
                         }
-                    } else {
-                        const splitLeaf = this.app.workspace.getLeaf('split', 'vertical');
-                        const destFile = this.app.metadataCache.getFirstLinkpathDest(cleanName, entry.filePath);
-                        if (destFile) {
-                            await splitLeaf.openFile(destFile);
-                        } else {
-                            await this.app.workspace.openLinkText(href, entry.filePath, 'split');
+                        if (e.altKey) {
+                            await this.app.workspace.openLinkText(href, entry.filePath, 'window');
+                            return;
                         }
                     }
+
+                    new WikilinkPeekModal(
+                        this.app,
+                        this.plugin,
+                        href,
+                        entry.filePath,
+                        (target) => this.filterStreamByWikilink(target)
+                    ).open();
                 };
             }
         });

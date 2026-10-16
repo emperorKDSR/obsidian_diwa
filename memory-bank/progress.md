@@ -1,6 +1,25 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Pre-Flight Modal Harmonized with DIWA Muted Workspace Theme & Palette (Complete)
+## Current Phase: Line-Level Live Editor in `WikilinkPeekModal` & Universal Default Link Routing Deployed (Complete)
+
+---
+
+### 0. Line-Level Live Editor in `WikilinkPeekModal` & Universal Default Link Routing Deployed (Complete)
+*   [x] **Line-Level Live Editor Canvas (`WikilinkPeekModal.ts` & `styles.css`)** — Removed the bottom Quick Append box and turned `.pos-peek-body` into a line-by-line interactive document canvas. Clicking any line turns **only that single line** into an inline live editor (`textarea.pos-peek-line-editor` with `[[`, `#`, `@date`, `/person`, `++` triggers) while all other lines stay rendered. Clicking below the last line or opening an empty note immediately focuses a trailing editable line.
+*   [x] **Outliner Keyboard Ergonomics (`WikilinkPeekModal.ts`)** — `Enter` splits/creates the next line and continues `- ` / `- [ ] ` prefixes; `Backspace` at column `0` strips list prefixes or merges with the previous line; `ArrowUp` / `ArrowDown` moves the active editor across lines; `Escape` / `Cmd+Enter` / blur commits to disk and re-renders.
+*   [x] **Architectural Header & In-Place Back Navigation (`WikilinkPeekModal.ts` & `styles.css`)** — Hid duplicate `.modal-close-button`, added `2px` architectural divider, quiet editorial metadata subtitle (`Folder · #tag · Updated 12m ago`), in-modal `_history` stack with `[ ← ]` back button, and labeled action pills (`Stream`, `Split`, `Open`, `✕`).
+*   [x] **Universal Default Link Routing (`DesktopHubView.ts`, `CalendarDigestView.ts`, `PreFlightDigestModal.ts`)** — Unified all `a.internal-link` clicks across the stream, Agenda Horizon, Digest views, and nested preview links to open `WikilinkPeekModal` by default.
+*   [x] **Unit Tests, Production Build & Vault Deployment** — Passed `npm test` (15/15 passing), `npm run lint`, and `npm run build` (0 errors); deployed to `K0000` & `K0001` test vaults.
+
+---
+
+### 0. Agenda Header Pill Moved to `[ ⋯ ]` Menu, Tasks Tab Removed, Collapsible Undated Section & Editorial Notes Tab Deployed (Complete)
+*   [x] **Agenda Toggle Relocated to `[ ⋯ ]` Menu (`DesktopHubView.ts`)** — Removed the standalone `[ ◨ Agenda ]` pill from the top header bar, streamlining the header to `[ 🔍 Search / ]  [ 🎛️ All Notes ▾ ]  [ ⋯ ]`. Added `Hide Agenda Panel (\)` / `Show Agenda Panel (\)` (`panel-right` icon, checked state) at the top of the `[ ⋯ ]` menu.
+*   [x] **Temporal Grouping & Clean Editorial Rows in "Notes" Tab (`DesktopHubView.ts` & `styles.css`)** — Grouped recent permanent notes (`record.mtime`) into 4 temporal sections (`TODAY`, `YESTERDAY`, `THIS WEEK`, `EARLIER`) with count badges. Redesigned `.pos-rail-permanent-note-row` with a bold title + right-aligned timestamp top row and a quiet inline subtitle (`Folder · #tag`), removing noisy folder icons and pill borders.
+*   [x] **Streamlined 2-Tab Agenda Switcher (`DesktopHubView.ts`)** — Removed the redundant `[ ☑️ Tasks ]` tab pill from `renderRightRail()`, leaving a focused 2-tab switcher (`[ ☀️ Horizon ]  [ 📖 Notes ]`). Legacy `railTab: 'tasks'` values in `localStorage` cleanly fall back to `'karon'`. Removed unused `renderTasksRail()` and `_tasksRailFilter`.
+*   [x] **Collapsible `Undated` Section in Horizon (`DesktopHubView.ts` & `styles.css`)** — Added a collapsible `Undated` section at the bottom of `renderHorizonRail()` for open tasks without a due date (excluding Handumanan). Defaults to collapsed (`_horizonUndatedExpanded: false`, persisted in `diwa-cockpit-state-v2`) with chevron indicator (`chevron-right` / `chevron-down`) and count badge. Expanding renders interactive task rows with checkboxes, `[ 📅 Set Due ▾ ]` picker, subtasks, and notes.
+*   [x] **Hover-Reveal Selector Fix (`styles.css`)** — Added `.pos-rail-task-item:hover` to subtask and note hover-reveal rules in `styles.css`.
+*   [x] **Unit Tests, Production Build & Vault Deployment** — Passed `npm test` (15/15 passing) and `npm run build` (0 errors); deployed fresh `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---
 

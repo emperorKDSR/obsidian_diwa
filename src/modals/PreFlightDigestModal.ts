@@ -2,6 +2,7 @@ import { App, Modal, Notice, MarkdownRenderer, setIcon } from 'obsidian';
 import type DiwaPlugin from '../main';
 import { DigestibleBlock } from '../types';
 import { FileSuggestModal } from './FileSuggestModal';
+import { WikilinkPeekModal } from './WikilinkPeekModal';
 
 export class PreFlightDigestModal extends Modal {
     private plugin: DiwaPlugin;
@@ -82,13 +83,31 @@ export class PreFlightDigestModal extends Modal {
 
             // Card Snippet (Render Markdown)
             const snippet = card.createDiv({ cls: 'pos-preflight-snippet markdown-rendered' });
-            MarkdownRenderer.render(
+            void MarkdownRenderer.render(
                 this.app,
                 block.cleanText,
                 snippet,
                 block.sourceFilePath,
                 this.plugin
-            );
+            ).then(() => {
+                const links = snippet.querySelectorAll<HTMLAnchorElement>('a.internal-link');
+                links.forEach(link => {
+                    const href = link.getAttribute('data-href') || link.textContent || '';
+                    link.onclick = async (e: MouseEvent) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (e.metaKey || e.ctrlKey) {
+                            await this.app.workspace.openLinkText(href, block.sourceFilePath, 'tab');
+                            return;
+                        }
+                        if (e.altKey) {
+                            await this.app.workspace.openLinkText(href, block.sourceFilePath, 'window');
+                            return;
+                        }
+                        new WikilinkPeekModal(this.app, this.plugin, href, block.sourceFilePath).open();
+                    };
+                });
+            });
 
             // Routing Selector
             const routingRow = card.createDiv({ cls: 'pos-preflight-routing-row' });

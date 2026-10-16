@@ -3,6 +3,7 @@ import type DiwaPlugin from '../main';
 import { DigestibleBlock } from '../types';
 import { VIEW_TYPE_CALENDAR_DIGEST, CALENDAR_DIGEST_ICON_ID } from '../constants';
 import { PreFlightDigestModal } from '../modals/PreFlightDigestModal';
+import { WikilinkPeekModal } from '../modals/WikilinkPeekModal';
 import { isTablet } from '../utils';
 
 export class CalendarDigestView extends ItemView {
@@ -317,13 +318,31 @@ export class CalendarDigestView extends ItemView {
             // Card Body (Render Markdown)
             const bodyEl = card.createDiv({ cls: 'pos-card-body markdown-rendered' });
             const displayBody = (entry.rawBody ? this.plugin.capture.unwrapDigestedComments(entry.rawBody) : entry.body) || entry.body;
-            MarkdownRenderer.render(
+            void MarkdownRenderer.render(
                 this.app,
                 displayBody,
                 bodyEl,
                 entry.filePath,
                 this
-            );
+            ).then(() => {
+                const links = bodyEl.querySelectorAll<HTMLAnchorElement>('a.internal-link');
+                links.forEach(link => {
+                    const href = link.getAttribute('data-href') || link.textContent || '';
+                    link.onclick = async (e: MouseEvent) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (e.metaKey || e.ctrlKey) {
+                            await this.app.workspace.openLinkText(href, entry.filePath, 'tab');
+                            return;
+                        }
+                        if (e.altKey) {
+                            await this.app.workspace.openLinkText(href, entry.filePath, 'window');
+                            return;
+                        }
+                        new WikilinkPeekModal(this.app, this.plugin, href, entry.filePath).open();
+                    };
+                });
+            });
 
             // Card Footer Actions
             const cardFooter = card.createDiv({ cls: 'pos-card-footer' });
@@ -338,11 +357,16 @@ export class CalendarDigestView extends ItemView {
             viewFileBtn.createSpan({ text: 'Open Note ' });
             const jumpIcon = viewFileBtn.createSpan({ cls: 'pos-btn-icon' });
             setIcon(jumpIcon, 'arrow-up-right');
-            viewFileBtn.onclick = () => {
-                const file = this.app.vault.getAbstractFileByPath(entry.filePath);
-                if (file) {
-                    this.app.workspace.openLinkText(file.path, '', false);
+            viewFileBtn.onclick = (e: MouseEvent) => {
+                if (e.metaKey || e.ctrlKey) {
+                    void this.app.workspace.openLinkText(entry.filePath, '', 'tab');
+                    return;
                 }
+                if (e.altKey) {
+                    void this.app.workspace.openLinkText(entry.filePath, '', 'window');
+                    return;
+                }
+                new WikilinkPeekModal(this.app, this.plugin, entry.filePath, entry.filePath).open();
             };
         }
     }

@@ -1,6 +1,50 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Pre-Flight Modal Harmonized with DIWA Muted Workspace Theme & Palette
+## Current State: Line-Level Live Editor in `WikilinkPeekModal` & Universal Default Link Routing Deployed
+- **Line-Level Live Editor Canvas (`WikilinkPeekModal.ts` & `styles.css`)**:
+  - Removed the bottom Quick Append footer bar completely (`renderQuickAppendBar` / `.pos-peek-footer`), turning `.pos-peek-body` into a full-height interactive document canvas.
+  - **Line-by-Line Rendering & Single-Line Live Editing**:
+    - Decomposes the note body into logical blocks (`PeekDocBlock[]`, preserving YAML frontmatter, leading `# Title`, and hidden DIWA digest comments/anchors untouched on disk).
+    - Every inactive line renders live via `MarkdownRenderer.render` (`.pos-peek-line-row`), keeping task checkboxes (`- [ ]`) and `[[Wikilinks]]` 1-click interactive.
+    - Clicking anywhere on a line swaps **only that single line** in-place into an auto-sizing live editor (`textarea.pos-peek-line-editor`) while all other lines above and below remain rendered.
+    - Clicking the blank canvas tail (`.pos-peek-canvas-tail`) below the last line—or opening an empty note—immediately activates and focuses an editable line at the bottom of the document.
+  - **Outliner Keyboard Flow & DIWA Smart Triggers**:
+    - Supports `[[` (file suggest), `#` (tag/context suggest), `@date` (natural language date), `/person`, and `++` (`- [ ] ` task conversion) via `attachInlineTriggers()` and `attachMediaPasteHandler()`.
+    - `Enter` splits/creates the next line below, automatically continuing `- ` or `- [ ] ` list prefixes (or clearing an empty prefix).
+    - `Backspace` at column `0` strips a list/task prefix or merges with the previous line.
+    - `ArrowUp` / `ArrowDown` moves the live editor seamlessly to the previous/next line while rendering the prior line back to markdown.
+    - `Escape`, `Cmd/Ctrl + Enter`, or clicking outside commits the line to disk via `app.vault.process()`, syncs `IndexService` + `RefreshCoordinator`, and returns the line to rendered markdown.
+- **Architectural Header & In-Place History Navigation (`WikilinkPeekModal.ts` & `styles.css`)**:
+  - Hid Obsidian's default floating `.modal-close-button` to prevent overlap with header actions.
+  - Added a mid-heavy `2px` architectural divider (`border-bottom: 2px solid var(--background-modifier-border)`) on `var(--background-primary)`.
+  - Replaced noisy uppercase folder breadcrumbs with a quiet editorial subtitle (`Folder/Path · #tag1 · Updated 12m ago`).
+  - Added an in-modal history stack (`_history`) with a `[ ← ]` back button so clicking nested `[[Wikilinks]]` inside the modal navigates in-place and lets you step back seamlessly.
+  - Added labeled muted action pills: `[ 🔍 Stream ]`, `[ ◨ Split ]` (Desktop/Tablet), `[ ↗ Open ]`, and `[ ✕ ]`.
+- **Universal `WikilinkPeekModal` by Default (`DesktopHubView.ts`, `CalendarDigestView.ts`, `PreFlightDigestModal.ts`)**:
+  - Standard left-click / tap on any `[[Wikilink]]` across the main stream, Agenda Horizon note snippets, task titles, task comments, Calendar Digest, Pre-Flight Digest, and nested preview links opens `WikilinkPeekModal` by default.
+
+## Previous State: Agenda Header Pill Moved to `[ ⋯ ]` Menu, Tasks Tab Removed, Collapsible Undated Section & Editorial Notes Tab Deployed
+- **Agenda Toggle Relocated to `[ ⋯ ]` Menu (`DesktopHubView.ts`)**:
+  - Removed the standalone `[ ◨ Agenda ]` pill button from the top header bar, leaving a minimal header bar: `[ 🔍 Search / ]   [ 🎛️ All Notes ▾ ]   [ ⋯ ]`.
+  - Added `Hide Agenda Panel (\)` / `Show Agenda Panel (\)` (with `panel-right` icon and checkmark indicator) as the top item in the `[ ⋯ ]` More menu (hidden in tablet portrait mode).
+- **Temporal Grouping & Clean Editorial Rows in "Notes" Tab (`DesktopHubView.ts` & `styles.css`)**:
+  - **Chronological Horizon Grouping (`updateRailNotesList`)**: Automatically buckets recently updated permanent notes (`record.mtime`) into 4 temporal sections matching the Horizon tab's architecture: **`TODAY`**, **`YESTERDAY`**, **`THIS WEEK`**, and **`EARLIER`** (with `[ count ]` badges; empty buckets suppressed).
+  - **Clean Editorial Note Rows (`renderRailNoteItem`, `.pos-rail-permanent-note-row`)**:
+    - Replaced noisy bordered folder/tag pill badges and `📁` icons with a streamlined editorial row:
+      - **Top Line (`.pos-rail-note-top`)**: Bold truncated note title on the left + tabular relative timestamp (`12m`, `2h`, `Oct 14`) flush right.
+      - **Inline Subtitle (`.pos-rail-note-sub`)**: Quiet inline metadata string joining folder and up to 2 tags with middle dots (`Projects/Steer · #work`), omitted cleanly when a note is in the vault root with no tags.
+- **2-Tab Agenda Panel (`DesktopHubView.ts`)**:
+  - Removed the redundant `[ ☑️ Tasks ]` tab pill from the Agenda panel segmented header (`renderRightRail`), streamlining the top rail navigation to `[ ☀️ Horizon ]  [ 📖 Notes ]`.
+  - Automatically migrates any persisted `railTab: 'tasks'` state in `localStorage` (`diwa-cockpit-state-v2`) to `'karon'` (`Horizon`).
+  - Removed the duplicate `renderTasksRail()` method and `_tasksRailFilter` state.
+- **Collapsible `Undated` Section in Horizon (`DesktopHubView.ts` & `styles.css`)**:
+  - Added a collapsible **`Undated`** section at the bottom of `renderHorizonRail()` displaying open tasks that have no due date (`!t.completed && !t.dueDate`), excluding Handumanan paths.
+  - Collapsed by default (`_horizonUndatedExpanded: false`, persisted in `diwa-cockpit-state-v2`) so the 5-day rolling horizon remains focused and uncluttered.
+  - Interactive header (`.pos-rail-section-header.is-collapsible`) features a `chevron-right` / `chevron-down` indicator, `Undated` label, and count badge (`${undatedTasks.length}`), with click and keyboard (`Enter` / `Space`) support.
+  - When expanded, renders full interactive task cards (`renderRailTaskRow`) supporting 1-click completion, `[ 📅 Set Due ▾ ]` quick-scheduling into the horizon, subtasks, and notes.
+  - Fixed hover-reveal CSS selectors in `styles.css` to target `.pos-rail-task-item:hover` alongside `.pos-rail-task-row:hover`.
+
+## Previous State: Pre-Flight Modal Harmonized with DIWA Muted Workspace Theme & Palette
 - **DIWA Palette Alignment in PreFlightDigestModal (`styles.css` & `PreFlightDigestModal.ts`)**:
   - **Execute Digest CTA Button**: Overrode bright neon-green `.mod-cta` with DIWA's calm muted button style (`background: var(--background-modifier-hover)`, subtle border `var(--background-modifier-border)`, `color: var(--text-normal)`), eliminating harsh theme accent blocks.
   - **Editorial Note Snippet Links**: Styled snippet wikilinks and dates with standard text color and subtle hairline underlines (`.pos-stream-wikilink` style), eliminating bright neon-green links.

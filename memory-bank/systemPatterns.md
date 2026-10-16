@@ -101,16 +101,14 @@ The **DesktopHubView** adapts intelligently between a single-column mobile feed 
 ## 5. Wikilink Interaction Architecture (`WikilinkPeekModal` & Protected Leaves)
 *   **Link Routing & Segregation**: `DesktopHubView.attachInteractiveElements` intercepts all `a.internal-link` anchors in rendered stream captures:
     *   *Date Links* (`YYYY-MM-DD`): Intercepted by `openDateActionMenu` for snooze/tickler scheduling.
-    *   *Note Wikilinks*: Handled through responsive platform routing without evicting the DIWA workspace leaf.
-*   **Mobile Slide-Up Bottom Sheet (`WikilinkPeekModal`)**:
-    *   Styled with `.pos-mobile-bottom-sheet` and `.pos-bottom-sheet-backdrop` (`backdrop-filter: blur(8px)`).
-    *   Occupies 68vh (expanding up to 88vh) with touch drag-handle and swipe-down-to-dismiss gesture threshold (>80px delta).
-    *   Renders note markdown live via `MarkdownRenderer` with explicit `Component` lifecycle (`load()`/`unload()`).
-    *   Interactive task checkboxes inside the sheet update the target note atomically via `app.vault.process()`.
-    *   Built-in **Quick Append Bar**: Allows appending thoughts or `- [ ]` tasks directly to the referenced note via atomic write without opening the note editor.
-    *   Unresolved (Ghost) link handling: Displays clean empty state with a 1-tap `[ ➕ Create Note ]` action.
-*   **Desktop Protected Split Navigation**:
-    *   Normal left-click searches for an adjacent open markdown leaf (`workspace.getLeavesOfType('markdown')`) or opens a vertical split leaf (`workspace.getLeaf('split', 'vertical')`). The DIWA leaf is never replaced or evicted.
+    *   *Note Wikilinks*: Universally open `WikilinkPeekModal` by default on click/tap across Desktop, Tablet, and Mobile without evicting the DIWA workspace leaf.
+*   **Universal Peek Modal & Line-Level Live Editor (`WikilinkPeekModal`)**:
+    *   Default click target for all note wikilinks across the main stream, Agenda side rail (Horizon note snippets, task titles, task notes, Recent Notes), Gawa Cockpit, Karon, Calendar Digest, Pre-Flight Digest, and nested links inside `WikilinkPeekModal` itself.
+    *   On Mobile, styled with `.pos-mobile-bottom-sheet` and `.pos-bottom-sheet-backdrop` (`backdrop-filter: blur(8px)`), occupying 72vh (expanding up to 88vh) with touch drag-handle and swipe-down-to-dismiss gesture threshold (>80px delta).
+    *   **Line-Level Live Editor**: Decomposes the note into logical blocks (`PeekDocBlock[]`). Inactive lines render live via `MarkdownRenderer` with 1-click task checkboxes and wikilinks; clicking any line turns **only that single line** into an inline editor (`textarea.pos-peek-line-editor` with `[[`, `#`, `@date`, `/person`, `++` triggers, `Enter` list continuation, `ArrowUp`/`ArrowDown` line stepping, and atomic persistence via `app.vault.process()`). Clicking the blank canvas tail below the last line or opening an empty note immediately focuses a trailing editable line.
+    *   Unresolved (Ghost) link handling: Displays a muted monochrome empty state with a 1-tap `Create Note` action.
+*   **Desktop Modifier Clicks & Context Menu**:
+    *   Standard left-click opens `WikilinkPeekModal`.
     *   Modifier clicks: `Cmd/Ctrl + Click` opens in a new background tab (`'tab'`), `Alt + Click` opens in a floating window (`'window'`).
     *   Hover Preview: Fires `workspace.trigger('hover-link', ...)` so Obsidian core's **Page Preview** works natively.
     *   Context Menu (`openWikilinkActionMenu`): Right-click (or long press on mobile) provides instant options: *Quick Preview*, *Filter Stream for [[...]]*, *Open in Adjacent Split*, *Open in New Tab*, and *Copy Wikilink*.
