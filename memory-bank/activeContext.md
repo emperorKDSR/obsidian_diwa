@@ -1,6 +1,25 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Stream Image Click-to-Zoom Lightbox, Relaxed Two-Line Recent Notes Cards & Line-Level Live Editor in `WikilinkPeekModal` Deployed
+## Current State: Informational `bill/pending` Notes in Agenda Horizon Deployed
+- **`bill/pending` Notes in Agenda Horizon (`IndexService.ts`, `DesktopHubView.ts`, `styles.css`)**:
+  - **Frontmatter & Tag Extraction (`IndexService.ts`)**:
+    - Scans for notes tagged `#bill/pending` or `tags: [bill/pending]` (excluding trash and Handumanan).
+    - Resolves the target date using the frontmatter `due_date` property (supporting ISO `YYYY-MM-DD`, quoted strings, or wikilinks `[[YYYY-MM-DD]]`).
+    - Extracts optional frontmatter `amount` for financial context.
+    - Excludes `bill/pending` notes from generic note block snippets (`getVaultNoteBlocksForDate`) to prevent duplication.
+  - **Horizon Rail Integration (`DesktopHubView.ts`)**:
+    - **Overdue Section**: Overdue bills (`due_date < today`) surface in `.pos-rail-overdue-box` alongside overdue tasks, dynamically updating the header (`X Overdue Items`, `X Overdue Tasks`, or `X Overdue Bills`).
+    - **5-Day Rolling Horizon**: Bills due on each day (Today, Tomorrow, and Next 3 Days) are rendered in chronological day sections with the section counter badge updated accordingly.
+  - **Muted Informational Bill Card Layout (`DesktopHubView.ts` & `styles.css`)**:
+    - Rendered via `renderRailBillRow()` using `.pos-rail-bill-item` (`cursor: default`, non-interactive per user request):
+      - Line 1: `receipt` Lucide vector icon + note title (`.pos-rail-bill-title`).
+      - Line 2: Meta pills (`.pos-rail-bill-meta`) with calendar icon + `Due: YYYY-MM-DD` (`.is-overdue` or `.is-today`), `bill/pending` badge, and bold tabular `amount` pill if present.
+      - Styled with subtle borders (`var(--background-modifier-border-faint)`), soft red highlight when overdue (`rgba(239, 68, 68, 0.32)`), and aligned with DIWA's muted aesthetic.
+  - **Unit Tests & Production Deployment**:
+    - Added unit tests in `tests/frontmatterFallback.test.ts` verifying tag matching, wikilink `due_date` parsing, amount parsing, and non-pending tag rejection (17/17 passing).
+    - Production bundle compiled with 0 errors and deployed to `/Users/K26/Obsidian/K0000` & `K0001` (`obsidian_DIWA`).
+
+## Previous State: Stream Image Click-to-Zoom Lightbox, Relaxed Two-Line Recent Notes Cards & Line-Level Live Editor in `WikilinkPeekModal` Deployed
 - **Stream Image Click-to-Zoom Lightbox (`DesktopHubView.ts` & `styles.css`)**:
   - In `attachInteractiveElements()`, hydrated cached `.internal-embed` image embeds via `metadataCache.getFirstLinkpathDest()` + `vault.getResourcePath()` and attached delegated click handling on `.pos-note-body` so clicking any embedded (`![[...]]`) or markdown (`![](...)`) image opens a full-viewport zoom lightbox (`openImageLightbox`).
   - Added `.pos-image-lightbox` with interactive click-to-zoom (`1x` ↔ `2x`), mouse-wheel zoom (`100%`–`400%`), click-and-drag panning when zoomed in, floating control pill (`−`, `100%`, `+`, `✕`), and `Escape`/backdrop dismissal.

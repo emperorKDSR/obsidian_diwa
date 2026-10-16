@@ -7228,6 +7228,71 @@ button.pos-rail-tab-btn.is-active .pos-btn-icon svg {
     text-decoration-thickness: 1px;
 }
 
+/* ── Agenda Rail Bill Items (Informational bill/pending Cards) ── */
+.pos-rail-bill-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: var(--diwa-radius-sm);
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border-faint);
+    transition: var(--diwa-transition);
+    cursor: default;
+}
+
+.pos-rail-bill-item.is-overdue {
+    border-color: rgba(239, 68, 68, 0.32);
+    background: rgba(239, 68, 68, 0.03);
+}
+
+.pos-rail-bill-icon {
+    margin-top: 2px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pos-rail-bill-icon svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 1.75px;
+    color: var(--text-muted);
+    stroke: currentColor;
+}
+
+.pos-rail-bill-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pos-rail-bill-title {
+    font-size: 0.88em;
+    font-weight: 500;
+    color: var(--text-normal);
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.pos-rail-bill-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 0.76em;
+}
+
+.pos-rail-bill-amount-pill {
+    font-weight: 600;
+    color: var(--text-normal);
+    font-variant-numeric: tabular-nums;
+}
+
 
 /* ── Agenda Rail Recent Notes (Relaxed Two-Line Cards) ── */
 .pos-rail-notes-search-wrap {

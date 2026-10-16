@@ -119,3 +119,11 @@ export interface HorizonNoteBlock {
     date: string;
     area?: string;
 }
+
+export interface HorizonBillItem {
+    filePath: string;
+    noteTitle: string;
+    dueDate: string; // YYYY-MM-DD
+    amount?: string;
+}
+

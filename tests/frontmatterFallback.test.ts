@@ -45,3 +45,39 @@ Without any frontmatter header
 `;
     assert.strictEqual(IndexService.parseFrontmatterFallback(content), null);
 });
+
+test('extractPendingBillFromMetadata extracts bill/pending notes with due_date property', () => {
+    const content = `---
+tags:
+  - bill/pending
+due_date: 2026-10-18
+amount: "$120.50"
+---
+Electricity bill
+`;
+    const fm = IndexService.parseFrontmatterFallback(content);
+    const bill = IndexService.extractPendingBillFromMetadata('Bills/Electricity.md', 'Electricity', fm);
+    assert.ok(bill !== null);
+    assert.strictEqual(bill.filePath, 'Bills/Electricity.md');
+    assert.strictEqual(bill.noteTitle, 'Electricity');
+    assert.strictEqual(bill.dueDate, '2026-10-18');
+    assert.strictEqual(bill.amount, '$120.50');
+});
+
+test('extractPendingBillFromMetadata supports wikilink due_date and inline #bill/pending tag', () => {
+    const content = `---
+due_date: [[2026-10-15]]
+---
+Water bill #bill/pending
+`;
+    const fm = IndexService.parseFrontmatterFallback(content);
+    const bill = IndexService.extractPendingBillFromMetadata('Bills/Water.md', 'Water', fm, ['#bill/pending']);
+    assert.ok(bill !== null);
+    assert.strictEqual(bill.dueDate, '2026-10-15');
+    assert.strictEqual(bill.amount, undefined);
+
+    // Non-pending bill (e.g., bill/paid) returns null
+    const paidBill = IndexService.extractPendingBillFromMetadata('Bills/Water.md', 'Water', { tags: ['bill/paid'], due_date: '2026-10-15' });
+    assert.strictEqual(paidBill, null);
+});
+

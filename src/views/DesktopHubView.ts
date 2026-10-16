@@ -1,7 +1,7 @@
 import { ItemView, WorkspaceLeaf, TFile, MarkdownRenderer, moment, Notice, Platform, Menu, Component, setIcon } from 'obsidian';
 import type DiwaPlugin from '../main';
 import { VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID } from '../constants';
-import { CaptureEntry, ScratchpadFilterMode, PermanentNoteRecord, HorizonNoteBlock } from '../types';
+import { CaptureEntry, ScratchpadFilterMode, PermanentNoteRecord, HorizonNoteBlock, HorizonBillItem } from '../types';
 import { MergeNotesModal } from '../modals/MergeNotesModal';
 import { DatePickerModal } from '../modals/DatePickerModal';
 import { WikilinkPeekModal } from '../modals/WikilinkPeekModal';
@@ -780,14 +780,26 @@ export class DesktopHubView extends ItemView {
         todayHeaderWrap.createSpan({ text: ` ${today.format('dddd, MMM D')}` });
         dateHeader.createSpan({ cls: 'pos-rail-horizon-subtitle', text: 'Rolling Horizon (5 Days)' });
 
-        // Overdue section (strictly open overdue tasks, excluding Handumanan)
+        // Overdue section (strictly open overdue tasks + overdue bill/pending notes, excluding Handumanan)
         const overdueTasks = this.plugin.index.getOverdueTasks(todayStr).filter(t => !t.completed && !t.filePath?.toLowerCase().includes('handumanan'));
-        if (overdueTasks.length > 0) {
+        const overdueBills = await this.plugin.index.getOverdueBills(todayStr);
+        const overdueTotal = overdueTasks.length + overdueBills.length;
+
+        if (overdueTotal > 0) {
             const overdueBox = container.createDiv({ cls: 'pos-rail-overdue-box' });
             const titleRow = overdueBox.createDiv({ cls: 'pos-rail-overdue-title' });
             const alertIcon = titleRow.createSpan();
             setIcon(alertIcon, 'alert-circle');
-            titleRow.createSpan({ text: `${overdueTasks.length} Overdue Task${overdueTasks.length === 1 ? '' : 's'}` });
+
+            let overdueTitleText = '';
+            if (overdueTasks.length > 0 && overdueBills.length === 0) {
+                overdueTitleText = `${overdueTasks.length} Overdue Task${overdueTasks.length === 1 ? '' : 's'}`;
+            } else if (overdueBills.length > 0 && overdueTasks.length === 0) {
+                overdueTitleText = `${overdueBills.length} Overdue Bill${overdueBills.length === 1 ? '' : 's'}`;
+            } else {
+                overdueTitleText = `${overdueTotal} Overdue Items`;
+            }
+            titleRow.createSpan({ text: overdueTitleText });
 
             for (const task of overdueTasks.slice(0, 5)) {
                 this.renderRailTaskRow(overdueBox, task, true);
@@ -795,9 +807,12 @@ export class DesktopHubView extends ItemView {
             if (overdueTasks.length > 5) {
                 overdueBox.createDiv({ cls: 'pos-rail-empty-msg', text: `+ ${overdueTasks.length - 5} more overdue tasks` });
             }
+            for (const bill of overdueBills) {
+                this.renderRailBillRow(overdueBox, bill, true);
+            }
         }
 
-        let totalHorizonItems = overdueTasks.length;
+        let totalHorizonItems = overdueTotal;
 
         // Rolling 5-day window: Today (0), Tomorrow (1), Next 3 Days (2, 3, 4)
         for (let dayOffset = 0; dayOffset < 5; dayOffset++) {
@@ -806,10 +821,12 @@ export class DesktopHubView extends ItemView {
 
             // Strictly open tasks only, excluding Handumanan
             const dayTasks = this.plugin.index.getTasksForDueDate(targetDateStr).filter(t => !t.completed && !t.filePath?.toLowerCase().includes('handumanan'));
-            // Scan note blocks (stream notes + vault notes, excluding Handumanan)
+            // Pending bills due on targetDateStr
+            const dayBills = await this.plugin.index.getBillsForDueDate(targetDateStr);
+            // Scan note blocks (stream notes + vault notes, excluding Handumanan & bill/pending)
             const dayNotes = await this.plugin.index.getVaultNoteBlocksForDate(targetDateStr);
 
-            const dayTotal = dayTasks.length + dayNotes.length;
+            const dayTotal = dayTasks.length + dayBills.length + dayNotes.length;
             if (dayTotal === 0) continue; // Suppress empty days
 
             totalHorizonItems += dayTotal;
@@ -833,7 +850,12 @@ export class DesktopHubView extends ItemView {
                 this.renderRailTaskRow(daySection, task, false);
             }
 
-            // 2. Render note blocks
+            // 2. Render pending bills (informational)
+            for (const bill of dayBills) {
+                this.renderRailBillRow(daySection, bill, false);
+            }
+
+            // 3. Render note blocks
             for (const note of dayNotes) {
                 this.renderRailNoteRow(daySection, note);
             }
@@ -883,9 +905,47 @@ export class DesktopHubView extends ItemView {
             }
         }
 
-        // All-clear message if no overdue tasks, today items, upcoming items, or undated tasks
+        // All-clear message if no overdue items, today items, upcoming items, or undated tasks
         if (totalHorizonItems === 0) {
             container.createDiv({ cls: 'pos-rail-empty-msg', text: 'All caught up — no tasks or notes scheduled.' });
+        }
+    }
+
+    private renderRailBillRow(parent: HTMLElement, bill: HorizonBillItem, isOverdue: boolean): void {
+        const row = parent.createDiv({
+            cls: `pos-rail-bill-item ${isOverdue ? 'is-overdue' : ''}`
+        });
+
+        const iconEl = row.createDiv({ cls: 'pos-rail-bill-icon' });
+        setIcon(iconEl, 'receipt');
+
+        const content = row.createDiv({ cls: 'pos-rail-bill-content' });
+        content.createDiv({
+            cls: 'pos-rail-bill-title',
+            text: bill.noteTitle
+        });
+
+        const metaRow = content.createDiv({ cls: 'pos-rail-bill-meta' });
+        const todayStr = moment().format('YYYY-MM-DD');
+        const pillCls = isOverdue ? 'is-overdue' : (bill.dueDate === todayStr ? 'is-today' : '');
+
+        const datePill = metaRow.createSpan({
+            cls: `pos-rail-meta-pill ${pillCls}`
+        });
+        const calIcon = datePill.createSpan({ cls: 'pos-btn-icon' });
+        setIcon(calIcon, 'calendar');
+        datePill.createSpan({ text: ` Due: ${bill.dueDate}` });
+
+        metaRow.createSpan({
+            cls: 'pos-rail-meta-pill pos-rail-bill-tag-pill',
+            text: 'bill/pending'
+        });
+
+        if (bill.amount) {
+            metaRow.createSpan({
+                cls: 'pos-rail-meta-pill pos-rail-bill-amount-pill',
+                text: bill.amount
+            });
         }
     }
 

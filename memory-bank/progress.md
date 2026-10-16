@@ -1,6 +1,20 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Line-Level Live Editor in `WikilinkPeekModal` & Universal Default Link Routing Deployed (Complete)
+## Current Phase: Informational `bill/pending` Notes in Agenda Horizon Deployed (Complete)
+
+---
+
+### 0. Informational `bill/pending` Notes in Agenda Horizon Deployed (Complete)
+*   [x] **Tag & `due_date` Property Extraction (`IndexService.ts`)** — Implemented `extractPendingBillFromMetadata()` and `getPendingBills()` to scan vault markdown files tagged `bill/pending` (or `#bill/pending`), resolving the due date directly from the frontmatter `due_date` property (handling ISO dates, quoted dates, and `[[YYYY-MM-DD]]` wikilinks), and extracting optional `amount`.
+*   [x] **Duplicate Note Snippet Suppression (`IndexService.ts`)** — Excluded notes with tag `bill/pending` from generic note block snippets in `getVaultNoteBlocksForDate()` to ensure bills are never rendered twice.
+*   [x] **Overdue Section Integration (`DesktopHubView.ts`)** — Surface overdue pending bills (`due_date < today`) alongside overdue tasks in `.pos-rail-overdue-box`, dynamically adjusting the title badge for tasks, bills, or combined items.
+*   [x] **5-Day Rolling Horizon Integration (`DesktopHubView.ts`)** — Surface pending bills in daily sections (Today, Tomorrow, and Next 3 Days) according to their `due_date`, contributing to each day's count badge.
+*   [x] **Informational Bill Card Component (`DesktopHubView.ts` & `styles.css`)** — Implemented `renderRailBillRow()` and `.pos-rail-bill-item` (`receipt` icon, note title, `Due: YYYY-MM-DD` pill, `bill/pending` tag badge, and optional bold `amount` badge) styled non-interactively in DIWA's muted palette.
+*   [x] **Automated Tests, Production Build & Vault Deployment** — Added tests in `tests/frontmatterFallback.test.ts` (17/17 passing), compiled production bundle, and deployed to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+---
+
+## Previous Phase: Line-Level Live Editor in `WikilinkPeekModal` & Universal Default Link Routing Deployed (Complete)
 
 ---
 

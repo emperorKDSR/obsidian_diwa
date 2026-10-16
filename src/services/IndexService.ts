@@ -1,5 +1,5 @@
 import { App, TFile, moment } from 'obsidian';
-import { DiwaSettings, CaptureEntry, CaptureTaskItem, GawaTaskRecord, GawaSubtaskItem, DayDigestSummary, PermanentNoteRecord, HorizonNoteBlock } from '../types';
+import { DiwaSettings, CaptureEntry, CaptureTaskItem, GawaTaskRecord, GawaSubtaskItem, DayDigestSummary, PermanentNoteRecord, HorizonNoteBlock, HorizonBillItem } from '../types';
 import { extractWikiLinks } from '../utils/wikilinks';
 import { normalizeConfiguredSettingPath } from '../utils/settingsPaths';
 import { normalizeVaultRelativePath } from '../utils/vaultFiles';
@@ -1165,6 +1165,117 @@ export class IndexService {
             .trim();
     }
 
+    static hasPendingBillTag(fm?: Record<string, unknown> | null, inlineTags?: string[]): boolean {
+        const fmTags = IndexService.normalizeContext(fm?.tags ?? fm?.tag);
+        const bodyTags = (inlineTags || []).map(t => String(t || '').trim().replace(/^#+/, '').trim()).filter(Boolean);
+        const allTags = [...fmTags, ...bodyTags];
+        return allTags.some(t => {
+            const lower = t.toLowerCase();
+            return lower === 'bill/pending' || lower.startsWith('bill/pending/');
+        });
+    }
+
+    static extractPendingBillFromMetadata(
+        filePath: string,
+        noteTitle: string,
+        fm?: Record<string, unknown> | null,
+        inlineTags?: string[]
+    ): HorizonBillItem | null {
+        if (!IndexService.hasPendingBillTag(fm, inlineTags)) {
+            return null;
+        }
+        if (!fm) return null;
+
+        const rawDue = fm.due_date ?? fm['due-date'] ?? fm.dueDate;
+        if (rawDue === undefined || rawDue === null || rawDue === '') return null;
+
+        let dueDateStr: string | null = null;
+        if (rawDue instanceof Date) {
+            dueDateStr = moment.utc(rawDue).format('YYYY-MM-DD');
+        } else {
+            const cleaned = String(rawDue).replace(/\[\[|\]\]/g, '').trim();
+            dueDateStr = parseDateToIso(cleaned);
+        }
+
+        if (!dueDateStr) return null;
+
+        const rawAmount = fm.amount;
+        const amount = (rawAmount !== undefined && rawAmount !== null && String(rawAmount).trim() !== '')
+            ? String(rawAmount).trim()
+            : undefined;
+
+        return {
+            filePath,
+            noteTitle,
+            dueDate: dueDateStr,
+            ...(amount ? { amount } : {}),
+        };
+    }
+
+    async getPendingBills(): Promise<HorizonBillItem[]> {
+        const bills: HorizonBillItem[] = [];
+        const allFiles = this.app.vault.getMarkdownFiles();
+
+        for (const file of allFiles) {
+            const normPath = file.path.toLowerCase();
+            if (normPath.includes('/trash/') || normPath.includes('/.trash/')) continue;
+            if (normPath.includes('handumanan')) continue;
+
+            const cache = this.app.metadataCache.getFileCache(file);
+            const inlineTags = (cache?.tags || []).map(t => t.tag);
+            const captureEntry = this.captureIndex.get(file.path);
+            if (captureEntry?.tags) {
+                for (const t of captureEntry.tags) {
+                    if (!inlineTags.includes(t)) inlineTags.push(t);
+                }
+            }
+
+            let fm: Record<string, unknown> | null | undefined = cache?.frontmatter as Record<string, unknown> | undefined;
+
+            // If metadataCache hasn't populated frontmatter or due_date yet, or if we need fallback parsing
+            const hasTagInCache = IndexService.hasPendingBillTag(fm, inlineTags);
+            const hasDueInCache = Boolean(fm && (fm.due_date ?? fm['due-date'] ?? fm.dueDate));
+
+            if (!fm || (hasTagInCache && !hasDueInCache)) {
+                try {
+                    const content = await this.app.vault.read(file);
+                    const fallbackFm = IndexService.parseFrontmatterFallback(content);
+                    if (fallbackFm) {
+                        fm = { ...(fm || {}), ...fallbackFm };
+                    }
+                    // Also check inline #bill/pending in body if not in cache yet
+                    if (/#bill\/pending\b/i.test(content) && !inlineTags.includes('bill/pending')) {
+                        inlineTags.push('bill/pending');
+                    }
+                } catch (err) {
+                    console.warn('[DIWA IndexService] error reading file for pending bill check', { path: file.path, err });
+                }
+            }
+
+            const bill = IndexService.extractPendingBillFromMetadata(file.path, file.basename, fm, inlineTags);
+            if (bill) {
+                bills.push(bill);
+            }
+        }
+
+        return bills.sort((a, b) => {
+            if (a.dueDate < b.dueDate) return -1;
+            if (a.dueDate > b.dueDate) return 1;
+            return a.noteTitle.localeCompare(b.noteTitle);
+        });
+    }
+
+    async getOverdueBills(todayStr?: string): Promise<HorizonBillItem[]> {
+        const today = todayStr || moment().format('YYYY-MM-DD');
+        const allBills = await this.getPendingBills();
+        return allBills.filter(b => b.dueDate < today);
+    }
+
+    async getBillsForDueDate(dateStr: string): Promise<HorizonBillItem[]> {
+        const allBills = await this.getPendingBills();
+        return allBills.filter(b => b.dueDate === dateStr);
+    }
+
     async getVaultNoteBlocksForDate(dateStr: string): Promise<HorizonNoteBlock[]> {
         const results: HorizonNoteBlock[] = [];
         const seenKeys = new Set<string>();
@@ -1175,6 +1286,8 @@ export class IndexService {
             if (entry.filePath.toLowerCase().includes('handumanan')) continue;
             // Exclude already digested capture notes (their contents live authoritatively in destination notes)
             if (entry.digested || (entry.tags && entry.tags.includes('digested')) || (entry.body && entry.body.includes('diwa-digested:'))) continue;
+            // Exclude bill/pending notes (rendered dedicatedly as HorizonBillItem cards)
+            if (IndexService.hasPendingBillTag({ tags: entry.tags }) || (entry.body && /#bill\/pending\b/i.test(entry.body))) continue;
 
             const dates = Array.isArray(entry.allDates) ? entry.allDates : [];
             const hasDate = dates.includes(dateStr) || (entry.body && (entry.body.includes(`[[${dateStr}]]`) || entry.body.includes(dateStr)));
@@ -1212,10 +1325,14 @@ export class IndexService {
             if (normPath.includes('handumanan')) continue;
 
             const cache = this.app.metadataCache.getFileCache(file);
+            const fm = cache?.frontmatter as Record<string, unknown> | undefined;
+            const inlineTags = (cache?.tags || []).map(t => t.tag);
+            // Exclude bill/pending notes (handled by getBillsForDueDate / getOverdueBills)
+            if (IndexService.hasPendingBillTag(fm, inlineTags)) continue;
+
             let matchesDate = false;
 
             // Check frontmatter
-            const fm = cache?.frontmatter;
             if (fm) {
                 const candidateFmDates = [fm.due, fm.scheduled, fm.day, fm.date, fm.targetDate];
                 for (const candidate of candidateFmDates) {
