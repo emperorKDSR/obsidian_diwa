@@ -185,61 +185,25 @@ export class WikilinkPeekModal extends Modal {
             };
         }
 
-        // Open in Split action pill (Desktop / Tablet)
+        // Open in New Window action pill (Desktop)
         if (!Platform.isMobile && this.targetFile) {
-            const splitBtn = actionsEl.createEl('button', {
+            const newWinBtn = actionsEl.createEl('button', {
                 cls: 'pos-peek-action-pill clickable-icon',
-                attr: { 'aria-label': 'Open in adjacent split', 'title': 'Open in adjacent split' }
+                attr: { 'aria-label': 'Open in new resizable window', 'title': 'Open in new resizable window' }
             });
-            const splitIcon = splitBtn.createSpan({ cls: 'pos-peek-btn-icon' });
-            setIcon(splitIcon, 'columns');
-            splitBtn.createSpan({ cls: 'pos-peek-btn-label', text: 'Split' });
-            splitBtn.onclick = async () => {
+            const winIcon = newWinBtn.createSpan({ cls: 'pos-peek-btn-icon' });
+            setIcon(winIcon, 'app-window');
+            newWinBtn.createSpan({ cls: 'pos-peek-btn-label', text: 'New Window' });
+            newWinBtn.onclick = async () => {
                 await this.commitActiveBlock();
                 const fileToOpen = this.targetFile;
                 this.close();
                 if (fileToOpen) {
-                    const splitLeaf = this.app.workspace.getLeaf('split', 'vertical');
-                    await splitLeaf.openFile(fileToOpen);
+                    const winLeaf = this.app.workspace.getLeaf('window');
+                    await winLeaf.openFile(fileToOpen);
                 }
             };
         }
-
-        // Open in full editor action pill
-        if (this.targetFile) {
-            const openFullBtn = actionsEl.createEl('button', {
-                cls: 'pos-peek-action-pill clickable-icon',
-                attr: { 'aria-label': 'Open in editor (Cmd+Click for new tab)', 'title': 'Open note (Cmd+Click for new tab)' }
-            });
-            const openIcon = openFullBtn.createSpan({ cls: 'pos-peek-btn-icon' });
-            setIcon(openIcon, 'arrow-up-right');
-            if (!Platform.isMobile) {
-                openFullBtn.createSpan({ cls: 'pos-peek-btn-label', text: 'Open' });
-            }
-            openFullBtn.onclick = async (e: MouseEvent) => {
-                await this.commitActiveBlock();
-                const targetPath = this.targetFile ? this.targetFile.path : this.linkText;
-                this.close();
-                if (e.metaKey || e.ctrlKey) {
-                    await this.app.workspace.openLinkText(targetPath, this.sourcePath, 'tab');
-                } else if (e.altKey) {
-                    await this.app.workspace.openLinkText(targetPath, this.sourcePath, 'window');
-                } else {
-                    await this.app.workspace.openLinkText(targetPath, this.sourcePath, false);
-                }
-            };
-        }
-
-        // Close button
-        const closeBtn = actionsEl.createEl('button', {
-            cls: 'pos-peek-close-btn clickable-icon',
-            attr: { 'aria-label': 'Close preview (Esc)', 'title': 'Close (Esc)' }
-        });
-        setIcon(closeBtn, 'x');
-        closeBtn.onclick = async () => {
-            await this.commitActiveBlock();
-            this.close();
-        };
 
         // 3. Body View (Line-Level Live Editor Canvas)
         const bodyEl = contentEl.createDiv({ cls: 'pos-peek-body' });

@@ -1637,25 +1637,49 @@ export class DesktopHubView extends ItemView {
     private renderRailNoteItem(parent: HTMLElement, record: PermanentNoteRecord): void {
         const itemEl = parent.createDiv({ cls: 'pos-rail-permanent-note-row' });
 
+        // Line 1: Icon + Wrapping Note Title
         const topRow = itemEl.createDiv({ cls: 'pos-rail-note-top' });
+        const iconEl = topRow.createSpan({ cls: 'pos-rail-note-row-icon' });
+        setIcon(iconEl, 'file-text');
         const titleEl = topRow.createSpan({ cls: 'pos-rail-note-title', text: record.title });
         titleEl.title = record.title;
-        topRow.createSpan({ cls: 'pos-rail-note-time', text: record.modifiedRelative });
 
-        const metaParts: string[] = [];
+        // Line 2: Folder / Tags Context + Relative Timestamp
+        const metaRow = itemEl.createDiv({ cls: 'pos-rail-note-meta' });
+        const contextWrap = metaRow.createDiv({ cls: 'pos-rail-note-context' });
+
         if (record.folder) {
-            metaParts.push(record.folder);
+            const folderShort = record.folder.split('/').filter(Boolean).pop() || record.folder;
+            const folderPill = contextWrap.createSpan({
+                cls: 'pos-rail-note-pill is-folder',
+                attr: { title: record.folder }
+            });
+            const folderIcon = folderPill.createSpan({ cls: 'pos-rail-note-pill-icon' });
+            setIcon(folderIcon, 'folder');
+            folderPill.createSpan({ text: folderShort });
         }
-        if (record.tags && record.tags.length > 0) {
-            for (const tag of record.tags.slice(0, 2)) {
-                metaParts.push(`#${tag}`);
+
+        if (Array.isArray(record.tags) && record.tags.length > 0) {
+            const visibleTags = record.tags.slice(0, 2);
+            for (const tag of visibleTags) {
+                const cleanTag = String(tag).replace(/^#+/, '').trim();
+                if (!cleanTag) continue;
+                contextWrap.createSpan({
+                    cls: 'pos-rail-note-pill is-tag',
+                    text: `#${cleanTag}`,
+                    attr: { title: `#${cleanTag}` }
+                });
+            }
+            if (record.tags.length > 2) {
+                contextWrap.createSpan({
+                    cls: 'pos-rail-note-pill is-tag-more',
+                    text: `+${record.tags.length - 2}`,
+                    attr: { title: record.tags.slice(2).map(t => `#${String(t).replace(/^#+/, '')}`).join(', ') }
+                });
             }
         }
 
-        if (metaParts.length > 0) {
-            const subRow = itemEl.createDiv({ cls: 'pos-rail-note-sub' });
-            subRow.setText(metaParts.join(' · '));
-        }
+        metaRow.createSpan({ cls: 'pos-rail-note-time', text: record.modifiedRelative });
 
         itemEl.onclick = async (e: MouseEvent) => {
             if (e.metaKey || e.ctrlKey) {
@@ -3288,7 +3312,7 @@ export class DesktopHubView extends ItemView {
         if (this._selectionMode) {
             item.onclick = (e) => {
                 const target = e.target as HTMLElement;
-                if (target.closest('.pos-interactive-checkbox') || target.closest('.pos-note-actions') || target.closest('a')) {
+                if (target.closest('.pos-interactive-checkbox') || target.closest('.pos-note-actions') || target.closest('a') || target.closest('img') || target.closest('.image-embed')) {
                     return;
                 }
                 if (this._selectedEntryIds.has(entry.id)) {
@@ -3303,7 +3327,7 @@ export class DesktopHubView extends ItemView {
             // Double-click to edit note inline
             item.ondblclick = (e) => {
                 const target = e.target as HTMLElement;
-                if (target.closest('.pos-interactive-checkbox') || target.closest('.pos-note-actions') || target.closest('a') || target.closest('.pos-area-badge') || target.closest('.pos-date-badge')) {
+                if (target.closest('.pos-interactive-checkbox') || target.closest('.pos-note-actions') || target.closest('a') || target.closest('img') || target.closest('.image-embed') || target.closest('.pos-area-badge') || target.closest('.pos-date-badge')) {
                     return;
                 }
                 this._editingEntryId = entry.id;
@@ -4094,6 +4118,222 @@ export class DesktopHubView extends ItemView {
                 };
             }
         });
+
+        // 3. Embedded & Inline Images (Click to Zoom Lightbox)
+        const imageEmbeds = container.querySelectorAll<HTMLElement>('.internal-embed');
+        imageEmbeds.forEach(embed => {
+            const rawSrc = (embed.getAttribute('src') || '').trim();
+            if (!rawSrc) return;
+            const cleanTarget = rawSrc.split('|')[0].split('#')[0].trim();
+            if (!/\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(cleanTarget)) return;
+
+            embed.addClass('image-embed');
+            if (!embed.querySelector('img')) {
+                const destFile = this.app.metadataCache.getFirstLinkpathDest(cleanTarget, entry.filePath);
+                if (destFile instanceof TFile) {
+                    embed.empty();
+                    const imgEl = embed.createEl('img', {
+                        cls: 'pos-stream-zoomable-img',
+                        attr: {
+                            src: this.app.vault.getResourcePath(destFile),
+                            alt: embed.getAttribute('alt') || destFile.basename
+                        }
+                    });
+                    const widthSpec = rawSrc.includes('|') ? rawSrc.split('|')[1]?.trim() : '';
+                    if (widthSpec && /^\d+$/.test(widthSpec)) {
+                        imgEl.width = Number(widthSpec);
+                    }
+                }
+            }
+        });
+
+        container.querySelectorAll<HTMLImageElement>('img').forEach(img => {
+            img.addClass('pos-stream-zoomable-img');
+        });
+
+        container.addEventListener('click', (e: MouseEvent) => {
+            const target = e.target as HTMLElement | null;
+            if (!target) return;
+            const img = target.closest('img');
+            if (!img || !container.contains(img)) return;
+            const src = img.getAttribute('src') || img.src;
+            if (!src) return;
+            e.preventDefault();
+            e.stopPropagation();
+            this.openImageLightbox(src, img.getAttribute('alt') || '');
+        });
+    }
+
+    private openImageLightbox(src: string, alt: string = ''): void {
+        document.querySelectorAll('.pos-image-lightbox').forEach(el => el.remove());
+
+        const overlay = document.body.createDiv({
+            cls: 'pos-image-lightbox',
+            attr: { role: 'dialog', 'aria-modal': 'true', 'aria-label': alt || 'Image Zoom Preview' }
+        });
+
+        const stage = overlay.createDiv({ cls: 'pos-image-lightbox-stage' });
+        const img = stage.createEl('img', {
+            cls: 'pos-image-lightbox-img',
+            attr: { src, alt: alt || 'Zoomed image', draggable: 'false' }
+        });
+
+        const controls = overlay.createDiv({ cls: 'pos-image-lightbox-controls' });
+        const zoomOutBtn = controls.createEl('button', {
+            cls: 'pos-image-lightbox-btn',
+            attr: { 'aria-label': 'Zoom out', title: 'Zoom out (−)' }
+        });
+        setIcon(zoomOutBtn, 'minus');
+
+        const zoomLabel = controls.createSpan({
+            cls: 'pos-image-lightbox-scale',
+            text: '100%',
+            attr: { title: 'Click to reset zoom (100%)' }
+        });
+
+        const zoomInBtn = controls.createEl('button', {
+            cls: 'pos-image-lightbox-btn',
+            attr: { 'aria-label': 'Zoom in', title: 'Zoom in (+)' }
+        });
+        setIcon(zoomInBtn, 'plus');
+
+        const closeBtn = controls.createEl('button', {
+            cls: 'pos-image-lightbox-btn pos-image-lightbox-close',
+            attr: { 'aria-label': 'Close preview (Esc)', title: 'Close (Esc)' }
+        });
+        setIcon(closeBtn, 'x');
+
+        let scale = 1;
+        let panX = 0;
+        let panY = 0;
+        let isDragging = false;
+        let didDrag = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+
+        const applyTransform = () => {
+            if (scale <= 1) {
+                scale = 1;
+                panX = 0;
+                panY = 0;
+            }
+            img.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${scale})`;
+            img.toggleClass('is-zoomed', scale > 1);
+            img.toggleClass('is-dragging', isDragging);
+            zoomLabel.textContent = `${Math.round(scale * 100)}%`;
+        };
+
+        const setZoom = (nextScale: number) => {
+            scale = Math.min(Math.max(nextScale, 1), 4);
+            applyTransform();
+        };
+
+        const closeLightbox = () => {
+            window.removeEventListener('keydown', onKeyDown, true);
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+            overlay.remove();
+        };
+
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                closeLightbox();
+            } else if (e.key === '+' || e.key === '=') {
+                e.preventDefault();
+                setZoom(scale + 0.5);
+            } else if (e.key === '-' || e.key === '_') {
+                e.preventDefault();
+                setZoom(scale - 0.5);
+            } else if (e.key === '0') {
+                e.preventDefault();
+                setZoom(1);
+            }
+        };
+
+        const onMouseMove = (e: MouseEvent) => {
+            if (!isDragging) return;
+            const dx = e.clientX - dragStartX;
+            const dy = e.clientY - dragStartY;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+                didDrag = true;
+            }
+            panX += dx;
+            panY += dy;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            applyTransform();
+        };
+
+        const onMouseUp = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            img.removeClass('is-dragging');
+        };
+
+        window.addEventListener('keydown', onKeyDown, true);
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+
+        img.addEventListener('mousedown', (e: MouseEvent) => {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            e.stopPropagation();
+            didDrag = false;
+            if (scale > 1) {
+                isDragging = true;
+                dragStartX = e.clientX;
+                dragStartY = e.clientY;
+                img.addClass('is-dragging');
+            }
+        });
+
+        img.addEventListener('click', (e: MouseEvent) => {
+            e.stopPropagation();
+            if (didDrag) {
+                didDrag = false;
+                return;
+            }
+            setZoom(scale > 1 ? 1 : 2);
+        });
+
+        overlay.addEventListener('wheel', (e: WheelEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const delta = e.deltaY < 0 ? 0.25 : -0.25;
+            setZoom(scale + delta);
+        }, { passive: false });
+
+        controls.addEventListener('click', (e: MouseEvent) => {
+            e.stopPropagation();
+        });
+
+        zoomInBtn.onclick = (e: MouseEvent) => {
+            e.stopPropagation();
+            setZoom(scale + 0.5);
+        };
+
+        zoomOutBtn.onclick = (e: MouseEvent) => {
+            e.stopPropagation();
+            setZoom(scale - 0.5);
+        };
+
+        zoomLabel.onclick = (e: MouseEvent) => {
+            e.stopPropagation();
+            setZoom(1);
+        };
+
+        closeBtn.onclick = (e: MouseEvent) => {
+            e.stopPropagation();
+            closeLightbox();
+        };
+
+        overlay.onclick = (e: MouseEvent) => {
+            if (e.target === overlay || e.target === stage) {
+                closeLightbox();
+            }
+        };
     }
 
     private renderInlineEditor(parent: HTMLElement, entry: CaptureEntry): void {

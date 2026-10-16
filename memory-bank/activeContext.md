@@ -1,6 +1,14 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Line-Level Live Editor in `WikilinkPeekModal` & Universal Default Link Routing Deployed
+## Current State: Stream Image Click-to-Zoom Lightbox, Relaxed Two-Line Recent Notes Cards & Line-Level Live Editor in `WikilinkPeekModal` Deployed
+- **Stream Image Click-to-Zoom Lightbox (`DesktopHubView.ts` & `styles.css`)**:
+  - In `attachInteractiveElements()`, hydrated cached `.internal-embed` image embeds via `metadataCache.getFirstLinkpathDest()` + `vault.getResourcePath()` and attached delegated click handling on `.pos-note-body` so clicking any embedded (`![[...]]`) or markdown (`![](...)`) image opens a full-viewport zoom lightbox (`openImageLightbox`).
+  - Added `.pos-image-lightbox` with interactive click-to-zoom (`1x` ↔ `2x`), mouse-wheel zoom (`100%`–`400%`), click-and-drag panning when zoomed in, floating control pill (`−`, `100%`, `+`, `✕`), and `Escape`/backdrop dismissal.
+  - Prevented image clicks/double-clicks from triggering stream selection mode or inline note editing in `renderNoteItem()`.
+- **Relaxed Two-Line Recent Notes Cards (`DesktopHubView.ts` & `styles.css`)**:
+  - Updated `renderRailNoteItem()` in the Agenda panel's **Notes** tab to use a spacious two-line card layout (`.pos-rail-permanent-note-row` with `padding: 10px 12px`, `gap: 7px`, `8px` inter-card gap, and `20px` bucket gap):
+    - **Line 1 (`.pos-rail-note-top`)**: Subtle `file-text` icon (`.pos-rail-note-row-icon`) + multi-line wrapping note title (`.pos-rail-note-title`, `-webkit-line-clamp: 2`, `line-height: 1.4`).
+    - **Line 2 (`.pos-rail-note-meta`)**: Folder pill (`.pos-rail-note-pill.is-folder`) and tag pills (`.pos-rail-note-pill.is-tag` / `.is-tag-more`) on the left, paired with the tabular relative modified timestamp (`.pos-rail-note-time`) on the right.
 - **Line-Level Live Editor Canvas (`WikilinkPeekModal.ts` & `styles.css`)**:
   - Removed the bottom Quick Append footer bar completely (`renderQuickAppendBar` / `.pos-peek-footer`), turning `.pos-peek-body` into a full-height interactive document canvas.
   - **Line-by-Line Rendering & Single-Line Live Editing**:
@@ -19,7 +27,7 @@
   - Added a mid-heavy `2px` architectural divider (`border-bottom: 2px solid var(--background-modifier-border)`) on `var(--background-primary)`.
   - Replaced noisy uppercase folder breadcrumbs with a quiet editorial subtitle (`Folder/Path · #tag1 · Updated 12m ago`).
   - Added an in-modal history stack (`_history`) with a `[ ← ]` back button so clicking nested `[[Wikilinks]]` inside the modal navigates in-place and lets you step back seamlessly.
-  - Added labeled muted action pills: `[ 🔍 Stream ]`, `[ ◨ Split ]` (Desktop/Tablet), `[ ↗ Open ]`, and `[ ✕ ]`.
+  - Added labeled muted action pills: `[ 🔍 Stream ]` and `[ ⧉ New Window ]` (opens note in a native OS-level resizable Obsidian popout window on Desktop).
 - **Universal `WikilinkPeekModal` by Default (`DesktopHubView.ts`, `CalendarDigestView.ts`, `PreFlightDigestModal.ts`)**:
   - Standard left-click / tap on any `[[Wikilink]]` across the main stream, Agenda Horizon note snippets, task titles, task comments, Calendar Digest, Pre-Flight Digest, and nested preview links opens `WikilinkPeekModal` by default.
 
@@ -27,12 +35,10 @@
 - **Agenda Toggle Relocated to `[ ⋯ ]` Menu (`DesktopHubView.ts`)**:
   - Removed the standalone `[ ◨ Agenda ]` pill button from the top header bar, leaving a minimal header bar: `[ 🔍 Search / ]   [ 🎛️ All Notes ▾ ]   [ ⋯ ]`.
   - Added `Hide Agenda Panel (\)` / `Show Agenda Panel (\)` (with `panel-right` icon and checkmark indicator) as the top item in the `[ ⋯ ]` More menu (hidden in tablet portrait mode).
-- **Temporal Grouping & Clean Editorial Rows in "Notes" Tab (`DesktopHubView.ts` & `styles.css`)**:
+- **Temporal Grouping & Single-Line Editorial Rows in "Notes" Tab (`DesktopHubView.ts` & `styles.css`)**:
   - **Chronological Horizon Grouping (`updateRailNotesList`)**: Automatically buckets recently updated permanent notes (`record.mtime`) into 4 temporal sections matching the Horizon tab's architecture: **`TODAY`**, **`YESTERDAY`**, **`THIS WEEK`**, and **`EARLIER`** (with `[ count ]` badges; empty buckets suppressed).
-  - **Clean Editorial Note Rows (`renderRailNoteItem`, `.pos-rail-permanent-note-row`)**:
-    - Replaced noisy bordered folder/tag pill badges and `📁` icons with a streamlined editorial row:
-      - **Top Line (`.pos-rail-note-top`)**: Bold truncated note title on the left + tabular relative timestamp (`12m`, `2h`, `Oct 14`) flush right.
-      - **Inline Subtitle (`.pos-rail-note-sub`)**: Quiet inline metadata string joining folder and up to 2 tags with middle dots (`Projects/Steer · #work`), omitted cleanly when a note is in the vault root with no tags.
+  - **Single-Line Editorial Note Rows (`renderRailNoteItem`, `.pos-rail-permanent-note-row`)**:
+    - Removed folder and tag subtitle metadata below the note title so each row displays a single clean line with the bold truncated note title on the left and tabular relative timestamp (`12m`, `2h`, `Oct 14`) flush right.
 - **2-Tab Agenda Panel (`DesktopHubView.ts`)**:
   - Removed the redundant `[ ☑️ Tasks ]` tab pill from the Agenda panel segmented header (`renderRightRail`), streamlining the top rail navigation to `[ ☀️ Horizon ]  [ 📖 Notes ]`.
   - Automatically migrates any persisted `railTab: 'tasks'` state in `localStorage` (`diwa-cockpit-state-v2`) to `'karon'` (`Horizon`).
