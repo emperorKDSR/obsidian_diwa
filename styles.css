@@ -2254,30 +2254,30 @@ body.is-phone .pos-inline-textarea {
         box-sizing: border-box;
     }
 
-    .pos-note-stream-item:not(.is-mobile-card) {
+    .pos-note-stream-item:not(.pos-mobile-stream-row) {
         padding: 12px 0 14px 0;
         width: 100%;
         box-sizing: border-box;
     }
 
-    /* ── Horizon-Style Compact Mobile Stream Layout ── */
-    .pos-date-divider.is-mobile-divider,
+    /* ── Horizon UI/UX Mobile Stream Layout ── */
+    .pos-rail-section-header.pos-mobile-stream-date-header,
     .pos-date-divider {
         display: flex !important;
         align-items: center !important;
         justify-content: space-between !important;
-        margin: 14px 0 6px 0 !important;
+        margin: 14px 0 4px 0 !important;
         padding: 0 2px 4px 2px !important;
         border-bottom: 1px solid var(--background-modifier-border-faint) !important;
         gap: 8px !important;
     }
 
-    .pos-date-divider.is-mobile-divider:first-child,
+    .pos-rail-section-header.pos-mobile-stream-date-header:first-child,
     .pos-date-divider:first-child {
         margin-top: 4px !important;
     }
 
-    .pos-date-divider.is-mobile-divider .pos-date-heading,
+    .pos-rail-section-header.pos-mobile-stream-date-header .pos-date-heading,
     .pos-date-divider .pos-date-heading {
         font-size: 0.75rem !important;
         font-weight: 700 !important;
@@ -2287,7 +2287,7 @@ body.is-phone .pos-inline-textarea {
         opacity: 1 !important;
     }
 
-    .pos-date-divider.is-mobile-divider .pos-date-count,
+    .pos-rail-section-header.pos-mobile-stream-date-header .pos-rail-section-badge,
     .pos-date-divider .pos-date-count {
         font-size: 0.72rem !important;
         font-weight: 600 !important;
@@ -2299,22 +2299,21 @@ body.is-phone .pos-inline-textarea {
         opacity: 1 !important;
     }
 
-    .pos-date-divider.is-mobile-divider .pos-date-line,
     .pos-date-divider .pos-date-line {
         display: none !important;
     }
 
-    .pos-note-stream-item.is-mobile-card {
+    .pos-note-stream-item.pos-mobile-stream-row {
         display: flex !important;
         flex-direction: row !important;
         align-items: flex-start !important;
         width: 100% !important;
         max-width: 100% !important;
-        margin: 0 0 6px 0 !important;
-        padding: 7px 10px !important;
-        background: var(--background-primary) !important;
-        border: 1px solid var(--background-modifier-border-faint) !important;
-        border-radius: var(--diwa-radius-sm, 8px) !important;
+        margin: 0 !important;
+        padding: 6px 2px !important;
+        background: transparent !important;
+        border: none !important;
+        border-radius: 0 !important;
         gap: 8px !important;
         box-sizing: border-box !important;
         box-shadow: none !important;
@@ -2322,17 +2321,23 @@ body.is-phone .pos-inline-textarea {
         transition: var(--diwa-transition);
     }
 
-    .pos-note-stream-item.is-mobile-card.is-important {
-        border-left: 2.5px solid #eab308 !important;
-        background: rgba(234, 179, 8, 0.03) !important;
+    .pos-note-stream-item.pos-mobile-stream-row.pos-rail-task-item.is-overdue {
+        border-left: 2px solid rgba(239, 68, 68, 0.5) !important;
+        padding-left: 8px !important;
     }
 
-    .pos-note-stream-item.is-mobile-card.is-selected {
-        border-color: var(--text-muted) !important;
+    .pos-note-stream-item.pos-mobile-stream-row.is-important {
+        border-left: 2px solid #eab308 !important;
+        padding-left: 8px !important;
+        background: transparent !important;
+    }
+
+    .pos-note-stream-item.pos-mobile-stream-row.is-selected {
         background: var(--background-modifier-hover) !important;
+        border-radius: 4px !important;
     }
 
-    .pos-note-stream-item.is-mobile-card .pos-mobile-select-cb {
+    .pos-note-stream-item.pos-mobile-stream-row .pos-mobile-select-cb {
         margin-top: 2px !important;
         width: 15px !important;
         height: 15px !important;
@@ -2340,42 +2345,83 @@ body.is-phone .pos-inline-textarea {
         flex-shrink: 0 !important;
     }
 
-    .pos-note-stream-item.is-mobile-card .pos-note-content-wrap {
+    .pos-note-stream-item.pos-mobile-stream-row .pos-rail-task-checkbox {
+        margin-top: 2px !important;
+        width: 15px !important;
+        height: 15px !important;
+        min-width: 15px !important;
+        min-height: 15px !important;
+        cursor: pointer !important;
+        accent-color: var(--text-muted) !important;
+        flex-shrink: 0 !important;
+    }
+
+    .pos-note-stream-item.pos-mobile-stream-row .pos-rail-note-icon {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 15px !important;
+        height: 18px !important;
+        color: var(--text-muted) !important;
+        flex-shrink: 0 !important;
+        margin-top: 1px !important;
+    }
+
+    .pos-note-stream-item.pos-mobile-stream-row .pos-rail-note-icon svg {
+        width: 14px !important;
+        height: 14px !important;
+    }
+
+    .pos-note-stream-item.pos-mobile-stream-row .pos-rail-task-content,
+    .pos-note-stream-item.pos-mobile-stream-row .pos-rail-note-content {
         flex: 1 1 auto !important;
         min-width: 0 !important;
         width: auto !important;
         max-width: 100% !important;
         padding-right: 0 !important;
-        display: block !important;
-        line-height: 1.4 !important;
-        font-size: 0.88em !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 4px !important;
     }
 
-    .pos-note-stream-item.is-mobile-card .pos-note-body {
-        display: block !important;
-        width: 100% !important;
-        font-size: 1em !important;
+    .pos-note-stream-item.pos-mobile-stream-row .pos-rail-task-title {
+        font-size: 0.88em !important;
         line-height: 1.4 !important;
         color: var(--text-normal) !important;
         word-break: break-word !important;
     }
 
-    .pos-note-stream-item.is-mobile-card .pos-note-body > p {
+    .pos-note-stream-item.pos-mobile-stream-row .pos-rail-task-title p {
+        margin: 0 !important;
+        display: inline !important;
+    }
+
+    .pos-note-stream-item.pos-mobile-stream-row .pos-rail-note-snippet.pos-note-body {
+        display: block !important;
+        width: 100% !important;
+        font-size: 0.88em !important;
+        line-height: 1.4 !important;
+        color: var(--text-normal) !important;
+        word-break: break-word !important;
+    }
+
+    .pos-note-stream-item.pos-mobile-stream-row .pos-rail-note-snippet.pos-note-body > p {
         line-height: 1.4 !important;
         margin: 0 !important;
     }
 
-    .pos-note-stream-item.is-mobile-card .pos-note-body li.task-list-item {
-        line-height: 1.4 !important;
-        margin: 0 0 2px 0 !important;
-        padding-left: 22px !important;
+    .pos-note-stream-item.pos-mobile-stream-row .pos-mobile-extra-task-row {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+        margin-top: 6px !important;
+        padding-top: 6px !important;
+        border-top: 1px dashed var(--background-modifier-border-faint) !important;
     }
 
-    .pos-note-stream-item.is-mobile-card .pos-note-body li.task-list-item:last-child {
-        margin-bottom: 0 !important;
-    }
-
-    .pos-note-stream-item.is-mobile-card .pos-mobile-card-meta-right {
+    .pos-note-stream-item.pos-mobile-stream-row .pos-mobile-card-meta-right {
         display: inline-flex !important;
         align-items: center !important;
         gap: 5px !important;
@@ -2384,7 +2430,7 @@ body.is-phone .pos-inline-textarea {
         user-select: none !important;
     }
 
-    .pos-note-stream-item.is-mobile-card .pos-note-time {
+    .pos-note-stream-item.pos-mobile-stream-row .pos-note-time {
         font-size: 0.72em !important;
         font-weight: 500 !important;
         color: var(--text-faint) !important;
@@ -2394,7 +2440,7 @@ body.is-phone .pos-inline-textarea {
         white-space: nowrap !important;
     }
 
-    .pos-note-stream-item.is-mobile-card .pos-action-icon {
+    .pos-note-stream-item.pos-mobile-stream-row .pos-action-icon {
         padding: 2px !important;
         min-width: 20px !important;
         min-height: 20px !important;
@@ -2407,13 +2453,13 @@ body.is-phone .pos-inline-textarea {
         border: none !important;
     }
 
-    .pos-note-stream-item.is-mobile-card .pos-action-icon:hover,
-    .pos-note-stream-item.is-mobile-card .pos-action-icon:active {
+    .pos-note-stream-item.pos-mobile-stream-row .pos-action-icon:hover,
+    .pos-note-stream-item.pos-mobile-stream-row .pos-action-icon:active {
         color: var(--text-normal) !important;
         background: var(--background-modifier-hover) !important;
     }
 
-    .pos-note-stream-item.is-mobile-card .pos-action-icon svg {
+    .pos-note-stream-item.pos-mobile-stream-row .pos-action-icon svg {
         width: 13px !important;
         height: 13px !important;
     }
@@ -2421,22 +2467,6 @@ body.is-phone .pos-inline-textarea {
     /* On mobile touch screens, keep action icons accessible */
     .pos-note-actions {
         opacity: 0.95 !important;
-    }
-
-    /* Balanced checkbox sizing and alignment on mobile (Horizon style) */
-    .pos-interactive-checkbox,
-    .pos-note-body input[type="checkbox"].task-list-item-checkbox {
-        transform: none !important;
-        width: 15px !important;
-        height: 15px !important;
-        min-width: 15px !important;
-        min-height: 15px !important;
-        position: absolute !important;
-        left: 0 !important;
-        top: 2px !important;
-        margin: 0 !important;
-        accent-color: var(--text-muted) !important;
-        filter: grayscale(1) opacity(0.75);
     }
 }
 
@@ -2997,6 +3027,25 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     height: 100%;
     max-height: 82vh;
     overflow: hidden;
+}
+
+/* Desktop Popout Window View Mode (WikilinkPeekView) */
+.workspace-leaf-content[data-type="diwa-wikilink-peek"] > .view-header {
+    display: none !important;
+}
+
+.workspace-leaf-content[data-type="diwa-wikilink-peek"] > .view-content.pos-wikilink-peek-view,
+.pos-wikilink-peek-view {
+    padding: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    background: var(--background-primary) !important;
+    box-sizing: border-box !important;
 }
 
 /* Architectural Header */
@@ -8481,6 +8530,8 @@ button.pos-rail-toggle-btn.is-active svg {
 .pos-composer svg,
 .pos-header-bar svg,
 .pos-modal svg,
+.pos-wikilink-peek-modal svg,
+.pos-wikilink-peek-view svg,
 .menu-item-icon svg {
     color: var(--text-muted) !important;
     stroke: currentColor !important;

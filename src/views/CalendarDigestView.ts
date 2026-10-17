@@ -3,7 +3,7 @@ import type DiwaPlugin from '../main';
 import { DigestibleBlock } from '../types';
 import { VIEW_TYPE_CALENDAR_DIGEST, CALENDAR_DIGEST_ICON_ID } from '../constants';
 import { PreFlightDigestModal } from '../modals/PreFlightDigestModal';
-import { WikilinkPeekModal } from '../modals/WikilinkPeekModal';
+import { WikilinkPeekModal, openWikilinkInPeekWindow } from '../modals/WikilinkPeekModal';
 import { isTablet } from '../utils';
 
 export class CalendarDigestView extends ItemView {
@@ -336,7 +336,7 @@ export class CalendarDigestView extends ItemView {
                             return;
                         }
                         if (e.altKey) {
-                            await this.app.workspace.openLinkText(href, entry.filePath, 'window');
+                            await openWikilinkInPeekWindow(this.app, href, entry.filePath);
                             return;
                         }
                         new WikilinkPeekModal(this.app, this.plugin, href, entry.filePath).open();
@@ -363,7 +363,7 @@ export class CalendarDigestView extends ItemView {
                     return;
                 }
                 if (e.altKey) {
-                    void this.app.workspace.openLinkText(entry.filePath, '', 'window');
+                    void openWikilinkInPeekWindow(this.app, entry.filePath, entry.filePath);
                     return;
                 }
                 new WikilinkPeekModal(this.app, this.plugin, entry.filePath, entry.filePath).open();

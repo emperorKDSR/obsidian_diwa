@@ -2,7 +2,7 @@ import { App, Modal, Notice, MarkdownRenderer, setIcon } from 'obsidian';
 import type DiwaPlugin from '../main';
 import { DigestibleBlock } from '../types';
 import { FileSuggestModal } from './FileSuggestModal';
-import { WikilinkPeekModal } from './WikilinkPeekModal';
+import { WikilinkPeekModal, openWikilinkInPeekWindow } from './WikilinkPeekModal';
 
 export class PreFlightDigestModal extends Modal {
     private plugin: DiwaPlugin;
@@ -101,7 +101,7 @@ export class PreFlightDigestModal extends Modal {
                             return;
                         }
                         if (e.altKey) {
-                            await this.app.workspace.openLinkText(href, block.sourceFilePath, 'window');
+                            await openWikilinkInPeekWindow(this.app, href, block.sourceFilePath);
                             return;
                         }
                         new WikilinkPeekModal(this.app, this.plugin, href, block.sourceFilePath).open();

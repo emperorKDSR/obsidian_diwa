@@ -1,9 +1,10 @@
-import { App, Modal, TFile, MarkdownRenderer, Platform, setIcon, Notice, Component, moment, getAllTags } from 'obsidian';
+import { App, Modal, ItemView, WorkspaceLeaf, ViewStateResult, TFile, MarkdownRenderer, Platform, setIcon, Notice, Component, moment, getAllTags } from 'obsidian';
 import type DiwaPlugin from '../main';
+import { VIEW_TYPE_WIKILINK_PEEK } from '../constants';
 import { sanitizeVaultFilename } from '../utils/vaultFiles';
 import { attachInlineTriggers, attachMediaPasteHandler } from '../utils';
 
-interface PeekHistoryEntry {
+export interface PeekHistoryEntry {
     linkText: string;
     sourcePath: string;
 }
@@ -15,6 +16,31 @@ interface PeekDocBlock {
     isCodeBlock: boolean;
 }
 
+export async function openWikilinkInPeekWindow(
+    app: App,
+    linkText: string,
+    sourcePath: string,
+    history: PeekHistoryEntry[] = []
+): Promise<void> {
+    const ws = app.workspace as unknown as {
+        openPopoutLeaf?: (data?: { size?: { width: number; height: number } }) => WorkspaceLeaf;
+    };
+    const winLeaf: WorkspaceLeaf = typeof ws.openPopoutLeaf === 'function'
+        ? ws.openPopoutLeaf({ size: { width: 680, height: 640 } })
+        : app.workspace.getLeaf('window');
+
+    await winLeaf.setViewState({
+        type: VIEW_TYPE_WIKILINK_PEEK,
+        active: true,
+        state: {
+            linkText,
+            sourcePath,
+            history: [...history],
+        }
+    });
+    app.workspace.revealLeaf(winLeaf);
+}
+
 export class WikilinkPeekModal extends Modal {
     private _plugin: DiwaPlugin;
     private linkText: string;
@@ -24,6 +50,9 @@ export class WikilinkPeekModal extends Modal {
     private cleanLinkName: string = '';
     private _renderComponent: Component = new Component();
     private _history: PeekHistoryEntry[] = [];
+    private _isWindowView: boolean = false;
+    private _onTitleChange?: () => void;
+    private _selfSaveSuppressionUntil: number = 0;
 
     // Line-Level Live Editor state
     private _preservedPrefix: string = '';
@@ -38,14 +67,74 @@ export class WikilinkPeekModal extends Modal {
         _plugin: DiwaPlugin,
         linkText: string,
         sourcePath: string,
-        onFilterStream?: (target: string) => void
+        onFilterStream?: (target: string) => void,
+        isWindowView: boolean = false,
+        onTitleChange?: () => void
     ) {
         super(app);
         this._plugin = _plugin;
         this.linkText = linkText;
         this.sourcePath = sourcePath;
         this.onFilterStream = onFilterStream;
+        this._isWindowView = isWindowView;
+        this._onTitleChange = onTitleChange;
+        if (linkText) {
+            this.resolveCurrentTarget(linkText, sourcePath);
+        }
+    }
+
+    public getDisplayTitle(): string {
+        if (this.targetFile) return this.targetFile.basename;
+        if (this.cleanLinkName) return this.cleanLinkName;
+        return 'Note Peek';
+    }
+
+    public getTargetFilePath(): string | null {
+        return this.targetFile?.path ?? null;
+    }
+
+    public isSelfSaveActive(): boolean {
+        return Date.now() < this._selfSaveSuppressionUntil || this._activeBlockIdx !== null;
+    }
+
+    public getStateData(): { linkText: string; sourcePath: string; history: PeekHistoryEntry[] } {
+        return {
+            linkText: this.linkText,
+            sourcePath: this.sourcePath,
+            history: [...this._history],
+        };
+    }
+
+    public async setStateData(
+        linkText: string,
+        sourcePath: string,
+        history: PeekHistoryEntry[] = []
+    ): Promise<void> {
+        await this.commitActiveBlock();
+        this._history = Array.isArray(history) ? [...history] : [];
         this.resolveCurrentTarget(linkText, sourcePath);
+        this._onTitleChange?.();
+        await this.renderModalContent();
+    }
+
+    public async mountInlineView(hostContentEl: HTMLElement): Promise<void> {
+        this.contentEl = hostContentEl;
+        this._renderComponent.load();
+        if (this.linkText) {
+            await this.renderModalContent();
+        }
+    }
+
+    public unmountInlineView(): void {
+        this.onClose();
+    }
+
+    public async refreshFromExternalModify(): Promise<void> {
+        if (this.isSelfSaveActive()) return;
+        if (this.linkText) {
+            this.resolveCurrentTarget(this.linkText, this.sourcePath);
+            await this.renderModalContent();
+        }
     }
 
     private resolveCurrentTarget(linkText: string, sourcePath: string): void {
@@ -73,6 +162,7 @@ export class WikilinkPeekModal extends Modal {
         await this.commitActiveBlock();
         this._history.push({ linkText: this.linkText, sourcePath: this.sourcePath });
         this.resolveCurrentTarget(newLinkText, newSourcePath);
+        this._onTitleChange?.();
         await this.renderModalContent();
     }
 
@@ -81,6 +171,7 @@ export class WikilinkPeekModal extends Modal {
         if (!prev) return;
         await this.commitActiveBlock();
         this.resolveCurrentTarget(prev.linkText, prev.sourcePath);
+        this._onTitleChange?.();
         await this.renderModalContent();
     }
 
@@ -104,8 +195,8 @@ export class WikilinkPeekModal extends Modal {
         this._activeTextarea = null;
         this._linesContainerEl = null;
 
-        // 1. Mobile Drag Handle
-        if (Platform.isMobile) {
+        // 1. Mobile Drag Handle (Modal mode on mobile only)
+        if (Platform.isMobile && !this._isWindowView) {
             const dragWrap = contentEl.createDiv({ cls: 'pos-sheet-drag-handle-wrap' });
             dragWrap.createDiv({ cls: 'pos-sheet-drag-handle' });
             this.setupMobileGestures(modalEl);
@@ -167,7 +258,7 @@ export class WikilinkPeekModal extends Modal {
         const actionsEl = headerEl.createDiv({ cls: 'pos-peek-actions' });
 
         // Filter Stream action pill
-        if (this.onFilterStream) {
+        if (this.onFilterStream || this._plugin) {
             const filterBtn = actionsEl.createEl('button', {
                 cls: 'pos-peek-action-pill clickable-icon',
                 attr: { 'aria-label': 'Filter stream by this note', 'title': 'Filter stream by this note' }
@@ -180,13 +271,19 @@ export class WikilinkPeekModal extends Modal {
             filterBtn.onclick = async () => {
                 await this.commitActiveBlock();
                 const targetName = this.targetFile ? this.targetFile.basename : this.cleanLinkName;
-                this.close();
-                this.onFilterStream?.(targetName);
+                if (!this._isWindowView) {
+                    this.close();
+                }
+                if (this.onFilterStream) {
+                    this.onFilterStream(targetName);
+                } else if (this._plugin) {
+                    await this._plugin.filterWorkspaceStreamByWikilink(targetName);
+                }
             };
         }
 
-        // Open in New Window action pill (Desktop)
-        if (!Platform.isMobile && this.targetFile) {
+        // Open in New Window action pill (Desktop Modal -> Popout WikilinkPeekView Window)
+        if (!Platform.isMobile && !this._isWindowView && (this.targetFile || this.cleanLinkName)) {
             const newWinBtn = actionsEl.createEl('button', {
                 cls: 'pos-peek-action-pill clickable-icon',
                 attr: { 'aria-label': 'Open in new resizable window', 'title': 'Open in new resizable window' }
@@ -196,12 +293,11 @@ export class WikilinkPeekModal extends Modal {
             newWinBtn.createSpan({ cls: 'pos-peek-btn-label', text: 'New Window' });
             newWinBtn.onclick = async () => {
                 await this.commitActiveBlock();
-                const fileToOpen = this.targetFile;
+                const linkToOpen = this.linkText || (this.targetFile ? this.targetFile.path : this.cleanLinkName);
+                const sourceToOpen = this.sourcePath;
+                const historySnapshot = [...this._history];
                 this.close();
-                if (fileToOpen) {
-                    const winLeaf = this.app.workspace.getLeaf('window');
-                    await winLeaf.openFile(fileToOpen);
-                }
+                await openWikilinkInPeekWindow(this.app, linkToOpen, sourceToOpen, historySnapshot);
             };
         }
 
@@ -342,10 +438,13 @@ export class WikilinkPeekModal extends Modal {
         const file = this.targetFile;
         if (!file) return Promise.resolve();
 
+        this._selfSaveSuppressionUntil = Date.now() + 1200;
         const newContent = this.serializeDocumentBlocks();
         this._saveQueue = this._saveQueue.then(async () => {
             try {
+                this._selfSaveSuppressionUntil = Date.now() + 1200;
                 await this.app.vault.process(file, () => newContent);
+                this._selfSaveSuppressionUntil = Date.now() + 1200;
                 if (this._plugin?.index) {
                     if (this._plugin.index.isCaptureFile(file.path)) {
                         await this._plugin.index.indexCaptureFile(file);
@@ -461,7 +560,7 @@ export class WikilinkPeekModal extends Modal {
             const changed = block.raw !== textarea.value;
             block.raw = textarea.value;
             if (changed) {
-                void this.queueSaveToDisk();
+                await this.queueSaveToDisk();
             }
         }
 
@@ -794,14 +893,18 @@ export class WikilinkPeekModal extends Modal {
                 if (!Platform.isMobile) {
                     if (e.metaKey || e.ctrlKey) {
                         await this.commitActiveBlock();
-                        this.close();
+                        if (!this._isWindowView) {
+                            this.close();
+                        }
                         await this.app.workspace.openLinkText(href, file.path, 'tab');
                         return;
                     }
                     if (e.altKey) {
                         await this.commitActiveBlock();
-                        this.close();
-                        await this.app.workspace.openLinkText(href, file.path, 'window');
+                        if (!this._isWindowView) {
+                            this.close();
+                        }
+                        await openWikilinkInPeekWindow(this.app, href, file.path);
                         return;
                     }
                 }
@@ -858,6 +961,7 @@ export class WikilinkPeekModal extends Modal {
                     this._plugin.refreshCoordinator?.notifyRefresh('capture');
                 }
 
+                this._onTitleChange?.();
                 new Notice(`Created note: ${this.cleanLinkName}`);
                 await this.renderModalContent();
             } catch (err) {
@@ -922,3 +1026,80 @@ export class WikilinkPeekModal extends Modal {
         contentEl.empty();
     }
 }
+
+export class WikilinkPeekView extends ItemView {
+    private _plugin: DiwaPlugin;
+    private _peek: WikilinkPeekModal;
+    private _isOpen: boolean = false;
+
+    constructor(leaf: WorkspaceLeaf, plugin: DiwaPlugin) {
+        super(leaf);
+        this._plugin = plugin;
+        this._peek = new WikilinkPeekModal(
+            this.app,
+            this._plugin,
+            '',
+            '',
+            undefined,
+            true,
+            () => {
+                (this.leaf as unknown as { updateHeader?: () => void }).updateHeader?.();
+                this.app.workspace.requestSaveLayout();
+            }
+        );
+    }
+
+    getViewType(): string {
+        return VIEW_TYPE_WIKILINK_PEEK;
+    }
+
+    getDisplayText(): string {
+        return this._peek.getDisplayTitle();
+    }
+
+    getIcon(): string {
+        return 'file-text';
+    }
+
+    getState(): Record<string, unknown> {
+        return this._peek.getStateData();
+    }
+
+    async setState(state: unknown, result: ViewStateResult): Promise<void> {
+        const s = (state && typeof state === 'object' ? state : {}) as {
+            linkText?: string;
+            sourcePath?: string;
+            history?: PeekHistoryEntry[];
+        };
+        const linkText = typeof s.linkText === 'string' ? s.linkText : '';
+        const sourcePath = typeof s.sourcePath === 'string' ? s.sourcePath : '';
+        const history = Array.isArray(s.history) ? s.history : [];
+
+        await this._peek.setStateData(linkText, sourcePath, history);
+        await super.setState(state, result);
+    }
+
+    async onOpen(): Promise<void> {
+        this.contentEl.empty();
+        this.contentEl.addClass('diwa-workspace-root');
+        this.contentEl.addClass('pos-wikilink-peek-view');
+        this._isOpen = true;
+        await this._peek.mountInlineView(this.contentEl);
+
+        this.registerEvent(
+            this.app.vault.on('modify', (file) => {
+                if (!this._isOpen) return;
+                if (file instanceof TFile && file.path === this._peek.getTargetFilePath()) {
+                    void this._peek.refreshFromExternalModify();
+                }
+            })
+        );
+    }
+
+    async onClose(): Promise<void> {
+        this._isOpen = false;
+        this._peek.unmountInlineView();
+        this.contentEl.empty();
+    }
+}
+

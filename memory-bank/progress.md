@@ -1,13 +1,26 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Horizon-Style Compact Mobile Main Stream Deployed (Complete)
+## Current Phase: Mobile Main Stream Full Horizon UI/UX Switchout Deployed (Complete)
 
 ---
 
-### 0. Horizon-Style Compact Mobile Main Stream Deployed (Complete)
-*   [x] **Horizon-Style Date Section Headers (`DesktopHubView.ts` & `styles.css`)** — Styled `.pos-date-divider.is-mobile-divider` to match `.pos-rail-section-header`: uppercase bold muted date title, bottom hairline border, and right-aligned pill counter badge (`.pos-date-count`).
-*   [x] **Single-Row Compact Stream Cards (`DesktopHubView.ts` & `styles.css`)** — Refactored `.pos-note-stream-item.is-mobile-card` into a horizontal Horizon-style row (`padding: 7px 10px`, `margin-bottom: 6px`, `border-radius: 8px`, `font-size: 0.88em`, `line-height: 1.4`) where note/task content starts immediately on Line 1 with a compact trailing meta/action cluster (`.pos-mobile-card-meta-right`).
-*   [x] **Horizon Task Parity in Mobile Stream (`DesktopHubView.ts` & `MobileTaskEditModal.ts`)** — Added `openMobileTaskModalForEntry()` so tapping a task's `Due: ...` link or selecting **"Schedule & Task Details..."** in the mobile `⋯` menu opens `MobileTaskEditModal`, and edits automatically invalidate the stream cache and refresh both views.
+### 0. Mobile Main Stream Full Horizon UI/UX Switchout Deployed (Complete)
+*   [x] **Horizon Section Headers (`DesktopHubView.ts` & `styles.css`)** — Replaced `.pos-date-divider.is-mobile-divider` with Horizon's `.pos-rail-section-header.pos-mobile-stream-date-header` and `.pos-rail-section-badge`.
+*   [x] **Horizon Task Rows in Mobile Stream (`DesktopHubView.ts` & `styles.css`)** — Removed `.is-mobile-card` and rendered task entries as `.pos-rail-task-item.pos-mobile-stream-row` with left `.pos-rail-task-checkbox`, clean `.pos-rail-task-title` on Line 1, Horizon's 3 interactive pills (`Due` / `Set Due`, `X/Y` / `+ Subtask`, `N` / `+ Note`) on Line 2 opening `MobileTaskEditModal`, and compact trailing `.pos-mobile-card-meta-right` cluster.
+*   [x] **Horizon Note Rows in Mobile Stream (`DesktopHubView.ts` & `styles.css`)** — Rendered regular note entries as `.pos-rail-note-item.pos-mobile-stream-row` with left `file-text` `.pos-rail-note-icon`, center `.pos-rail-note-snippet`, and trailing `.pos-mobile-card-meta-right` cluster.
+*   [x] **Automated Tests, Production Build & Vault Deployment** — Verified all 17 unit tests passing, compiled production bundle with zero errors, and deployed `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+---
+
+## Previous Phase: `WikilinkPeekModal` New Window Popout Parity (`WikilinkPeekView`) Deployed (Complete)
+
+---
+
+### 0. `WikilinkPeekModal` New Window Popout Parity (`WikilinkPeekView`) Deployed (Complete)
+*   [x] **Dedicated `WikilinkPeekView` (`WikilinkPeekModal.ts`, `constants.ts`, `main.ts`)** — Registered `VIEW_TYPE_WIKILINK_PEEK` (`"diwa-wikilink-peek"`) and implemented `WikilinkPeekView` sharing the exact same header, back-navigation history, unresolved ghost-link state, and Line-Level Live Editor canvas as `WikilinkPeekModal`.
+*   [x] **Popout Window Launcher (`openWikilinkInPeekWindow`)** — Updated the `[ ⧉ New Window ]` pill in `WikilinkPeekModal`, the right-click wikilink context menu (`Open in New Window`), and `Alt + Click` handlers across `DesktopHubView`, `CalendarDigestView`, and `PreFlightDigestModal` to open `WikilinkPeekView` in a `680px × 640px` resizable popout window.
+*   [x] **Cross-Window Stream Filter & Live Sync (`main.ts` & `WikilinkPeekModal.ts`)** — Added `filterWorkspaceStreamByWikilink()` on `DiwaPlugin` so clicking `[ 🔍 Stream ]` in a popout window filters the main DIWA Workspace stream, and wired `vault.on('modify')` with self-save suppression to keep open peek windows synchronized.
+*   [x] **Popout Window Styling (`styles.css`)** — Styled `.pos-wikilink-peek-view` and hid the duplicate `.view-header` inside `diwa-wikilink-peek` leaves so the popout window matches `WikilinkPeekModal`.
 *   [x] **Automated Tests, Production Build & Vault Deployment** — Verified all 17 unit tests passing, compiled production bundle with zero errors, and deployed `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---

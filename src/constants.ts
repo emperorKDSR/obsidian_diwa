@@ -13,6 +13,7 @@ export const VIEW_TYPE_TABLET_HUB  = "diwa-tablet-hub";
 export const VIEW_TYPE_GAWA_COCKPIT = "diwa-gawa-cockpit";
 export const VIEW_TYPE_CALENDAR_DIGEST = "diwa-calendar-digest";
 export const VIEW_TYPE_KARON = "diwa-karon";
+export const VIEW_TYPE_WIKILINK_PEEK = "diwa-wikilink-peek";
 
 // Desktop Hub ribbon icon — three-pane cockpit layout
 export const DESKTOP_HUB_ICON_ID = "diwa-desktop-hub-icon";

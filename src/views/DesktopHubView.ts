@@ -4,7 +4,7 @@ import { VIEW_TYPE_DESKTOP_HUB, DESKTOP_HUB_ICON_ID } from '../constants';
 import { CaptureEntry, ScratchpadFilterMode, PermanentNoteRecord, HorizonNoteBlock, HorizonBillItem } from '../types';
 import { MergeNotesModal } from '../modals/MergeNotesModal';
 import { DatePickerModal } from '../modals/DatePickerModal';
-import { WikilinkPeekModal } from '../modals/WikilinkPeekModal';
+import { WikilinkPeekModal, openWikilinkInPeekWindow } from '../modals/WikilinkPeekModal';
 import { MobileFilterSheetModal } from '../modals/MobileFilterSheetModal';
 import { RecentPermanentNotesModal } from '../modals/RecentPermanentNotesModal';
 import { MobileAgendaSheetModal } from '../modals/MobileAgendaSheetModal';
@@ -1042,7 +1042,7 @@ export class DesktopHubView extends ItemView {
                             return;
                         }
                         if (e.altKey) {
-                            await this.app.workspace.openLinkText(href, note.filePath, 'window');
+                            await openWikilinkInPeekWindow(this.app, href, note.filePath);
                             return;
                         }
                         new WikilinkPeekModal(
@@ -1107,7 +1107,7 @@ export class DesktopHubView extends ItemView {
                         return;
                     }
                     if (e.altKey) {
-                        await this.app.workspace.openLinkText(href, task.filePath || '', 'window');
+                        await openWikilinkInPeekWindow(this.app, href, task.filePath || '');
                         return;
                     }
                     new WikilinkPeekModal(
@@ -1579,7 +1579,7 @@ export class DesktopHubView extends ItemView {
                                     return;
                                 }
                                 if (e.altKey) {
-                                    await this.app.workspace.openLinkText(href, task.filePath || '', 'window');
+                                    await openWikilinkInPeekWindow(this.app, href, task.filePath || '');
                                     return;
                                 }
                                 new WikilinkPeekModal(
@@ -1838,7 +1838,7 @@ export class DesktopHubView extends ItemView {
                 return;
             }
             if (e.altKey) {
-                await this.app.workspace.openLinkText(record.filePath, '', 'window');
+                await openWikilinkInPeekWindow(this.app, record.filePath, record.filePath);
                 return;
             }
             new WikilinkPeekModal(
@@ -3363,11 +3363,16 @@ export class DesktopHubView extends ItemView {
             const dateKey = this.getDateHeadingForEntry(entry);
             if (dateKey !== lastDateKey) {
                 lastDateKey = dateKey;
-                const divider = container.createDiv({ cls: `pos-date-divider ${isMobileStream ? 'is-mobile-divider' : ''}` });
-                const headingEl = divider.createSpan({ cls: 'pos-date-heading', text: dateKey });
-                const count = dateCounts.get(dateKey) || 1;
-                const countEl = divider.createSpan({ cls: 'pos-date-count', text: `${count}` });
-                if (!isMobileStream) {
+                if (isMobileStream) {
+                    const divider = container.createDiv({ cls: 'pos-rail-section-header pos-mobile-stream-date-header' });
+                    divider.createSpan({ cls: 'pos-date-heading', text: dateKey });
+                    const count = dateCounts.get(dateKey) || 1;
+                    divider.createSpan({ cls: 'pos-rail-section-badge pos-date-count', text: `${count}` });
+                } else {
+                    const divider = container.createDiv({ cls: 'pos-date-divider' });
+                    const headingEl = divider.createSpan({ cls: 'pos-date-heading', text: dateKey });
+                    const count = dateCounts.get(dateKey) || 1;
+                    const countEl = divider.createSpan({ cls: 'pos-date-count', text: `${count}` });
                     headingEl.style.textTransform = 'none';
                     headingEl.style.letterSpacing = '-0.01em';
                     headingEl.style.fontWeight = '500';
@@ -3428,11 +3433,16 @@ export class DesktopHubView extends ItemView {
             const dateKey = this.getDateHeadingForEntry(entry);
             if (dateKey !== lastDateKey) {
                 lastDateKey = dateKey;
-                const divider = container.createDiv({ cls: `pos-date-divider ${isMobileStream ? 'is-mobile-divider' : ''}` });
-                const headingEl = divider.createSpan({ cls: 'pos-date-heading', text: dateKey });
-                const count = dateCounts.get(dateKey) || 1;
-                const countEl = divider.createSpan({ cls: 'pos-date-count', text: `${count}` });
-                if (!isMobileStream) {
+                if (isMobileStream) {
+                    const divider = container.createDiv({ cls: 'pos-rail-section-header pos-mobile-stream-date-header' });
+                    divider.createSpan({ cls: 'pos-date-heading', text: dateKey });
+                    const count = dateCounts.get(dateKey) || 1;
+                    divider.createSpan({ cls: 'pos-rail-section-badge pos-date-count', text: `${count}` });
+                } else {
+                    const divider = container.createDiv({ cls: 'pos-date-divider' });
+                    const headingEl = divider.createSpan({ cls: 'pos-date-heading', text: dateKey });
+                    const count = dateCounts.get(dateKey) || 1;
+                    const countEl = divider.createSpan({ cls: 'pos-date-count', text: `${count}` });
                     headingEl.style.textTransform = 'none';
                     headingEl.style.letterSpacing = '-0.01em';
                     headingEl.style.fontWeight = '500';
@@ -3490,11 +3500,11 @@ export class DesktopHubView extends ItemView {
             cls: `pos-note-stream-item ${isSelected ? 'is-selected' : ''} ${this._selectionMode ? 'is-selection-mode' : ''} ${isImportant ? 'is-important' : ''} ${hasTasks ? 'has-tasks' : ''} ${isEditing ? 'is-editing' : ''}`
         });
 
-        // If in selection mode, tapping the note card toggles its selection
+        // If in selection mode, tapping the note row toggles its selection
         if (this._selectionMode) {
             item.onclick = (e) => {
                 const target = e.target as HTMLElement;
-                if (target.closest('.pos-interactive-checkbox') || target.closest('.pos-note-actions') || target.closest('.pos-mobile-card-meta-right') || target.closest('a') || target.closest('img') || target.closest('.image-embed')) {
+                if (target.closest('.pos-interactive-checkbox') || target.closest('.pos-rail-task-checkbox') || target.closest('.pos-rail-meta-pill') || target.closest('.pos-note-actions') || target.closest('.pos-mobile-card-meta-right') || target.closest('a') || target.closest('img') || target.closest('.image-embed')) {
                     return;
                 }
                 if (this._selectedEntryIds.has(entry.id)) {
@@ -3509,7 +3519,7 @@ export class DesktopHubView extends ItemView {
             // Double-click to edit note inline
             item.ondblclick = (e) => {
                 const target = e.target as HTMLElement;
-                if (target.closest('.pos-interactive-checkbox') || target.closest('.pos-note-actions') || target.closest('.pos-mobile-card-meta-right') || target.closest('a') || target.closest('img') || target.closest('.image-embed') || target.closest('.pos-area-badge') || target.closest('.pos-date-badge')) {
+                if (target.closest('.pos-interactive-checkbox') || target.closest('.pos-rail-task-checkbox') || target.closest('.pos-rail-meta-pill') || target.closest('.pos-note-actions') || target.closest('.pos-mobile-card-meta-right') || target.closest('a') || target.closest('img') || target.closest('.image-embed') || target.closest('.pos-area-badge') || target.closest('.pos-date-badge')) {
                     return;
                 }
                 this._editingEntryId = entry.id;
@@ -3521,12 +3531,10 @@ export class DesktopHubView extends ItemView {
         const isMobile = Platform.isMobile && !isTablet(this.app);
         const timeStr = moment(entry.createdAtMs).format('h:mm A');
 
-        // Mobile Compact Horizon-Style Row Layout
+        // Mobile Compact Horizon UI/UX Row Layout (.pos-rail-task-item / .pos-rail-note-item)
         if (isMobile) {
-            item.addClass('is-mobile-card');
-
             if (this._editingEntryId === entry.id) {
-                item.addClass('is-editing');
+                item.addClass('is-editing', 'pos-mobile-stream-row');
                 const editorWrapper = item.createDiv({ cls: 'pos-note-content-wrap pos-inline-editor-wrap' });
                 this.renderInlineEditor(editorWrapper, entry);
                 return;
@@ -3550,28 +3558,232 @@ export class DesktopHubView extends ItemView {
                 };
             }
 
-            // Left Column: Primary Content on Line 1 (Horizon-style)
-            const contentWrap = item.createDiv({ cls: 'pos-note-content-wrap' });
-            const bodyEl = contentWrap.createDiv({ cls: 'pos-note-body markdown-rendered' });
+            const indexedTasks = (Array.isArray(entry.gawaTasks) && entry.gawaTasks.length > 0)
+                ? entry.gawaTasks
+                : this.plugin.index.getGawaTasks(false).filter(t => t.filePath === entry.filePath);
+            const effectiveTasks = indexedTasks.length > 0
+                ? indexedTasks
+                : (hasTasks ? entry.tasks.map(t => ({
+                    filePath: entry.filePath,
+                    noteTitle: entry.filePath.split('/').pop()?.replace(/\.md$/i, '') || '',
+                    lineIndex: t.lineIndex,
+                    rawTitle: t.title,
+                    cleanTitle: t.title,
+                    completed: t.completed,
+                    dueDate: null,
+                    subtasks: [],
+                    remarks: []
+                })) : []);
 
-            const cacheKey = `${entry.filePath}_${entry.modified}`;
-            const cached = this.getCachedRenderedBody(cacheKey);
+            if (effectiveTasks.length > 0) {
+                const primaryTask = effectiveTasks[0];
+                const todayStr = moment().format('YYYY-MM-DD');
+                const isOverdue = Boolean(primaryTask.dueDate && !primaryTask.completed && primaryTask.dueDate < todayStr);
 
-            if (cached) {
-                bodyEl.innerHTML = cached.innerHTML;
-                this.attachInteractiveElements(bodyEl, entry);
-            } else {
-                void MarkdownRenderer.render(
-                    this.app,
-                    entry.body,
-                    bodyEl,
-                    entry.filePath,
-                    this._streamComponent ?? this
-                ).then(() => {
-                    const clone = bodyEl.cloneNode(true) as HTMLElement;
-                    this.setCachedRenderedBody(cacheKey, clone);
-                    this.attachInteractiveElements(bodyEl, entry);
+                item.addClass('pos-rail-task-item', 'pos-mobile-stream-row');
+                if (isOverdue) {
+                    item.addClass('is-overdue');
+                }
+
+                const checkbox = item.createEl('input', {
+                    type: 'checkbox',
+                    cls: 'pos-rail-task-checkbox'
                 });
+                checkbox.checked = Boolean(primaryTask.completed);
+                checkbox.onclick = async (e) => {
+                    e.stopPropagation();
+                    const newChecked = checkbox.checked;
+                    try {
+                        this.invalidateRenderCacheForFile(primaryTask.filePath);
+                        await this.plugin.capture.toggleTaskInFile(primaryTask.filePath, primaryTask.lineIndex, newChecked);
+                        const file = this.app.vault.getAbstractFileByPath(primaryTask.filePath);
+                        if (file instanceof TFile) {
+                            await this.plugin.index.indexCaptureFile(file);
+                        }
+                        this.plugin.refreshCoordinator.notifyRefresh('tasks');
+                        this.plugin.refreshCoordinator.notifyRefresh('capture');
+                    } catch (err) {
+                        console.error('[DIWA] Mobile stream task toggle error', err);
+                        checkbox.checked = !newChecked;
+                        new Notice('Failed to toggle task');
+                    }
+                };
+
+                const content = item.createDiv({ cls: 'pos-rail-task-content' });
+
+                const renderTaskContentBlock = (task: any, parentEl: HTMLElement) => {
+                    const taskIsOverdue = Boolean(task.dueDate && !task.completed && task.dueDate < todayStr);
+                    const titleEl = parentEl.createDiv({
+                        cls: `pos-rail-task-title ${task.completed ? 'is-completed' : ''}`,
+                    });
+                    const taskText = (task.cleanTitle || task.rawTitle || '').trim();
+                    void MarkdownRenderer.render(
+                        this.app,
+                        taskText,
+                        titleEl,
+                        task.filePath || entry.filePath,
+                        this._streamComponent ?? this
+                    ).then(() => {
+                        const links = titleEl.querySelectorAll<HTMLAnchorElement>('a.internal-link');
+                        links.forEach(link => {
+                            const href = link.getAttribute('data-href') || link.textContent || '';
+                            link.onclick = (e: MouseEvent) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                new WikilinkPeekModal(
+                                    this.app,
+                                    this.plugin,
+                                    href,
+                                    task.filePath || entry.filePath,
+                                    (target) => this.filterStreamByWikilink(target)
+                                ).open();
+                            };
+                        });
+                    });
+
+                    titleEl.onclick = (e) => {
+                        const target = e.target as HTMLElement;
+                        if (target.closest('a.internal-link')) return;
+                        e.stopPropagation();
+                        new MobileTaskEditModal(this.app, this.plugin, task, this).open();
+                    };
+
+                    // Horizon Metadata Pills Row
+                    const metaRow = parentEl.createDiv({ cls: 'pos-rail-task-meta' });
+
+                    // 1. Due date pill
+                    const pillCls = taskIsOverdue ? 'is-overdue' : (task.dueDate === todayStr ? 'is-today' : '');
+                    const datePill = metaRow.createSpan({
+                        cls: `pos-rail-meta-pill pos-rail-meta-date-btn ${pillCls}`,
+                        attr: { 'aria-label': 'Tap to change due date' }
+                    });
+                    const calIcon = datePill.createSpan({ cls: 'pos-btn-icon' });
+                    setIcon(calIcon, 'calendar');
+                    datePill.createSpan({ text: task.dueDate ? ` Due: ${task.dueDate} ▾` : ' Set Due ▾' });
+                    datePill.onclick = (e) => {
+                        e.stopPropagation();
+                        new MobileTaskEditModal(this.app, this.plugin, task, this).open();
+                    };
+
+                    // 2. Subtasks Pill
+                    const hasSubtasks = Array.isArray(task.subtasks) && task.subtasks.length > 0;
+                    if (hasSubtasks) {
+                        const doneCount = task.subtasks.filter((s: any) => s.completed).length;
+                        const subtaskPill = metaRow.createSpan({
+                            cls: 'pos-rail-meta-pill',
+                            attr: { 'aria-label': 'Tap to manage subtasks' }
+                        });
+                        const stIcon = subtaskPill.createSpan({ cls: 'pos-btn-icon' });
+                        setIcon(stIcon, 'check-square');
+                        subtaskPill.createSpan({ text: ` ${doneCount}/${task.subtasks.length}` });
+                        subtaskPill.onclick = (e) => {
+                            e.stopPropagation();
+                            new MobileTaskEditModal(this.app, this.plugin, task, this).open();
+                        };
+                    } else {
+                        const addSubtaskBtn = metaRow.createSpan({
+                            cls: 'pos-rail-meta-pill pos-rail-meta-action-pill',
+                            attr: { 'aria-label': 'Add subtask' }
+                        });
+                        const stIcon = addSubtaskBtn.createSpan({ cls: 'pos-btn-icon' });
+                        setIcon(stIcon, 'plus');
+                        addSubtaskBtn.createSpan({ text: ' Subtask' });
+                        addSubtaskBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            new MobileTaskEditModal(this.app, this.plugin, task, this).open();
+                        };
+                    }
+
+                    // 3. Notes / Remarks Pill
+                    const hasComments = Array.isArray(task.remarks) && task.remarks.length > 0;
+                    if (hasComments) {
+                        const commentPill = metaRow.createSpan({
+                            cls: 'pos-rail-meta-pill',
+                            attr: { 'aria-label': 'Tap to manage notes' }
+                        });
+                        const cIcon = commentPill.createSpan({ cls: 'pos-btn-icon' });
+                        setIcon(cIcon, 'message-square');
+                        commentPill.createSpan({ text: ` ${task.remarks.length}` });
+                        commentPill.onclick = (e) => {
+                            e.stopPropagation();
+                            new MobileTaskEditModal(this.app, this.plugin, task, this).open();
+                        };
+                    } else {
+                        const addCommentBtn = metaRow.createSpan({
+                            cls: 'pos-rail-meta-pill pos-rail-meta-action-pill',
+                            attr: { 'aria-label': 'Add note' }
+                        });
+                        const cIcon = addCommentBtn.createSpan({ cls: 'pos-btn-icon' });
+                        setIcon(cIcon, 'plus');
+                        addCommentBtn.createSpan({ text: ' Note' });
+                        addCommentBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            new MobileTaskEditModal(this.app, this.plugin, task, this).open();
+                        };
+                    }
+                };
+
+                renderTaskContentBlock(primaryTask, content);
+
+                // If the note contains additional top-level tasks, render them below inside content
+                for (let idx = 1; idx < effectiveTasks.length; idx++) {
+                    const extraTask = effectiveTasks[idx];
+                    const extraRow = content.createDiv({ cls: 'pos-mobile-extra-task-row' });
+                    const extraCb = extraRow.createEl('input', {
+                        type: 'checkbox',
+                        cls: 'pos-rail-task-checkbox'
+                    });
+                    extraCb.checked = Boolean(extraTask.completed);
+                    extraCb.onclick = async (e) => {
+                        e.stopPropagation();
+                        const newChecked = extraCb.checked;
+                        try {
+                            this.invalidateRenderCacheForFile(extraTask.filePath);
+                            await this.plugin.capture.toggleTaskInFile(extraTask.filePath, extraTask.lineIndex, newChecked);
+                            const file = this.app.vault.getAbstractFileByPath(extraTask.filePath);
+                            if (file instanceof TFile) {
+                                await this.plugin.index.indexCaptureFile(file);
+                            }
+                            this.plugin.refreshCoordinator.notifyRefresh('tasks');
+                            this.plugin.refreshCoordinator.notifyRefresh('capture');
+                        } catch (err) {
+                            console.error('[DIWA] Mobile stream extra task toggle error', err);
+                            extraCb.checked = !newChecked;
+                            new Notice('Failed to toggle task');
+                        }
+                    };
+                    const extraBody = extraRow.createDiv({ cls: 'pos-rail-task-content' });
+                    renderTaskContentBlock(extraTask, extraBody);
+                }
+            } else {
+                // Regular Note Row (.pos-rail-note-item)
+                item.addClass('pos-rail-note-item', 'pos-mobile-stream-row');
+
+                const iconEl = item.createDiv({ cls: 'pos-rail-note-icon' });
+                setIcon(iconEl, 'file-text');
+
+                const contentWrap = item.createDiv({ cls: 'pos-rail-note-content pos-note-content-wrap' });
+                const bodyEl = contentWrap.createDiv({ cls: 'pos-rail-note-snippet pos-note-body markdown-rendered' });
+
+                const cacheKey = `${entry.filePath}_${entry.modified}`;
+                const cached = this.getCachedRenderedBody(cacheKey);
+
+                if (cached) {
+                    bodyEl.innerHTML = cached.innerHTML;
+                    this.attachInteractiveElements(bodyEl, entry);
+                } else {
+                    void MarkdownRenderer.render(
+                        this.app,
+                        entry.body,
+                        bodyEl,
+                        entry.filePath,
+                        this._streamComponent ?? this
+                    ).then(() => {
+                        const clone = bodyEl.cloneNode(true) as HTMLElement;
+                        this.setCachedRenderedBody(cacheKey, clone);
+                        this.attachInteractiveElements(bodyEl, entry);
+                    });
+                }
             }
 
             // Right Trailing Cluster: Star indicator (when important) + Compact Timestamp + Minimal More Menu
@@ -3889,7 +4101,9 @@ export class DesktopHubView extends ItemView {
     }
 
     private openMobileTaskModalForEntry(entry: CaptureEntry, lineIndex?: number, taskTitle?: string): void {
-        const allTasks = this.plugin.index.getGawaTasks().filter(t => t.filePath === entry.filePath);
+        const allTasks = (Array.isArray(entry.gawaTasks) && entry.gawaTasks.length > 0)
+            ? entry.gawaTasks
+            : this.plugin.index.getGawaTasks(false).filter(t => t.filePath === entry.filePath);
         let matched = allTasks.find(t => lineIndex !== undefined && lineIndex >= 0 && t.lineIndex === lineIndex);
         if (!matched && taskTitle) {
             matched = allTasks.find(t => t.cleanTitle?.includes(taskTitle) || t.rawTitle?.includes(taskTitle));
@@ -4153,6 +4367,16 @@ export class DesktopHubView extends ItemView {
 
         menu.addSeparator();
 
+        if (!Platform.isMobile) {
+            menu.addItem((item) => {
+                item.setTitle('Open in New Window')
+                    .setIcon('app-window')
+                    .onClick(async () => {
+                        await openWikilinkInPeekWindow(this.app, linkText, sourcePath);
+                    });
+            });
+        }
+
         menu.addItem((item) => {
             item.setTitle('Open in Adjacent Split')
                 .setIcon('split')
@@ -4328,7 +4552,7 @@ export class DesktopHubView extends ItemView {
                             return;
                         }
                         if (e.altKey) {
-                            await this.app.workspace.openLinkText(href, entry.filePath, 'window');
+                            await openWikilinkInPeekWindow(this.app, href, entry.filePath);
                             return;
                         }
                     }

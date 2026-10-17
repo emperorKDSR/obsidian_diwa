@@ -7,6 +7,7 @@ import {
     VIEW_TYPE_GAWA_COCKPIT,
     VIEW_TYPE_CALENDAR_DIGEST,
     VIEW_TYPE_KARON,
+    VIEW_TYPE_WIKILINK_PEEK,
     DESKTOP_HUB_ICON_ID,
     DESKTOP_HUB_ICON_SVG,
     GAWA_COCKPIT_ICON_ID,
@@ -24,6 +25,7 @@ import { CalendarDigestView } from './views/CalendarDigestView';
 import { KaronView } from './views/KaronView';
 import { DiwaSettingTab } from './settings';
 import { RecentPermanentNotesModal } from './modals/RecentPermanentNotesModal';
+import { WikilinkPeekView } from './modals/WikilinkPeekModal';
 import { IndexService } from './services/IndexService';
 import { CaptureService } from './services/CaptureService';
 import { RefreshCoordinator, type RefreshScope } from './application/RefreshCoordinator';
@@ -79,6 +81,7 @@ export default class DiwaPlugin extends Plugin {
         this.registerView(VIEW_TYPE_GAWA_COCKPIT, (leaf) => new GawaCockpitView(leaf, this));
         this.registerView(VIEW_TYPE_CALENDAR_DIGEST, (leaf) => new CalendarDigestView(leaf, this));
         this.registerView(VIEW_TYPE_KARON, (leaf) => new KaronView(leaf, this));
+        this.registerView(VIEW_TYPE_WIKILINK_PEEK, (leaf) => new WikilinkPeekView(leaf, this));
 
         addIcon(DESKTOP_HUB_ICON_ID, DESKTOP_HUB_ICON_SVG);
         addIcon(GAWA_COCKPIT_ICON_ID, GAWA_COCKPIT_ICON_SVG);
@@ -204,7 +207,7 @@ export default class DiwaPlugin extends Plugin {
     }
 
     private detachRegisteredLeaves(): void {
-        const viewTypes = [VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB, VIEW_TYPE_GAWA_COCKPIT, VIEW_TYPE_CALENDAR_DIGEST, VIEW_TYPE_KARON];
+        const viewTypes = [VIEW_TYPE_DESKTOP_HUB, VIEW_TYPE_MOBILE_HUB, VIEW_TYPE_TABLET_HUB, VIEW_TYPE_GAWA_COCKPIT, VIEW_TYPE_CALENDAR_DIGEST, VIEW_TYPE_KARON, VIEW_TYPE_WIKILINK_PEEK];
         for (const vt of viewTypes) {
             for (const leaf of this.app.workspace.getLeavesOfType(vt)) {
                 try {
@@ -284,6 +287,19 @@ export default class DiwaPlugin extends Plugin {
             const view = leaves[0].view as DesktopHubView;
             if (view && typeof view.showImportantFilter === 'function') {
                 view.showImportantFilter();
+            }
+        }
+    }
+
+    async filterWorkspaceStreamByWikilink(targetName: string): Promise<void> {
+        await this.activateWorkspace();
+        const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DESKTOP_HUB)
+            .concat(this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB))
+            .concat(this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLET_HUB));
+        if (leaves.length > 0) {
+            const view = leaves[0].view as DesktopHubView;
+            if (view && typeof view.filterStreamByWikilink === 'function') {
+                view.filterStreamByWikilink(targetName);
             }
         }
     }

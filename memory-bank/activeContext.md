@@ -1,18 +1,36 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Horizon-Style Compact Mobile Main Stream Deployed
-- **Horizon-Style Compact Mobile Main Stream (`DesktopHubView.ts`, `MobileTaskEditModal.ts`, `styles.css`)**:
-  - Replicated the compact, high-density Horizon UI/UX directly into the Mobile Main Stream:
-    - **Horizon-Style Date Section Headers (`.pos-date-divider.is-mobile-divider`)**:
-      - Replaced the floating horizontal divider line on mobile with Horizon's uppercase bold muted section header (`font-size: 0.75rem`, `font-weight: 700`, `letter-spacing: 0.05em`, `color: var(--text-muted)`), bottom hairline border (`1px solid var(--background-modifier-border-faint)`), and right-aligned pill counter badge (`.pos-date-count`).
-    - **Single-Row Compact Stream Cards (`.pos-note-stream-item.is-mobile-card`)**:
-      - Eliminated the dedicated 28px top header bar (`pos-mobile-card-header`) that pushed note content down to a second row.
-      - Note and task content now starts immediately on **Line 1** (`padding: 7px 10px`, `margin-bottom: 6px`, `border-radius: 8px`, `font-size: 0.88em`, `line-height: 1.4`, `background: var(--background-primary)`, `border: 1px solid var(--background-modifier-border-faint)`).
-      - Compact trailing cluster on the right (`.pos-mobile-card-meta-right`) displays the star indicator (when marked important), tabular timestamp (`0.72em var(--text-faint)`), and a minimal `⋯` action trigger (`13px` SVG, no bulky button box).
-    - **Horizon Task Parity in Mobile Stream**:
-      - Tapping a task's `Due: ...` link in the mobile stream opens `MobileTaskEditModal` instead of the desktop context menu.
-      - Added **"Schedule & Task Details..."** (`calendar-check` icon) to the mobile `⋯` note menu whenever a note contains a task.
-      - Saving due dates, subtasks, or notes in `MobileTaskEditModal` automatically invalidates the stream markdown cache and refreshes both Horizon and the Main Stream.
+## Current State: Mobile Main Stream Full Horizon UI/UX Switchout & `WikilinkPeekView` Popout Parity Deployed
+- **Mobile Main Stream Full Horizon UI/UX Switchout (`DesktopHubView.ts`, `MobileTaskEditModal.ts`, `styles.css`)**:
+  - Completely removed `.is-mobile-card` from the Mobile Main Stream and replicated Horizon's exact `.pos-rail-section-header`, `.pos-rail-task-item`, and `.pos-rail-note-item` UI/UX:
+    - **Horizon Section Headers (`.pos-rail-section-header.pos-mobile-stream-date-header`)**:
+      - Renders date headers using Horizon's `.pos-rail-section-header` and `.pos-rail-section-badge` structure (`font-size: 0.75rem`, `font-weight: 700`, `text-transform: uppercase`, `letter-spacing: 0.05em`, bottom hairline border, and pill counter badge).
+    - **Horizon Task Rows (`.pos-rail-task-item.pos-mobile-stream-row`)**:
+      - Task entries render as `.pos-rail-task-item` rows instead of raw markdown task/subtask bullet blocks:
+        - Left: interactive `.pos-rail-task-checkbox` (plus multi-select checkbox when in selection mode).
+        - Center (`.pos-rail-task-content`):
+          - Line 1: Clean `.pos-rail-task-title` (`task.cleanTitle || task.rawTitle`); tapping opens `MobileTaskEditModal`.
+          - Line 2: `.pos-rail-task-meta` with Horizon's 3 interactive pills (`[ 📅 Due: YYYY-MM-DD ▾ ]` / `[ 📅 Set Due ▾ ]`, `[ ☑️ X/Y ]` / `[ + Subtask ]`, `[ 💬 N ]` / `[ + Note ]`) that open `MobileTaskEditModal` instead of dumping nested subtask/note lists into the stream.
+        - Right: Compact trailing cluster (`.pos-mobile-card-meta-right`) with star indicator (when marked important), tabular timestamp (`10:42 AM`), and `⋯` action menu.
+    - **Horizon Note Rows (`.pos-rail-note-item.pos-mobile-stream-row`)**:
+      - Regular note entries (without tasks) render as `.pos-rail-note-item` rows with a left `file-text` icon (`.pos-rail-note-icon`), center `.pos-rail-note-snippet` (`0.88em`, `line-height: 1.4`) with rendered markdown/wikilinks/embeds, and right `.pos-mobile-card-meta-right` cluster.
+  - All 17 unit tests passing, production bundle compiled with 0 errors and deployed to `/Users/K26/Obsidian/K0000` and `K0001` test vaults.
+
+## Previous State: `WikilinkPeekModal` New Window Popout Parity (`WikilinkPeekView`) Deployed
+- **`WikilinkPeekView` Popout Window Parity (`WikilinkPeekModal.ts`, `constants.ts`, `main.ts`, `DesktopHubView.ts`, `styles.css`)**:
+  - Clicking **`[ ⧉ New Window ]`** in `WikilinkPeekModal` (or `Alt + Click` on any `[[Wikilink]]` across DIWA) now opens a dedicated `WikilinkPeekView` (`VIEW_TYPE_WIKILINK_PEEK = "diwa-wikilink-peek"`) in a resizable desktop popout window (`680px × 640px`) that is identical to `WikilinkPeekModal` itself:
+    - **Identical Architectural Header (`.pos-peek-header`)**:
+      - Carries over the in-modal **`[ ← ]` Back history stack** when popping out, and supports navigating into nested `[[Wikilinks]]` in-place while updating the window title.
+      - Displays the note title and quiet editorial subtitle (`Folder · #tag1 · #tag2 · Updated 12m ago`).
+      - **`[ 🔍 Stream ]`** action pill filters the main DIWA Workspace stream by the current note (`plugin.filterWorkspaceStreamByWikilink`).
+    - **Identical Line-Level Live Editor Canvas (`.pos-peek-body`)**:
+      - Keeps YAML frontmatter, leading `# Title`, and hidden DIWA digest comments/anchors cleanly tucked away.
+      - Renders every inactive line via `MarkdownRenderer` with 1-click interactive task checkboxes (`- [ ]`) and `[[Wikilinks]]`.
+      - Clicking any line or the canvas tail swaps only that single line into `textarea.pos-peek-line-editor` with full DIWA smart triggers (`[[`, `#`, `@date`, `/person`, `++`), media paste, and outliner keyboard ergonomics (`Enter`, `Backspace`, `ArrowUp`/`ArrowDown`, `Escape`/`Cmd+Enter`).
+    - **Live External File Sync**:
+      - Listens to `app.vault.on('modify')` with self-save suppression so external updates (such as task toggles or digests from the main window) keep the popout window automatically synchronized.
+    - **Clean Popout Chrome**:
+      - Hides Obsidian's redundant `.view-header` inside `diwa-wikilink-peek` leaves so only the single architectural header is displayed.
   - All 17 unit tests passing, production bundle compiled with 0 errors and deployed to `/Users/K26/Obsidian/K0000` and `K0001` test vaults.
 
 ## Previous State: Mobile Task Edit Modal Top-Anchored Focused Typing Mode Deployed
