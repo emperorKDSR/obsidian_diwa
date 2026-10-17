@@ -114,7 +114,7 @@ export class DesktopHubView extends ItemView {
         this._renderedMarkdownCache.set(cacheKey, el);
     }
 
-    private invalidateRenderCacheForFile(filePath: string): void {
+    public invalidateRenderCacheForFile(filePath: string): void {
         const prefix = `${filePath}_`;
         for (const key of Array.from(this._renderedMarkdownCache.keys())) {
             if (key.startsWith(prefix) || key === filePath) {
@@ -3357,25 +3357,28 @@ export class DesktopHubView extends ItemView {
 
         // Group entries by date
         let lastDateKey = '';
+        const isMobileStream = Platform.isMobile && !isTablet(this.app);
 
         for (const entry of visibleEntries) {
             const dateKey = this.getDateHeadingForEntry(entry);
             if (dateKey !== lastDateKey) {
                 lastDateKey = dateKey;
-                const divider = container.createDiv({ cls: 'pos-date-divider' });
+                const divider = container.createDiv({ cls: `pos-date-divider ${isMobileStream ? 'is-mobile-divider' : ''}` });
                 const headingEl = divider.createSpan({ cls: 'pos-date-heading', text: dateKey });
-                headingEl.style.textTransform = 'none';
-                headingEl.style.letterSpacing = '-0.01em';
-                headingEl.style.fontWeight = '500';
-                headingEl.style.fontSize = '0.76rem';
-                headingEl.style.color = 'var(--text-faint)';
-                headingEl.style.opacity = '0.82';
                 const count = dateCounts.get(dateKey) || 1;
                 const countEl = divider.createSpan({ cls: 'pos-date-count', text: `${count}` });
-                countEl.style.fontSize = '0.70rem';
-                countEl.style.fontWeight = '500';
-                countEl.style.color = 'var(--text-faint)';
-                divider.createDiv({ cls: 'pos-date-line' });
+                if (!isMobileStream) {
+                    headingEl.style.textTransform = 'none';
+                    headingEl.style.letterSpacing = '-0.01em';
+                    headingEl.style.fontWeight = '500';
+                    headingEl.style.fontSize = '0.76rem';
+                    headingEl.style.color = 'var(--text-faint)';
+                    headingEl.style.opacity = '0.82';
+                    countEl.style.fontSize = '0.70rem';
+                    countEl.style.fontWeight = '500';
+                    countEl.style.color = 'var(--text-faint)';
+                    divider.createDiv({ cls: 'pos-date-line' });
+                }
             }
 
             this.renderNoteItem(container, entry);
@@ -3419,25 +3422,28 @@ export class DesktopHubView extends ItemView {
         // Find last date heading currently rendered
         const dateDividers = container.querySelectorAll<HTMLElement>('.pos-date-heading');
         let lastDateKey = dateDividers.length > 0 ? dateDividers[dateDividers.length - 1].textContent || '' : '';
+        const isMobileStream = Platform.isMobile && !isTablet(this.app);
 
         for (const entry of newBatch) {
             const dateKey = this.getDateHeadingForEntry(entry);
             if (dateKey !== lastDateKey) {
                 lastDateKey = dateKey;
-                const divider = container.createDiv({ cls: 'pos-date-divider' });
+                const divider = container.createDiv({ cls: `pos-date-divider ${isMobileStream ? 'is-mobile-divider' : ''}` });
                 const headingEl = divider.createSpan({ cls: 'pos-date-heading', text: dateKey });
-                headingEl.style.textTransform = 'none';
-                headingEl.style.letterSpacing = '-0.01em';
-                headingEl.style.fontWeight = '500';
-                headingEl.style.fontSize = '0.76rem';
-                headingEl.style.color = 'var(--text-faint)';
-                headingEl.style.opacity = '0.82';
                 const count = dateCounts.get(dateKey) || 1;
                 const countEl = divider.createSpan({ cls: 'pos-date-count', text: `${count}` });
-                countEl.style.fontSize = '0.70rem';
-                countEl.style.fontWeight = '500';
-                countEl.style.color = 'var(--text-faint)';
-                divider.createDiv({ cls: 'pos-date-line' });
+                if (!isMobileStream) {
+                    headingEl.style.textTransform = 'none';
+                    headingEl.style.letterSpacing = '-0.01em';
+                    headingEl.style.fontWeight = '500';
+                    headingEl.style.fontSize = '0.76rem';
+                    headingEl.style.color = 'var(--text-faint)';
+                    headingEl.style.opacity = '0.82';
+                    countEl.style.fontSize = '0.70rem';
+                    countEl.style.fontWeight = '500';
+                    countEl.style.color = 'var(--text-faint)';
+                    divider.createDiv({ cls: 'pos-date-line' });
+                }
             }
 
             this.renderNoteItem(container, entry);
@@ -3488,7 +3494,7 @@ export class DesktopHubView extends ItemView {
         if (this._selectionMode) {
             item.onclick = (e) => {
                 const target = e.target as HTMLElement;
-                if (target.closest('.pos-interactive-checkbox') || target.closest('.pos-note-actions') || target.closest('a') || target.closest('img') || target.closest('.image-embed')) {
+                if (target.closest('.pos-interactive-checkbox') || target.closest('.pos-note-actions') || target.closest('.pos-mobile-card-meta-right') || target.closest('a') || target.closest('img') || target.closest('.image-embed')) {
                     return;
                 }
                 if (this._selectedEntryIds.has(entry.id)) {
@@ -3503,7 +3509,7 @@ export class DesktopHubView extends ItemView {
             // Double-click to edit note inline
             item.ondblclick = (e) => {
                 const target = e.target as HTMLElement;
-                if (target.closest('.pos-interactive-checkbox') || target.closest('.pos-note-actions') || target.closest('a') || target.closest('img') || target.closest('.image-embed') || target.closest('.pos-area-badge') || target.closest('.pos-date-badge')) {
+                if (target.closest('.pos-interactive-checkbox') || target.closest('.pos-note-actions') || target.closest('.pos-mobile-card-meta-right') || target.closest('a') || target.closest('img') || target.closest('.image-embed') || target.closest('.pos-area-badge') || target.closest('.pos-date-badge')) {
                     return;
                 }
                 this._editingEntryId = entry.id;
@@ -3515,7 +3521,7 @@ export class DesktopHubView extends ItemView {
         const isMobile = Platform.isMobile && !isTablet(this.app);
         const timeStr = moment(entry.createdAtMs).format('h:mm A');
 
-        // Mobile Micro-Card Layout (Phones only: full-width card with top meta header)
+        // Mobile Compact Horizon-Style Row Layout
         if (isMobile) {
             item.addClass('is-mobile-card');
 
@@ -3526,14 +3532,10 @@ export class DesktopHubView extends ItemView {
                 return;
             }
 
-            // Top Header: Time on left, Actions on right
-            const cardHeader = item.createDiv({ cls: 'pos-mobile-card-header' });
-            const headerLeft = cardHeader.createDiv({ cls: 'pos-mobile-card-header-left' });
-
             if (this._selectionMode) {
-                const selectCheckbox = headerLeft.createEl('input', {
+                const selectCheckbox = item.createEl('input', {
                     type: 'checkbox',
-                    cls: 'pos-select-checkbox',
+                    cls: 'pos-select-checkbox pos-mobile-select-cb',
                 });
                 selectCheckbox.checked = isSelected;
                 selectCheckbox.onclick = (e) => {
@@ -3548,43 +3550,7 @@ export class DesktopHubView extends ItemView {
                 };
             }
 
-            headerLeft.createSpan({ cls: 'pos-note-time', text: timeStr });
-
-            // Actions capsule anchored in top-right of mobile card header
-            const actionsEl = cardHeader.createDiv({ cls: 'pos-note-actions pos-mobile-card-actions' });
-            const starBtn = actionsEl.createSpan({
-                cls: `pos-action-icon pos-star-btn ${isImportant ? 'is-starred' : ''}`,
-                attr: { 'aria-label': isImportant ? 'Unmark important' : 'Mark as important' }
-            });
-            setIcon(starBtn, 'star');
-            starBtn.onclick = async (e) => {
-                e.stopPropagation();
-                try {
-                    this.invalidateRenderCacheForFile(entry.filePath);
-                    const newState = await this.plugin.capture.toggleNoteImportance(entry.filePath);
-                    entry.important = newState;
-                    entry.pinned = newState;
-                    this.plugin.index?.setCaptureImportance?.(entry.filePath, newState);
-                    new Notice(newState ? 'Marked as Important' : 'Unmarked from Important');
-                    this.updateFilterCounts();
-                    this.updateStreamOnly();
-                } catch (err) {
-                    console.error('[DIWA] Toggle note importance error', err);
-                    new Notice('Failed to update importance');
-                }
-            };
-
-            const moreBtn = actionsEl.createSpan({
-                cls: 'pos-action-icon pos-action-more',
-                attr: { 'aria-label': 'More note options' }
-            });
-            setIcon(moreBtn, 'more-horizontal');
-            moreBtn.onclick = (e) => {
-                e.stopPropagation();
-                this.openNoteActionMenu(e, entry);
-            };
-
-            // Full-Width Body Content (takes 100% width, no left gutter, no 96px deadspace)
+            // Left Column: Primary Content on Line 1 (Horizon-style)
             const contentWrap = item.createDiv({ cls: 'pos-note-content-wrap' });
             const bodyEl = contentWrap.createDiv({ cls: 'pos-note-body markdown-rendered' });
 
@@ -3607,6 +3573,46 @@ export class DesktopHubView extends ItemView {
                     this.attachInteractiveElements(bodyEl, entry);
                 });
             }
+
+            // Right Trailing Cluster: Star indicator (when important) + Compact Timestamp + Minimal More Menu
+            const metaRight = item.createDiv({ cls: 'pos-mobile-card-meta-right' });
+
+            if (isImportant) {
+                const starBtn = metaRight.createSpan({
+                    cls: 'pos-action-icon pos-star-btn is-starred',
+                    attr: { 'aria-label': 'Unmark important' }
+                });
+                setIcon(starBtn, 'star');
+                starBtn.onclick = async (e) => {
+                    e.stopPropagation();
+                    try {
+                        this.invalidateRenderCacheForFile(entry.filePath);
+                        const newState = await this.plugin.capture.toggleNoteImportance(entry.filePath);
+                        entry.important = newState;
+                        entry.pinned = newState;
+                        this.plugin.index?.setCaptureImportance?.(entry.filePath, newState);
+                        new Notice(newState ? 'Marked as Important' : 'Unmarked from Important');
+                        this.updateFilterCounts();
+                        this.updateStreamOnly();
+                    } catch (err) {
+                        console.error('[DIWA] Toggle note importance error', err);
+                        new Notice('Failed to update importance');
+                    }
+                };
+            }
+
+            metaRight.createSpan({ cls: 'pos-note-time', text: timeStr });
+
+            const moreBtn = metaRight.createSpan({
+                cls: 'pos-action-icon pos-action-more',
+                attr: { 'aria-label': 'More note options' }
+            });
+            setIcon(moreBtn, 'more-horizontal');
+            moreBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.openNoteActionMenu(e, entry);
+            };
+
             return;
         }
 
@@ -3882,9 +3888,48 @@ export class DesktopHubView extends ItemView {
         menu.showAtMouseEvent(e);
     }
 
+    private openMobileTaskModalForEntry(entry: CaptureEntry, lineIndex?: number, taskTitle?: string): void {
+        const allTasks = this.plugin.index.getGawaTasks().filter(t => t.filePath === entry.filePath);
+        let matched = allTasks.find(t => lineIndex !== undefined && lineIndex >= 0 && t.lineIndex === lineIndex);
+        if (!matched && taskTitle) {
+            matched = allTasks.find(t => t.cleanTitle?.includes(taskTitle) || t.rawTitle?.includes(taskTitle));
+        }
+        if (!matched && allTasks.length > 0) {
+            matched = allTasks[0];
+        }
+        if (!matched && entry.tasks && entry.tasks.length > 0) {
+            const fallback = entry.tasks[0];
+            matched = {
+                filePath: entry.filePath,
+                lineIndex: fallback.lineIndex,
+                rawTitle: fallback.title,
+                cleanTitle: fallback.title,
+                completed: fallback.completed,
+                dueDate: null,
+                subtasks: [],
+                remarks: []
+            } as any;
+        }
+        if (matched) {
+            new MobileTaskEditModal(this.app, this.plugin, matched, this).open();
+        }
+    }
+
     private openNoteActionMenu(e: MouseEvent, entry: CaptureEntry): void {
         const menu = new Menu();
         const isImportant = this.plugin.index.isImportant(entry);
+        const hasTasks = Array.isArray(entry.tasks) && entry.tasks.length > 0;
+
+        if (hasTasks && Platform.isMobile) {
+            menu.addItem((item) => {
+                item.setTitle('Schedule & Task Details...')
+                    .setIcon('calendar-check')
+                    .onClick(() => {
+                        this.openMobileTaskModalForEntry(entry);
+                    });
+            });
+            menu.addSeparator();
+        }
 
         menu.addItem((item) => {
             item.setTitle(isImportant ? 'Remove from Important' : 'Mark as Important')
@@ -4244,6 +4289,10 @@ export class DesktopHubView extends ItemView {
                     if (e.metaKey || e.ctrlKey || e.shiftKey) return;
                     e.preventDefault();
                     e.stopPropagation();
+                    if (taskLi && Platform.isMobile && !isTablet(this.app)) {
+                        this.openMobileTaskModalForEntry(entry);
+                        return;
+                    }
                     this.openDateActionMenu(e, entry, dateStr);
                 };
             } else {

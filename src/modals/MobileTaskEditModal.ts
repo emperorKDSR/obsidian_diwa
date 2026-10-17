@@ -494,7 +494,9 @@ export class MobileTaskEditModal extends Modal {
             if (file instanceof TFile) {
                 await this.plugin.index.indexCaptureFile(file);
             }
+            this.view?.invalidateRenderCacheForFile(this.task.filePath);
             this.plugin.refreshCoordinator.notifyRefresh('tasks');
+            this.plugin.refreshCoordinator.notifyRefresh('capture');
             new Notice(newDate ? `Due date set to ${newDate}` : 'Due date cleared');
             this.renderDateSection();
         } catch (err) {
@@ -515,7 +517,9 @@ export class MobileTaskEditModal extends Modal {
             if (file instanceof TFile) {
                 await this.plugin.index.indexCaptureFile(file);
             }
+            this.view?.invalidateRenderCacheForFile(this.task.filePath);
             this.plugin.refreshCoordinator.notifyRefresh('tasks');
+            this.plugin.refreshCoordinator.notifyRefresh('capture');
         } catch (err) {
             console.error('[DIWA] Error updating subtasks', err);
             new Notice('Failed to update subtasks');
@@ -534,7 +538,9 @@ export class MobileTaskEditModal extends Modal {
             if (file instanceof TFile) {
                 await this.plugin.index.indexCaptureFile(file);
             }
+            this.view?.invalidateRenderCacheForFile(this.task.filePath);
             this.plugin.refreshCoordinator.notifyRefresh('tasks');
+            this.plugin.refreshCoordinator.notifyRefresh('capture');
         } catch (err) {
             console.error('[DIWA] Error updating notes', err);
             new Notice('Failed to update notes');

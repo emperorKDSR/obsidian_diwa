@@ -1,6 +1,18 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Mobile Task Edit Modal Top-Anchored Focused Typing Mode Deployed (Complete)
+## Current Phase: Horizon-Style Compact Mobile Main Stream Deployed (Complete)
+
+---
+
+### 0. Horizon-Style Compact Mobile Main Stream Deployed (Complete)
+*   [x] **Horizon-Style Date Section Headers (`DesktopHubView.ts` & `styles.css`)** — Styled `.pos-date-divider.is-mobile-divider` to match `.pos-rail-section-header`: uppercase bold muted date title, bottom hairline border, and right-aligned pill counter badge (`.pos-date-count`).
+*   [x] **Single-Row Compact Stream Cards (`DesktopHubView.ts` & `styles.css`)** — Refactored `.pos-note-stream-item.is-mobile-card` into a horizontal Horizon-style row (`padding: 7px 10px`, `margin-bottom: 6px`, `border-radius: 8px`, `font-size: 0.88em`, `line-height: 1.4`) where note/task content starts immediately on Line 1 with a compact trailing meta/action cluster (`.pos-mobile-card-meta-right`).
+*   [x] **Horizon Task Parity in Mobile Stream (`DesktopHubView.ts` & `MobileTaskEditModal.ts`)** — Added `openMobileTaskModalForEntry()` so tapping a task's `Due: ...` link or selecting **"Schedule & Task Details..."** in the mobile `⋯` menu opens `MobileTaskEditModal`, and edits automatically invalidate the stream cache and refresh both views.
+*   [x] **Automated Tests, Production Build & Vault Deployment** — Verified all 17 unit tests passing, compiled production bundle with zero errors, and deployed `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+---
+
+## Previous Phase: Mobile Task Edit Modal Top-Anchored Focused Typing Mode Deployed (Complete)
 
 ---
 

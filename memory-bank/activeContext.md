@@ -1,6 +1,21 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Mobile Task Edit Modal Top-Anchored Focused Typing Mode Deployed
+## Current State: Horizon-Style Compact Mobile Main Stream Deployed
+- **Horizon-Style Compact Mobile Main Stream (`DesktopHubView.ts`, `MobileTaskEditModal.ts`, `styles.css`)**:
+  - Replicated the compact, high-density Horizon UI/UX directly into the Mobile Main Stream:
+    - **Horizon-Style Date Section Headers (`.pos-date-divider.is-mobile-divider`)**:
+      - Replaced the floating horizontal divider line on mobile with Horizon's uppercase bold muted section header (`font-size: 0.75rem`, `font-weight: 700`, `letter-spacing: 0.05em`, `color: var(--text-muted)`), bottom hairline border (`1px solid var(--background-modifier-border-faint)`), and right-aligned pill counter badge (`.pos-date-count`).
+    - **Single-Row Compact Stream Cards (`.pos-note-stream-item.is-mobile-card`)**:
+      - Eliminated the dedicated 28px top header bar (`pos-mobile-card-header`) that pushed note content down to a second row.
+      - Note and task content now starts immediately on **Line 1** (`padding: 7px 10px`, `margin-bottom: 6px`, `border-radius: 8px`, `font-size: 0.88em`, `line-height: 1.4`, `background: var(--background-primary)`, `border: 1px solid var(--background-modifier-border-faint)`).
+      - Compact trailing cluster on the right (`.pos-mobile-card-meta-right`) displays the star indicator (when marked important), tabular timestamp (`0.72em var(--text-faint)`), and a minimal `⋯` action trigger (`13px` SVG, no bulky button box).
+    - **Horizon Task Parity in Mobile Stream**:
+      - Tapping a task's `Due: ...` link in the mobile stream opens `MobileTaskEditModal` instead of the desktop context menu.
+      - Added **"Schedule & Task Details..."** (`calendar-check` icon) to the mobile `⋯` note menu whenever a note contains a task.
+      - Saving due dates, subtasks, or notes in `MobileTaskEditModal` automatically invalidates the stream markdown cache and refreshes both Horizon and the Main Stream.
+  - All 17 unit tests passing, production bundle compiled with 0 errors and deployed to `/Users/K26/Obsidian/K0000` and `K0001` test vaults.
+
+## Previous State: Mobile Task Edit Modal Top-Anchored Focused Typing Mode Deployed
 - **Mobile Task Edit Modal Top-Anchored Focused Typing Mode (`MobileTaskEditModal.ts` & `styles.css`)**:
   - Resolved mobile virtual keyboard obstruction when adding subtasks and notes on Obsidian Mobile (where `visualViewport.height` does not shrink in Capacitor WebView):
     - **Deterministic Immediate Activation**: Focusing `+ Add subtask...` or `+ Add note or remark...` immediately applies `.has-keyboard` and `.is-typing-subtask` / `.is-typing-remark` without waiting for `visualViewport` to shrink.
