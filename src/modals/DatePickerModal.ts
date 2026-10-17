@@ -20,7 +20,7 @@ export class DatePickerModal extends Modal {
             attr: { style: 'padding: 20px 24px 16px 24px; border-bottom: 1px solid var(--background-modifier-border-faint);' }
         });
         const iconWrap = header.createEl('div', {
-            attr: { style: 'width: 36px; height: 36px; border-radius: 50%; background: var(--interactive-accent-faint, rgba(120,80,220,0.12)); display: flex; align-items: center; justify-content: center; margin-bottom: 10px; color: var(--interactive-accent);' }
+            attr: { style: 'width: 36px; height: 36px; border-radius: 50%; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); display: flex; align-items: center; justify-content: center; margin-bottom: 10px; color: var(--text-normal);' }
         });
         setIcon(iconWrap, 'calendar');
 
@@ -61,7 +61,7 @@ export class DatePickerModal extends Modal {
             const btn = shortcutsRow.createEl('button', {
                 text: s.label,
                 attr: {
-                    style: 'padding: 6px 12px; border-radius: 14px; border: 1px solid var(--background-modifier-border); background: var(--background-secondary); color: var(--text-muted); font-size: 0.84em; cursor: pointer;'
+                    style: 'padding: 6px 12px; border-radius: 14px; border: 1px solid var(--background-modifier-border); background: var(--background-secondary); color: var(--text-muted); font-size: 0.84em; cursor: pointer; transition: all 0.15s ease;'
                 }
             });
             btn.onclick = () => {
@@ -83,7 +83,7 @@ export class DatePickerModal extends Modal {
 
         const applyBtn = footer.createEl('button', {
             text: 'Apply Date',
-            attr: { style: 'padding: 8px 18px; border-radius: 8px; background: var(--interactive-accent); color: var(--text-on-accent); border: none; font-weight: 700; cursor: pointer;' }
+            attr: { style: 'padding: 8px 18px; border-radius: 8px; background: var(--background-modifier-hover); color: var(--text-normal); border: 1px solid var(--background-modifier-border); font-weight: 600; cursor: pointer;' }
         });
         applyBtn.onclick = () => {
             const chosen = dateInput.value;

@@ -1271,6 +1271,17 @@ export class IndexService {
         return allBills.filter(b => b.dueDate < today);
     }
 
+    async getOverdueCount(todayStr?: string): Promise<{ tasks: number; bills: number; total: number }> {
+        const today = todayStr || moment().format('YYYY-MM-DD');
+        const overdueTasks = this.getOverdueTasks(today).filter(t => !t.completed && !t.filePath?.toLowerCase().includes('handumanan'));
+        const overdueBills = await this.getOverdueBills(today);
+        return {
+            tasks: overdueTasks.length,
+            bills: overdueBills.length,
+            total: overdueTasks.length + overdueBills.length,
+        };
+    }
+
     async getBillsForDueDate(dateStr: string): Promise<HorizonBillItem[]> {
         const allBills = await this.getPendingBills();
         return allBills.filter(b => b.dueDate === dateStr);

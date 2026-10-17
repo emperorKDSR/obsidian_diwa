@@ -8,6 +8,7 @@ import { WikilinkPeekModal } from '../modals/WikilinkPeekModal';
 import { MobileFilterSheetModal } from '../modals/MobileFilterSheetModal';
 import { RecentPermanentNotesModal } from '../modals/RecentPermanentNotesModal';
 import { MobileAgendaSheetModal } from '../modals/MobileAgendaSheetModal';
+import { MobileTaskEditModal } from '../modals/MobileTaskEditModal';
 import { ConfirmDeleteModal } from '../modals/ConfirmDeleteModal';
 import { PreFlightDigestModal } from '../modals/PreFlightDigestModal';
 import { isTablet, isTabletPortrait, attachInlineTriggers, attachMediaPasteHandler } from '../utils';
@@ -285,6 +286,7 @@ export class DesktopHubView extends ItemView {
 
     refreshAll(): void {
         this.renderView(false);
+        void this.updateHorizonOverdueState();
         if (this._mobileAgendaModal) {
             this._mobileAgendaModal.refreshAgenda();
         }
@@ -293,11 +295,50 @@ export class DesktopHubView extends ItemView {
     refreshCapture(): void {
         this.updateStreamOnly();
         this.updateFilterCounts();
+        void this.updateHorizonOverdueState();
         if (this._cockpitRailOpen && this._sideRailEl) {
             this.renderRightRailContent();
         }
         if (this._mobileAgendaModal) {
             this._mobileAgendaModal.refreshAgenda();
+        }
+    }
+
+    public async updateHorizonOverdueState(): Promise<void> {
+        try {
+            const overdueInfo = await this.plugin.index.getOverdueCount();
+            const hasOverdue = overdueInfo.total > 0;
+
+            // 1. Mobile Floating Action Bar Agenda Button
+            const mobileAgendaBtn = this.contentEl.querySelector('.pos-mobile-action-btn.pos-mobile-action-agenda') as HTMLElement | null;
+            if (mobileAgendaBtn) {
+                mobileAgendaBtn.toggleClass('has-overdue', hasOverdue);
+                if (hasOverdue) {
+                    const desc = overdueInfo.tasks > 0 && overdueInfo.bills > 0
+                        ? `${overdueInfo.tasks} task${overdueInfo.tasks === 1 ? '' : 's'}, ${overdueInfo.bills} bill${overdueInfo.bills === 1 ? '' : 's'} overdue`
+                        : (overdueInfo.bills > 0
+                            ? `${overdueInfo.bills} bill${overdueInfo.bills === 1 ? '' : 's'} overdue`
+                            : `${overdueInfo.tasks} task${overdueInfo.tasks === 1 ? '' : 's'} overdue`);
+                    mobileAgendaBtn.setAttribute('title', `Agenda & Horizon (${desc})`);
+                    mobileAgendaBtn.setAttribute('aria-label', `Agenda & Horizon (${desc})`);
+                } else {
+                    mobileAgendaBtn.setAttribute('title', 'Agenda & Horizon');
+                    mobileAgendaBtn.setAttribute('aria-label', 'Agenda & Horizon');
+                }
+            }
+
+            // 2. Desktop Rail Horizon Tab Button
+            const railHorizonBtn = this.contentEl.querySelector('.pos-rail-tabs .pos-rail-tab-btn:first-child') as HTMLElement | null;
+            if (railHorizonBtn) {
+                railHorizonBtn.toggleClass('has-overdue', hasOverdue);
+                if (hasOverdue) {
+                    railHorizonBtn.setAttribute('title', `Horizon (${overdueInfo.total} overdue item${overdueInfo.total === 1 ? '' : 's'})`);
+                } else {
+                    railHorizonBtn.removeAttribute('title');
+                }
+            }
+        } catch (err) {
+            console.error('[DIWA] Error updating horizon overdue state', err);
         }
     }
 
@@ -733,6 +774,14 @@ export class DesktopHubView extends ItemView {
         const karonIcon = karonTabBtn.createSpan({ cls: 'pos-btn-icon' });
         setIcon(karonIcon, 'sun');
         karonTabBtn.createSpan({ text: 'Horizon' });
+
+        const railTodayStr = moment().format('YYYY-MM-DD');
+        const railOverdueTasks = this.plugin.index.getOverdueTasks(railTodayStr).filter(t => !t.completed && !t.filePath?.toLowerCase().includes('handumanan'));
+        if (railOverdueTasks.length > 0) {
+            karonTabBtn.addClass('has-overdue');
+        }
+        void this.updateHorizonOverdueState();
+
         karonTabBtn.onclick = () => {
             this._cockpitRailTab = 'karon';
             this.saveCockpitState();
@@ -1136,11 +1185,7 @@ export class DesktopHubView extends ItemView {
                 item.setTitle('Pick Specific Date...')
                     .setIcon('calendar-clock')
                     .onClick(() => {
-                        new DatePickerModal(this.app, task.dueDate || todayStr, (chosenDate: string) => {
-                            if (chosenDate) {
-                                void applyDueDate(chosenDate);
-                            }
-                        }).open();
+                        new MobileTaskEditModal(this.app, this.plugin, task, this).open();
                     });
             });
 
@@ -1155,6 +1200,17 @@ export class DesktopHubView extends ItemView {
 
             menu.showAtMouseEvent(e);
         };
+
+        const isMobile = Platform.isMobile && !isTablet(this.app);
+
+        if (isMobile) {
+            titleEl.onclick = (e) => {
+                const target = e.target as HTMLElement;
+                if (target.closest('a.internal-link')) return;
+                e.stopPropagation();
+                new MobileTaskEditModal(this.app, this.plugin, task, this).open();
+            };
+        }
 
         const hasSubtasks = Array.isArray(task.subtasks) && task.subtasks.length > 0;
         const isSubtasksInputOpen = this._expandedRailSubtaskInputs.has(taskKey);
@@ -1179,7 +1235,14 @@ export class DesktopHubView extends ItemView {
         const calIcon = datePill.createSpan({ cls: 'pos-btn-icon' });
         setIcon(calIcon, 'calendar');
         datePill.createSpan({ text: task.dueDate ? ` Due: ${task.dueDate} ▾` : ' Set Due ▾' });
-        datePill.onclick = (e) => openDueDatePicker(e);
+        datePill.onclick = (e) => {
+            if (isMobile) {
+                e.stopPropagation();
+                new MobileTaskEditModal(this.app, this.plugin, task, this).open();
+                return;
+            }
+            openDueDatePicker(e);
+        };
 
         // 2. Subtasks Badge / Add Button
         if (hasSubtasks) {
@@ -1197,6 +1260,10 @@ export class DesktopHubView extends ItemView {
             subtaskPill.createSpan({ text: ` ${doneCount}/${task.subtasks.length}` });
             subtaskPill.onclick = (e) => {
                 e.stopPropagation();
+                if (isMobile) {
+                    new MobileTaskEditModal(this.app, this.plugin, task, this).open();
+                    return;
+                }
                 if (this._pinnedRailSubtasks.has(taskKey)) {
                     // Was pinned open -> hide/collapse it
                     this._pinnedRailSubtasks.delete(taskKey);
@@ -1221,6 +1288,10 @@ export class DesktopHubView extends ItemView {
             addSubtaskBtn.createSpan({ text: ' Subtask' });
             addSubtaskBtn.onclick = (e) => {
                 e.stopPropagation();
+                if (isMobile) {
+                    new MobileTaskEditModal(this.app, this.plugin, task, this).open();
+                    return;
+                }
                 this._expandedRailSubtaskInputs.add(taskKey);
                 this._pinnedRailSubtasks.add(taskKey);
                 this._collapsedRailSubtasks.delete(taskKey);
@@ -1243,6 +1314,10 @@ export class DesktopHubView extends ItemView {
             commentPill.createSpan({ text: ` ${task.remarks.length}` });
             commentPill.onclick = (e) => {
                 e.stopPropagation();
+                if (isMobile) {
+                    new MobileTaskEditModal(this.app, this.plugin, task, this).open();
+                    return;
+                }
                 if (this._pinnedRailComments.has(taskKey)) {
                     // Was pinned open -> hide/collapse it
                     this._pinnedRailComments.delete(taskKey);
@@ -1267,6 +1342,10 @@ export class DesktopHubView extends ItemView {
             addCommentBtn.createSpan({ text: ' Note' });
             addCommentBtn.onclick = (e) => {
                 e.stopPropagation();
+                if (isMobile) {
+                    new MobileTaskEditModal(this.app, this.plugin, task, this).open();
+                    return;
+                }
                 this._expandedRailCommentInputs.add(taskKey);
                 this._pinnedRailComments.add(taskKey);
                 this._collapsedRailComments.delete(taskKey);
@@ -2523,6 +2602,15 @@ export class DesktopHubView extends ItemView {
                     attr: { 'aria-label': 'Agenda & Horizon', title: 'Agenda' }
                 });
                 setIcon(agendaBtn, 'sun');
+
+                const mobileTodayStr = moment().format('YYYY-MM-DD');
+                const mobileOverdueTasks = this.plugin.index.getOverdueTasks(mobileTodayStr).filter(t => !t.completed && !t.filePath?.toLowerCase().includes('handumanan'));
+                if (mobileOverdueTasks.length > 0) {
+                    agendaBtn.addClass('has-overdue');
+                    agendaBtn.setAttribute('title', `Agenda & Horizon (${mobileOverdueTasks.length} overdue task${mobileOverdueTasks.length === 1 ? '' : 's'})`);
+                }
+                void this.updateHorizonOverdueState();
+
                 agendaBtn.onclick = () => {
                     new MobileAgendaSheetModal(this.app, this.plugin, this).open();
                 };

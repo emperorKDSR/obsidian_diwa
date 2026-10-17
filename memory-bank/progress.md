@@ -1,15 +1,16 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Clean Uniform 5-Icon Floating Action Bar, Slide-Up Horizon Agenda Sheet & Minimalist Mobile Header Deployed (Complete)
+## Current Phase: Mobile Horizon Task Scheduling & Subtasks/Notes Sheet Deployed (Complete)
 
 ---
 
-### 0. Clean Uniform 5-Icon Floating Action Bar, Slide-Up Horizon Agenda Sheet & Minimalist Mobile Header Deployed (Complete)
-*   [x] **5-Icon Floating Action Bar (`DesktopHubView.ts` & `styles.css`)** — Configured the mobile floating dock with the 5 exact dedicated icons requested by the user: `[ ✏️ Capture ]`, `[ 🔍 Search ]`, `[ 📖 Recent Notes ]`, `[ 🎛️ Filter ]`, and `[ ☀️ Agenda ]`. Maintained the calm, tactile Command Island surface (`var(--background-secondary-alt)` with `1px solid var(--background-modifier-border)` and subtle ambient shadow).
-*   [x] **Clean, Unhighlighted Note Icon (`styles.css`)** — Removed the elevated background circle, border, shadow, and brighter color from `.pos-mobile-action-new`. The Note/Capture icon now matches the clean, transparent, muted resting state (`color: var(--text-muted)`) of the other 4 icons in the dock for an ultra-clean, balanced aesthetic.
-*   [x] **Mobile Slide-Up Horizon Agenda Sheet (`MobileAgendaSheetModal.ts` & `styles.css`)** — Implemented Option 1 as an ergonomic slide-up bottom sheet (`.pos-mobile-agenda-sheet-modal`, `.pos-mobile-bottom-sheet` on `.pos-bottom-sheet-backdrop`) with drag handle, touch drag-to-dismiss gesture, and `✕` close button. Renders the full 5-day rolling Horizon (Overdue tasks/bills with subtle muted red outline, Today, Tomorrow, and Next 3 Days with interactive tasks, pending bills, note snippets, and collapsible Undated tasks).
-*   [x] **Two-Way Reactive Synchronization (`DesktopHubView.ts`)** — Connected `setMobileAgendaModal` with `refreshCapture()` and `refreshAll()` so task completions, date rescheduling, and subtask additions in the modal update the vault and re-render live.
-*   [x] **Clean Minimalist Mobile Header (`DesktopHubView.ts` & `styles.css`)** — Removed the `[ ⋯ ]` More button completely from the mobile top header bar (`renderHeaderBar` returns early on mobile viewports), leaving a clean top bar with only the DIWA title and subtitle. All primary workspace functions are consolidated into the 5 bottom action bar icons. Cleaned up obsolete CSS.
+### 0. Mobile Horizon Task Scheduling & Subtasks/Notes Sheet Deployed (Complete)
+*   [x] **Mobile Horizon Task Scheduling Modal (`MobileTaskEditModal.ts` & `styles.css`)** — Created an ergonomic slide-up bottom sheet modal (`.pos-mobile-task-edit-modal`, `.pos-mobile-bottom-sheet`) with drag handle, touch drag-to-dismiss gesture, and `✕` close button following DIWA's calm tactile design language.
+*   [x] **Due Date Scheduling** — Integrated quick tactile shortcut chips (**Today**, **Tomorrow**, **In 3 Days**, **Next Week**, **Clear Date**) with active highlights, plus styled native date input (`<input type="date">`).
+*   [x] **Subtasks & Notes Management** — Added full subtask and remark/note support inside the modal with live completion checkboxes, dynamic count badges, delete buttons, and quick-add input rows (supporting Enter key).
+*   [x] **Two-Way Reactive Synchronization** — Each change immediately writes to the underlying file via `CaptureService.updateTaskDetailsInFile()`, re-indexes the file, and triggers `RefreshCoordinator` to update both the Horizon sheet and the stream.
+*   [x] **Mobile Horizon Integration (`DesktopHubView.ts`)** — Replaced desktop context menus in mobile Horizon: tapping due date pills, subtask counts, note pills, or task titles opens `MobileTaskEditModal`.
+*   [x] **Modernize Legacy `DatePickerModal.ts`** — Removed legacy purple/neon accent styles (`var(--interactive-accent)`), aligning it with DIWA's calm monochrome surfaces.
 *   [x] **Automated Tests, Production Build & Vault Deployment** — Verified all 17 unit tests passing, compiled production bundle with zero errors, and deployed `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
 
 ---

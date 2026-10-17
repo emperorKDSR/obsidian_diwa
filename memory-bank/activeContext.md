@@ -1,6 +1,29 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Clean Uniform 5-Icon Floating Action Bar, Slide-Up Horizon Agenda Sheet & Minimalist Mobile Header Deployed
+## Current State: Mobile Horizon Task Scheduling & Subtasks/Notes Sheet Deployed
+- **Mobile Horizon Task Scheduling & Subtasks/Notes Modal (`MobileTaskEditModal.ts` & `styles.css`)**:
+  - Implemented an ergonomic, slide-up bottom sheet modal (`.pos-mobile-task-edit-modal`, `.pos-mobile-bottom-sheet`) matching the tactile DIWA design system (drag handle, swipe-to-dismiss, calm monochrome surfaces, no neon accents).
+  - **Task Preview & Quick Toggle**: Renders task title with markdown and wikilink previews, plus an interactive checkbox for 1-tap completion.
+  - **Due Date Scheduling**:
+    - Quick tactile shortcut chips: **Today**, **Tomorrow**, **In 3 Days**, **Next Week**, and **Clear Date**.
+    - Styled native date input (`<input type="date">`) for exact date picking.
+  - **Subtasks Management**:
+    - Dynamic count badge (`X/Y completed`).
+    - Interactive checkable list of subtasks with instant deletion (`✕`).
+    - Tactile input row with `[ + Add subtask... ]` and `[ Add ]` button (or keyboard Enter).
+  - **Notes & Remarks Management**:
+    - Dynamic count badge (`N notes`).
+    - List of remarks with `message-square` icon and deletion (`✕`).
+    - Tactile input row with `[ + Add note or comment... ]` and `[ Add ]` button (or keyboard Enter).
+  - **Real-Time Vault Sync**: Each operation immediately persists via `CaptureService.updateTaskDetailsInFile()`, re-indexes the file, and triggers `RefreshCoordinator` to update the Horizon modal and stream.
+  - Replaced desktop context menus in mobile Horizon: tapping task due date, subtask count, note pill, or task title opens `MobileTaskEditModal`.
+  - Modernized `DatePickerModal.ts` to replace legacy neon purple/accent buttons with DIWA's calm monochrome surfaces.
+- **Horizon Overdue Indicator (`IndexService.ts`, `DesktopHubView.ts`, `MobileAgendaSheetModal.ts`, `styles.css`)**:
+  - Implemented `getOverdueCount()` helper in `IndexService` aggregating open overdue tasks (excluding Handumanan) and overdue `bill/pending` notes.
+  - **Muted Red Horizon Icon (`.has-overdue`)**:
+    - When overdue tasks or bills exist, the `sun` icon on both the mobile floating action bar (`.pos-mobile-action-btn.pos-mobile-action-agenda.has-overdue`), desktop rail tab (`.pos-rail-tab-btn.has-overdue`), and mobile agenda sheet header (`.pos-agenda-sheet-title-icon.has-overdue`) dynamically illuminates to a soft muted red (`rgba(239, 68, 68, 0.85)`).
+    - Features informative tooltips showing the breakdown (e.g. *Agenda & Horizon (2 tasks, 1 bill overdue)*).
+    - Fully reactive: `updateHorizonOverdueState()` is bound to `refreshCapture()` and `refreshAll()`, clearing back to neutral `var(--text-muted)` the moment all overdue items are completed or rescheduled.
 - **Clean Uniform 5-Icon Floating Action Bar (`styles.css` & `DesktopHubView.ts`)**:
   - Reconfigured the mobile floating dock with the 5 exact dedicated icons:
     1. **`[ ✏️ Capture ]`**: Opens the mobile composer (`pos-mobile-action-new`, icon `edit-3`).

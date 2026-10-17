@@ -45,6 +45,12 @@ export class MobileAgendaSheetModal extends Modal {
         const titleIcon = titleWrap.createSpan({ cls: 'pos-agenda-sheet-title-icon' });
         setIcon(titleIcon, 'sun');
 
+        void this.plugin.index.getOverdueCount().then(info => {
+            if (titleIcon.isConnected) {
+                titleIcon.toggleClass('has-overdue', info.total > 0);
+            }
+        });
+
         const titleTextWrap = titleWrap.createDiv({ cls: 'pos-agenda-sheet-text-wrap' });
         titleTextWrap.createEl('h3', { cls: 'pos-agenda-sheet-title', text: 'Agenda & Horizon' });
         const todayStr = moment().format('dddd, MMM D');
@@ -72,6 +78,14 @@ export class MobileAgendaSheetModal extends Modal {
     public refreshAgenda(): void {
         if (this._bodyEl && this._bodyEl.isConnected) {
             void this.view.renderHorizonRail(this._bodyEl);
+        }
+        const titleIcon = this.modalEl?.querySelector('.pos-agenda-sheet-title-icon') as HTMLElement | null;
+        if (titleIcon) {
+            void this.plugin.index.getOverdueCount().then(info => {
+                if (titleIcon.isConnected) {
+                    titleIcon.toggleClass('has-overdue', info.total > 0);
+                }
+            });
         }
     }
 
