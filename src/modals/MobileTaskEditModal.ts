@@ -26,9 +26,15 @@ export class MobileTaskEditModal extends Modal {
     private completed: boolean;
     private component: Component = new Component();
 
+    private _bodyEl: HTMLElement | null = null;
     private _dateSectionEl: HTMLElement | null = null;
     private _subtasksSectionEl: HTMLElement | null = null;
+    private _subtasksListEl: HTMLElement | null = null;
+    private _subtasksBadgeEl: HTMLElement | null = null;
     private _remarksSectionEl: HTMLElement | null = null;
+    private _remarksListEl: HTMLElement | null = null;
+    private _remarksBadgeEl: HTMLElement | null = null;
+    private _cleanupViewport: (() => void) | null = null;
 
     constructor(app: App, plugin: DiwaPlugin, task: MobileTaskRecord, view?: DesktopHubView) {
         super(app);
@@ -80,6 +86,21 @@ export class MobileTaskEditModal extends Modal {
         titleTextWrap.createSpan({ cls: 'pos-task-edit-subtitle', text: sourceNote });
 
         const headerActions = headerEl.createDiv({ cls: 'pos-task-edit-header-actions' });
+
+        const typingDoneBtn = headerActions.createEl('button', {
+            cls: 'pos-task-edit-typing-done-btn',
+            text: 'Done',
+            attr: { 'aria-label': 'Finish typing' }
+        });
+        typingDoneBtn.onpointerdown = (e) => {
+            e.preventDefault();
+            this.exitTypingMode();
+        };
+        typingDoneBtn.onclick = (e) => {
+            e.preventDefault();
+            this.exitTypingMode();
+        };
+
         const closeBtn = headerActions.createEl('button', {
             cls: 'pos-task-edit-close-btn clickable-icon',
             attr: { 'aria-label': 'Close task editor' }
@@ -89,6 +110,7 @@ export class MobileTaskEditModal extends Modal {
 
         // 3. Scrollable Body
         const bodyEl = modalEl.createDiv({ cls: 'pos-task-edit-body' });
+        this._bodyEl = bodyEl;
 
         // A. Task Preview & Toggle Card
         const previewCard = bodyEl.createDiv({ cls: 'pos-task-edit-preview-card' });
@@ -141,15 +163,15 @@ export class MobileTaskEditModal extends Modal {
         });
 
         // B. Due Date Section
-        this._dateSectionEl = bodyEl.createDiv({ cls: 'pos-task-edit-section' });
+        this._dateSectionEl = bodyEl.createDiv({ cls: 'pos-task-edit-section pos-task-edit-section-date' });
         this.renderDateSection();
 
         // C. Subtasks Section
-        this._subtasksSectionEl = bodyEl.createDiv({ cls: 'pos-task-edit-section' });
+        this._subtasksSectionEl = bodyEl.createDiv({ cls: 'pos-task-edit-section pos-task-edit-section-subtasks' });
         this.renderSubtasksSection();
 
         // D. Notes & Remarks Section
-        this._remarksSectionEl = bodyEl.createDiv({ cls: 'pos-task-edit-section' });
+        this._remarksSectionEl = bodyEl.createDiv({ cls: 'pos-task-edit-section pos-task-edit-section-remarks' });
         this.renderRemarksSection();
 
         // 4. Modal Footer
@@ -159,6 +181,9 @@ export class MobileTaskEditModal extends Modal {
             text: 'Done'
         });
         doneBtn.onclick = () => this.close();
+
+        // 5. Virtual Keyboard & Viewport Sync
+        this.setupKeyboardHandling(modalEl, bodyEl);
     }
 
     private renderDateSection(): void {
@@ -228,62 +253,35 @@ export class MobileTaskEditModal extends Modal {
 
         const sectionHeader = this._subtasksSectionEl.createDiv({ cls: 'pos-task-edit-section-header' });
         sectionHeader.createSpan({ cls: 'pos-task-edit-section-title', text: 'SUBTASKS' });
-        const doneCount = this.subtasks.filter(s => s.completed).length;
-        sectionHeader.createSpan({
+        this._subtasksBadgeEl = sectionHeader.createSpan({
             cls: 'pos-task-edit-badge',
-            text: `${doneCount}/${this.subtasks.length}`
+            text: '0/0'
         });
 
-        // Subtasks list
-        const listEl = this._subtasksSectionEl.createDiv({ cls: 'pos-task-edit-list' });
-
-        if (this.subtasks.length === 0) {
-            listEl.createDiv({
-                cls: 'pos-task-edit-empty-text',
-                text: 'No subtasks yet. Break this task into steps below.'
-            });
-        } else {
-            this.subtasks.forEach((st, idx) => {
-                const itemRow = listEl.createDiv({
-                    cls: `pos-task-edit-item-row ${st.completed ? 'is-completed' : ''}`
-                });
-
-                const check = itemRow.createEl('input', {
-                    type: 'checkbox',
-                    cls: 'pos-task-edit-subtask-check'
-                });
-                check.checked = Boolean(st.completed);
-                check.onclick = async (e) => {
-                    e.stopPropagation();
-                    this.subtasks[idx].completed = check.checked;
-                    await this.saveSubtasks();
-                };
-
-                itemRow.createSpan({ cls: 'pos-task-edit-item-title', text: st.title });
-
-                const delBtn = itemRow.createSpan({
-                    cls: 'pos-task-edit-del-btn',
-                    attr: { 'aria-label': 'Delete subtask' }
-                });
-                setIcon(delBtn, 'x');
-                delBtn.onclick = async (e) => {
-                    e.stopPropagation();
-                    this.subtasks.splice(idx, 1);
-                    await this.saveSubtasks();
-                };
-            });
-        }
-
-        // Quick add subtask row
+        // Quick add subtask row (kept permanently mounted so focus is never lost on save)
         const addRow = this._subtasksSectionEl.createDiv({ cls: 'pos-task-edit-add-row' });
         const addInput = addRow.createEl('input', {
             type: 'text',
             cls: 'pos-task-edit-add-input',
-            placeholder: '+ Add subtask... (Enter to save)'
+            placeholder: '+ Add subtask...',
+            attr: {
+                'enterkeyhint': 'done',
+                'autocomplete': 'off',
+                'autocorrect': 'off',
+                'autocapitalize': 'sentences'
+            }
         });
         const addBtn = addRow.createEl('button', {
             cls: 'pos-task-edit-add-btn',
             text: 'Add'
+        });
+
+        // Subtasks list
+        this._subtasksListEl = this._subtasksSectionEl.createDiv({ cls: 'pos-task-edit-list' });
+        this.refreshSubtasksList();
+
+        addInput.addEventListener('focus', () => {
+            this.enterTypingMode('subtask');
         });
 
         const submitSubtask = async () => {
@@ -291,16 +289,85 @@ export class MobileTaskEditModal extends Modal {
             if (!val) return;
             this.subtasks.push({ title: val, completed: false });
             addInput.value = '';
+            this.refreshSubtasksList(true);
             await this.saveSubtasks();
+            if (addInput.isConnected) {
+                addInput.focus({ preventScroll: true });
+            }
         };
 
-        addBtn.onclick = () => void submitSubtask();
+        addBtn.onpointerdown = (e) => {
+            e.preventDefault();
+        };
+        addBtn.onclick = (e) => {
+            e.preventDefault();
+            void submitSubtask();
+        };
         addInput.onkeydown = (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                void submitSubtask();
+                if (addInput.value.trim()) {
+                    void submitSubtask();
+                } else {
+                    this.exitTypingMode();
+                }
             }
         };
+    }
+
+    private refreshSubtasksList(scrollToLatest: boolean = false): void {
+        if (!this._subtasksListEl) return;
+        this._subtasksListEl.empty();
+
+        if (this._subtasksBadgeEl) {
+            const doneCount = this.subtasks.filter(s => s.completed).length;
+            this._subtasksBadgeEl.textContent = `${doneCount}/${this.subtasks.length}`;
+        }
+
+        if (this.subtasks.length === 0) {
+            this._subtasksListEl.createDiv({
+                cls: 'pos-task-edit-empty-text',
+                text: 'No subtasks yet. Break this task into steps above.'
+            });
+            return;
+        }
+
+        this.subtasks.forEach((st, idx) => {
+            const itemRow = this._subtasksListEl!.createDiv({
+                cls: `pos-task-edit-item-row ${st.completed ? 'is-completed' : ''}`
+            });
+
+            const check = itemRow.createEl('input', {
+                type: 'checkbox',
+                cls: 'pos-task-edit-subtask-check'
+            });
+            check.checked = Boolean(st.completed);
+            check.onclick = async (e) => {
+                e.stopPropagation();
+                this.subtasks[idx].completed = check.checked;
+                this.refreshSubtasksList();
+                await this.saveSubtasks();
+            };
+
+            itemRow.createSpan({ cls: 'pos-task-edit-item-title', text: st.title });
+
+            const delBtn = itemRow.createSpan({
+                cls: 'pos-task-edit-del-btn',
+                attr: { 'aria-label': 'Delete subtask' }
+            });
+            setIcon(delBtn, 'x');
+            delBtn.onpointerdown = (e) => e.preventDefault();
+            delBtn.onclick = async (e) => {
+                e.stopPropagation();
+                this.subtasks.splice(idx, 1);
+                this.refreshSubtasksList();
+                await this.saveSubtasks();
+            };
+        });
+
+        if (scrollToLatest && this._subtasksListEl) {
+            this._subtasksListEl.scrollTop = this._subtasksListEl.scrollHeight;
+        }
     }
 
     private renderRemarksSection(): void {
@@ -309,51 +376,35 @@ export class MobileTaskEditModal extends Modal {
 
         const sectionHeader = this._remarksSectionEl.createDiv({ cls: 'pos-task-edit-section-header' });
         sectionHeader.createSpan({ cls: 'pos-task-edit-section-title', text: 'NOTES & REMARKS' });
-        sectionHeader.createSpan({
+        this._remarksBadgeEl = sectionHeader.createSpan({
             cls: 'pos-task-edit-badge',
-            text: `${this.remarks.length}`
+            text: '0'
         });
 
-        // Remarks list
-        const listEl = this._remarksSectionEl.createDiv({ cls: 'pos-task-edit-list' });
-
-        if (this.remarks.length === 0) {
-            listEl.createDiv({
-                cls: 'pos-task-edit-empty-text',
-                text: 'No notes attached. Add context or updates below.'
-            });
-        } else {
-            this.remarks.forEach((rem, idx) => {
-                const itemRow = listEl.createDiv({ cls: 'pos-task-edit-item-row pos-task-remark-row' });
-                
-                const icon = itemRow.createSpan({ cls: 'pos-task-remark-icon' });
-                setIcon(icon, 'message-square');
-
-                itemRow.createSpan({ cls: 'pos-task-edit-item-title', text: rem });
-
-                const delBtn = itemRow.createSpan({
-                    cls: 'pos-task-edit-del-btn',
-                    attr: { 'aria-label': 'Delete note' }
-                });
-                setIcon(delBtn, 'x');
-                delBtn.onclick = async (e) => {
-                    e.stopPropagation();
-                    this.remarks.splice(idx, 1);
-                    await this.saveRemarks();
-                };
-            });
-        }
-
-        // Quick add remark row
+        // Quick add remark row (kept permanently mounted so focus is never lost on save)
         const addRow = this._remarksSectionEl.createDiv({ cls: 'pos-task-edit-add-row' });
         const addInput = addRow.createEl('input', {
             type: 'text',
             cls: 'pos-task-edit-add-input',
-            placeholder: '+ Add note or remark... (Enter to save)'
+            placeholder: '+ Add note or remark...',
+            attr: {
+                'enterkeyhint': 'done',
+                'autocomplete': 'off',
+                'autocorrect': 'off',
+                'autocapitalize': 'sentences'
+            }
         });
         const addBtn = addRow.createEl('button', {
             cls: 'pos-task-edit-add-btn',
             text: 'Add'
+        });
+
+        // Remarks list
+        this._remarksListEl = this._remarksSectionEl.createDiv({ cls: 'pos-task-edit-list' });
+        this.refreshRemarksList();
+
+        addInput.addEventListener('focus', () => {
+            this.enterTypingMode('remark');
         });
 
         const submitRemark = async () => {
@@ -361,16 +412,73 @@ export class MobileTaskEditModal extends Modal {
             if (!val) return;
             this.remarks.push(val);
             addInput.value = '';
+            this.refreshRemarksList(true);
             await this.saveRemarks();
+            if (addInput.isConnected) {
+                addInput.focus({ preventScroll: true });
+            }
         };
 
-        addBtn.onclick = () => void submitRemark();
+        addBtn.onpointerdown = (e) => {
+            e.preventDefault();
+        };
+        addBtn.onclick = (e) => {
+            e.preventDefault();
+            void submitRemark();
+        };
         addInput.onkeydown = (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                void submitRemark();
+                if (addInput.value.trim()) {
+                    void submitRemark();
+                } else {
+                    this.exitTypingMode();
+                }
             }
         };
+    }
+
+    private refreshRemarksList(scrollToLatest: boolean = false): void {
+        if (!this._remarksListEl) return;
+        this._remarksListEl.empty();
+
+        if (this._remarksBadgeEl) {
+            this._remarksBadgeEl.textContent = `${this.remarks.length}`;
+        }
+
+        if (this.remarks.length === 0) {
+            this._remarksListEl.createDiv({
+                cls: 'pos-task-edit-empty-text',
+                text: 'No notes attached. Add context or updates above.'
+            });
+            return;
+        }
+
+        this.remarks.forEach((rem, idx) => {
+            const itemRow = this._remarksListEl!.createDiv({ cls: 'pos-task-edit-item-row pos-task-remark-row' });
+            
+            const icon = itemRow.createSpan({ cls: 'pos-task-remark-icon' });
+            setIcon(icon, 'message-square');
+
+            itemRow.createSpan({ cls: 'pos-task-edit-item-title', text: rem });
+
+            const delBtn = itemRow.createSpan({
+                cls: 'pos-task-edit-del-btn',
+                attr: { 'aria-label': 'Delete note' }
+            });
+            setIcon(delBtn, 'x');
+            delBtn.onpointerdown = (e) => e.preventDefault();
+            delBtn.onclick = async (e) => {
+                e.stopPropagation();
+                this.remarks.splice(idx, 1);
+                this.refreshRemarksList();
+                await this.saveRemarks();
+            };
+        });
+
+        if (scrollToLatest && this._remarksListEl) {
+            this._remarksListEl.scrollTop = this._remarksListEl.scrollHeight;
+        }
     }
 
     private async saveDueDate(newDate: string | null): Promise<void> {
@@ -408,7 +516,6 @@ export class MobileTaskEditModal extends Modal {
                 await this.plugin.index.indexCaptureFile(file);
             }
             this.plugin.refreshCoordinator.notifyRefresh('tasks');
-            this.renderSubtasksSection();
         } catch (err) {
             console.error('[DIWA] Error updating subtasks', err);
             new Notice('Failed to update subtasks');
@@ -428,11 +535,103 @@ export class MobileTaskEditModal extends Modal {
                 await this.plugin.index.indexCaptureFile(file);
             }
             this.plugin.refreshCoordinator.notifyRefresh('tasks');
-            this.renderRemarksSection();
         } catch (err) {
             console.error('[DIWA] Error updating notes', err);
             new Notice('Failed to update notes');
         }
+    }
+
+    private enterTypingMode(mode: 'subtask' | 'remark'): void {
+        const { modalEl, containerEl } = this;
+        modalEl.addClass('has-keyboard');
+        modalEl.toggleClass('is-typing-subtask', mode === 'subtask');
+        modalEl.toggleClass('is-typing-remark', mode === 'remark');
+
+        if (this._bodyEl) {
+            this._bodyEl.scrollTop = 0;
+        }
+        containerEl.scrollTop = 0;
+        window.scrollTo(0, 0);
+
+        setTimeout(() => {
+            if (this._bodyEl) this._bodyEl.scrollTop = 0;
+            containerEl.scrollTop = 0;
+            window.scrollTo(0, 0);
+        }, 60);
+    }
+
+    private exitTypingMode(): void {
+        const { modalEl } = this;
+        const active = document.activeElement;
+        if (active instanceof HTMLElement && modalEl.contains(active)) {
+            active.blur();
+        }
+        modalEl.removeClass('has-keyboard');
+        modalEl.removeClass('is-typing-subtask');
+        modalEl.removeClass('is-typing-remark');
+        modalEl.style.removeProperty('--diwa-kb-h');
+    }
+
+    private setupKeyboardHandling(modalEl: HTMLElement, bodyEl: HTMLElement): void {
+        const win = window;
+        const vv = win.visualViewport;
+
+        const syncViewportMetrics = () => {
+            let kbHeight = 0;
+            if (vv) {
+                const offset = win.innerHeight - (vv.height + vv.offsetTop);
+                if (offset > 60) {
+                    kbHeight = Math.round(offset);
+                }
+            }
+
+            const docKb = parseFloat(win.getComputedStyle(document.documentElement).getPropertyValue('--keyboard-height')) || 0;
+            const bodyKb = parseFloat(win.getComputedStyle(document.body).getPropertyValue('--keyboard-height')) || 0;
+            const finalKb = Math.max(kbHeight, docKb, bodyKb);
+
+            if (finalKb > 60) {
+                modalEl.style.setProperty('--diwa-kb-h', `${finalKb}px`);
+            }
+
+            if (modalEl.hasClass('has-keyboard')) {
+                bodyEl.scrollTop = 0;
+                this.containerEl.scrollTop = 0;
+                if (win.scrollY !== 0) win.scrollTo(0, 0);
+            }
+        };
+
+        const onFocusOut = () => {
+            setTimeout(() => {
+                const active = document.activeElement;
+                const isTextInput = active instanceof HTMLInputElement && active.type === 'text';
+                if (!isTextInput || !modalEl.contains(active)) {
+                    modalEl.removeClass('has-keyboard');
+                    modalEl.removeClass('is-typing-subtask');
+                    modalEl.removeClass('is-typing-remark');
+                    modalEl.style.removeProperty('--diwa-kb-h');
+                }
+            }, 120);
+        };
+
+        modalEl.addEventListener('focusout', onFocusOut, true);
+        vv?.addEventListener('resize', syncViewportMetrics);
+        vv?.addEventListener('scroll', syncViewportMetrics);
+        win.addEventListener('resize', syncViewportMetrics);
+
+        const obsEvents = ['keyboardWillShow', 'keyboardDidShow', 'keyboardWillHide', 'keyboardDidHide'];
+        obsEvents.forEach(evt => win.addEventListener(evt, syncViewportMetrics));
+
+        this._cleanupViewport = () => {
+            modalEl.removeEventListener('focusout', onFocusOut, true);
+            vv?.removeEventListener('resize', syncViewportMetrics);
+            vv?.removeEventListener('scroll', syncViewportMetrics);
+            win.removeEventListener('resize', syncViewportMetrics);
+            obsEvents.forEach(evt => win.removeEventListener(evt, syncViewportMetrics));
+            modalEl.removeClass('has-keyboard');
+            modalEl.removeClass('is-typing-subtask');
+            modalEl.removeClass('is-typing-remark');
+            modalEl.style.removeProperty('--diwa-kb-h');
+        };
     }
 
     private setupMobileGestures(modalEl: HTMLElement): void {
@@ -442,6 +641,7 @@ export class MobileTaskEditModal extends Modal {
 
         const onTouchStart = (e: TouchEvent) => {
             if (e.touches.length === 1) {
+                this.exitTypingMode();
                 startY = e.touches[0].clientY;
                 isDragging = true;
             }
@@ -476,7 +676,12 @@ export class MobileTaskEditModal extends Modal {
     }
 
     onClose(): void {
+        if (this._cleanupViewport) {
+            this._cleanupViewport();
+            this._cleanupViewport = null;
+        }
         this.component.unload();
         this.contentEl.empty();
     }
 }
+

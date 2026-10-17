@@ -1,6 +1,19 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Mobile Horizon Task Scheduling & Subtasks/Notes Sheet Deployed (Complete)
+## Current Phase: Mobile Task Edit Modal Top-Anchored Focused Typing Mode Deployed (Complete)
+
+---
+
+### 0. Mobile Task Edit Modal Top-Anchored Focused Typing Mode Deployed (Complete)
+*   [x] **Deterministic Immediate Keyboard Activation (`MobileTaskEditModal.ts`)** — Immediately activates `.has-keyboard` and `.is-typing-subtask` / `.is-typing-remark` when focusing subtask or note inputs without waiting for `visualViewport` contraction (solving Obsidian iOS WebView's static `visualViewport.height`).
+*   [x] **Top-Anchored Command Island Above Keyboard (`styles.css`)** — When `.has-keyboard` is active, switches the modal to top-anchored positioning (`top: max(env(safe-area-inset-top, 0px) + 8px, 12px) !important; bottom: auto !important; max-height: min(46vh, ...) !important;`) so the modal sits in the upper ~45% of the screen completely above the onscreen keyboard.
+*   [x] **Focused Section Folding & Top Input Placement (`MobileTaskEditModal.ts` & `styles.css`)** — Placed the `[ + Add subtask... ]` and `[ + Add note or remark... ]` input rows at the top of their sections, automatically folding non-active sections while typing and adding a header **`Done`** pill button to return to the full sheet.
+*   [x] **Persistent Input DOM Nodes Across Saves (`MobileTaskEditModal.ts`)** — Refactored `refreshSubtasksList()` and `refreshRemarksList()` to update only the items list and count badge without destroying `addInput`, plus `onpointerdown` `e.preventDefault()` on `[ Add ]` so focus and keyboard state are never lost during continuous additions.
+*   [x] **Automated Tests, Production Build & Vault Deployment** — Verified all 17 unit tests passing, compiled production bundle with zero errors, and deployed `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+---
+
+## Previous Phase: Mobile Horizon Task Scheduling & Subtasks/Notes Sheet Deployed (Complete)
 
 ---
 

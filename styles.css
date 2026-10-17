@@ -3692,6 +3692,66 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* Focused Typing Mode: Top-anchored Command Island above virtual keyboard */
+.pos-mobile-task-edit-modal.pos-mobile-bottom-sheet.has-keyboard {
+    top: max(env(safe-area-inset-top, 0px) + 8px, 12px) !important;
+    bottom: auto !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: min(46vh, calc(100vh - var(--diwa-kb-h, 350px) - 20px)) !important;
+    border-radius: 18px !important;
+    border: 1px solid var(--background-modifier-border) !important;
+    box-shadow: 0 14px 48px rgba(0, 0, 0, 0.65) !important;
+}
+
+.pos-mobile-task-edit-modal.has-keyboard .pos-sheet-drag-handle-wrap {
+    padding: 5px 0 2px 0;
+}
+
+.pos-mobile-task-edit-modal.has-keyboard .pos-task-edit-header {
+    padding: 6px 14px 8px 14px;
+}
+
+.pos-mobile-task-edit-modal.has-keyboard .pos-task-edit-body {
+    padding: 10px 14px 12px 14px;
+    gap: 10px;
+}
+
+.pos-mobile-task-edit-modal.has-keyboard .pos-task-edit-preview-card {
+    padding: 8px 12px;
+    align-items: center;
+}
+
+.pos-mobile-task-edit-modal.has-keyboard .pos-task-edit-task-title p {
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.pos-mobile-task-edit-modal.has-keyboard .pos-task-edit-footer {
+    display: none !important;
+}
+
+.pos-mobile-task-edit-modal.is-typing-subtask .pos-task-edit-section-date,
+.pos-mobile-task-edit-modal.is-typing-subtask .pos-task-edit-section-remarks {
+    display: none !important;
+}
+
+.pos-mobile-task-edit-modal.is-typing-remark .pos-task-edit-section-date,
+.pos-mobile-task-edit-modal.is-typing-remark .pos-task-edit-section-subtasks {
+    display: none !important;
+}
+
+.pos-mobile-task-edit-modal.has-keyboard .pos-task-edit-list {
+    max-height: 115px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
 .pos-task-edit-header {
     display: flex;
     align-items: center;
@@ -3700,6 +3760,37 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     border-bottom: 1px solid var(--background-modifier-border);
     background: var(--background-primary);
     flex-shrink: 0;
+}
+
+.pos-task-edit-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pos-task-edit-typing-done-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 12px;
+    border-radius: 14px;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-normal);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--diwa-transition);
+}
+
+.pos-mobile-task-edit-modal.has-keyboard .pos-task-edit-typing-done-btn {
+    display: inline-flex;
+}
+
+.pos-task-edit-typing-done-btn:hover,
+.pos-task-edit-typing-done-btn:active {
+    background: var(--background-modifier-hover);
+    border-color: var(--text-muted);
 }
 
 .pos-task-edit-title-wrap {
@@ -3781,6 +3872,8 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     flex-direction: column;
     gap: 18px;
     -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    overscroll-behavior: contain;
 }
 
 .pos-task-edit-preview-card {
@@ -3903,6 +3996,13 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     background: var(--background-secondary);
     color: var(--text-normal);
     font-size: 0.88rem;
+    transition: var(--diwa-transition);
+}
+
+.pos-task-edit-date-input:focus {
+    outline: none;
+    border-color: var(--text-muted);
+    background: var(--background-primary);
 }
 
 .pos-task-edit-list {
@@ -3993,6 +4093,13 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     background: var(--background-secondary);
     color: var(--text-normal);
     font-size: 0.86rem;
+    transition: var(--diwa-transition);
+}
+
+.pos-task-edit-add-input:focus {
+    outline: none;
+    border-color: var(--text-muted);
+    background: var(--background-primary);
 }
 
 .pos-task-edit-add-btn {

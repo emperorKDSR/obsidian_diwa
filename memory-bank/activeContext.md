@@ -1,6 +1,20 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Mobile Horizon Task Scheduling & Subtasks/Notes Sheet Deployed
+## Current State: Mobile Task Edit Modal Top-Anchored Focused Typing Mode Deployed
+- **Mobile Task Edit Modal Top-Anchored Focused Typing Mode (`MobileTaskEditModal.ts` & `styles.css`)**:
+  - Resolved mobile virtual keyboard obstruction when adding subtasks and notes on Obsidian Mobile (where `visualViewport.height` does not shrink in Capacitor WebView):
+    - **Deterministic Immediate Activation**: Focusing `+ Add subtask...` or `+ Add note or remark...` immediately applies `.has-keyboard` and `.is-typing-subtask` / `.is-typing-remark` without waiting for `visualViewport` to shrink.
+    - **Top-Anchored Command Island Positioning**: When `.has-keyboard` is active, the modal anchors to the top of the screen (`top: max(env(safe-area-inset-top, 0px) + 8px, 12px) !important; bottom: auto !important; max-height: min(46vh, ...) !important;`) so the entire modal sits in the upper ~45% of the screen, physically above the virtual keyboard on all iOS and Android devices.
+    - **Focused Section Folding & Top Input Placement**:
+      - Placed the `[ + Add subtask... ] [ Add ]` and `[ + Add note or remark... ] [ Add ]` input rows at the top of their respective sections.
+      - While typing a subtask (`.is-typing-subtask`), the Due Date section, Notes section, and bottom Footer fold away; while typing a note (`.is-typing-remark`), the Due Date section, Subtasks section, and bottom Footer fold away.
+      - Capped `.pos-task-edit-list` to `max-height: 115px; overflow-y: auto;` while typing and added a compact **`Done`** pill button in the header (plus `Enter` on an empty input) to exit typing mode and restore the full bottom sheet.
+    - **Persistent Input DOM Nodes Across Saves**:
+      - Refactored `renderSubtasksSection()` and `renderRemarksSection()` into `refreshSubtasksList()` and `refreshRemarksList()` so saving a subtask/note updates only the list and badge without destroying the focused `<input>` element.
+      - Added `onpointerdown` `e.preventDefault()` on `[ Add ]` and delete buttons so tapping them never blurs the active input or closes the keyboard.
+  - All 17 unit tests passing, production bundle compiled with 0 errors and deployed to `/Users/K26/Obsidian/K0000` and `K0001` test vaults.
+
+## Previous State: Mobile Horizon Task Scheduling & Subtasks/Notes Sheet Deployed
 - **Mobile Horizon Task Scheduling & Subtasks/Notes Modal (`MobileTaskEditModal.ts` & `styles.css`)**:
   - Implemented an ergonomic, slide-up bottom sheet modal (`.pos-mobile-task-edit-modal`, `.pos-mobile-bottom-sheet`) matching the tactile DIWA design system (drag handle, swipe-to-dismiss, calm monochrome surfaces, no neon accents).
   - **Task Preview & Quick Toggle**: Renders task title with markdown and wikilink previews, plus an interactive checkbox for 1-tap completion.
