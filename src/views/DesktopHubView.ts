@@ -7,6 +7,7 @@ import { DatePickerModal } from '../modals/DatePickerModal';
 import { WikilinkPeekModal } from '../modals/WikilinkPeekModal';
 import { MobileFilterSheetModal } from '../modals/MobileFilterSheetModal';
 import { RecentPermanentNotesModal } from '../modals/RecentPermanentNotesModal';
+import { MobileAgendaSheetModal } from '../modals/MobileAgendaSheetModal';
 import { ConfirmDeleteModal } from '../modals/ConfirmDeleteModal';
 import { PreFlightDigestModal } from '../modals/PreFlightDigestModal';
 import { isTablet, isTabletPortrait, attachInlineTriggers, attachMediaPasteHandler } from '../utils';
@@ -20,6 +21,7 @@ export class DesktopHubView extends ItemView {
     private _streamContainerEl: HTMLElement | null = null;
     private _filterBarEl: HTMLElement | null = null;
     private _selectionBarEl: HTMLElement | null = null;
+    private _mobileAgendaModal: MobileAgendaSheetModal | null = null;
 
     private _activeFilter: ScratchpadFilterMode = 'all';
     private _filterTasksOnly: boolean = false;
@@ -277,8 +279,15 @@ export class DesktopHubView extends ItemView {
         // Continuous scratchpad is independent of active file tab
     }
 
+    public setMobileAgendaModal(modal: MobileAgendaSheetModal | null): void {
+        this._mobileAgendaModal = modal;
+    }
+
     refreshAll(): void {
         this.renderView(false);
+        if (this._mobileAgendaModal) {
+            this._mobileAgendaModal.refreshAgenda();
+        }
     }
 
     refreshCapture(): void {
@@ -286,6 +295,9 @@ export class DesktopHubView extends ItemView {
         this.updateFilterCounts();
         if (this._cockpitRailOpen && this._sideRailEl) {
             this.renderRightRailContent();
+        }
+        if (this._mobileAgendaModal) {
+            this._mobileAgendaModal.refreshAgenda();
         }
     }
 
@@ -767,7 +779,7 @@ export class DesktopHubView extends ItemView {
         }
     }
 
-    private async renderHorizonRail(container: HTMLElement): Promise<void> {
+    public async renderHorizonRail(container: HTMLElement): Promise<void> {
         container.empty();
         const today = moment();
         const todayStr = today.format('YYYY-MM-DD');
@@ -1793,9 +1805,12 @@ export class DesktopHubView extends ItemView {
         const subtitleText = horizonLabel && horizonLabel !== 'All Notes' ? `Personal OS · ${horizonLabel}` : 'Personal OS';
         titleSection.createSpan({ cls: 'pos-header-subtitle', text: subtitleText });
 
-        // Actions - Desktop/Tablet
-        if (!isMobile) {
-            const actions = header.createDiv({ cls: 'pos-header-actions' });
+        // Actions - Desktop/Tablet vs Mobile (Mobile header stays clean & minimalist without extra buttons)
+        if (isMobile) {
+            return;
+        }
+
+        const actions = header.createDiv({ cls: 'pos-header-actions' });
 
             // 1. Modern Minimalist Search Pill / Inline Capsule
             if (this._desktopSearchOpen || Boolean(this._searchQuery)) {
@@ -2041,93 +2056,111 @@ export class DesktopHubView extends ItemView {
             setIcon(moreBtn, 'more-horizontal');
             moreBtn.onclick = (e) => {
                 e.stopPropagation();
-                const menu = new Menu();
-
-                // 0. Agenda Panel Toggle (unless in tablet portrait mode)
-                const isTabletPortrait = Boolean(this._cockpitLayoutEl?.hasClass('is-tablet-portrait'));
-                if (!isTabletPortrait) {
-                    menu.addItem((item) => {
-                        item.setTitle(this._cockpitRailOpen ? 'Hide Agenda Panel (\\)' : 'Show Agenda Panel (\\)')
-                            .setIcon('panel-right')
-                            .setChecked(this._cockpitRailOpen)
-                            .onClick(() => {
-                                this.toggleCockpitRail();
-                            });
-                    });
-                    menu.addSeparator();
-                }
-
-                // 1. Daily Digest & Review (moved from top header to more menu)
-                const todayDigestSummary = this.plugin.index.getDayDigestSummary(moment().format('YYYY-MM-DD'));
-                const isDigested = todayDigestSummary.status === 'digested';
-                menu.addItem((item) => {
-                    item.setTitle(isDigested ? 'Daily Digest & Review (✓ Done)' : 'Daily Digest & Review')
-                        .setIcon('calendar-check')
-                        .onClick(() => {
-                            void this.plugin.activateCalendarDigest();
-                        });
-                });
-
-                menu.addSeparator();
-
-                // 2. Select mode toggle
-                menu.addItem((item) => {
-                    item.setTitle(this._selectionMode ? 'Exit Selection Mode' : 'Select Notes to Merge')
-                        .setIcon('check-square')
-                        .setChecked(this._selectionMode)
-                        .onClick(() => {
-                            this._selectionMode = !this._selectionMode;
-                            if (!this._selectionMode) {
-                                this._selectedEntryIds.clear();
-                            }
-                            this.updateSelectionBar();
-                            this.updateStreamOnly();
-                        });
-                });
-
-                // 3. Open Gawa Task Cockpit in Split
-                const gawaTaskCount = this.plugin.index?.getOpenTaskCount() || 0;
-                menu.addItem((item) => {
-                    item.setTitle(`Open Gawa Task Cockpit (${gawaTaskCount})`)
-                        .setIcon('list-todo')
-                        .onClick(() => {
-                            void this.plugin.activateGawaCockpit();
-                        });
-                });
-
-                // 4. Open Karon Horizon in Tab
-                menu.addItem((item) => {
-                    item.setTitle('Open Karon Today & Horizon')
-                        .setIcon('sun')
-                        .onClick(() => {
-                            void this.plugin.activateKaron();
-                        });
-                });
-
-                // 5. Show Recently Updated Permanent Notes
-                menu.addItem((item) => {
-                    item.setTitle('Recent Permanent Notes')
-                        .setIcon('book-open')
-                        .onClick(() => {
-                            new RecentPermanentNotesModal(this.app, this.plugin).open();
-                        });
-                });
-
-                menu.addSeparator();
-
-                // 6. Settings
-                menu.addItem((item) => {
-                    item.setTitle('DIWA Settings')
-                        .setIcon('settings')
-                        .onClick(() => {
-                            (this.app as any).setting?.open();
-                            (this.app as any).setting?.openTabById?.(this.plugin.manifest.id);
-                        });
-                });
-
-                menu.showAtMouseEvent(e);
+                this.openMoreMenu(e, false);
             };
+    }
+
+    private openMoreMenu(e: MouseEvent, isMobile = false): void {
+        const menu = new Menu();
+
+        // 0. Agenda Panel Toggle (desktop/tablet landscape only)
+        const isTabletPortrait = Boolean(this._cockpitLayoutEl?.hasClass('is-tablet-portrait'));
+        if (!isMobile && !isTabletPortrait) {
+            menu.addItem((item) => {
+                item.setTitle(this._cockpitRailOpen ? 'Hide Agenda Panel (\\)' : 'Show Agenda Panel (\\)')
+                    .setIcon('panel-right')
+                    .setChecked(this._cockpitRailOpen)
+                    .onClick(() => {
+                        this.toggleCockpitRail();
+                    });
+            });
+            menu.addSeparator();
         }
+
+        // 1. Daily Digest & Review (moved from top header to more menu)
+        const todayDigestSummary = this.plugin.index.getDayDigestSummary(moment().format('YYYY-MM-DD'));
+        const isDigested = todayDigestSummary.status === 'digested';
+        menu.addItem((item) => {
+            item.setTitle(isDigested ? 'Daily Digest & Review (✓ Done)' : 'Daily Digest & Review')
+                .setIcon('calendar-check')
+                .onClick(() => {
+                    void this.plugin.activateCalendarDigest();
+                });
+        });
+
+        menu.addSeparator();
+
+        // 2. Select mode toggle
+        menu.addItem((item) => {
+            item.setTitle(this._selectionMode ? 'Exit Selection Mode' : 'Select Notes to Merge')
+                .setIcon('check-square')
+                .setChecked(this._selectionMode)
+                .onClick(() => {
+                    this._selectionMode = !this._selectionMode;
+                    if (!this._selectionMode) {
+                        this._selectedEntryIds.clear();
+                    }
+                    this.updateSelectionBar();
+                    this.updateStreamOnly();
+                });
+        });
+
+        // 3. Open Gawa Task Cockpit in Split / View
+        const gawaTaskCount = this.plugin.index?.getOpenTaskCount() || 0;
+        menu.addItem((item) => {
+            item.setTitle(`Open Gawa Task Cockpit (${gawaTaskCount})`)
+                .setIcon('list-todo')
+                .onClick(() => {
+                    void this.plugin.activateGawaCockpit();
+                });
+        });
+
+        // 4. Open Karon Horizon in Tab / View
+        menu.addItem((item) => {
+            item.setTitle('Open Karon Today & Horizon')
+                .setIcon('sun')
+                .onClick(() => {
+                    void this.plugin.activateKaron();
+                });
+        });
+
+        // 5. Show Recently Updated Permanent Notes
+        menu.addItem((item) => {
+            item.setTitle('Recent Permanent Notes')
+                .setIcon('book-open')
+                .onClick(() => {
+                    new RecentPermanentNotesModal(this.app, this.plugin).open();
+                });
+        });
+
+        if (isMobile) {
+            menu.addSeparator();
+            const isNavHidden = document.body.hasClass('diwa-hide-mobile-navbar');
+            menu.addItem((item) => {
+                item.setTitle(isNavHidden ? 'Show Obsidian Navigation Bar' : 'Hide Obsidian Navigation Bar')
+                    .setIcon('panel-bottom')
+                    .setChecked(!isNavHidden)
+                    .onClick(() => {
+                        const nowHidden = !document.body.hasClass('diwa-hide-mobile-navbar');
+                        document.body.toggleClass('diwa-hide-mobile-navbar', nowHidden);
+                        new Notice(nowHidden ? 'Obsidian navigation hidden' : 'Obsidian navigation shown');
+                    });
+            });
+        }
+
+        menu.addSeparator();
+
+        // 6. Settings
+        menu.addItem((item) => {
+            item.setTitle('DIWA Settings')
+                .setIcon('settings')
+                .onClick(() => {
+                    (this.app as any).setting?.open();
+                    (this.app as any).setting?.openTabById?.(this.plugin.manifest.id);
+                });
+        });
+
+        menu.showAtMouseEvent(e);
     }
 
     private renderFilterBar(parent: HTMLElement): void {
@@ -2435,10 +2468,10 @@ export class DesktopHubView extends ItemView {
 
                 // 1. New Note Action (Expands floating composer)
                 const newBtn = actionBar.createEl('button', {
-                    cls: 'pos-mobile-action-btn pos-mobile-action-new is-primary',
-                    attr: { 'aria-label': 'Create new note', title: 'New note' }
+                    cls: 'pos-mobile-action-btn pos-mobile-action-new',
+                    attr: { 'aria-label': 'Capture thought or task', title: 'Capture' }
                 });
-                setIcon(newBtn, 'plus');
+                setIcon(newBtn, 'edit-3');
                 newBtn.onclick = () => {
                     this._mobileComposerOpen = true;
                     this._mobileSearchOpen = false;
@@ -2447,7 +2480,7 @@ export class DesktopHubView extends ItemView {
 
                 // 2. Search Toggle Action (Expands bottom search capsule)
                 const searchBtn = actionBar.createEl('button', {
-                    cls: 'pos-mobile-action-btn pos-mobile-action-search',
+                    cls: `pos-mobile-action-btn pos-mobile-action-search ${this._mobileSearchOpen || Boolean(this._searchQuery) ? 'is-active' : ''}`,
                     attr: { 'aria-label': 'Toggle search', title: 'Search' }
                 });
                 setIcon(searchBtn, 'search');
@@ -2477,26 +2510,21 @@ export class DesktopHubView extends ItemView {
                 const hasActiveFilter = this._activeFilter !== 'all' || this._filterTasksOnly;
                 const filterBtn = actionBar.createEl('button', {
                     cls: `pos-mobile-action-btn pos-mobile-action-filter ${hasActiveFilter ? 'is-active' : ''}`,
-                    attr: { 'aria-label': 'Filter stream', title: 'Filter' }
+                    attr: { 'aria-label': 'Filter stream & lenses', title: 'Filter' }
                 });
                 setIcon(filterBtn, 'sliders-horizontal');
                 filterBtn.onclick = () => {
                     new MobileFilterSheetModal(this.app, this.plugin, this).open();
                 };
 
-                // 4. Nav Bar Toggle Action (Icon only)
-                const isNavHidden = document.body.hasClass('diwa-hide-mobile-navbar');
-                const navBtn = actionBar.createEl('button', {
-                    cls: `pos-mobile-action-btn pos-mobile-action-nav ${!isNavHidden ? 'is-active' : ''}`,
-                    attr: { 'aria-label': isNavHidden ? 'Show Obsidian bottom navigation bar' : 'Hide Obsidian bottom navigation bar', title: 'Navigation' }
+                // 5. Agenda & Horizon Action (Slides up 5-day rolling Horizon bottom sheet)
+                const agendaBtn = actionBar.createEl('button', {
+                    cls: 'pos-mobile-action-btn pos-mobile-action-agenda',
+                    attr: { 'aria-label': 'Agenda & Horizon', title: 'Agenda' }
                 });
-                setIcon(navBtn, 'panel-bottom');
-                navBtn.onclick = () => {
-                    const nowHidden = !document.body.hasClass('diwa-hide-mobile-navbar');
-                    document.body.toggleClass('diwa-hide-mobile-navbar', nowHidden);
-                    navBtn.toggleClass('is-active', !nowHidden);
-                    navBtn.setAttribute('aria-label', nowHidden ? 'Show Obsidian bottom navigation bar' : 'Hide Obsidian bottom navigation bar');
-                    new Notice(nowHidden ? 'Obsidian navigation hidden' : 'Obsidian navigation shown');
+                setIcon(agendaBtn, 'sun');
+                agendaBtn.onclick = () => {
+                    new MobileAgendaSheetModal(this.app, this.plugin, this).open();
                 };
 
                 return;
@@ -2520,10 +2548,10 @@ export class DesktopHubView extends ItemView {
 
             // 2. Send / Submit circular button
             const sendBtn = mainRow.createEl('button', {
-                cls: 'pos-composer-send-btn-circle mod-cta',
+                cls: 'pos-composer-send-btn-circle',
                 attr: { 'aria-label': 'Capture note' }
             });
-            sendBtn.setText('↑');
+            setIcon(sendBtn, 'arrow-up');
 
             // 3. Horizontal swipeable pills row: Task button + Life Areas + Close
             const pillsRow = composerWrapper.createDiv({ cls: 'pos-mobile-composer-pills-row' });
@@ -3502,7 +3530,7 @@ export class DesktopHubView extends ItemView {
             item.style.alignItems = 'flex-start';
             item.style.gap = '12px';
             item.style.width = '100%';
-            item.style.maxWidth = 'var(--diwa-stream-max-width, 820px)';
+            item.style.maxWidth = '100%';
 
             // Preserve Col 1: Left Gutter (Time) so stream outliner alignment never jumps
             const gutterEl = item.createDiv({ cls: 'pos-note-gutter' });

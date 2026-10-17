@@ -1,6 +1,66 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Informational `bill/pending` Notes in Agenda Horizon Deployed
+## Current State: Clean Uniform 5-Icon Floating Action Bar, Slide-Up Horizon Agenda Sheet & Minimalist Mobile Header Deployed
+- **Clean Uniform 5-Icon Floating Action Bar (`styles.css` & `DesktopHubView.ts`)**:
+  - Reconfigured the mobile floating dock with the 5 exact dedicated icons:
+    1. **`[ ✏️ Capture ]`**: Opens the mobile composer (`pos-mobile-action-new`, icon `edit-3`).
+    2. **`[ 🔍 Search ]`**: Expands the floating bottom search capsule (`pos-mobile-action-search`, icon `search`).
+    3. **`[ 📖 Recent Notes ]`**: Opens `RecentPermanentNotesModal` (`pos-mobile-action-recent`, icon `book-open`).
+    4. **`[ 🎛️ Filter ]`**: Opens `MobileFilterSheetModal` for quick lenses and Life Area filters (`pos-mobile-action-filter`, icon `sliders-horizontal`).
+    5. **`[ ☀️ Agenda ]`**: Opens the new `MobileAgendaSheetModal` (`pos-mobile-action-agenda`, icon `sun`).
+  - **Clean & Unhighlighted Note Icon**: Removed the elevated background circle, border, shadow, and white color from `.pos-mobile-action-new`. The Note icon now sits in the dock with the exact same calm, transparent, muted resting state (`color: var(--text-muted)`) as the other 4 buttons, producing a cleaner, perfectly balanced bar.
+  - Styled with DIWA's calm, tactile Command Island surface (`background: var(--background-secondary-alt)`, architectural border `1px solid var(--background-modifier-border)`, subtle ambient shadow, no neon green accents).
+- **Mobile Slide-Up Horizon Agenda Sheet (`MobileAgendaSheetModal.ts` & `styles.css`)**:
+  - Implemented Option 1 as an ergonomic slide-up bottom sheet (`.pos-mobile-agenda-sheet-modal`, `.pos-mobile-bottom-sheet` on `.pos-bottom-sheet-backdrop`) occupying ~85vh.
+  - Features tactile drag handle, touch drag-to-dismiss gesture (>80px delta), and backdrop tap dismiss.
+  - **Header**: Vector Lucide `sun` SVG icon + bold "Agenda & Horizon" title, human-readable date subtitle (e.g. *Saturday, Oct 17 · 5-Day Horizon*), and `✕` close button.
+  - **Body (`.pos-agenda-sheet-body`)**: Integrates directly with `renderHorizonRail()`:
+    - **Overdue Alert Section**: Overdue open tasks and pending bills with subtle muted red outline.
+    - **5-Day Rolling Horizon**: Today's Agenda, Tomorrow, and Next 3 Days with interactive tasks, pending bills, and note snippets.
+    - **Collapsible Undated Section**: Open undated tasks with quick due-date scheduling.
+    - Live two-way sync: interactive task toggling, date rescheduling, and subtasks seamlessly re-render via `setMobileAgendaModal` and `RefreshCoordinator`.
+- **Clean Minimalist Mobile Header (`DesktopHubView.ts` & `styles.css`)**:
+  - Removed the `[ ⋯ ]` More button completely from the mobile top header bar (`renderHeaderBar` returns early when `isMobile`), leaving only the crisp `DIWA` logo and subtitle `Personal OS`.
+  - All workspace actions are now cleanly accessible through the 5 bottom action bar icons (`New note`, `search`, `recent notes`, `filter`, and `agenda`).
+  - Cleaned up obsolete `.pos-mobile-header-actions` CSS rules.
+- All 17 automated unit tests passing; production bundle compiled with 0 errors and deployed directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Mobile Workspace & Tactile Floating Action Bar Harmonization Deployed
+- **Tactile Floating Action Bar Harmonization (`styles.css`, `DesktopHubView.ts`, `GawaCockpitView.ts`)**:
+  - **Eliminated Bright Neon Accents**:
+    - Replaced bright theme `var(--interactive-accent)` and glowing colored shadow on the mobile capture button (`.pos-mobile-action-new.is-primary`) with DIWA's calm, tactile Command Island style.
+    - Capture button styled as an elevated tactile circular button with `background: var(--background-primary)`, subtle border `1px solid var(--background-modifier-border)`, and crisp vector Lucide SVG (`edit-3` pencil).
+    - Utility buttons (`search`, `sliders-horizontal`, `book-open`, `more-horizontal`) use uniform `20px` vector SVGs (`stroke-width: 2px`) in `var(--text-muted)` that smoothly illuminate to `var(--text-normal)` on tap/hover.
+    - Active states (`.is-active`) use calm `background: var(--background-modifier-hover)`, `border-color: var(--background-modifier-border)`, and `color: var(--text-normal)` (no neon green).
+  - **Comprehensive Mobile `[ ⋯ ]` More Menu (`DesktopHubView.ts`)**:
+    - Equipped the mobile action bar with an ergonomic 5-button dock: `[ ✏️ Capture ]`, `[ 🔍 Search ]`, `[ 🎛️ Filter ]`, `[ 📖 Recent Notes ]`, and `[ ⋯ More ]`.
+    - Tapping `[ ⋯ ]` opens a comprehensive mobile action sheet giving full mobile parity for DIWA features:
+      - 📅 **Daily Digest & Review** (with dynamic `✓ Done` completion status)
+      - 📋 **Open Gawa Task Cockpit** (with live open task count)
+      - ☀️ **Open Karon Today & Horizon**
+      - ☑️ **Select Notes to Merge**
+      - 📱 **Toggle Obsidian Navigation Bar**
+      - ⚙️ **DIWA Settings**
+  - **Expanded Mobile Composer Alignment (`styles.css` & `DesktopHubView.ts`)**:
+    - Replaced `.mod-cta` neon green on `.pos-composer-send-btn-circle` with a tactile circular button (`background: var(--background-secondary)`, subtle border `var(--background-modifier-border)`, `color: var(--text-normal)`).
+    - Replaced unicode text `'↑'` with vector Lucide `arrow-up` SVG.
+  - **Gawa Cockpit Mobile Action Bar Alignment (`styles.css`)**:
+    - Aligned `.pos-gawa-mobile-action-bar` to inherit the unified tactile standard, removing bright fills on `.is-primary` and `.is-active`.
+  - All 17 automated tests passing; production bundle compiled with 0 errors and deployed directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Full-Width Fluid Stream in Cockpit Layout Deployed
+- **Full-Width Fluid Stream (`styles.css` & `DesktopHubView.ts`)**:
+  - Eliminated the wide gap/whitespace between the stream column and the right Agenda rail on wider displays.
+  - In `styles.css` under `.pos-cockpit-main-stage`:
+    - Updated `.pos-composer-compact` and `.pos-desktop-composer` to `max-width: 100%`, allowing the capture bar to extend across the full stage.
+    - Updated `.pos-note-stream-item` to `max-width: 100%`, allowing notes and hover actions to stretch to the right edge boundary next to the Agenda resizer.
+    - Updated `.pos-empty-state` to `max-width: 100%`.
+    - Updated `.pos-filter-carousel` and `.pos-selection-bar` to `max-width: 100%`.
+  - In `src/views/DesktopHubView.ts`:
+    - Updated `renderNoteItem()` inline-editing mode `item.style.maxWidth` from `820px` to `'100%'`.
+  - All 17 automated tests passing; production bundle compiled with 0 errors and deployed directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Informational `bill/pending` Notes in Agenda Horizon Deployed
 - **`bill/pending` Notes in Agenda Horizon (`IndexService.ts`, `DesktopHubView.ts`, `styles.css`)**:
   - **Frontmatter & Tag Extraction (`IndexService.ts`)**:
     - Scans for notes tagged `#bill/pending` or `tags: [bill/pending]` (excluding trash and Handumanan).
