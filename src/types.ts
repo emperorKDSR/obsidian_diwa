@@ -54,6 +54,7 @@ export interface CaptureEntry {
     pinned?: boolean;
     important?: boolean;
     digested?: boolean;
+    archived?: boolean;
     digestedAt?: string;
 }
 
@@ -71,7 +72,7 @@ export interface DigestibleBlock {
     dueDate: string | null;
     primaryTarget: string | null;
     alternativeTargets: string[];
-    actionRoute: 'target_log' | 'target_tasks' | 'keep_scratchpad' | 'gawa_inbox';
+    actionRoute: 'target_log' | 'target_tasks' | 'keep_scratchpad' | 'gawa_inbox' | 'archive';
     area?: string | null;
 }
 

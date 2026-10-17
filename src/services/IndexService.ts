@@ -406,9 +406,15 @@ export class IndexService {
             tags.includes('starred')
         );
 
+        const archived = Boolean(
+            fm.archived === true ||
+            String(fm.archived).toLowerCase() === 'true'
+        );
+
         const digested = Boolean(
             fm.digested === true ||
             String(fm.digested).toLowerCase() === 'true' ||
+            archived ||
             (!visibleBody && rawBody.includes('diwa-digested:'))
         );
         const digestedAt = fm.digestedAt ? String(fm.digestedAt) : undefined;
@@ -431,6 +437,7 @@ export class IndexService {
             important,
             pinned: important,
             digested,
+            archived,
             digestedAt,
         };
         (entry as any)._mtime = file.stat.mtime;
@@ -450,33 +457,35 @@ export class IndexService {
         for (const set of this.targetDateIndex.values()) {
             set.delete(file.path);
         }
-        const targetDates = new Set<string>();
-        for (const d of allDates) {
-            if (moment(d, 'YYYY-MM-DD', true).isValid()) {
-                targetDates.add(d);
-            }
-        }
-        const candidateFmDates = [fm.due, fm.scheduled, fm.day, fm.targetDate];
-        for (const candidate of candidateFmDates) {
-            if (candidate) {
-                const cleaned = String(candidate).replace(/\[\[|\]\]/g, '').trim();
-                if (moment(cleaned, 'YYYY-MM-DD', true).isValid()) {
-                    targetDates.add(cleaned);
+        if (!digested && !archived) {
+            const targetDates = new Set<string>();
+            for (const d of allDates) {
+                if (moment(d, 'YYYY-MM-DD', true).isValid()) {
+                    targetDates.add(d);
                 }
             }
-        }
-        for (const gt of gawaTasks) {
-            if (gt.dueDate && moment(gt.dueDate, 'YYYY-MM-DD', true).isValid()) {
-                targetDates.add(gt.dueDate);
+            const candidateFmDates = [fm.due, fm.scheduled, fm.day, fm.targetDate];
+            for (const candidate of candidateFmDates) {
+                if (candidate) {
+                    const cleaned = String(candidate).replace(/\[\[|\]\]/g, '').trim();
+                    if (moment(cleaned, 'YYYY-MM-DD', true).isValid()) {
+                        targetDates.add(cleaned);
+                    }
+                }
             }
-        }
-        for (const tDate of targetDates) {
-            let tSet = this.targetDateIndex.get(tDate);
-            if (!tSet) {
-                tSet = new Set();
-                this.targetDateIndex.set(tDate, tSet);
+            for (const gt of gawaTasks) {
+                if (gt.dueDate && moment(gt.dueDate, 'YYYY-MM-DD', true).isValid()) {
+                    targetDates.add(gt.dueDate);
+                }
             }
-            tSet.add(file.path);
+            for (const tDate of targetDates) {
+                let tSet = this.targetDateIndex.get(tDate);
+                if (!tSet) {
+                    tSet = new Set();
+                    this.targetDateIndex.set(tDate, tSet);
+                }
+                tSet.add(file.path);
+            }
         }
 
         return entry;
@@ -699,8 +708,8 @@ export class IndexService {
     isEntryInScratchpad(entry: CaptureEntry | null | undefined): boolean {
         if (!entry) return false;
 
-        // Digested notes leave the continuous scratchpad inbox (Inbox Zero)
-        if (entry.digested) {
+        // Digested and archived notes leave the continuous scratchpad inbox (Inbox Zero)
+        if (entry.digested || entry.archived) {
             return false;
         }
 
@@ -768,6 +777,7 @@ export class IndexService {
         }
 
         for (const entry of this.captureIndex.values()) {
+            if (!entry || entry.digested || entry.archived) continue;
             const gTasks = Array.isArray(entry?.gawaTasks) ? entry.gawaTasks : [];
             for (const ct of gTasks) {
                 allCandidates.push({ task: ct, isProject: false });
@@ -1295,8 +1305,8 @@ export class IndexService {
         for (const entry of this.captureIndex.values()) {
             if (!entry) continue;
             if (entry.filePath.toLowerCase().includes('handumanan')) continue;
-            // Exclude already digested capture notes (their contents live authoritatively in destination notes)
-            if (entry.digested || (entry.tags && entry.tags.includes('digested')) || (entry.body && entry.body.includes('diwa-digested:'))) continue;
+            // Exclude already digested or archived capture notes (their contents live authoritatively in destination notes or are archived)
+            if (entry.digested || entry.archived || (entry.tags && entry.tags.includes('digested')) || (entry.body && entry.body.includes('diwa-digested:'))) continue;
             // Exclude bill/pending notes (rendered dedicatedly as HorizonBillItem cards)
             if (IndexService.hasPendingBillTag({ tags: entry.tags }) || (entry.body && /#bill\/pending\b/i.test(entry.body))) continue;
 

@@ -1,6 +1,23 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Mobile Main Stream Full Horizon UI/UX Switchout & `WikilinkPeekView` Popout Parity Deployed
+## Current State: Digest Archive Selection (Option 2: Clean Frontmatter Archive) Deployed
+- **Digest Archive Selection (`src/types.ts`, `src/modals/PreFlightDigestModal.ts`, `src/services/CaptureService.ts`, `src/services/IndexService.ts`, `src/views/CalendarDigestView.ts`, `src/views/DesktopHubView.ts`)**:
+  - **Pre-Flight Digest Modal (`PreFlightDigestModal.ts`)**:
+    - Added an **`[ 📥 Archive ]`** routing pill button (Lucide `archive` icon) on each note card alongside target notes, `Pick Note…`, `Gawa Inbox`, and `Keep in Note`.
+    - Selecting `Archive` sets `block.actionRoute = 'archive'`.
+  - **Clean Frontmatter Archive Execution (`CaptureService.ts` — Option 2)**:
+    - When `actionRoute === 'archive'`, Phase 1 (target note writing) is skipped completely — the note is **not** placed into any other note or `Gawa Inbox`.
+    - Phase 2 leaves the note's markdown body clean and unwrapped on disk (unwrapping any prior `diwa-digested` comments if re-digested).
+    - Phase 3 stamps `digested: true` and `archived: true` in the capture note's YAML frontmatter (`markCaptureAsDigested(sourcePath, undefined, true)`).
+    - `unmarkCaptureAsDigested()` cleanly removes both `digested` and `archived` frontmatter keys when resetting status.
+  - **Stream, Search, Horizon & Gawa Exclusion (`IndexService.ts` & `DesktopHubView.ts`)**:
+    - `IndexService.indexCaptureFile()` parses `fm.archived` and suppresses `targetDateIndex` registration for digested/archived capture notes.
+    - `isEntryInScratchpad()`, `getGawaTasks()`, `getVaultNoteBlocksForDate()`, and `DesktopHubView.getFilteredCaptures()` (including active stream search) strictly exclude `entry.digested || entry.archived`, ensuring archived notes are **never** kept or surfaced in the stream, Agenda Horizon, or Gawa Task Cockpit.
+  - **Calendar Digest View (`CalendarDigestView.ts`)**:
+    - Displays an `Archived` badge (`archive` icon) on archived note cards in the historical daily review stream and preserves the `archive` route when re-digesting a day.
+  - All 18 unit tests passing, production bundle compiled with 0 errors.
+
+## Previous State: Mobile Main Stream Full Horizon UI/UX Switchout & `WikilinkPeekView` Popout Parity Deployed
 - **Mobile Main Stream Full Horizon UI/UX Switchout (`DesktopHubView.ts`, `MobileTaskEditModal.ts`, `styles.css`)**:
   - Completely removed `.is-mobile-card` from the Mobile Main Stream and replicated Horizon's exact `.pos-rail-section-header`, `.pos-rail-task-item`, and `.pos-rail-note-item` UI/UX:
     - **Horizon Section Headers (`.pos-rail-section-header.pos-mobile-stream-date-header`)**:

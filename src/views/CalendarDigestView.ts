@@ -309,7 +309,11 @@ export class CalendarDigestView extends ItemView {
                 cardMeta.createSpan({ cls: 'pos-card-area-badge', text: entry.area.toUpperCase() });
             }
 
-            if (entry.digested) {
+            if (entry.archived) {
+                const archivePill = cardMeta.createSpan({ cls: 'pos-card-digested-badge is-archived' });
+                setIcon(archivePill, 'archive');
+                archivePill.createSpan({ text: ' Archived' });
+            } else if (entry.digested) {
                 const digestPill = cardMeta.createSpan({ cls: 'pos-card-digested-badge' });
                 setIcon(digestPill, 'check');
                 digestPill.createSpan({ text: ' Digested' });
@@ -387,7 +391,8 @@ export class CalendarDigestView extends ItemView {
                 contentToParse,
                 entry.filePath,
                 entry.createdAtMs,
-                entry.area || null
+                entry.area || null,
+                entry.archived
             );
             allBlocks.push(...blocks);
         }

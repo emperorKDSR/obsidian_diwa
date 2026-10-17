@@ -3213,7 +3213,14 @@ export class DesktopHubView extends ItemView {
         const isSearching = Boolean(this._searchQuery.trim());
         let entries = this.plugin.index?.getAllCaptures?.(isSearching) || [];
 
-        // 1. Search query filter (searches across all notes in workspace archive)
+        // Exclude digested and archived notes from continuous scratchpad feed and search (Inbox Zero)
+        if (this._activeFilter === 'digested') {
+            entries = entries.filter(e => Boolean(e.digested || e.archived));
+        } else {
+            entries = entries.filter(e => !e.digested && !e.archived);
+        }
+
+        // 1. Search query filter (searches across active workspace notes)
         if (isSearching) {
             const query = this._searchQuery.toLowerCase().trim();
             if (query === 'is:important' || query === '!important' || query === '⭐') {
@@ -3227,13 +3234,6 @@ export class DesktopHubView extends ItemView {
                 if (tags.some(t => String(t || '').toLowerCase().includes(query))) return true;
                 return false;
             });
-        }
-
-        // Exclude digested notes from continuous scratchpad feed by default (Inbox Zero)
-        if (this._activeFilter === 'digested') {
-            entries = entries.filter(e => Boolean(e.digested));
-        } else {
-            entries = entries.filter(e => !e.digested);
         }
 
         // 2. Task modifier filter (active when tasksOnly toggle is ON)
@@ -4266,7 +4266,8 @@ export class DesktopHubView extends ItemView {
             contentToParse,
             entry.filePath,
             entry.createdAtMs,
-            entry.area || null
+            entry.area || null,
+            entry.archived
         );
 
         if (blocks.length === 0) {

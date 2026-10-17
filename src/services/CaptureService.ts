@@ -732,28 +732,35 @@ export class CaptureService {
     /**
      * Parses a capture note into coherent structural blocks (preserving tasks with indented children).
      */
-    parseDigestibleBlocks(content: string, filePath: string, createdAtMs: number, area?: string | null): DigestibleBlock[] {
+    parseDigestibleBlocks(content: string, filePath: string, createdAtMs: number, area?: string | null, isArchived?: boolean): DigestibleBlock[] {
         const body = content.replace(/^---[\s\S]*?---\r?\n*/, '').trim();
         if (!body) return [];
 
         let fallbackArea = (area || '').trim().toLowerCase() || null;
-        if (!fallbackArea) {
-            const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-            if (fmMatch) {
+        let fmArchived = Boolean(isArchived);
+        const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+        if (fmMatch) {
+            if (!fallbackArea) {
                 const areaMatch = fmMatch[1].match(/^area:\s*["']?([^"'\r\n]+)["']?/m);
                 if (areaMatch) {
                     fallbackArea = areaMatch[1].trim().toLowerCase();
                 }
             }
+            if (!fmArchived && /^archived:\s*true\b/im.test(fmMatch[1])) {
+                fmArchived = true;
+            }
         }
 
         // Normalize previously digested blocks wrapped in %% diwa-digested:dest=... %%
         let cleanBody = body;
+        let hadArchiveComment = false;
         if (cleanBody.includes('diwa-digested:')) {
             cleanBody = cleanBody.replace(/%%\r?\n(?:diwa-digested:dest=([^\r\n]*)\r?\n)?([\s\S]*?)\r?\n%%/g, (_m, dest, inner) => {
                 const target = (dest || '').trim();
                 const trimmedInner = inner.trim();
-                if (target && target !== 'archive' && target !== 'gawa_inbox' && !trimmedInner.includes('->')) {
+                if (target === 'archive') {
+                    hadArchiveComment = true;
+                } else if (target && target !== 'gawa_inbox' && !trimmedInner.includes('->')) {
                     return `${trimmedInner}\n-> ${target}`;
                 }
                 return trimmedInner;
@@ -795,7 +802,9 @@ export class CaptureService {
         const cleanText = raw.replace(/->\s*\[\[[^\]]+\]\]/g, '').trim();
 
         let actionRoute: DigestibleBlock['actionRoute'] = 'keep_scratchpad';
-        if (isTask && !isCompletedTask && primary) {
+        if (fmArchived || hadArchiveComment) {
+            actionRoute = 'archive';
+        } else if (isTask && !isCompletedTask && primary) {
             actionRoute = 'target_tasks';
         } else if (primary) {
             actionRoute = 'target_log';
@@ -936,6 +945,10 @@ export class CaptureService {
     }
 
     wrapBlockAsDigested(content: string, block: DigestibleBlock): string {
+        if (block.actionRoute === 'archive') {
+            return content.includes('diwa-digested:') ? this.unwrapDigestedComments(content) : content;
+        }
+
         const raw = block.rawContent.trim();
         if (!raw) return content;
 
@@ -1025,25 +1038,34 @@ export class CaptureService {
         }
 
         // Phase 2: Wrap digested blocks in source notes with non-destructive %% ... %% comments
+        // (For 'archive' blocks under Option 2, leave the markdown body clean and unwrapped)
         for (const [sourcePath, digestedBlocks] of digestedBlocksBySource.entries()) {
             const sourceFile = this.app.vault.getAbstractFileByPath(sourcePath);
             if (sourceFile instanceof TFile) {
-                await this.app.vault.process(sourceFile, (content) => {
-                    let updated = content;
-                    for (const b of digestedBlocks) {
-                        updated = this.wrapBlockAsDigested(updated, b);
-                    }
-                    return updated;
-                });
+                const isAllArchived = digestedBlocks.every(b => b.actionRoute === 'archive');
+                if (isAllArchived) {
+                    await this.app.vault.process(sourceFile, (content) => {
+                        return content.includes('diwa-digested:') ? this.unwrapDigestedComments(content) : content;
+                    });
+                } else {
+                    await this.app.vault.process(sourceFile, (content) => {
+                        let updated = content;
+                        for (const b of digestedBlocks) {
+                            updated = this.wrapBlockAsDigested(updated, b);
+                        }
+                        return updated;
+                    });
+                }
                 modifiedFiles.push(sourceFile.path);
             }
         }
 
         // Phase 3: Stamp frontmatter digested: true ONLY if all blocks in the note were digested
         let digestedCount = 0;
-        for (const sourcePath of digestedBlocksBySource.keys()) {
+        for (const [sourcePath, digestedBlocks] of digestedBlocksBySource.entries()) {
             if (!filesWithKeptBlocks.has(sourcePath)) {
-                await this.markCaptureAsDigested(sourcePath);
+                const isArchived = digestedBlocks.every(b => b.actionRoute === 'archive');
+                await this.markCaptureAsDigested(sourcePath, undefined, isArchived);
                 digestedCount++;
             } else {
                 await this.unmarkCaptureAsDigested(sourcePath);
@@ -1056,13 +1078,18 @@ export class CaptureService {
         };
     }
 
-    async markCaptureAsDigested(filePath: string, digestedAtIso?: string): Promise<void> {
+    async markCaptureAsDigested(filePath: string, digestedAtIso?: string, archived: boolean = false): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) return;
 
         const now = digestedAtIso || moment().format('YYYY-MM-DDTHH:mm:ss');
         await this.app.fileManager.processFrontMatter(file, (fm) => {
             fm.digested = true;
+            if (archived) {
+                fm.archived = true;
+            } else {
+                delete fm.archived;
+            }
             fm.digestedAt = now;
             fm.modified = now;
         });
@@ -1084,6 +1111,7 @@ export class CaptureService {
 
         await this.app.fileManager.processFrontMatter(file, (fm) => {
             delete fm.digested;
+            delete fm.archived;
             delete fm.digestedAt;
             fm.modified = moment().format('YYYY-MM-DDTHH:mm:ss');
         });

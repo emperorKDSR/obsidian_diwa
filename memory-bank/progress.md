@@ -1,6 +1,19 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Mobile Main Stream Full Horizon UI/UX Switchout Deployed (Complete)
+## Current Phase: Digest Archive Selection (Option 2: Clean Frontmatter Archive) Deployed (Complete)
+
+---
+
+### 0. Digest Archive Selection (Option 2: Clean Frontmatter Archive) Deployed (Complete)
+*   [x] **Archive Routing Pill (`PreFlightDigestModal.ts` & `types.ts`)** — Added `'archive'` to `DigestibleBlock['actionRoute']`, `archived?: boolean` to `CaptureEntry`, and an `[ Archive ]` pill button (Lucide `archive` icon) in `PreFlightDigestModal`.
+*   [x] **Clean Frontmatter Archive Execution (`CaptureService.ts`)** — Skips target note writes (Phase 1) for `'archive'` blocks, keeps the note markdown body clean and unwrapped on disk (Phase 2), and stamps `digested: true` and `archived: true` in frontmatter (Phase 3).
+*   [x] **Stream, Search, Horizon & Gawa Exclusion (`IndexService.ts` & `DesktopHubView.ts`)** — Excluded `entry.digested || entry.archived` from `isEntryInScratchpad()`, `getGawaTasks()`, `targetDateIndex`, `getVaultNoteBlocksForDate()`, and `DesktopHubView.getFilteredCaptures()`.
+*   [x] **Calendar Digest View Badge & Re-digest Support (`CalendarDigestView.ts`)** — Added `Archived` badge on archived cards in the Calendar Digest stream and preserved `entry.archived` route during re-digests.
+*   [x] **Automated Unit Tests & Production Build (`tests/digestionBlocks.test.ts`)** — Added unit tests for Option 2 archive routing, verified 18/18 tests passing, and compiled production bundle with zero errors.
+
+---
+
+## Previous Phase: Mobile Main Stream Full Horizon UI/UX Switchout Deployed (Complete)
 
 ---
 

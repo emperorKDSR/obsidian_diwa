@@ -98,3 +98,57 @@ test('IndexService.stripDigestMetadata on digested task paragraph preserves task
     // Ensure task regex properly matches clean text
     assert.strictEqual(/^[ \t]*-[ \t]+\[[ xX]\]/m.test(clean), true);
 });
+
+test('Archive route (Option 2) leaves note body unwrapped and excludes entry from stream and Gawa tasks', () => {
+    const captureService = new CaptureService({} as any, { ...DEFAULT_SETTINGS });
+    const initialContent = `---\ncreated: 2026-10-17T10:00:00\narchived: true\ndigested: true\n---\n\nEphemeral thought with [[Project Alpha]] and a task:\n- [ ] Quick reminder`;
+
+    const blocks = captureService.parseDigestibleBlocks(initialContent, '000 Bin/Diwa/2026/10/archived-note.md', Date.now());
+    assert.strictEqual(blocks.length, 1);
+    assert.strictEqual(blocks[0].actionRoute, 'archive');
+
+    // Wrapping an archive block leaves the body clean and unwrapped
+    const afterWrap = captureService.wrapBlockAsDigested(initialContent, blocks[0]);
+    assert.strictEqual(afterWrap, initialContent);
+    assert.ok(!afterWrap.includes('diwa-digested:'));
+
+    // IndexService excludes archived/digested entries from stream and Gawa tasks
+    const indexService = new IndexService({} as any, { ...DEFAULT_SETTINGS });
+    const archivedEntry: any = {
+        id: '000 Bin/Diwa/2026/10/archived-note.md',
+        filePath: '000 Bin/Diwa/2026/10/archived-note.md',
+        created: '2026-10-17T10:00:00',
+        modified: '2026-10-17T10:05:00',
+        createdAtMs: Date.now(),
+        area: '',
+        tags: [],
+        body: 'Ephemeral thought with [[Project Alpha]]',
+        hasTasks: true,
+        tasks: [{ lineIndex: 1, title: 'Quick reminder', completed: false }],
+        gawaTasks: [{
+            filePath: '000 Bin/Diwa/2026/10/archived-note.md',
+            noteTitle: 'archived-note',
+            lineIndex: 1,
+            rawTitle: 'Quick reminder',
+            cleanTitle: 'Quick reminder',
+            completed: false,
+            dueDate: null,
+            areaId: '',
+            areaLabel: '—',
+            areaIcon: '—',
+            tags: [],
+            wikilinks: [],
+            subtasks: [],
+            remarks: []
+        }],
+        allDates: [],
+        wikilinks: ['Project Alpha'],
+        digested: true,
+        archived: true
+    };
+    indexService.captureIndex.set(archivedEntry.filePath, archivedEntry);
+    assert.strictEqual(indexService.isEntryInScratchpad(archivedEntry), false);
+    assert.strictEqual(indexService.getAllCaptures().length, 0);
+    assert.strictEqual(indexService.getGawaTasks().length, 0);
+});
+

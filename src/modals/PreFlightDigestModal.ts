@@ -121,7 +121,7 @@ export class PreFlightDigestModal extends Modal {
 
                 // 1. Primary target pill (if any)
                 if (block.primaryTarget) {
-                    const isAct = block.actionRoute !== 'keep_scratchpad' && block.actionRoute !== 'gawa_inbox';
+                    const isAct = block.actionRoute === 'target_tasks' || block.actionRoute === 'target_log';
                     const primaryBtn = pillsWrap.createEl('button', {
                         cls: `pos-pill-btn ${isAct ? 'is-active' : ''}`
                     });
@@ -179,7 +179,7 @@ export class PreFlightDigestModal extends Modal {
                     }, this.plugin.settings.newNoteFolder || '000 Bin').open();
                 };
 
-                // 4. Task-specific options or Keep in Daily Log
+                // 4. Task-specific options
                 if (block.isTask && !block.isCompletedTask) {
                     const isGawa = block.actionRoute === 'gawa_inbox';
                     const gawaInboxBtn = pillsWrap.createEl('button', {
@@ -194,6 +194,20 @@ export class PreFlightDigestModal extends Modal {
                     };
                 }
 
+                // 5. Archive option (removes from stream without placing into another note)
+                const isArchive = block.actionRoute === 'archive';
+                const archiveBtn = pillsWrap.createEl('button', {
+                    cls: `pos-pill-btn ${isArchive ? 'is-active' : ''}`
+                });
+                const archiveIcon = archiveBtn.createSpan({ cls: 'pos-btn-icon' });
+                setIcon(archiveIcon, 'archive');
+                archiveBtn.createSpan({ text: ' Archive' });
+                archiveBtn.onclick = () => {
+                    block.actionRoute = 'archive';
+                    renderPills();
+                };
+
+                // 6. Keep in Note (stays in stream)
                 const isKeep = block.actionRoute === 'keep_scratchpad';
                 const keepBtn = pillsWrap.createEl('button', {
                     cls: `pos-pill-btn ${isKeep ? 'is-active' : ''}`
