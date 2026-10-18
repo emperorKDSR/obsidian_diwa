@@ -1,6 +1,18 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Digest Archive Selection (Option 2: Clean Frontmatter Archive) Deployed (Complete)
+## Current Phase: Mobile Stream Double-Tap Note Editing via Sticky Composer Deployed (Complete)
+
+---
+
+### 0. Mobile Stream Double-Tap Note Editing via Sticky Composer Deployed (Complete)
+*   [x] **Touch Double-Tap Gesture on Mobile Stream Rows (`DesktopHubView.ts`)** — Added `pointerdown`/`pointerup` double-tap detection (`<= 320ms`, `< 14px` drag guard) on both `.pos-rail-note-item.pos-mobile-stream-row` and `.pos-rail-task-item.pos-mobile-stream-row`, with a `260ms` single-tap timer on `.pos-rail-task-title` so single-tap opens `MobileTaskEditModal` while double-tap opens the bottom note editor.
+*   [x] **Bottom Sticky Note Editor Mode (`DesktopHubView.ts` & `styles.css`)** — Implemented `startMobileNoteEdit()` and `cancelMobileNoteEdit()` to reuse `.pos-mobile-sticky-composer` pre-populated with `entry.body`, `isImportant(entry)`, and `entry.area`, highlight the active stream row with `.is-editing`, and isolate existing note edits from `localStorage` new-note drafts.
+*   [x] **Atomic Note & Frontmatter Save (`CaptureService.ts`)** — Extended `CaptureService.updateNoteContent()` with `important?: boolean` to persist `body`, `area`, `important`, `hasTasks`, and `modified` atomically.
+*   [x] **Automated Unit Tests & Production Build** — Verified 18/18 unit tests passing and compiled production bundle with zero errors.
+
+---
+
+## Previous Phase: Digest Archive Selection (Option 2: Clean Frontmatter Archive) Deployed (Complete)
 
 ---
 

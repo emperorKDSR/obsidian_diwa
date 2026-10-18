@@ -1,6 +1,20 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Digest Archive Selection (Option 2: Clean Frontmatter Archive) Deployed
+## Current State: Mobile Stream Double-Tap Note Editing via Sticky Composer Deployed
+- **Mobile Stream Double-Tap Note Editing (`src/views/DesktopHubView.ts`, `src/services/CaptureService.ts`, `styles.css`)**:
+  - **Touch Double-Tap Detection (`DesktopHubView.ts`)**:
+    - Attached `pointerdown`/`pointerup` double-tap detection (`<= 320ms` interval, `< 14px` drag threshold, `< 36px` tap distance) to all mobile stream rows (`.pos-rail-note-item.pos-mobile-stream-row` and `.pos-rail-task-item.pos-mobile-stream-row`).
+    - On task rows (`.pos-rail-task-item`), tapping the 3 metadata pills (`[ 📅 Due ]`, `[ ☑️ X/Y ]`, `[ 💬 N ]`) opens `MobileTaskEditModal` immediately (`0ms`), single-tapping `.pos-rail-task-title` opens `MobileTaskEditModal` after a `260ms` disambiguation timer, and double-tapping anywhere on the row cancels the single-tap timer and opens the raw note in the bottom sticky composer.
+    - Tapping **Edit Note** in the mobile `⋯` action menu (`openNoteActionMenu`) also opens the note in the bottom sticky composer.
+  - **Bottom Sticky Note Editor (`.pos-mobile-sticky-composer`, `DesktopHubView.ts`)**:
+    - `startMobileNoteEdit(entry)` sets `_editingEntryId = entry.id`, toggles `.is-editing` on `.pos-note-stream-item[data-entry-id]` in-place without rebuilding the stream DOM, hides the floating action dock, and opens `.pos-mobile-sticky-composer` pre-populated with `entry.body`, `isImportant(entry)`, and `entry.area`.
+    - Preserves any in-progress new-note draft in `localStorage` untouched while editing an existing note.
+    - Supports all DIWA inline triggers (`[[`, `#`, `@date`, `/person`, `++`), toolbar buttons (`Task`, `Important`, `Area`), smart markdown list/task continuation on `Enter`, and `Escape` / outside-tap dismissal (`cancelMobileNoteEdit()`).
+  - **Atomic Content & Frontmatter Persistence (`CaptureService.ts`)**:
+    - Extended `CaptureService.updateNoteContent(filePath, newBody, area, tags, important)` with an optional `important?: boolean` parameter so saving from the mobile sticky composer updates `body`, `area`, `important`, `hasTasks`, and `modified` in a single atomic file write, followed by `IndexService.indexCaptureFile()` and `RefreshCoordinator`.
+  - All 18 unit tests passing, production bundle compiled with 0 errors.
+
+## Previous State: Digest Archive Selection (Option 2: Clean Frontmatter Archive) Deployed
 - **Digest Archive Selection (`src/types.ts`, `src/modals/PreFlightDigestModal.ts`, `src/services/CaptureService.ts`, `src/services/IndexService.ts`, `src/views/CalendarDigestView.ts`, `src/views/DesktopHubView.ts`)**:
   - **Pre-Flight Digest Modal (`PreFlightDigestModal.ts`)**:
     - Added an **`[ 📥 Archive ]`** routing pill button (Lucide `archive` icon) on each note card alongside target notes, `Pick Note…`, `Gawa Inbox`, and `Keep in Note`.

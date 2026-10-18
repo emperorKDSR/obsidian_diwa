@@ -2332,9 +2332,12 @@ body.is-phone .pos-inline-textarea {
         background: transparent !important;
     }
 
-    .pos-note-stream-item.pos-mobile-stream-row.is-selected {
+    .pos-note-stream-item.pos-mobile-stream-row.is-selected,
+    .pos-note-stream-item.pos-mobile-stream-row.is-editing {
         background: var(--background-modifier-hover) !important;
-        border-radius: 4px !important;
+        border-radius: 6px !important;
+        border-color: transparent !important;
+        box-shadow: none !important;
     }
 
     .pos-note-stream-item.pos-mobile-stream-row .pos-mobile-select-cb {

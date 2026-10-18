@@ -434,7 +434,7 @@ export class CaptureService {
         }
     }
 
-    async updateNoteContent(filePath: string, newBody: string, area?: string, tags?: string[]): Promise<void> {
+    async updateNoteContent(filePath: string, newBody: string, area?: string, tags?: string[], important?: boolean): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) {
             throw new Error(`File not found: ${filePath}`);
@@ -474,6 +474,21 @@ export class CaptureService {
                     }
                 }
 
+                if (important !== undefined) {
+                    if (important) {
+                        if (/^important\s*:/m.test(fmBlock)) {
+                            fmBlock = fmBlock.replace(/^important\s*:.*$/m, 'important: true');
+                        } else {
+                            fmBlock += '\nimportant: true';
+                        }
+                    } else {
+                        fmBlock = fmBlock
+                            .split(/\r?\n/)
+                            .filter(line => !/^(?:important|pinned)\s*:/i.test(line))
+                            .join('\n');
+                    }
+                }
+
                 return `---${newline}${fmBlock.trim()}${newline}---${newline}${newline}${newBody.trim()}${newline}`;
             } else {
                 const frontmatterLines: string[] = [
@@ -483,6 +498,7 @@ export class CaptureService {
                     `hasTasks: ${hasTasks}`,
                 ];
                 if (area) frontmatterLines.push(`area: ${JSON.stringify(area.toLowerCase())}`);
+                if (important) frontmatterLines.push('important: true');
                 if (tags && tags.length > 0) {
                     frontmatterLines.push('tags:');
                     for (const t of tags) frontmatterLines.push(`  - ${JSON.stringify(t.toLowerCase().replace(/^#/, ''))}`);

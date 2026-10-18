@@ -209,14 +209,11 @@ export class DesktopHubView extends ItemView {
             // 1. If mobile composer is open and tapped outside
             if (this._mobileComposerOpen && this._composerEl) {
                 if (!this._composerEl.contains(target) && !target.closest('.modal, .pos-modal, .suggestion-container, .menu, .suggestion-item')) {
-                    this._mobileComposerOpen = false;
-                    if (this._containerEl) {
-                        this.renderComposer(this._containerEl, true);
-                    }
+                    this.cancelMobileNoteEdit();
                 }
             }
 
-            // 2. If inline editing a note and tapped outside
+            // 2. If inline editing a note on Desktop/Tablet and tapped outside
             if (this._editingEntryId) {
                 const editorEl = this.contentEl.querySelector('.pos-inline-editor');
                 if (editorEl && !editorEl.contains(target) && !target.closest('.modal, .pos-modal, .suggestion-container, .menu, .suggestion-item, .pos-note-card')) {
@@ -482,14 +479,55 @@ export class DesktopHubView extends ItemView {
         this.updateComposerVisibility();
     }
 
+    private startMobileNoteEdit(entry: CaptureEntry): void {
+        this._editingEntryId = entry.id;
+        this._mobileComposerOpen = true;
+        this._mobileSearchOpen = false;
+
+        if (this._streamContainerEl) {
+            const items = this._streamContainerEl.querySelectorAll<HTMLElement>('.pos-note-stream-item');
+            items.forEach(el => {
+                const isTarget = el.dataset.entryId === entry.id;
+                el.toggleClass('is-editing', isTarget);
+                if (isTarget) {
+                    setTimeout(() => {
+                        try {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        } catch {
+                            // ignore
+                        }
+                    }, 80);
+                }
+            });
+        }
+
+        if (this._containerEl) {
+            this.renderComposer(this._containerEl, true);
+        }
+        this.updateComposerVisibility();
+    }
+
+    private cancelMobileNoteEdit(): void {
+        this._editingEntryId = null;
+        this._mobileComposerOpen = false;
+        if (this._streamContainerEl) {
+            this._streamContainerEl.querySelectorAll<HTMLElement>('.pos-note-stream-item.is-editing').forEach(el => {
+                el.removeClass('is-editing');
+            });
+        }
+        if (this._containerEl) {
+            this.renderComposer(this._containerEl, true);
+        }
+        this.updateComposerVisibility();
+    }
+
     private updateComposerVisibility(): void {
         const isMobile = Platform.isMobile && !isTablet(this.app);
         if (!isMobile) return;
         const isSearching = this._mobileSearchOpen || Boolean(this._searchQuery.trim());
         const isEditing = Boolean(this._editingEntryId);
-        const shouldHide = isEditing;
         if (this._composerEl) {
-            this._composerEl.toggleClass('is-hidden', shouldHide);
+            this._composerEl.removeClass('is-hidden');
         }
         if (this._filterBarEl) {
             this._filterBarEl.toggleClass('is-hidden', !this._mobileFiltersOpen || isEditing);
@@ -2538,6 +2576,17 @@ export class DesktopHubView extends ItemView {
                 return;
             }
 
+            const editingEntry = this._editingEntryId
+                ? (this.plugin.index?.getAllCaptures?.(true) || []).find(e => e.id === this._editingEntryId) || null
+                : null;
+            if (this._editingEntryId && !editingEntry) {
+                this._editingEntryId = null;
+            }
+            const isEditingNote = Boolean(editingEntry);
+            if (isEditingNote) {
+                this._mobileComposerOpen = true;
+            }
+
             if (!this._mobileComposerOpen) {
                 // === MOBILE IDLE STATE: 1-ROW FLOATING ACTION BAR ===
                 const actionBar = parent.createDiv({
@@ -2552,6 +2601,7 @@ export class DesktopHubView extends ItemView {
                 });
                 setIcon(newBtn, 'edit-3');
                 newBtn.onclick = () => {
+                    this._editingEntryId = null;
                     this._mobileComposerOpen = true;
                     this._mobileSearchOpen = false;
                     this.renderComposer(parent, true);
@@ -2564,6 +2614,7 @@ export class DesktopHubView extends ItemView {
                 });
                 setIcon(searchBtn, 'search');
                 searchBtn.onclick = () => {
+                    this._editingEntryId = null;
                     this._mobileSearchOpen = true;
                     this._mobileComposerOpen = false;
                     this._activeFilter = 'all';
@@ -2618,9 +2669,29 @@ export class DesktopHubView extends ItemView {
                 return;
             }
 
-            // === MOBILE ACTIVE STATE: 2-ROW FLOATING COMPOSER CAPSULE ===
+            // === MOBILE ACTIVE STATE: 2-ROW FLOATING COMPOSER CAPSULE (CAPTURE OR EDIT) ===
+            let editingArea = editingEntry ? (editingEntry.area || '') : '';
+            let editingImportant = editingEntry ? Boolean(this.plugin.index?.isImportant?.(editingEntry)) : false;
+
+            const getActiveArea = () => isEditingNote ? editingArea : this._selectedAreaForNewNote;
+            const setActiveArea = (val: string) => {
+                if (isEditingNote) {
+                    editingArea = val;
+                } else {
+                    this._selectedAreaForNewNote = val;
+                }
+            };
+            const getActiveImportant = () => isEditingNote ? editingImportant : this._selectedImportantForNewNote;
+            const setActiveImportant = (val: boolean) => {
+                if (isEditingNote) {
+                    editingImportant = val;
+                } else {
+                    this._selectedImportantForNewNote = val;
+                }
+            };
+
             const composerWrapper = parent.createDiv({
-                cls: 'pos-composer pos-mobile-sticky-composer'
+                cls: `pos-composer pos-mobile-sticky-composer ${isEditingNote ? 'is-editing-note' : ''}`
             });
             this._composerEl = composerWrapper;
 
@@ -2630,14 +2701,14 @@ export class DesktopHubView extends ItemView {
             const inputPill = mainRow.createDiv({ cls: 'pos-composer-input-pill' });
             const textarea = inputPill.createEl('textarea', {
                 cls: 'pos-composer-textarea',
-                placeholder: 'Capture thought or task...',
+                placeholder: isEditingNote ? 'Edit note or task...' : 'Capture thought or task...',
                 attr: { rows: '1' }
             });
 
             // 2. Send / Submit circular button
             const sendBtn = mainRow.createEl('button', {
                 cls: 'pos-composer-send-btn-circle',
-                attr: { 'aria-label': 'Capture note' }
+                attr: { 'aria-label': isEditingNote ? 'Save changes' : 'Capture note' }
             });
             setIcon(sendBtn, 'arrow-up');
 
@@ -2655,7 +2726,7 @@ export class DesktopHubView extends ItemView {
 
             // Star toggle pill
             const starPill = pillsRow.createEl('button', {
-                cls: `pos-composer-area-pill pos-composer-star-pill ${this._selectedImportantForNewNote ? 'is-selected' : ''}`,
+                cls: `pos-composer-area-pill pos-composer-star-pill ${getActiveImportant() ? 'is-selected' : ''}`,
                 attr: { 'aria-label': 'Toggle important flag' }
             });
             const updateMobileStarBtn = () => {
@@ -2663,24 +2734,25 @@ export class DesktopHubView extends ItemView {
                 const starIcon = starPill.createSpan({ cls: 'pos-btn-icon' });
                 setIcon(starIcon, 'star');
                 starPill.createSpan({ text: 'Important' });
-                starPill.toggleClass('is-selected', this._selectedImportantForNewNote);
+                starPill.toggleClass('is-selected', getActiveImportant());
             };
             updateMobileStarBtn();
             starPill.onclick = () => {
-                this._selectedImportantForNewNote = !this._selectedImportantForNewNote;
+                setActiveImportant(!getActiveImportant());
                 updateMobileStarBtn();
             };
 
             // Life Area Single Dropdown Capsule
             const areaDropdownBtn = pillsRow.createEl('button', {
-                cls: `pos-composer-area-pill pos-composer-area-dropdown ${this._selectedAreaForNewNote ? 'is-selected' : ''}`,
+                cls: `pos-composer-area-pill pos-composer-area-dropdown ${getActiveArea() ? 'is-selected' : ''}`,
                 attr: { 'aria-label': 'Select Life Area' }
             });
 
             const updateMobileAreaDropdownText = () => {
                 areaDropdownBtn.empty();
                 const areas = this.plugin.settings.lifeAreas || [];
-                const activeArea = areas.find(a => a.id === this._selectedAreaForNewNote);
+                const currentAreaId = getActiveArea();
+                const activeArea = areas.find(a => a.id.toLowerCase() === currentAreaId.toLowerCase());
                 const areaIcon = areaDropdownBtn.createSpan({ cls: 'pos-btn-icon' });
                 if (activeArea) {
                     areaDropdownBtn.addClass('is-selected');
@@ -2694,7 +2766,7 @@ export class DesktopHubView extends ItemView {
                     setIcon(clearSpan, 'x');
                     clearSpan.onclick = (e) => {
                         e.stopPropagation();
-                        this._selectedAreaForNewNote = '';
+                        setActiveArea('');
                         updateMobileAreaDropdownText();
                     };
                 } else {
@@ -2708,13 +2780,14 @@ export class DesktopHubView extends ItemView {
             areaDropdownBtn.onclick = (e) => {
                 const menu = new Menu();
                 const areas = this.plugin.settings.lifeAreas || [];
+                const currentAreaId = getActiveArea();
 
                 menu.addItem((item) => {
                     item.setTitle('No Area (General)')
                         .setIcon('minus-circle')
-                        .setChecked(!this._selectedAreaForNewNote)
+                        .setChecked(!currentAreaId)
                         .onClick(() => {
-                            this._selectedAreaForNewNote = '';
+                            setActiveArea('');
                             updateMobileAreaDropdownText();
                         });
                 });
@@ -2724,9 +2797,9 @@ export class DesktopHubView extends ItemView {
                 for (const area of areas) {
                     menu.addItem((item) => {
                         item.setTitle(this.createMutedAreaTitle(area.label, area.icon))
-                            .setChecked(this._selectedAreaForNewNote === area.id)
+                            .setChecked(currentAreaId.toLowerCase() === area.id.toLowerCase())
                             .onClick(() => {
-                                this._selectedAreaForNewNote = area.id;
+                                setActiveArea(area.id);
                                 updateMobileAreaDropdownText();
                             });
                     });
@@ -2744,14 +2817,17 @@ export class DesktopHubView extends ItemView {
             setIcon(closeIcon, 'x');
             closeBtn.createSpan({ text: 'Close' });
             closeBtn.onclick = () => {
-                this._mobileComposerOpen = false;
-                this.renderComposer(parent, true);
+                this.cancelMobileNoteEdit();
             };
 
-            // Restore draft
-            const draft = this.plugin.capture.getDraft();
-            if (draft) {
-                textarea.value = draft;
+            // Restore draft or populate editing note content
+            if (isEditingNote && editingEntry) {
+                textarea.value = editingEntry.body;
+            } else {
+                const draft = this.plugin.capture.getDraft();
+                if (draft) {
+                    textarea.value = draft;
+                }
             }
 
             // Auto-expand textarea without forced reflow
@@ -2767,7 +2843,9 @@ export class DesktopHubView extends ItemView {
             };
             textarea.oninput = () => {
                 autoResize();
-                this.plugin.capture.saveDraft(textarea.value);
+                if (!isEditingNote) {
+                    this.plugin.capture.saveDraft(textarea.value);
+                }
             };
             setTimeout(autoResize, 0);
 
@@ -2779,8 +2857,8 @@ export class DesktopHubView extends ItemView {
                 (tag) => {
                     const area = (this.plugin.settings.lifeAreas || []).find(a => a.id.toLowerCase() === tag.toLowerCase());
                     if (area) {
-                        this._selectedAreaForNewNote = area.id;
-                        this.renderComposerPillSelection(composerWrapper);
+                        setActiveArea(area.id);
+                        updateMobileAreaDropdownText();
                     }
                 },
                 () => {
@@ -2806,40 +2884,65 @@ export class DesktopHubView extends ItemView {
                 textarea.focus();
                 textarea.setSelectionRange(cursor + prefix.length, cursor + prefix.length);
                 autoResize();
-                this.plugin.capture.saveDraft(textarea.value);
+                if (!isEditingNote) {
+                    this.plugin.capture.saveDraft(textarea.value);
+                }
             };
 
-            // Save logic
+            // Save logic (handles both existing note edit and new note capture)
             const doSave = async (keepActive = false) => {
                 const text = textarea.value.trim();
                 if (!text) return;
                 sendBtn.disabled = true;
                 this._capturePending++;
                 try {
-                    await this.plugin.capture.createCaptureNote(
-                        text,
-                        this._selectedAreaForNewNote,
-                        [],
-                        this._selectedImportantForNewNote
-                    );
-                    this.plugin.capture.clearDraft();
-                    textarea.value = '';
-                    autoResize();
-                    if (keepActive) {
-                        new Notice('Block captured! Ready for next ↵', 1500);
-                        textarea.focus();
-                    } else {
-                        this._selectedAreaForNewNote = '';
-                        this._selectedImportantForNewNote = false;
+                    if (isEditingNote && editingEntry) {
+                        await this.plugin.capture.updateNoteContent(
+                            editingEntry.filePath,
+                            text,
+                            getActiveArea(),
+                            undefined,
+                            getActiveImportant()
+                        );
+                        const file = this.app.vault.getAbstractFileByPath(editingEntry.filePath);
+                        if (file instanceof TFile) {
+                            await this.plugin.index.indexCaptureFile(file);
+                        }
+                        this.invalidateRenderCacheForFile(editingEntry.filePath);
+                        this._editingEntryId = null;
                         this._mobileComposerOpen = false;
                         this.renderComposer(parent, true);
-                        new Notice('Note captured!');
+                        new Notice('Note updated!');
+                        this.updateFilterCounts();
+                        this.updateStreamOnly();
+                        this.plugin.refreshCoordinator.notifyRefresh('tasks');
+                        this.plugin.refreshCoordinator.notifyRefresh('capture');
+                    } else {
+                        await this.plugin.capture.createCaptureNote(
+                            text,
+                            this._selectedAreaForNewNote,
+                            [],
+                            this._selectedImportantForNewNote
+                        );
+                        this.plugin.capture.clearDraft();
+                        textarea.value = '';
+                        autoResize();
+                        if (keepActive) {
+                            new Notice('Block captured! Ready for next ↵', 1500);
+                            textarea.focus();
+                        } else {
+                            this._selectedAreaForNewNote = '';
+                            this._selectedImportantForNewNote = false;
+                            this._mobileComposerOpen = false;
+                            this.renderComposer(parent, true);
+                            new Notice('Note captured!');
+                        }
+                        this.updateFilterCounts();
+                        this.updateStreamOnly();
                     }
-                    this.updateFilterCounts();
-                    this.updateStreamOnly();
                 } catch (err) {
                     console.error('[DIWA DesktopHubView] Save capture note error', err);
-                    new Notice('Failed to save note');
+                    new Notice(isEditingNote ? 'Failed to update note' : 'Failed to save note');
                 } finally {
                     this._capturePending--;
                     sendBtn.disabled = false;
@@ -2849,18 +2952,88 @@ export class DesktopHubView extends ItemView {
             sendBtn.onclick = () => { void doSave(false); };
 
             textarea.onkeydown = (e) => {
-                if (e.shiftKey && e.key === 'Enter') {
+                if (e.shiftKey && e.key === 'Enter' && !isEditingNote) {
                     e.preventDefault();
                     void doSave(true);
                 } else if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                     e.preventDefault();
                     void doSave(false);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    this.cancelMobileNoteEdit();
+                } else if (e.key === 'Enter' && !e.shiftKey) {
+                    // Smart markdown list & task continuation
+                    const val = textarea.value;
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    if (start === end) {
+                        const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+                        const lineText = val.substring(lineStart, start);
+                        const taskMatch = lineText.match(/^(\s*-\s*\[[ xX]?\]\s+)(.*)$/);
+                        const bulletMatch = lineText.match(/^(\s*[-*]\s+)(.*)$/);
+                        const numMatch = lineText.match(/^(\s*(\d+)\.\s+)(.*)$/);
+
+                        if (taskMatch) {
+                            e.preventDefault();
+                            if (taskMatch[2].trim() === '') {
+                                const before = val.substring(0, lineStart);
+                                const after = val.substring(start);
+                                textarea.value = before + after;
+                                textarea.setSelectionRange(lineStart, lineStart);
+                            } else {
+                                const indent = taskMatch[1].replace(/\[[ xX]?\]\s+/, '[ ] ');
+                                const before = val.substring(0, start);
+                                const after = val.substring(end);
+                                textarea.value = before + '\n' + indent + after;
+                                const newPos = start + 1 + indent.length;
+                                textarea.setSelectionRange(newPos, newPos);
+                            }
+                            autoResize();
+                        } else if (bulletMatch) {
+                            e.preventDefault();
+                            if (bulletMatch[2].trim() === '') {
+                                const before = val.substring(0, lineStart);
+                                const after = val.substring(start);
+                                textarea.value = before + after;
+                                textarea.setSelectionRange(lineStart, lineStart);
+                            } else {
+                                const prefix = bulletMatch[1];
+                                const before = val.substring(0, start);
+                                const after = val.substring(end);
+                                textarea.value = before + '\n' + prefix + after;
+                                const newPos = start + 1 + prefix.length;
+                                textarea.setSelectionRange(newPos, newPos);
+                            }
+                            autoResize();
+                        } else if (numMatch) {
+                            e.preventDefault();
+                            if (numMatch[3].trim() === '') {
+                                const before = val.substring(0, lineStart);
+                                const after = val.substring(start);
+                                textarea.value = before + after;
+                                textarea.setSelectionRange(lineStart, lineStart);
+                            } else {
+                                const nextNum = parseInt(numMatch[2], 10) + 1;
+                                const indent = numMatch[1].replace(/\d+\./, `${nextNum}.`);
+                                const before = val.substring(0, start);
+                                const after = val.substring(end);
+                                textarea.value = before + '\n' + indent + after;
+                                const newPos = start + 1 + indent.length;
+                                textarea.setSelectionRange(newPos, newPos);
+                            }
+                            autoResize();
+                        }
+                    }
                 }
             };
 
             setTimeout(() => {
                 if (textarea.isConnected) {
                     textarea.focus();
+                    if (isEditingNote) {
+                        const len = textarea.value.length;
+                        textarea.setSelectionRange(len, len);
+                    }
                     autoResize();
                 }
             }, 60);
@@ -3499,6 +3672,10 @@ export class DesktopHubView extends ItemView {
         const item = parent.createDiv({
             cls: `pos-note-stream-item ${isSelected ? 'is-selected' : ''} ${this._selectionMode ? 'is-selection-mode' : ''} ${isImportant ? 'is-important' : ''} ${hasTasks ? 'has-tasks' : ''} ${isEditing ? 'is-editing' : ''}`
         });
+        item.dataset.entryId = entry.id;
+
+        const isMobile = Platform.isMobile && !isTablet(this.app);
+        let mobileSingleTapTimer: ReturnType<typeof setTimeout> | null = null;
 
         // If in selection mode, tapping the note row toggles its selection
         if (this._selectionMode) {
@@ -3516,30 +3693,71 @@ export class DesktopHubView extends ItemView {
                 this.updateStreamOnly();
             };
         } else {
-            // Double-click to edit note inline
+            // Double-click / double-tap to edit note
             item.ondblclick = (e) => {
                 const target = e.target as HTMLElement;
                 if (target.closest('.pos-interactive-checkbox') || target.closest('.pos-rail-task-checkbox') || target.closest('.pos-rail-meta-pill') || target.closest('.pos-note-actions') || target.closest('.pos-mobile-card-meta-right') || target.closest('a') || target.closest('img') || target.closest('.image-embed') || target.closest('.pos-area-badge') || target.closest('.pos-date-badge')) {
+                    return;
+                }
+                if (mobileSingleTapTimer) {
+                    clearTimeout(mobileSingleTapTimer);
+                    mobileSingleTapTimer = null;
+                }
+                if (isMobile) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.startMobileNoteEdit(entry);
                     return;
                 }
                 this._editingEntryId = entry.id;
                 this.updateStreamOnly();
                 this.updateComposerVisibility();
             };
+
+            if (isMobile) {
+                let pointerStartX = 0;
+                let pointerStartY = 0;
+                let lastTapTime = 0;
+                let lastTapX = 0;
+                let lastTapY = 0;
+
+                item.addEventListener('pointerdown', (e: PointerEvent) => {
+                    pointerStartX = e.clientX;
+                    pointerStartY = e.clientY;
+                });
+
+                item.addEventListener('pointerup', (e: PointerEvent) => {
+                    const target = e.target as HTMLElement | null;
+                    if (!target) return;
+                    if (target.closest('.pos-interactive-checkbox, .pos-rail-task-checkbox, .pos-rail-meta-pill, .pos-note-actions, .pos-mobile-card-meta-right, a, img, .image-embed, .pos-select-checkbox, button, input')) {
+                        return;
+                    }
+                    if (Math.hypot(e.clientX - pointerStartX, e.clientY - pointerStartY) > 14) {
+                        return;
+                    }
+                    const now = Date.now();
+                    if (now - lastTapTime <= 320 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 36) {
+                        lastTapTime = 0;
+                        if (mobileSingleTapTimer) {
+                            clearTimeout(mobileSingleTapTimer);
+                            mobileSingleTapTimer = null;
+                        }
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.startMobileNoteEdit(entry);
+                        return;
+                    }
+                    lastTapTime = now;
+                    lastTapX = e.clientX;
+                    lastTapY = e.clientY;
+                });
+            }
         }
 
-        const isMobile = Platform.isMobile && !isTablet(this.app);
         const timeStr = moment(entry.createdAtMs).format('h:mm A');
 
         // Mobile Compact Horizon UI/UX Row Layout (.pos-rail-task-item / .pos-rail-note-item)
         if (isMobile) {
-            if (this._editingEntryId === entry.id) {
-                item.addClass('is-editing', 'pos-mobile-stream-row');
-                const editorWrapper = item.createDiv({ cls: 'pos-note-content-wrap pos-inline-editor-wrap' });
-                this.renderInlineEditor(editorWrapper, entry);
-                return;
-            }
-
             if (this._selectionMode) {
                 const selectCheckbox = item.createEl('input', {
                     type: 'checkbox',
@@ -3645,7 +3863,16 @@ export class DesktopHubView extends ItemView {
                         const target = e.target as HTMLElement;
                         if (target.closest('a.internal-link')) return;
                         e.stopPropagation();
-                        new MobileTaskEditModal(this.app, this.plugin, task, this).open();
+                        if (mobileSingleTapTimer) {
+                            clearTimeout(mobileSingleTapTimer);
+                            mobileSingleTapTimer = null;
+                            return;
+                        }
+                        mobileSingleTapTimer = setTimeout(() => {
+                            mobileSingleTapTimer = null;
+                            if (this._editingEntryId === entry.id) return;
+                            new MobileTaskEditModal(this.app, this.plugin, task, this).open();
+                        }, 260);
                     };
 
                     // Horizon Metadata Pills Row
@@ -4166,9 +4393,13 @@ export class DesktopHubView extends ItemView {
         });
 
         menu.addItem((item) => {
-            item.setTitle('Edit Note (Inline)')
+            item.setTitle(Platform.isMobile && !isTablet(this.app) ? 'Edit Note' : 'Edit Note (Inline)')
                 .setIcon('edit')
                 .onClick(() => {
+                    if (Platform.isMobile && !isTablet(this.app)) {
+                        this.startMobileNoteEdit(entry);
+                        return;
+                    }
                     this._editingEntryId = entry.id;
                     this.updateStreamOnly();
                     this.updateComposerVisibility();
@@ -4310,16 +4541,23 @@ export class DesktopHubView extends ItemView {
         new ConfirmDeleteModal(this.app, title, async () => {
             await this.plugin.capture.deleteNote(entry.filePath);
             this._selectedEntryIds.delete(entry.id);
+            const isMobile = Platform.isMobile && !isTablet(this.app);
             if (this._editingEntryId === entry.id) {
-                this._editingEntryId = null;
+                if (isMobile) {
+                    this.cancelMobileNoteEdit();
+                } else {
+                    this._editingEntryId = null;
+                }
             }
             this.invalidateRenderCacheForFile(entry.filePath);
             this.updateStreamOnly();
             this.updateFilterCounts();
             this.updateComposerVisibility();
-            const targetParent = this._desktopComposerWrapperEl || this._mainStageEl;
-            if (targetParent) {
-                this.renderComposer(targetParent, false);
+            if (!isMobile) {
+                const targetParent = this._desktopComposerWrapperEl || this._mainStageEl;
+                if (targetParent) {
+                    this.renderComposer(targetParent, false);
+                }
             }
             new Notice('Note moved to trash');
         }).open();
