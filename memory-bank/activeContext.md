@@ -1,18 +1,29 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Mobile Stream Double-Tap Note Editing via Sticky Composer Deployed
-- **Mobile Stream Double-Tap Note Editing (`src/views/DesktopHubView.ts`, `src/services/CaptureService.ts`, `styles.css`)**:
-  - **Touch Double-Tap Detection (`DesktopHubView.ts`)**:
-    - Attached `pointerdown`/`pointerup` double-tap detection (`<= 320ms` interval, `< 14px` drag threshold, `< 36px` tap distance) to all mobile stream rows (`.pos-rail-note-item.pos-mobile-stream-row` and `.pos-rail-task-item.pos-mobile-stream-row`).
-    - On task rows (`.pos-rail-task-item`), tapping the 3 metadata pills (`[ 📅 Due ]`, `[ ☑️ X/Y ]`, `[ 💬 N ]`) opens `MobileTaskEditModal` immediately (`0ms`), single-tapping `.pos-rail-task-title` opens `MobileTaskEditModal` after a `260ms` disambiguation timer, and double-tapping anywhere on the row cancels the single-tap timer and opens the raw note in the bottom sticky composer.
-    - Tapping **Edit Note** in the mobile `⋯` action menu (`openNoteActionMenu`) also opens the note in the bottom sticky composer.
-  - **Bottom Sticky Note Editor (`.pos-mobile-sticky-composer`, `DesktopHubView.ts`)**:
-    - `startMobileNoteEdit(entry)` sets `_editingEntryId = entry.id`, toggles `.is-editing` on `.pos-note-stream-item[data-entry-id]` in-place without rebuilding the stream DOM, hides the floating action dock, and opens `.pos-mobile-sticky-composer` pre-populated with `entry.body`, `isImportant(entry)`, and `entry.area`.
-    - Preserves any in-progress new-note draft in `localStorage` untouched while editing an existing note.
-    - Supports all DIWA inline triggers (`[[`, `#`, `@date`, `/person`, `++`), toolbar buttons (`Task`, `Important`, `Area`), smart markdown list/task continuation on `Enter`, and `Escape` / outside-tap dismissal (`cancelMobileNoteEdit()`).
-  - **Atomic Content & Frontmatter Persistence (`CaptureService.ts`)**:
-    - Extended `CaptureService.updateNoteContent(filePath, newBody, area, tags, important)` with an optional `important?: boolean` parameter so saving from the mobile sticky composer updates `body`, `area`, `important`, `hasTasks`, and `modified` in a single atomic file write, followed by `IndexService.indexCaptureFile()` and `RefreshCoordinator`.
-  - All 18 unit tests passing, production bundle compiled with 0 errors.
+## Current State: Subtask Completion Isolation & Direct-Child CSS Scoping Deployed
+- **Subtask Completion Isolation (`src/views/DesktopHubView.ts`, `src/services/CaptureService.ts`, `styles.css`, `tests/subtaskCompletion.test.ts`)**:
+  - **Direct List Item Text Extraction (`DesktopHubView.ts`)**:
+    - Implemented `getDirectListItemText(li: HTMLElement): string` to extract the direct text of an `<li>` element while ignoring nested `<ul>`/`<ol>` elements and checkbox inputs, preventing parent tasks from absorbing child subtask text.
+  - **Subtask Checkbox Discrimination & Safe Toggling (`DesktopHubView.ts`)**:
+    - Detected nested subtasks via `isSubtask = Boolean(listItem && listItem.parentElement?.closest('li'))`.
+    - For subtasks, strictly decoupled from `entry.tasks` (top-level task array) so clicking a subtask never mutates top-level task completion.
+    - Resolves the parent task title and checks `entry.gawaTasks`:
+      - If matched, updates only `task.subtasks` via `updateTaskDetailsInFile({ newSubtasks })`, keeping the parent task check state intact.
+      - Fallback: invokes `toggleTaskInFile()` passing `{ isSubtask: true, parentTitle }`.
+    - Added reactive stream notifications: triggers both `refreshCoordinator.notifyRefresh('tasks')` and `refreshCoordinator.notifyRefresh('capture')` across all toggle branches to ensure in-memory index and capture streams re-render seamlessly.
+  - **Indentation & Cascade Protection (`CaptureService.ts`)**:
+    - Extended `toggleTaskInFile()` with `options?: { isSubtask?: boolean; parentTitle?: string }`.
+    - When `options?.isSubtask` is true, restricts line searches under `parentTitle` or indented lines (`/^\s{2,}|\t/`), preventing accidental matches against top-level task headers.
+    - Evaluates `targetIndent`: if `options?.isSubtask || targetIndent > 0`, treats the line as a subtask and completely suppresses cascading checks to subsequent lines.
+    - For parent tasks (`!isTargetSubtask && completed`), restricts child cascades strictly to lines with `childIndent > targetIndent`.
+  - **CSS Direct-Child Checkbox Scoping & Inheritance Defense (`styles.css`)**:
+    - Scoped completed task selectors strictly to direct children: `.pos-note-body li:has(> input[type="checkbox"]:checked)`, `li:has(> .task-list-item-checkbox:checked)`, `li:has(> p > input:checked)`.
+    - Defended uncompleted items against CSS inheritance: added explicit `.pos-note-body li:not(.is-checked):not([data-task="x"]):not([data-task="X"]):not(:has(> input:checked)):not(:has(> p > input:checked))` with `text-decoration: none !important; color: var(--text-normal) !important;`.
+    - Stripped strike-through inheritance from nested child lists: `.pos-note-body li > ul, .pos-note-body li > ol { text-decoration: none !important; }`.
+    - Scoped text strike-through rules to direct children only (`> span`, `> a`, `> p`, etc.) so parent decorations cannot leak into child subtask elements.
+  - All 20 unit tests passing, production bundle compiled with 0 errors and deployed directly to `K0000` & `K0001` test vaults.
+
+## Previous State: Mobile Stream Double-Tap Note Editing via Sticky Composer Deployed
 
 ## Previous State: Digest Archive Selection (Option 2: Clean Frontmatter Archive) Deployed
 - **Digest Archive Selection (`src/types.ts`, `src/modals/PreFlightDigestModal.ts`, `src/services/CaptureService.ts`, `src/services/IndexService.ts`, `src/views/CalendarDigestView.ts`, `src/views/DesktopHubView.ts`)**:

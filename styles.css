@@ -1685,37 +1685,65 @@ body.is-tablet .pos-note-actions .pos-trash-btn,
 .pos-note-body .markdown-rendered li.is-checked,
 .pos-note-body li[data-task="x"],
 .pos-note-body li[data-task="X"],
-.pos-note-body li:has(input[type="checkbox"]:checked) {
+.pos-note-body li:has(> input[type="checkbox"]:checked),
+.pos-note-body li:has(> .task-list-item-checkbox:checked),
+.pos-note-body li:has(> p > input[type="checkbox"]:checked),
+.pos-note-body li:has(> p > .task-list-item-checkbox:checked) {
     text-decoration: line-through !important;
     text-decoration-color: var(--text-muted) !important;
     color: var(--text-muted) !important;
 }
 
-/* Ensure all child text, wikilinks, and date links in completed tasks are striked through */
-.pos-note-body li.is-checked a,
-.pos-note-body li.is-checked a.internal-link,
-.pos-note-body li.is-checked .pos-stream-wikilink,
-.pos-note-body li.is-checked .pos-rendered-date-link,
-.pos-note-body li.is-checked span,
-.pos-note-body li.is-checked p,
-.pos-note-body li.is-checked strong,
-.pos-note-body li.is-checked em,
-.pos-note-body li.is-checked code,
-.pos-note-body li[data-task="x"] a,
-.pos-note-body li[data-task="x"] a.internal-link,
-.pos-note-body li[data-task="x"] .pos-stream-wikilink,
-.pos-note-body li[data-task="x"] .pos-rendered-date-link,
-.pos-note-body li[data-task="x"] span,
-.pos-note-body li[data-task="x"] p,
-.pos-note-body li[data-task="x"] strong,
-.pos-note-body li[data-task="x"] em,
-.pos-note-body li[data-task="x"] code,
-.pos-note-body li:has(input[type="checkbox"]:checked) a,
-.pos-note-body li:has(input[type="checkbox"]:checked) a.internal-link,
-.pos-note-body li:has(input[type="checkbox"]:checked) .pos-stream-wikilink,
-.pos-note-body li:has(input[type="checkbox"]:checked) .pos-rendered-date-link,
-.pos-note-body li:has(input[type="checkbox"]:checked) span,
-.pos-note-body li:has(input[type="checkbox"]:checked) p {
+/* Ensure unchecked items and child task lists are NEVER struck through */
+.pos-note-body li:not(.is-checked):not([data-task="x"]):not([data-task="X"]):not(:has(> input:checked)):not(:has(> p > input:checked)) {
+    text-decoration: none !important;
+    color: var(--text-normal) !important;
+}
+
+.pos-note-body li:not(.is-checked):not([data-task="x"]):not([data-task="X"]):not(:has(> input:checked)):not(:has(> p > input:checked)) a,
+.pos-note-body li:not(.is-checked):not([data-task="x"]):not([data-task="X"]):not(:has(> input:checked)):not(:has(> p > input:checked)) span,
+.pos-note-body li:not(.is-checked):not([data-task="x"]):not([data-task="X"]):not(:has(> input:checked)):not(:has(> p > input:checked)) p {
+    text-decoration: none !important;
+    color: inherit !important;
+    opacity: 1 !important;
+}
+
+.pos-note-body li > ul,
+.pos-note-body li > ol {
+    text-decoration: none !important;
+}
+
+/* Ensure direct text, wikilinks, and date links in completed tasks are striked through */
+.pos-note-body li.is-checked > a,
+.pos-note-body li.is-checked > a.internal-link,
+.pos-note-body li.is-checked > .pos-stream-wikilink,
+.pos-note-body li.is-checked > .pos-rendered-date-link,
+.pos-note-body li.is-checked > span,
+.pos-note-body li.is-checked > p,
+.pos-note-body li.is-checked > strong,
+.pos-note-body li.is-checked > em,
+.pos-note-body li.is-checked > code,
+.pos-note-body li[data-task="x"] > a,
+.pos-note-body li[data-task="x"] > a.internal-link,
+.pos-note-body li[data-task="x"] > .pos-stream-wikilink,
+.pos-note-body li[data-task="x"] > .pos-rendered-date-link,
+.pos-note-body li[data-task="x"] > span,
+.pos-note-body li[data-task="x"] > p,
+.pos-note-body li[data-task="x"] > strong,
+.pos-note-body li[data-task="x"] > em,
+.pos-note-body li[data-task="x"] > code,
+.pos-note-body li:has(> input[type="checkbox"]:checked) > a,
+.pos-note-body li:has(> input[type="checkbox"]:checked) > a.internal-link,
+.pos-note-body li:has(> input[type="checkbox"]:checked) > .pos-stream-wikilink,
+.pos-note-body li:has(> input[type="checkbox"]:checked) > .pos-rendered-date-link,
+.pos-note-body li:has(> input[type="checkbox"]:checked) > span,
+.pos-note-body li:has(> input[type="checkbox"]:checked) > p,
+.pos-note-body li:has(> .task-list-item-checkbox:checked) > a,
+.pos-note-body li:has(> .task-list-item-checkbox:checked) > a.internal-link,
+.pos-note-body li:has(> .task-list-item-checkbox:checked) > .pos-stream-wikilink,
+.pos-note-body li:has(> .task-list-item-checkbox:checked) > .pos-rendered-date-link,
+.pos-note-body li:has(> .task-list-item-checkbox:checked) > span,
+.pos-note-body li:has(> .task-list-item-checkbox:checked) > p {
     text-decoration: line-through !important;
     text-decoration-color: var(--text-muted) !important;
     color: var(--text-muted) !important;
@@ -1724,7 +1752,8 @@ body.is-tablet .pos-note-actions .pos-trash-btn,
 
 .pos-note-body li.is-checked a:hover,
 .pos-note-body li[data-task="x"] a:hover,
-.pos-note-body li:has(input[type="checkbox"]:checked) a:hover {
+.pos-note-body li:has(> input[type="checkbox"]:checked) a:hover,
+.pos-note-body li:has(> .task-list-item-checkbox:checked) a:hover {
     text-decoration: line-through !important;
     color: var(--text-normal) !important;
 }

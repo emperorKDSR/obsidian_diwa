@@ -140,7 +140,8 @@ export class CaptureService {
         lineIndex: number,
         completed: boolean,
         taskTitleFallback?: string,
-        shadowedLocations?: { filePath: string; lineIndex: number; title?: string }[]
+        shadowedLocations?: { filePath: string; lineIndex: number; title?: string }[],
+        options?: { isSubtask?: boolean; parentTitle?: string }
     ): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) {
@@ -157,26 +158,67 @@ export class CaptureService {
             const parentTaskRegex = /^[ \t]{0,1}-\s*\[([ xX])\]\s+(.*)$/;
             const anyTaskRegex = /^(\s*-\s*\[)([ xX])(\]\s+.*)$/;
 
-            if (lineIndex >= 0 && lineIndex < lines.length && anyTaskRegex.test(lines[lineIndex])) {
+            // 1. If targeting a subtask with parentTitle hint
+            if (options?.isSubtask && options.parentTitle) {
+                const cleanParent = options.parentTitle.replace(/📅\s*\d{4}-\d{2}-\d{2}/g, '').trim();
+                let parentIdx = -1;
+                for (let i = 0; i < lines.length; i++) {
+                    if (parentTaskRegex.test(lines[i]) && (lines[i].includes(options.parentTitle) || (cleanParent && lines[i].includes(cleanParent)))) {
+                        parentIdx = i;
+                        break;
+                    }
+                }
+                if (parentIdx !== -1) {
+                    let k = parentIdx + 1;
+                    const cleanSub = taskTitleFallback ? taskTitleFallback.replace(/📅\s*\d{4}-\d{2}-\d{2}/g, '').trim() : '';
+                    while (k < lines.length && /^\s+/.test(lines[k])) {
+                        if (anyTaskRegex.test(lines[k])) {
+                            if (!taskTitleFallback || lines[k].includes(taskTitleFallback) || (cleanSub && lines[k].includes(cleanSub))) {
+                                targetLineIdx = k;
+                                break;
+                            }
+                        }
+                        k++;
+                    }
+                }
+            }
+
+            // 2. Exact lineIndex match if applicable
+            if (targetLineIdx === -1 && lineIndex >= 0 && lineIndex < lines.length && anyTaskRegex.test(lines[lineIndex])) {
                 const candidateLine = lines[lineIndex];
                 if (!taskTitleFallback || candidateLine.includes(taskTitleFallback)) {
                     targetLineIdx = lineIndex;
                 }
             }
 
+            // 3. Fallback search by title
             if (targetLineIdx === -1 && taskTitleFallback) {
                 const cleanFallback = taskTitleFallback.replace(/📅\s*\d{4}-\d{2}-\d{2}/g, '').trim();
-                for (let i = 0; i < lines.length; i++) {
-                    if (parentTaskRegex.test(lines[i]) && (lines[i].includes(taskTitleFallback) || (cleanFallback && lines[i].includes(cleanFallback)))) {
-                        targetLineIdx = i;
-                        break;
-                    }
-                }
-                if (targetLineIdx === -1) {
+
+                if (options?.isSubtask) {
+                    // Search indented lines only for subtasks
                     for (let i = 0; i < lines.length; i++) {
-                        if (anyTaskRegex.test(lines[i]) && (lines[i].includes(taskTitleFallback) || (cleanFallback && lines[i].includes(cleanFallback)))) {
+                        if (/^\s{2,}|\t/.test(lines[i]) && anyTaskRegex.test(lines[i])) {
+                            if (lines[i].includes(taskTitleFallback) || (cleanFallback && lines[i].includes(cleanFallback))) {
+                                targetLineIdx = i;
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    // Search parent tasks first, then any task
+                    for (let i = 0; i < lines.length; i++) {
+                        if (parentTaskRegex.test(lines[i]) && (lines[i].includes(taskTitleFallback) || (cleanFallback && lines[i].includes(cleanFallback)))) {
                             targetLineIdx = i;
                             break;
+                        }
+                    }
+                    if (targetLineIdx === -1) {
+                        for (let i = 0; i < lines.length; i++) {
+                            if (anyTaskRegex.test(lines[i]) && (lines[i].includes(taskTitleFallback) || (cleanFallback && lines[i].includes(cleanFallback)))) {
+                                targetLineIdx = i;
+                                break;
+                            }
                         }
                     }
                 }
@@ -187,14 +229,17 @@ export class CaptureService {
             }
 
             const currentLine = lines[targetLineIdx];
+            const targetIndent = (currentLine.match(/^(\s*)/) || [''])[0].length;
+            const isTargetSubtask = Boolean(options?.isSubtask || targetIndent > 0);
             const newCheck = completed ? 'x' : ' ';
             lines[targetLineIdx] = currentLine.replace(/^(\s*-\s*\[)[ xX](\]\s+.*)$/, `$1${newCheck}$2`);
 
-            if (completed) {
-                // If parent task is completed, also check off its child subtasks
+            if (completed && !isTargetSubtask) {
+                // If top-level parent task is completed, also check off its child subtasks
                 let childIdx = targetLineIdx + 1;
                 while (childIdx < lines.length && /^\s+/.test(lines[childIdx])) {
-                    if (/^\s*-\s*\[[ ]\]/.test(lines[childIdx])) {
+                    const childIndent = (lines[childIdx].match(/^(\s*)/) || [''])[0].length;
+                    if (childIndent > targetIndent && /^\s*-\s*\[[ ]\]/.test(lines[childIdx])) {
                         lines[childIdx] = lines[childIdx].replace(/^(\s*-\s*\[)[ ](\]\s+.*)$/, `$1x$2`);
                     }
                     childIdx++;
@@ -223,7 +268,7 @@ export class CaptureService {
             for (const loc of shadowedLocations) {
                 if (loc.filePath === filePath && loc.lineIndex === lineIndex) continue;
                 try {
-                    await this.toggleTaskInFile(loc.filePath, loc.lineIndex, completed, loc.title || taskTitleFallback);
+                    await this.toggleTaskInFile(loc.filePath, loc.lineIndex, completed, loc.title || taskTitleFallback, undefined, options);
                 } catch (err) {
                     console.warn('[CaptureService] Could not sync-toggle shadowed task in', loc.filePath, err);
                 }

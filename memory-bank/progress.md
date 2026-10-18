@@ -1,16 +1,19 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Mobile Stream Double-Tap Note Editing via Sticky Composer Deployed (Complete)
+## Current Phase: Subtask Completion Isolation Deployed (Complete)
 
 ---
 
-### 0. Mobile Stream Double-Tap Note Editing via Sticky Composer Deployed (Complete)
-*   [x] **Touch Double-Tap Gesture on Mobile Stream Rows (`DesktopHubView.ts`)** — Added `pointerdown`/`pointerup` double-tap detection (`<= 320ms`, `< 14px` drag guard) on both `.pos-rail-note-item.pos-mobile-stream-row` and `.pos-rail-task-item.pos-mobile-stream-row`, with a `260ms` single-tap timer on `.pos-rail-task-title` so single-tap opens `MobileTaskEditModal` while double-tap opens the bottom note editor.
-*   [x] **Bottom Sticky Note Editor Mode (`DesktopHubView.ts` & `styles.css`)** — Implemented `startMobileNoteEdit()` and `cancelMobileNoteEdit()` to reuse `.pos-mobile-sticky-composer` pre-populated with `entry.body`, `isImportant(entry)`, and `entry.area`, highlight the active stream row with `.is-editing`, and isolate existing note edits from `localStorage` new-note drafts.
-*   [x] **Atomic Note & Frontmatter Save (`CaptureService.ts`)** — Extended `CaptureService.updateNoteContent()` with `important?: boolean` to persist `body`, `area`, `important`, `hasTasks`, and `modified` atomically.
-*   [x] **Automated Unit Tests & Production Build** — Verified 18/18 unit tests passing and compiled production bundle with zero errors.
+### 0. Subtask Completion Isolation Deployed (Complete)
+*   [x] **Direct List Item Text Extraction (`DesktopHubView.ts`)** — Created `getDirectListItemText(li)` to read text directly from an `<li>` without pulling in nested subtasks or checkbox elements.
+*   [x] **Subtask Checkbox Discrimination & Safe Toggling (`DesktopHubView.ts`)** — Detected subtasks (`listItem.parentElement?.closest('li')`), decoupled them from `entry.tasks`, and safely updated `task.subtasks` via `updateTaskDetailsInFile` (or `toggleTaskInFile` with `{ isSubtask: true, parentTitle }`) so top-level parent task checkmarks are never modified when completing a subtask. Added `notifyRefresh('capture')` and `notifyRefresh('tasks')` across all toggle branches.
+*   [x] **Indentation & Cascade Protection (`CaptureService.ts`)** — Added `options?: { isSubtask?: boolean; parentTitle?: string }` to `toggleTaskInFile`. When toggling a subtask line or line with `targetIndent > 0`, completely suppressed completion cascading. Top-level parent tasks only cascade down to lines with strictly greater indentation (`childIndent > targetIndent`).
+*   [x] **CSS Direct-Child Checkbox Scope & Inheritance Defense (`styles.css`)** — Replaced broad `.pos-note-body li:has(input[type="checkbox"]:checked)` rules with direct-child selectors `li:has(> input[type="checkbox"]:checked)`, `li:has(> .task-list-item-checkbox:checked)`, and `li:has(> p > input:checked)`. Added explicit `.pos-note-body li:not(.is-checked):not([data-task="x"]):not([data-task="X"]):not(:has(> input:checked))` overrides with `text-decoration: none !important; color: var(--text-normal) !important;` and protected nested `li > ul` / `li > ol` lists from line-through inheritance.
+*   [x] **Automated Tests, Production Build & Vault Deployment** — Added unit tests in `tests/subtaskCompletion.test.ts` (all 20 tests passing), compiled clean production bundle (0 errors), and deployed directly to `K0000` & `K0001` test vaults.
 
 ---
+
+## Previous Phase: Mobile Stream Double-Tap Note Editing via Sticky Composer Deployed (Complete)
 
 ## Previous Phase: Digest Archive Selection (Option 2: Clean Frontmatter Archive) Deployed (Complete)
 

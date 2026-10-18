@@ -4650,6 +4650,22 @@ export class DesktopHubView extends ItemView {
         menu.showAtMouseEvent(e);
     }
 
+    private getDirectListItemText(li: HTMLElement): string {
+        let text = '';
+        for (let i = 0; i < li.childNodes.length; i++) {
+            const node = li.childNodes[i];
+            if (node.nodeType === Node.TEXT_NODE) {
+                text += node.textContent || '';
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                const el = node as HTMLElement;
+                if (el.tagName === 'UL' || el.tagName === 'OL') continue;
+                if (el.tagName === 'INPUT' && (el as HTMLInputElement).type === 'checkbox') continue;
+                text += el.textContent || '';
+            }
+        }
+        return text.replace(/^\[[ xX]\]\s*/, '').trim();
+    }
+
     private attachInteractiveElements(container: HTMLElement, entry: CaptureEntry): void {
         // 1. Task Checkboxes
         const checkboxes = container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
@@ -4658,18 +4674,26 @@ export class DesktopHubView extends ItemView {
             cb.addClass('pos-interactive-checkbox');
 
             const listItem = cb.closest('li');
+            const isSubtask = Boolean(listItem && listItem.parentElement?.closest('li'));
+
             if (listItem) {
                 listItem.toggleClass('is-checked', cb.checked);
                 listItem.setAttribute('data-task', cb.checked ? 'x' : ' ');
             }
-            const cleanLiText = listItem ? (listItem.textContent || '').replace(/^\[[ xX]\]\s*/, '').trim() : '';
-            const matchedTask = entry.tasks.find(t => t.title && cleanLiText && (cleanLiText.includes(t.title) || t.title.includes(cleanLiText))) || entry.tasks[idx];
+            const cleanLiText = listItem ? this.getDirectListItemText(listItem) : '';
+            const parentLi = isSubtask ? listItem?.parentElement?.closest('li') : null;
+            const parentTitle = parentLi ? this.getDirectListItemText(parentLi) : '';
+
+            // Top-level task matching: subtasks must never match top-level entry.tasks
+            const matchedTask = (!isSubtask && Array.isArray(entry.tasks))
+                ? (entry.tasks.find(t => t.title && cleanLiText && (cleanLiText.includes(t.title) || t.title.includes(cleanLiText))) || entry.tasks[idx])
+                : undefined;
 
             cb.onclick = async (e) => {
                 e.stopPropagation();
                 const isChecked = cb.checked;
-                
-                // Optimistic visual strike-through update with theme data-task support
+
+                // Optimistic visual strike-through update on the clicked item only
                 if (listItem) {
                     listItem.toggleClass('is-checked', isChecked);
                     listItem.setAttribute('data-task', isChecked ? 'x' : ' ');
@@ -4685,14 +4709,56 @@ export class DesktopHubView extends ItemView {
                 // Update file directly in background
                 this._taskPending++;
                 try {
-                    const lineIdx = matchedTask ? matchedTask.lineIndex : -1;
-                    const taskTitle = matchedTask ? matchedTask.title : (cleanLiText || undefined);
-                    await this.plugin.capture.toggleTaskInFile(
-                        entry.filePath,
-                        lineIdx,
-                        isChecked,
-                        taskTitle
-                    );
+                    if (isSubtask) {
+                        // Locate matching parent task in gawaTasks if available to update subtask record directly
+                        const gawaTask = (entry.gawaTasks || []).find(gt =>
+                            parentTitle && (gt.rawTitle.includes(parentTitle) || parentTitle.includes(gt.cleanTitle) || gt.cleanTitle.includes(parentTitle))
+                        );
+                        if (gawaTask && Array.isArray(gawaTask.subtasks)) {
+                            const subtaskIdx = gawaTask.subtasks.findIndex(st =>
+                                cleanLiText && (st.title.includes(cleanLiText) || cleanLiText.includes(st.title))
+                            );
+                            if (subtaskIdx !== -1) {
+                                const updatedSubtasks = [...gawaTask.subtasks];
+                                updatedSubtasks[subtaskIdx] = { ...updatedSubtasks[subtaskIdx], completed: isChecked };
+                                await this.plugin.capture.updateTaskDetailsInFile({
+                                    filePath: entry.filePath,
+                                    lineIndex: gawaTask.lineIndex,
+                                    taskTitleFallback: gawaTask.rawTitle,
+                                    newSubtasks: updatedSubtasks
+                                });
+                                gawaTask.subtasks = updatedSubtasks;
+                                const file = this.app.vault.getAbstractFileByPath(entry.filePath);
+                                if (file instanceof TFile) await this.plugin.index.indexCaptureFile(file);
+                                this.plugin.refreshCoordinator.notifyRefresh('tasks');
+                                this.plugin.refreshCoordinator.notifyRefresh('capture');
+                                return;
+                            }
+                        }
+                        // Fallback: toggle line with isSubtask option
+                        await this.plugin.capture.toggleTaskInFile(
+                            entry.filePath,
+                            -1,
+                            isChecked,
+                            cleanLiText,
+                            undefined,
+                            { isSubtask: true, parentTitle: parentTitle || undefined }
+                        );
+                    } else {
+                        const lineIdx = matchedTask ? matchedTask.lineIndex : -1;
+                        const taskTitle = matchedTask ? matchedTask.title : (cleanLiText || undefined);
+                        await this.plugin.capture.toggleTaskInFile(
+                            entry.filePath,
+                            lineIdx,
+                            isChecked,
+                            taskTitle
+                        );
+                    }
+
+                    const file = this.app.vault.getAbstractFileByPath(entry.filePath);
+                    if (file instanceof TFile) await this.plugin.index.indexCaptureFile(file);
+                    this.plugin.refreshCoordinator.notifyRefresh('tasks');
+                    this.plugin.refreshCoordinator.notifyRefresh('capture');
                 } catch (err) {
                     console.error('[DIWA DesktopHubView] Failed to toggle task checkbox', err);
                     cb.checked = !isChecked; // revert on failure
