@@ -9,6 +9,7 @@ export class RecentPermanentNotesModal extends Modal {
     private listContainerEl: HTMLElement | null = null;
     private searchInputEl: HTMLInputElement | null = null;
     private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    private _cleanupKeyboard: (() => void) | null = null;
 
     constructor(app: App, plugin: DiwaPlugin) {
         super(app);
@@ -26,6 +27,7 @@ export class RecentPermanentNotesModal extends Modal {
             modalEl.addClass('pos-recent-notes-sheet');
             containerEl.addClass('pos-bottom-sheet-backdrop');
             this.setupMobileGestures(modalEl);
+            this.setupKeyboardHandling(modalEl);
         }
 
         this.renderModal();
@@ -203,7 +205,71 @@ export class RecentPermanentNotesModal extends Modal {
         }
     }
 
+    private setupKeyboardHandling(modalEl: HTMLElement): void {
+        const win = window;
+        const vv = win.visualViewport;
+
+        const syncViewportMetrics = () => {
+            let kbHeight = 0;
+            if (vv) {
+                const offset = win.innerHeight - (vv.height + vv.offsetTop);
+                if (offset > 60) {
+                    kbHeight = Math.round(offset);
+                }
+            }
+
+            const docKb = parseFloat(win.getComputedStyle(document.documentElement).getPropertyValue('--keyboard-height')) || 0;
+            const bodyKb = parseFloat(win.getComputedStyle(document.body).getPropertyValue('--keyboard-height')) || 0;
+            const finalKb = Math.max(kbHeight, docKb, bodyKb);
+
+            if (finalKb > 60) {
+                modalEl.style.setProperty('--diwa-kb-h', `${finalKb}px`);
+            } else {
+                modalEl.style.removeProperty('--diwa-kb-h');
+            }
+        };
+
+        const onFocus = () => {
+            modalEl.addClass('has-keyboard');
+            syncViewportMetrics();
+        };
+
+        const onBlur = () => {
+            setTimeout(() => {
+                const active = document.activeElement;
+                if (!active || !modalEl.contains(active) || active.tagName !== 'INPUT') {
+                    modalEl.removeClass('has-keyboard');
+                    modalEl.style.removeProperty('--diwa-kb-h');
+                }
+            }, 120);
+        };
+
+        modalEl.addEventListener('focusin', onFocus, true);
+        modalEl.addEventListener('focusout', onBlur, true);
+        vv?.addEventListener('resize', syncViewportMetrics);
+        vv?.addEventListener('scroll', syncViewportMetrics);
+        win.addEventListener('resize', syncViewportMetrics);
+
+        const obsEvents = ['keyboardWillShow', 'keyboardDidShow', 'keyboardWillHide', 'keyboardDidHide'];
+        obsEvents.forEach(evt => win.addEventListener(evt, syncViewportMetrics));
+
+        this._cleanupKeyboard = () => {
+            modalEl.removeEventListener('focusin', onFocus, true);
+            modalEl.removeEventListener('focusout', onBlur, true);
+            vv?.removeEventListener('resize', syncViewportMetrics);
+            vv?.removeEventListener('scroll', syncViewportMetrics);
+            win.removeEventListener('resize', syncViewportMetrics);
+            obsEvents.forEach(evt => win.removeEventListener(evt, syncViewportMetrics));
+            modalEl.removeClass('has-keyboard');
+            modalEl.style.removeProperty('--diwa-kb-h');
+        };
+    }
+
     onClose(): void {
+        if (this._cleanupKeyboard) {
+            this._cleanupKeyboard();
+            this._cleanupKeyboard = null;
+        }
         if (this.searchDebounceTimer) {
             clearTimeout(this.searchDebounceTimer);
             this.searchDebounceTimer = null;

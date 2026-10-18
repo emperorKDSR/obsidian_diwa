@@ -6930,6 +6930,8 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     top: auto !important;
     width: 100vw !important;
     max-width: 100vw !important;
+    height: 82vh !important;
+    min-height: 50vh !important;
     max-height: 82vh !important;
     border-top-left-radius: 22px !important;
     border-top-right-radius: 22px !important;
@@ -6942,6 +6944,10 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     flex-direction: column !important;
     overflow: hidden !important;
     transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.pos-recent-notes-modal.pos-mobile-bottom-sheet.has-keyboard .pos-recent-notes-list {
+    padding-bottom: calc(var(--diwa-kb-h, var(--keyboard-height, 0px)) + 24px) !important;
 }
 
 .pos-recent-notes-header {

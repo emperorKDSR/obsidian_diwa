@@ -1,6 +1,20 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Subtask Completion Isolation & Direct-Child CSS Scoping Deployed
+## Current State: Mobile Recent Notes Sheet Virtual Keyboard Stabilization Deployed
+- **Mobile Recent Notes Sheet Virtual Keyboard Stabilization (`src/modals/RecentPermanentNotesModal.ts` & `styles.css`)**:
+  - **Height Floor & Viewport Stabilization (`styles.css`)**:
+    - Fixed bottom sheet collapse when filtering notes down to a single result or empty search results.
+    - Set explicit `height: 82vh !important;`, `min-height: 50vh !important;`, and `max-height: 82vh !important;` on `.pos-recent-notes-modal.pos-mobile-bottom-sheet`.
+    - Prevents the bottom sheet from shrinking to content height (`height: auto`), keeping the top of the sheet pinned at `18vh` and the filtered note result clearly visible at `30vh` (comfortably in the upper third of the screen, well above the virtual keyboard).
+  - **Dynamic Keyboard Metrics & Bottom Scroll Clearance (`RecentPermanentNotesModal.ts` & `styles.css`)**:
+    - Added `setupKeyboardHandling` lifecycle to `RecentPermanentNotesModal` on mobile.
+    - Tracks input `focusin` / `focusout` to apply `.has-keyboard` to `modalEl`.
+    - Detects virtual keyboard offset via `window.visualViewport` and Obsidian's `--keyboard-height` CSS variable, dynamically exposing `--diwa-kb-h`.
+    - Added listeners for Obsidian mobile keyboard lifecycle events (`keyboardWillShow`, `keyboardDidShow`, `keyboardWillHide`, `keyboardDidHide`) and cleaned up all event handlers in `onClose()`.
+    - Applied `.has-keyboard .pos-recent-notes-list { padding-bottom: calc(var(--diwa-kb-h, var(--keyboard-height, 0px)) + 24px) !important; }` so users can scroll to all notes without virtual keyboard occlusion.
+  - All 20 automated unit tests passing, production bundle compiled with 0 errors, and deployed directly to `K0000` & `K0001` test vaults.
+
+## Previous State: Subtask Completion Isolation & Direct-Child CSS Scoping Deployed
 - **Subtask Completion Isolation (`src/views/DesktopHubView.ts`, `src/services/CaptureService.ts`, `styles.css`, `tests/subtaskCompletion.test.ts`)**:
   - **Direct List Item Text Extraction (`DesktopHubView.ts`)**:
     - Implemented `getDirectListItemText(li: HTMLElement): string` to extract the direct text of an `<li>` element while ignoring nested `<ul>`/`<ol>` elements and checkbox inputs, preventing parent tasks from absorbing child subtask text.

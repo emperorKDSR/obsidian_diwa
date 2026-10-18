@@ -1,6 +1,17 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Subtask Completion Isolation Deployed (Complete)
+## Current Phase: Mobile Recent Notes Sheet Virtual Keyboard Stabilization Deployed (Complete)
+
+---
+
+### 0. Mobile Recent Notes Sheet Virtual Keyboard Stabilization Deployed (Complete)
+*   [x] **Height Floor & Viewport Stabilization (`styles.css`)** — Added explicit `height: 82vh !important;`, `min-height: 50vh !important;`, and `max-height: 82vh !important;` to `.pos-recent-notes-modal.pos-mobile-bottom-sheet`. Prevents the bottom sheet from collapsing to content height (`height: auto`) when filtering down to a single note or empty state, guaranteeing the top remains anchored at `18vh` and results remain in the top half of the screen.
+*   [x] **Dynamic Keyboard Metrics & Bottom Scroll Clearance (`RecentPermanentNotesModal.ts` & `styles.css`)** — Added `setupKeyboardHandling` with input `focusin` / `focusout` toggling `.has-keyboard`, `visualViewport` + Obsidian `--keyboard-height` calculation for `--diwa-kb-h`, and mobile keyboard event listeners (`keyboardWillShow`, etc.). Styled `.pos-recent-notes-list` with `padding-bottom: calc(var(--diwa-kb-h, var(--keyboard-height, 0px)) + 24px) !important;` to ensure all list items can be scrolled above the virtual keyboard.
+*   [x] **Automated Tests, Production Build & Vault Deployment** — Verified all 20 unit tests pass, compiled production bundle with zero errors, and deployed `main.js`, `manifest.json`, and `styles.css` directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+---
+
+## Previous Phase: Subtask Completion Isolation Deployed (Complete)
 
 ---
 
