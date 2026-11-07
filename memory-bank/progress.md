@@ -1,6 +1,33 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Mobile Recent Notes Sheet Virtual Keyboard Stabilization Deployed (Complete)
+## Current Phase: Direct Stream Note "Archive" Action & Options Menu Integration Deployed (Complete)
+
+---
+
+### 0. Direct Stream Note "Archive" Action & Options Menu Integration Deployed (Complete)
+*   [x] **Archive & Unarchive Service Methods (`CaptureService.ts`)** — Implemented `archiveNote()` and `unarchiveNote()` utilizing Option 2 Clean Frontmatter Archive (`digested: true`, `archived: true`), cleanly unwrapping comment blocks and managing frontmatter tags.
+*   [x] **Options Menu Integration (`DesktopHubView.ts`)** — Added **`Archive Note`** (`archive` icon) directly in `openNoteActionMenu()`, prominently surfaced on both mobile and desktop when tapping `⋯`.
+*   [x] **1-Click Card Action Bar (`DesktopHubView.ts` & `styles.css`)** — Added `archiveBtn` (`.pos-action-icon.pos-archive-btn`, `archive` icon) on desktop and tablet card hover actions next to Star, Edit, and More (`⋯`).
+*   [x] **Tactile Notice with Instant Undo (`DesktopHubView.ts` & `styles.css`)** — Displays a 5-second Notice with an `[ Undo ]` button (`.pos-notice-undo-btn`) allowing 1-tap undo of archive operations.
+*   [x] **Automated Tests, Production Build & Vault Deployment** — Added unit test in `tests/digestionBlocks.test.ts` (all 25 tests passing), compiled production bundle with 0 errors, and deployed directly to `K0000` & `K0001` test vaults.
+
+---
+
+## Previous Phase: Multi-Folder Workspace Stream (`000 Bin/qc` & `additionalCaptureFolders`) Deployed (Complete)
+
+---
+
+### 0. Multi-Folder Workspace Stream (`000 Bin/qc` & `additionalCaptureFolders`) Deployed (Complete)
+*   [x] **Multi-Folder Stream Support (`IndexService.ts`)** — Extended `isCaptureFile(path)` to match files residing in either `captureFolder` (`000 Bin/Diwa`) or any folder in `additionalCaptureFolders` (default: `['000 Bin/qc']`). Stream cards, active search, filters, and Gawa Task Cockpit ingest notes from `000 Bin/qc` seamlessly.
+*   [x] **Permanent Note Exclusion** — Verified notes in `000 Bin/qc` are cleanly excluded from `isPermanentNoteFile()`, preventing quick capture stream notes from cluttering the permanent notes tab or recent notes picker.
+*   [x] **Compact 12-Digit Timestamp Parsing (`IndexService.ts`)** — Enhanced `indexCaptureFile()` regex to extract both date and time from compact format filenames (e.g. `202610301702 qc 1.md` $\rightarrow$ `2026-10-30T17:02:00`), ensuring exact timestamps are rendered in the stream.
+*   [x] **Capture File Recognition in CaptureService (`CaptureService.ts`)** — Added `isCaptureFilePath()` in `CaptureService` ensuring task and life area edits on notes in `000 Bin/qc` update frontmatter `area` rather than appending hashtags to task headers.
+*   [x] **Settings UI & Reactive Change Detection (`settings.ts` & `main.ts`)** — Added "Additional Capture Folders" textarea setting with deferred save and change detection via `additionalCaptureFoldersChanged()`, auto-triggering capture index rebuilds on setting changes.
+*   [x] **Automated Tests, Production Build & Vault Deployment** — Added unit tests in `tests/additionalCaptureFolders.test.ts` (all 24 tests passing), compiled production bundle (0 errors), and deployed directly to `K0000` & `K0001` test vaults.
+
+---
+
+## Previous Phase: Mobile Recent Notes Sheet Virtual Keyboard Stabilization Deployed (Complete)
 
 ---
 

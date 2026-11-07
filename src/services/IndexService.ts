@@ -14,6 +14,7 @@ export class IndexService {
     targetDateIndex: Map<string, Set<string>> = new Map();
     projectTaskIndex: Map<string, GawaTaskRecord[]> = new Map();
     private _lastIndexedCaptureFolderSetting: string = '';
+    private _lastIndexedAdditionalCaptureFolders: string = '';
     private _lastIndexedAdditionalTaskFolders: string = '';
     private _taskFileMtime: Map<string, number> = new Map();
     private _cachedPermanentNotes: TFile[] | null = null;
@@ -147,6 +148,7 @@ export class IndexService {
 
     private async buildCaptureIndexInPlace(): Promise<void> {
         this._lastIndexedCaptureFolderSetting = this.getConfiguredCaptureFolder();
+        this._lastIndexedAdditionalCaptureFolders = this.getConfiguredAdditionalCaptureFolders().slice().sort().join('|');
         this.captureIndex.clear();
         this.dateIndex.clear();
         this.targetDateIndex.clear();
@@ -193,10 +195,16 @@ export class IndexService {
             if (dateIsoMatch && moment(dateIsoMatch[1], 'YYYY-MM-DD', true).isValid()) {
                 createdStr = `${dateIsoMatch[1]}T00:00:00`;
             } else {
-                const compactMatch = file.basename.match(/^(\d{4})(\d{2})(\d{2})/);
+                const compactMatch = file.basename.match(/^(\d{4})(\d{2})(\d{2})(?:(\d{2})(\d{2}))?/);
                 if (compactMatch) {
                     const formatted = `${compactMatch[1]}-${compactMatch[2]}-${compactMatch[3]}`;
-                    if (moment(formatted, 'YYYY-MM-DD', true).isValid()) {
+                    if (compactMatch[4] && compactMatch[5]) {
+                        const withTime = `${formatted}T${compactMatch[4]}:${compactMatch[5]}:00`;
+                        if (moment(withTime, 'YYYY-MM-DDTHH:mm:ss', true).isValid()) {
+                            createdStr = withTime;
+                        }
+                    }
+                    if (!createdStr && moment(formatted, 'YYYY-MM-DD', true).isValid()) {
                         createdStr = `${formatted}T00:00:00`;
                     }
                 }
@@ -502,15 +510,47 @@ export class IndexService {
     }
 
     isCaptureFile(path: string): boolean {
-        const folder = this.getConfiguredCaptureFolder();
         const normalizedPath = this.normalizeVaultPath(path);
-        return this.pathIsInFolder(normalizedPath, folder)
-            && normalizedPath.toLowerCase().endsWith('.md')
-            && !normalizedPath.toLowerCase().includes('/trash/');
+        if (!normalizedPath.toLowerCase().endsWith('.md')) return false;
+        if (normalizedPath.toLowerCase().includes('/trash/') || normalizedPath.toLowerCase().startsWith('.trash/')) return false;
+
+        const mainFolder = this.getConfiguredCaptureFolder();
+        if (this.pathIsInFolder(normalizedPath, mainFolder)) return true;
+
+        const additionalFolders = this.getConfiguredAdditionalCaptureFolders();
+        for (const folder of additionalFolders) {
+            if (this.pathIsInFolder(normalizedPath, folder)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     captureFolderChanged(): boolean {
         return this.getConfiguredCaptureFolder().toLowerCase() !== this._lastIndexedCaptureFolderSetting.toLowerCase();
+    }
+
+    getConfiguredAdditionalCaptureFolders(): string[] {
+        const folders = this.settings.additionalCaptureFolders || ['000 Bin/qc'];
+        const result: string[] = [];
+        for (const f of folders) {
+            const raw = String(f || '').trim();
+            if (!raw || raw === '/' || raw === '.') continue;
+            try {
+                const norm = this.normalizeConfiguredPath(raw, '');
+                if (norm && !result.includes(norm)) {
+                    result.push(norm);
+                }
+            } catch {
+                // ignore invalid folder path
+            }
+        }
+        return result;
+    }
+
+    additionalCaptureFoldersChanged(): boolean {
+        const current = this.getConfiguredAdditionalCaptureFolders().slice().sort().join('|');
+        return current.toLowerCase() !== this._lastIndexedAdditionalCaptureFolders.toLowerCase();
     }
 
     getConfiguredAdditionalTaskFolders(): string[] {

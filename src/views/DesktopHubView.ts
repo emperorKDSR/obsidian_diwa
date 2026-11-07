@@ -4201,6 +4201,16 @@ export class DesktopHubView extends ItemView {
             };
         }
 
+        const archiveBtn = actionsEl.createSpan({
+            cls: 'pos-action-icon pos-archive-btn',
+            attr: { 'aria-label': 'Archive note' }
+        });
+        setIcon(archiveBtn, 'archive');
+        archiveBtn.onclick = (e) => {
+            e.stopPropagation();
+            void this.archiveNoteWithNotice(entry);
+        };
+
         const moreBtn = actionsEl.createSpan({
             cls: 'pos-action-icon pos-action-more',
             attr: { 'aria-label': 'More note options' }
@@ -4356,6 +4366,57 @@ export class DesktopHubView extends ItemView {
         }
     }
 
+    private async archiveNoteWithNotice(entry: CaptureEntry): Promise<void> {
+        try {
+            this.invalidateRenderCacheForFile(entry.filePath);
+            await this.plugin.capture.archiveNote(entry.filePath);
+            const file = this.app.vault.getAbstractFileByPath(entry.filePath);
+            if (file instanceof TFile) {
+                await this.plugin.index.indexCaptureFile(file);
+            }
+            this.updateFilterCounts();
+            this.updateStreamOnly();
+            this.plugin.refreshCoordinator?.notifyRefresh('all');
+
+            const notice = new Notice('', 5000);
+            const noticeEl = (notice as any).noticeEl as HTMLElement | undefined;
+            if (noticeEl) {
+                noticeEl.empty();
+                noticeEl.style.display = 'flex';
+                noticeEl.style.alignItems = 'center';
+                noticeEl.style.justifyContent = 'space-between';
+                noticeEl.style.gap = '12px';
+                noticeEl.createSpan({ text: 'Note archived' });
+
+                const undoBtn = noticeEl.createEl('button', {
+                    text: 'Undo',
+                    cls: 'pos-notice-undo-btn'
+                });
+                undoBtn.onclick = async (e) => {
+                    e.stopPropagation();
+                    notice.hide();
+                    try {
+                        await this.plugin.capture.unarchiveNote(entry.filePath);
+                        if (file instanceof TFile) {
+                            await this.plugin.index.indexCaptureFile(file);
+                        }
+                        this.invalidateRenderCacheForFile(entry.filePath);
+                        this.updateFilterCounts();
+                        this.updateStreamOnly();
+                        this.plugin.refreshCoordinator?.notifyRefresh('all');
+                        new Notice('Archive undone');
+                    } catch (err) {
+                        console.error('[DIWA] Unarchive note error', err);
+                        new Notice('Failed to undo archive');
+                    }
+                };
+            }
+        } catch (err) {
+            console.error('[DIWA] Archive note error', err);
+            new Notice('Failed to archive note');
+        }
+    }
+
     private openNoteActionMenu(e: MouseEvent, entry: CaptureEntry): void {
         const menu = new Menu();
         const isImportant = this.plugin.index.isImportant(entry);
@@ -4371,6 +4432,14 @@ export class DesktopHubView extends ItemView {
             });
             menu.addSeparator();
         }
+
+        menu.addItem((item) => {
+            item.setTitle('Archive Note')
+                .setIcon('archive')
+                .onClick(() => {
+                    void this.archiveNoteWithNotice(entry);
+                });
+        });
 
         menu.addItem((item) => {
             item.setTitle(isImportant ? 'Remove from Important' : 'Mark as Important')

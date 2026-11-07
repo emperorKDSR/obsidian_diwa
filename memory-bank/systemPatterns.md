@@ -191,8 +191,8 @@ The **DesktopHubView** adapts intelligently between a single-column mobile feed 
 
 ## 9. Multi-Folder Task Indexing Architecture
 *   **Dual-Scope Index Separation**:
-    *   **Capture Inbox Scope**: The continuous scratchpad stream (`DesktopHubView`) and Daily Digest (`CalendarDigestView`) remain strictly scoped to `captureFolder` (`000 Bin/Diwa`).
-    *   **Task Cockpit & Horizon Scope**: Gawa Cockpit (`VIEW_TYPE_GAWA_COCKPIT`) and Karon (`VIEW_TYPE_KARON`) aggregate tasks from `captureFolder`, user-configured `additionalTaskFolders`, and individual `trackedTaskFiles`.
+    *   **Capture Inbox Scope**: The continuous scratchpad stream (`DesktopHubView`) and Daily Digest (`CalendarDigestView`) stream notes from the primary `captureFolder` (`000 Bin/Diwa`) and configured `additionalCaptureFolders` (e.g. `000 Bin/qc`).
+    *   **Task Cockpit & Horizon Scope**: Gawa Cockpit (`VIEW_TYPE_GAWA_COCKPIT`) and Karon (`VIEW_TYPE_KARON`) aggregate tasks from `captureFolder`, `additionalCaptureFolders`, user-configured `additionalTaskFolders`, and individual `trackedTaskFiles`.
 *   **Parallel Chunked Ingestion (`IndexService.ts`)**:
     *   Scans markdown files in `additionalTaskFolders` in parallel chunks (`CHUNK_SIZE = 50`).
     *   Caches modification timestamps in `_taskFileMtime: Map<string, number>`, avoiding disk re-reads for unchanged files.

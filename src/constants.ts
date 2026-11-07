@@ -65,6 +65,7 @@ export const KARON_ICON_SVG = `<g transform="translate(8,8) scale(3.3)">
 
 export const DEFAULT_SETTINGS: DiwaSettings = {
     captureFolder: '000 Bin/Diwa',
+    additionalCaptureFolders: ['000 Bin/qc'],
     lifeAreas: DEFAULT_LIFE_AREAS,
     newNoteFolder: '000 Bin',
     attachmentsFolder: '000 Bin/DIWA Attachments',

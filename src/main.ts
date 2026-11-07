@@ -500,7 +500,7 @@ export default class DiwaPlugin extends Plugin {
         if (this.capture) this.capture.updateSettings(this.settings);
         this.applyMobileCssVars();
 
-        const shouldRefreshCaptures = this.index?.captureFolderChanged() ?? false;
+        const shouldRefreshCaptures = (this.index?.captureFolderChanged() ?? false) || (this.index?.additionalCaptureFoldersChanged() ?? false);
         const shouldRefreshTasks = this.index?.additionalTaskFoldersChanged() ?? false;
         if (shouldRefreshCaptures && this.index) {
             await this.index.rebuildSelectedIndices({ captures: true });

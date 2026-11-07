@@ -72,6 +72,28 @@ export class DiwaSettingTab extends PluginSettingTab {
             });
 
         new Setting(containerEl)
+            .setName('Additional Capture Folders')
+            .setDesc('Extra folders to scan and include in the DIWA Workspace stream (e.g. "000 Bin/qc"). Separate multiple folders with commas or newlines.')
+            .addTextArea(text => {
+                text.setPlaceholder('000 Bin/qc');
+                const initialVal = (this.plugin.settings.additionalCaptureFolders || ['000 Bin/qc']).join(', ');
+                text.setValue(initialVal);
+                text.inputEl.rows = 2;
+                text.inputEl.style.width = '100%';
+                text.inputEl.style.resize = 'vertical';
+                text.inputEl.addEventListener('blur', async () => {
+                    const raw = text.getValue();
+                    const parsed = Array.from(new Set(
+                        raw
+                            .split(/[\n,]/)
+                            .map(s => s.trim().replace(/^['"]|['"]$/g, ''))
+                            .filter(Boolean)
+                    ));
+                    await this.plugin.updateSetting('additionalCaptureFolders', parsed, 'capture');
+                });
+            });
+
+        new Setting(containerEl)
             .setName('New Note Folder')
             .setDesc('Default destination folder when merging or creating new notes.')
             .addText(text => {

@@ -88,6 +88,7 @@ export type ScratchpadHorizon = 'today' | '3d' | '7d' | '14d' | '30d' | 'all' | 
 
 export interface DiwaSettings {
     captureFolder: string;
+    additionalCaptureFolders?: string[];
     lifeAreas: LifeArea[];
     newNoteFolder: string;
     attachmentsFolder: string;

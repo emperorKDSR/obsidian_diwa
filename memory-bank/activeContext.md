@@ -1,6 +1,40 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Mobile Recent Notes Sheet Virtual Keyboard Stabilization Deployed
+## Current State: Direct Stream Note "Archive" Action & Options Menu Integration Deployed
+- **Stream Note "Archive" Action (`src/services/CaptureService.ts`, `src/views/DesktopHubView.ts`, `styles.css`, `tests/digestionBlocks.test.ts`)**:
+  - **Core Archive Service Methods (`CaptureService.ts`)**:
+    - Implemented `archiveNote(filePath)`: cleanly unwraps any prior `diwa-digested:` comments on disk and stamps YAML frontmatter with `digested: true` and `archived: true` using Option 2 Clean Frontmatter Archive.
+    - Implemented `unarchiveNote(filePath)`: removes `digested` and `archived` frontmatter keys, instantly restoring the note to the stream.
+  - **Prominent Stream Options Menu (`DesktopHubView.ts` — `openNoteActionMenu`)**:
+    - Added **`Archive Note`** (Lucide `archive` icon) directly in the note's `⋯` options menu on both Desktop and Mobile, positioned at the top of note actions right next to *Mark as Important* and *Edit Note*.
+    - Instantly removes the note from the stream (Inbox Zero).
+  - **1-Click Desktop & Tablet Card Hover Action Bar (`DesktopHubView.ts` & `styles.css`)**:
+    - Added an `archiveBtn` (`.pos-action-icon.pos-archive-btn`, Lucide `archive` icon, `aria-label="Archive note"`) in the card action bar (`.pos-note-actions`) appearing on hover next to Star, Edit, and More (`⋯`).
+  - **Tactile Notice with Instant Undo (`DesktopHubView.ts` & `styles.css`)**:
+    - When a note is archived, displays a 5-second Notice with an **`[ Undo ]`** button (`.pos-notice-undo-btn`).
+    - Clicking `Undo` unarchives the note, re-indexes it, and restores it to the stream immediately.
+  - All 25 automated unit tests passing, production bundle compiled with 0 errors, and deployed directly to `K0000` & `K0001` test vaults.
+
+## Previous State: Multi-Folder Workspace Stream (`000 Bin/qc` & `additionalCaptureFolders`) Deployed
+- **Multi-Folder Workspace Stream (`src/types.ts`, `src/constants.ts`, `src/settings.ts`, `src/services/IndexService.ts`, `src/services/CaptureService.ts`, `src/main.ts`, `tests/additionalCaptureFolders.test.ts`)**:
+  - **Multi-Folder Capture Support (`IndexService.ts`)**:
+    - Extended `isCaptureFile(path)` to verify membership against both `getConfiguredCaptureFolder()` (`000 Bin/Diwa`) and all folders in `getConfiguredAdditionalCaptureFolders()` (default: `['000 Bin/qc']`).
+    - Notes inside `000 Bin/qc` are seamlessly ingested into `captureIndex`, streaming chronologically alongside atomic notes in the DIWA Workspace stream across Desktop, Tablet, and Mobile.
+    - Notes in `000 Bin/qc` are cleanly excluded from `isPermanentNoteFile`, preventing stream captures from polluting the permanent notes rail or recent notes list.
+  - **Compact `YYYYMMDDHHmm` Timestamp Parsing (`IndexService.ts`)**:
+    - Enhanced basename regex in `indexCaptureFile()` to `^(\d{4})(\d{2})(\d{2})(?:(\d{2})(\d{2}))?`.
+    - Automatically parses 12-digit compact timestamps (such as `202610301702 qc 1.md`) into formatted ISO strings (`2026-10-30T17:02:00`), ensuring quick capture notes display their exact capture time in the stream.
+  - **Capture File Recognition in CaptureService (`CaptureService.ts`)**:
+    - Added `isCaptureFilePath()` in `CaptureService` checking both primary and additional capture folders.
+    - Updating task details or life areas on `000 Bin/qc` files modifies note YAML frontmatter (`area: "..."`) rather than appending inline hashtags to task headers.
+  - **Reactive Settings & Folder Change Detection (`src/settings.ts` & `src/main.ts`)**:
+    - Added an "Additional Capture Folders" textarea setting under the Capture section.
+    - Implemented `additionalCaptureFoldersChanged()` in `IndexService` and wired it into `main.ts` `saveSettings()` to trigger an automatic capture index rebuild and stream refresh whenever folders are added or modified.
+  - **Automated Tests & Deployment**:
+    - Added unit test suite in `tests/additionalCaptureFolders.test.ts` verifying path matching, permanent note exclusion, timestamp extraction, and settings change detection (24/24 tests passing).
+    - Compiled production bundle with 0 errors and deployed directly to `/Users/K26/Obsidian/K0000` & `K0001` test vaults.
+
+## Previous State: Mobile Recent Notes Sheet Virtual Keyboard Stabilization Deployed
 - **Mobile Recent Notes Sheet Virtual Keyboard Stabilization (`src/modals/RecentPermanentNotesModal.ts` & `styles.css`)**:
   - **Height Floor & Viewport Stabilization (`styles.css`)**:
     - Fixed bottom sheet collapse when filtering notes down to a single result or empty search results.

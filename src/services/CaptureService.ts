@@ -16,6 +16,21 @@ export class CaptureService {
         this.settings = settings;
     }
 
+    private isCaptureFilePath(filePath: string): boolean {
+        const normPath = filePath.replace(/\\/g, '/').toLowerCase();
+        const base = (this.settings.captureFolder?.trim() || '000 Bin/Diwa').replace(/\\/g, '/').toLowerCase();
+        if (normPath.startsWith(`${base}/`)) return true;
+
+        const additional = this.settings.additionalCaptureFolders || ['000 Bin/qc'];
+        for (const folder of additional) {
+            const normFolder = (folder || '').trim().replace(/\\/g, '/').toLowerCase();
+            if (normFolder && normPath.startsWith(`${normFolder}/`)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Creates an atomic capture note partitioned in <captureFolder>/YYYY/MM/YYYY-MM-DD HH.mm.ss.md
      */
@@ -371,8 +386,7 @@ export class CaptureService {
                     return knownAreas.includes(tag.toLowerCase()) ? '' : match;
                 }).replace(/\s+/g, ' ').trim();
 
-                const baseCaptureFolder = this.settings.captureFolder?.trim() || '000 Bin/Diwa';
-                const isCaptureFile = options.filePath.startsWith(baseCaptureFolder);
+                const isCaptureFile = this.isCaptureFilePath(options.filePath);
 
                 if (!isCaptureFile) {
                     // Non-capture note (project note / tracked task file): persist area directly on the task line as inline hashtag
@@ -1180,6 +1194,21 @@ export class CaptureService {
         await this.app.vault.process(file, (content) => {
             return this.unwrapDigestedComments(content);
         });
+    }
+
+    async archiveNote(filePath: string): Promise<void> {
+        const file = this.app.vault.getAbstractFileByPath(filePath);
+        if (!(file instanceof TFile)) return;
+
+        await this.app.vault.process(file, (content) => {
+            return content.includes('diwa-digested:') ? this.unwrapDigestedComments(content) : content;
+        });
+
+        await this.markCaptureAsDigested(filePath, undefined, true);
+    }
+
+    async unarchiveNote(filePath: string): Promise<void> {
+        await this.unmarkCaptureAsDigested(filePath);
     }
 
     private registerTrackedTaskFile(filePath: string): void {

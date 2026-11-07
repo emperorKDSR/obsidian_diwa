@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
+import { App, TFile } from 'obsidian';
 import { CaptureService } from '../src/services/CaptureService';
 import { IndexService } from '../src/services/IndexService';
 import { DEFAULT_SETTINGS } from '../src/constants';
@@ -150,5 +151,35 @@ test('Archive route (Option 2) leaves note body unwrapped and excludes entry fro
     assert.strictEqual(indexService.isEntryInScratchpad(archivedEntry), false);
     assert.strictEqual(indexService.getAllCaptures().length, 0);
     assert.strictEqual(indexService.getGawaTasks().length, 0);
+});
+
+test('archiveNote and unarchiveNote cleanly update frontmatter and unwrap comments', async () => {
+    const app = new App();
+    const testFile = new TFile('000 Bin/Diwa/2026/10/note-to-archive.md');
+    let frontmatterData: any = {};
+    let fileContent = 'Initial content';
+
+    app.vault.getAbstractFileByPath = (p: string) => (p === testFile.path ? testFile : null);
+    app.vault.process = async (file: any, fn: (c: string) => string) => {
+        fileContent = fn(fileContent);
+        return fileContent;
+    };
+    app.fileManager.processFrontMatter = async (file: any, fn: (fm: any) => void) => {
+        fn(frontmatterData);
+    };
+
+    const captureService = new CaptureService(app as any, { ...DEFAULT_SETTINGS });
+
+    // 1. Archive note
+    await captureService.archiveNote(testFile.path);
+    assert.strictEqual(frontmatterData.digested, true);
+    assert.strictEqual(frontmatterData.archived, true);
+    assert.ok(frontmatterData.digestedAt);
+
+    // 2. Unarchive note
+    await captureService.unarchiveNote(testFile.path);
+    assert.strictEqual(frontmatterData.digested, undefined);
+    assert.strictEqual(frontmatterData.archived, undefined);
+    assert.strictEqual(frontmatterData.digestedAt, undefined);
 });
 

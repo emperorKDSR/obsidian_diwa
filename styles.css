@@ -8596,5 +8596,24 @@ button.pos-rail-toggle-btn.is-active svg {
     filter: grayscale(0.85) opacity(0.9);
 }
 
+/* Notice Undo Button */
+.pos-notice-undo-btn {
+    background: var(--background-modifier-hover);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-normal);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 0.85em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--diwa-transition);
+}
+
+.pos-notice-undo-btn:hover {
+    background: var(--background-modifier-border);
+    color: var(--text-normal);
+}
+
+
 
 
