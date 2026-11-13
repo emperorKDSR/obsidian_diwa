@@ -1,6 +1,56 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Direct Stream Note "Archive" Action & Options Menu Integration Deployed (Complete)
+## Current Phase: Karon 60/40 Dual-Pane View with MOC & Topics Pane Deployed (Complete)
+
+---
+
+### 0. Karon 60/40 Dual-Pane View with MOC & Topics Pane Deployed (Complete)
+*   [x] **Configurable MOC Topics (`src/types.ts`, `src/constants.ts`, `src/settings.ts`, `src/utils/karonHelpers.ts`)** — Added `KaronMocTopic` type, default topics (`Work Projects`, `Personal & Health`, `Finance & Admin`, `Learning & Research`), settings tab management with tag auto-derivation via `slugifyMocTopicTag()`.
+*   [x] **Persistent Tag Management & Query (`src/services/CaptureService.ts`, `src/services/IndexService.ts`)** — Implemented `addTagToNote()` and `removeTagFromNote()` via `app.fileManager.processFrontMatter()`; added `getNotesForMocTag()` for fast in-memory scanning matching exact and hierarchical `#moc/*` tags.
+*   [x] **60/40 Dual-Pane Karon Layout (`src/views/KaronView.ts`, `styles.css`)** — Configured Karon view with a 60% left Horizon stage (`flex: 6;`) and 40% right Topics/MOC pane (`flex: 4; max-width: 540px;`) with sticky positioning, header actions, and mobile segment switcher (`☀️ Horizon` | `🗺️ Topics`).
+*   [x] **MOC Note Actions & Interactive List (`src/views/KaronView.ts`)** — Implemented topic dropdown with local storage persistence, pick existing note (`FileSuggestModal`), create new note with frontmatter tag, note rows with `WikilinkPeekModal` / tab / popout navigation, and remove tag button (`x`).
+*   [x] **Unit Tests, Lint, Build & Vault Deployment (`tests/karonHelpers.test.ts`)** — Verified all 35 tests passing (`npm test`), strict TypeScript lint passed, production bundle compiled with 0 errors, and deployed to test vaults `K0000` & `K0001`.
+
+---
+
+## Previous Phase: Streamlined Karon Quick-Add Bar (Shortcut-First) Deployed (Complete)
+
+---
+
+### 0. Streamlined Karon Quick-Add Bar (Shortcut-First) Deployed (Complete)
+*   [x] **Removed `Link Note` & `Add` Buttons (`src/views/KaronView.ts`, `styles.css`)** — Decluttered quick-add controls to `[ Task | Note ]` toggle and target date chip; `Enter` submits (`Shift+Enter` newline).
+*   [x] **Shortcut-First Note Scheduling (`src/utils/karonHelpers.ts`, `src/views/KaronView.ts`, `tests/karonHelpers.test.ts`)** — Added `parseStandaloneWikilinkSchedule()` (`[[Note]]` + `Enter` in Note mode schedules existing note via `fm.scheduled`) and `Cmd/Ctrl + L` shortcut to open `FileSuggestModal`.
+*   [x] **Tests, Build & Vault Deployment** — Verified 32/32 tests passing (`npm test`), `npm run lint`, and `npm run build` with 0 errors; deployed to `K0000` & `K0001`.
+
+---
+
+## Previous Phase: Karon Dual-Mode Note Capture & Existing Note Scheduling Deployed (Complete)
+
+---
+
+### 0. Karon Dual-Mode Note Capture & Existing Note Scheduling Deployed (Complete)
+*   [x] **Dual-Mode Capture Helpers (`src/utils/karonHelpers.ts`, `tests/karonHelpers.test.ts`)** — Added `KaronQuickAddMode` (`'task' | 'note'`) and `formatKaronQuickCaptureContent()` supporting multi-line notes without checklist prefixes.
+*   [x] **Frontmatter-Scheduled Note Surfacing (`src/services/IndexService.ts`)** — Added `extractVaultNoteSnippetsForDate()` fallback and `targetDateIndex` check in `getVaultNoteBlocksForDate()` so notes scheduled via frontmatter `scheduled`/`due` surface cleanly in Karon.
+*   [x] **Dual-Mode Quick-Add Bar & Link Existing Note (`src/views/KaronView.ts`, `styles.css`)** — Added `[ Task | Note ]` toggle, auto-sizing `<textarea>` with `attachInlineTriggers()` & `attachMediaPasteHandler()`, and `Link Note` picker (`FileSuggestModal` + `processFrontMatter`).
+*   [x] **Tests, Build & Vault Deployment** — Verified 31/31 tests passing (`npm test`), `npm run lint`, and `npm run build` with 0 errors; deployed to `K0000` & `K0001`.
+
+---
+
+## Previous Phase: DatePickerModal UI Alignment & Karon Options 1 + 2 Deployed (Complete)
+
+---
+
+### 0. DatePickerModal UI Alignment & Karon Options 1 + 2 Deployed (Complete)
+*   [x] **`DatePickerModal` CSS Refactor & Indicator Alignment (`src/modals/DatePickerModal.ts`, `styles.css`)** — Replaced inline `style` attributes with `.pos-date-picker-*` classes, fixed `::-webkit-calendar-picker-indicator` overlap by pinning it cleanly to the right with `padding: 8px 40px 8px 14px`, added active shortcut chip highlighting and `Enter` key apply, and deployed to `K0000` & `K0001`.
+*   [x] **Pure Karon Helpers & Filtering (`src/utils/karonHelpers.ts`)** — Extracted `filterKaronTasks()`, `getKaronDayTitle()`, `formatKaronNotesHeading()`, and `formatKaronQuickTaskContent()`.
+*   [x] **Workspace Horizon Parity (`src/views/KaronView.ts`)** — Integrated `getOverdueBills()`, `getBillsForDueDate()`, `getVaultNoteBlocksForDate()`, Handumanan exclusion, collapsible `Undated Tasks` section, dynamic per-day note headers, async render token guard, and `Cmd/Ctrl+Click` / `Alt+Click` wikilink parity.
+*   [x] **Interactive Task Triage & Quick-Add (`src/views/KaronView.ts`)** — Added Markdown-rendered task titles, interactive due date rescheduling (`Menu` + `DatePickerModal` on desktop/tablet, `MobileTaskEditModal` on mobile), `"Move All to Today"` bulk overdue triage, inline subtasks/remarks drawers with quick-add/delete, and a header quick-add task bar with per-day `+` targets.
+*   [x] **Karon Styles (`styles.css`)** — Added `.pos-karon-*` styles for the quick-add bar, interactive meta pills, inline subtasks/remarks drawers, bill rows, and overdue/day header actions.
+*   [x] **Unit Tests & Production Build (`tests/karonHelpers.test.ts`)** — Added unit tests for Karon helpers (29/29 tests passing), verified `npm run lint` and `npm run build` with 0 errors.
+
+---
+
+## Previous Phase: Direct Stream Note "Archive" Action & Options Menu Integration Deployed (Complete)
 
 ---
 

@@ -86,10 +86,18 @@ export interface DayDigestSummary {
 
 export type ScratchpadHorizon = 'today' | '3d' | '7d' | '14d' | '30d' | 'all' | 'custom';
 
+export interface KaronMocTopic {
+    id: string;
+    label: string;
+    icon: string;
+    tag: string;
+}
+
 export interface DiwaSettings {
     captureFolder: string;
     additionalCaptureFolders?: string[];
     lifeAreas: LifeArea[];
+    karonMocTopics?: KaronMocTopic[];
     newNoteFolder: string;
     attachmentsFolder: string;
     peopleFolder: string;

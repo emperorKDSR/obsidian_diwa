@@ -1,10 +1,17 @@
-import { DiwaSettings, LifeArea } from './types';
+import { DiwaSettings, LifeArea, KaronMocTopic } from './types';
 
 export const DEFAULT_LIFE_AREAS: LifeArea[] = [
     { id: 'work', label: 'Work', icon: '💼' },
     { id: 'health', label: 'Health', icon: '🌱' },
     { id: 'wealth', label: 'Wealth', icon: '💰' },
     { id: 'growth', label: 'Growth', icon: '💡' },
+];
+
+export const DEFAULT_KARON_MOC_TOPICS: KaronMocTopic[] = [
+    { id: 'work_projects', label: 'Work Projects', icon: '💼', tag: 'moc/work_projects' },
+    { id: 'personal_knowledge', label: 'Personal Knowledge', icon: '🧠', tag: 'moc/personal_knowledge' },
+    { id: 'health_habits', label: 'Health & Habits', icon: '🌱', tag: 'moc/health_habits' },
+    { id: 'finances', label: 'Finances', icon: '💰', tag: 'moc/finances' },
 ];
 
 export const VIEW_TYPE_DESKTOP_HUB = "diwa-desktop-hub";
@@ -67,6 +74,7 @@ export const DEFAULT_SETTINGS: DiwaSettings = {
     captureFolder: '000 Bin/Diwa',
     additionalCaptureFolders: ['000 Bin/qc'],
     lifeAreas: DEFAULT_LIFE_AREAS,
+    karonMocTopics: DEFAULT_KARON_MOC_TOPICS,
     newNoteFolder: '000 Bin',
     attachmentsFolder: '000 Bin/DIWA Attachments',
     peopleFolder: '000 Bin/DIWA People',

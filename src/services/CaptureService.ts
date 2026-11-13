@@ -102,6 +102,55 @@ export class CaptureService {
     }
 
     /**
+     * Appends a tag to a markdown file's YAML frontmatter cleanly.
+     */
+    async addTagToNote(file: TFile, tagToAdd: string): Promise<void> {
+        const cleanTag = tagToAdd.trim().replace(/^#+/, '');
+        if (!cleanTag) return;
+
+        await this.app.fileManager.processFrontMatter(file, (fm) => {
+            const existingRaw: unknown[] = Array.isArray(fm.tags)
+                ? fm.tags
+                : (typeof fm.tags === 'string' ? fm.tags.split(',') : (Array.isArray(fm.tag) ? fm.tag : (typeof fm.tag === 'string' ? fm.tag.split(',') : [])));
+            const existing = existingRaw.map(t => String(t || '').trim().replace(/^#+/, ''));
+            const lowerToAdd = cleanTag.toLowerCase();
+
+            if (!existing.some(t => t.toLowerCase() === lowerToAdd)) {
+                existing.push(cleanTag);
+            }
+
+            fm.tags = existing;
+            if (fm.tag) delete fm.tag;
+            fm.modified = moment().format('YYYY-MM-DDTHH:mm:ss');
+        });
+    }
+
+    /**
+     * Removes a tag from a markdown file's YAML frontmatter cleanly.
+     */
+    async removeTagFromNote(file: TFile, tagToRemove: string): Promise<void> {
+        const cleanTarget = tagToRemove.trim().replace(/^#+/, '').toLowerCase();
+        if (!cleanTarget) return;
+
+        await this.app.fileManager.processFrontMatter(file, (fm) => {
+            const existingRaw: unknown[] = Array.isArray(fm.tags)
+                ? fm.tags
+                : (typeof fm.tags === 'string' ? fm.tags.split(',') : (Array.isArray(fm.tag) ? fm.tag : (typeof fm.tag === 'string' ? fm.tag.split(',') : [])));
+            const filtered = existingRaw
+                .map(t => String(t || '').trim().replace(/^#+/, ''))
+                .filter(t => t.toLowerCase() !== cleanTarget);
+
+            if (filtered.length > 0) {
+                fm.tags = filtered;
+            } else {
+                delete fm.tags;
+            }
+            if (fm.tag) delete fm.tag;
+            fm.modified = moment().format('YYYY-MM-DDTHH:mm:ss');
+        });
+    }
+
+    /**
      * Toggles importance (starred status) on a note atomically via frontmatter.
      * Returns the new boolean importance state.
      */

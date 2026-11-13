@@ -1205,7 +1205,7 @@ export class IndexService {
         return matchingSnippets;
     }
 
-    stripDigestMetadata(text: string): string {
+    static stripDigestMetadataText(text: string): string {
         if (!text) return '';
         return text
             .replace(/^#{1,6}\s+\[\[\d{4}-\d{2}-\d{2}\]\](?:\s+\d{2}:\d{2})?\s*\n*/m, '')
@@ -1213,6 +1213,59 @@ export class IndexService {
             .replace(/<!--\s*diwa-digest:[\s\S]*?-->/g, '')
             .replace(/%%\r?\n(?:diwa-digested:dest=[^\r\n]*\r?\n)?([\s\S]*?)\r?\n%%/g, '$1')
             .trim();
+    }
+
+    stripDigestMetadata(text: string): string {
+        return IndexService.stripDigestMetadataText(text);
+    }
+
+    /**
+     * Extracts clean non-task snippets matching dateStr, falling back to the
+     * first clean paragraph (or fallbackTitle) when matched via frontmatter.
+     */
+    static extractVaultNoteSnippetsForDate(
+        body: string,
+        dateStr: string,
+        matchedViaFrontmatter: boolean,
+        fallbackTitle: string
+    ): string[] {
+        const trimmedBody = (body || '').trim();
+        if (!trimmedBody) {
+            return matchedViaFrontmatter ? [fallbackTitle] : [];
+        }
+
+        const paragraphs = trimmedBody.split(/\n\s*\n/);
+        const matchingParagraphs: string[] = [];
+        let firstCleanParagraph: string | null = null;
+        let firstCleanBodyParagraph: string | null = null;
+
+        for (const p of paragraphs) {
+            const pt = p.trim();
+            if (!pt) continue;
+
+            const cleanText = IndexService.stripDigestMetadataText(pt);
+            if (!cleanText) continue;
+
+            // Exclude checklist lines (handled by getTasksForDueDate)
+            if (/^[ \t]*-[ \t]+\[[ xX]\]/m.test(cleanText)) continue;
+
+            if (!firstCleanParagraph) firstCleanParagraph = cleanText;
+            if (!firstCleanBodyParagraph && !/^#{1,6}\s+[^\n]+$/.test(cleanText)) {
+                firstCleanBodyParagraph = cleanText;
+            }
+
+            if (cleanText.includes(`[[${dateStr}]]`) || cleanText.includes(dateStr)) {
+                matchingParagraphs.push(cleanText);
+            }
+        }
+
+        if (matchingParagraphs.length > 0) {
+            return matchingParagraphs;
+        }
+        if (matchedViaFrontmatter) {
+            return [firstCleanBodyParagraph || firstCleanParagraph || fallbackTitle];
+        }
+        return [];
     }
 
     static hasPendingBillTag(fm?: Record<string, unknown> | null, inlineTags?: string[]): boolean {
@@ -1351,11 +1404,15 @@ export class IndexService {
             if (IndexService.hasPendingBillTag({ tags: entry.tags }) || (entry.body && /#bill\/pending\b/i.test(entry.body))) continue;
 
             const dates = Array.isArray(entry.allDates) ? entry.allDates : [];
-            const hasDate = dates.includes(dateStr) || (entry.body && (entry.body.includes(`[[${dateStr}]]`) || entry.body.includes(dateStr)));
+            const inTargetIndex = this.targetDateIndex.get(dateStr)?.has(entry.filePath) ?? false;
+            const hasDate = inTargetIndex || dates.includes(dateStr) || (entry.body && (entry.body.includes(`[[${dateStr}]]`) || entry.body.includes(dateStr)));
             if (!hasDate) continue;
 
-            const snippets = this.extractTargetDateSnippets(entry, dateStr);
             const noteTitle = entry.filePath.split('/').pop()?.replace(/\.md$/, '') || entry.id;
+            let snippets = this.extractTargetDateSnippets(entry, dateStr);
+            if (snippets.length === 0 && inTargetIndex && !entry.hasTasks) {
+                snippets = [noteTitle];
+            }
 
             for (const snippet of snippets) {
                 const trimmed = snippet.trim();
@@ -1391,57 +1448,42 @@ export class IndexService {
             // Exclude bill/pending notes (handled by getBillsForDueDate / getOverdueBills)
             if (IndexService.hasPendingBillTag(fm, inlineTags)) continue;
 
-            let matchesDate = false;
+            let matchedViaFrontmatter = false;
+            let matchedViaLink = false;
 
             // Check frontmatter
             if (fm) {
                 const candidateFmDates = [fm.due, fm.scheduled, fm.day, fm.date, fm.targetDate];
                 for (const candidate of candidateFmDates) {
                     if (candidate && String(candidate).replace(/\[\[|\]\]/g, '').trim() === dateStr) {
-                        matchesDate = true;
+                        matchedViaFrontmatter = true;
                         break;
                     }
                 }
             }
 
             // Check links
-            if (!matchesDate && cache?.links) {
+            if (!matchedViaFrontmatter && cache?.links) {
                 for (const l of cache.links) {
                     const cleanLink = l.link.replace(/\[\[|\]\]/g, '').trim();
                     if (cleanLink === dateStr || cleanLink.endsWith('/' + dateStr)) {
-                        matchesDate = true;
+                        matchedViaLink = true;
                         break;
                     }
                 }
             }
 
-            if (!matchesDate) continue;
+            if (!matchedViaFrontmatter && !matchedViaLink) continue;
 
             try {
                 const content = await this.app.vault.read(file);
                 const body = content.replace(/^---[\s\S]*?---\r?\n*/, '').trim();
-                if (!body) continue;
-
-                const paragraphs = body.split(/\n\s*\n/);
-                const matchingParagraphs: string[] = [];
-
-                for (const p of paragraphs) {
-                    const pt = p.trim();
-                    if (!pt) continue;
-
-                    // Option B Smart Date Isolation:
-                    // Strip auto-generated digest headers (#### [[YYYY-MM-DD]] HH:mm) and anchors (^dw-...)
-                    const cleanText = this.stripDigestMetadata(pt);
-                    if (!cleanText) continue;
-
-                    // Exclude checklist lines (handled by getTasksForDueDate; completed tasks are never shown in Horizon)
-                    if (/^[ \t]*-[ \t]+\[[ xX]\]/m.test(cleanText)) continue;
-
-                    // Match if the intentional note body explicitly contains the target date
-                    if (cleanText.includes(`[[${dateStr}]]`) || cleanText.includes(dateStr)) {
-                        matchingParagraphs.push(cleanText);
-                    }
-                }
+                const matchingParagraphs = IndexService.extractVaultNoteSnippetsForDate(
+                    body,
+                    dateStr,
+                    matchedViaFrontmatter,
+                    file.basename
+                );
 
                 if (matchingParagraphs.length === 0) continue;
 
@@ -1463,6 +1505,48 @@ export class IndexService {
         }
 
         return results;
+    }
+
+    /**
+     * Retrieves all markdown notes across the vault carrying the specified MOC tag
+     * (in frontmatter or body inline tags), sorted by modification time descending.
+     */
+    getNotesForMocTag(targetTag: string): { file: TFile; title: string; folder: string; mtime: number }[] {
+        const cleanTarget = (targetTag || '').toLowerCase().trim().replace(/^#+/, '');
+        if (!cleanTarget) return [];
+
+        const results: { file: TFile; title: string; folder: string; mtime: number }[] = [];
+        const allFiles = this.app.vault.getMarkdownFiles();
+
+        for (const file of allFiles) {
+            const normPath = file.path.toLowerCase();
+            if (normPath.includes('/trash/') || normPath.includes('/.trash/') || normPath.includes('handumanan')) {
+                continue;
+            }
+
+            const cache = this.app.metadataCache.getFileCache(file);
+            const fm = cache?.frontmatter as Record<string, unknown> | undefined;
+            const fmTags = IndexService.normalizeContext(fm?.tags ?? fm?.tag);
+            const inlineTags = (cache?.tags || []).map(t => String(t.tag || '').trim().replace(/^#+/, '').toLowerCase());
+            const allTags = Array.from(new Set([...fmTags, ...inlineTags]));
+
+            const hasMatch = allTags.some(t => {
+                const norm = t.toLowerCase();
+                return norm === cleanTarget || norm.startsWith(`${cleanTarget}/`);
+            });
+
+            if (hasMatch) {
+                const folder = file.parent && file.parent.path !== '/' ? file.parent.path : '';
+                results.push({
+                    file,
+                    title: file.basename,
+                    folder,
+                    mtime: file.stat.mtime
+                });
+            }
+        }
+
+        return results.sort((a, b) => b.mtime - a.mtime);
     }
 
     getDayDigestSummary(dateStr: string): DayDigestSummary {

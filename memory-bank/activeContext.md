@@ -1,6 +1,64 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Direct Stream Note "Archive" Action & Options Menu Integration Deployed
+## Current State: Karon 60/40 Dual-Pane View with MOC & Topics Pane Deployed
+- **Karon 60/40 Dual-Pane Layout (`styles.css`, `src/views/KaronView.ts`)**:
+  - Adjusted the split ratio in Karon view to **60% Horizon stage** (`flex: 6;`) and **40% Topics/MOC pane** (`flex: 4; max-width: 540px;`).
+  - Added `.pos-karon-layout-row` flex container and expanded `.pos-karon-container` to `max-width: 1360px` for desktop dual-pane ergonomics.
+  - Added responsive design: on mobile/compact screens (< 1025px), added segmented switcher (`☀️ Horizon` | `🗺️ Topics`) to toggle panes cleanly.
+- **Configurable MOC Topics in Settings (`src/types.ts`, `src/constants.ts`, `src/settings.ts`, `src/utils/karonHelpers.ts`)**:
+  - Added `KaronMocTopic` interface (`id`, `label`, `tag`, `icon`) and `karonMocTopics` setting with defaults (`Work Projects`, `Personal & Health`, `Finance & Admin`, `Learning & Research`).
+  - Added Settings UI under "Karon MOC Topics" allowing users to add, edit icon, label, auto-derive tag `#moc/<slug>`, and delete topics.
+  - Added `slugifyMocTopicTag(label)` to auto-derive tag slugs cleanly, handling existing `moc/` prefixes and special characters.
+- **Persistent Tagging & Note Association (`src/services/CaptureService.ts`, `src/services/IndexService.ts`)**:
+  - Added `addTagToNote(file, tag)` and `removeTagFromNote(file, tag)` in `CaptureService` modifying note YAML frontmatter `tags` list via `app.fileManager.processFrontMatter()`.
+  - Added `getNotesForMocTag(tag)` in `IndexService` scanning markdown files and matching exact tags or hierarchical sub-tags (e.g. `moc/work/client` matches `moc/work`).
+- **MOC Pane Actions & UI (`src/views/KaronView.ts`)**:
+  - Dropdown at the top to select topic, persisting choice in `localStorage['diwa-karon-moc-topic']`.
+  - Header actions:
+    - **Pick existing note** (`FileSuggestModal`): adds the topic's tag to the selected note's frontmatter and re-indexes.
+    - **Create new note**: prompts for note title, creates file with initial frontmatter `tags: [moc/<slug>]`, indexes, and opens preview.
+  - Dynamic note list showing title (clickable with `WikilinkPeekModal`, `Cmd/Ctrl+Click` tab, `Alt+Click` popout), folder, last modified time, and remove button (`x`) to strip the tag from the note.
+  - Empty state with quick action buttons when no notes are tagged for the selected topic.
+- **Verification & Deployment**: 35/35 unit tests passing (`npm test`), strict TypeScript lint passing (`npm run lint`), build succeeded, and deployed to test vaults `K0000` & `K0001`.
+
+## Previous State: Streamlined Karon Quick-Add Bar (Shortcut-First) Deployed
+- **Removed `Link Note` & `Add` Buttons in Karon (`src/views/KaronView.ts`, `src/utils/karonHelpers.ts`, `styles.css`, `tests/karonHelpers.test.ts`)**:
+  - Removed the `Link Note` and `Add` buttons from `renderQuickAddBar()`, keeping only the auto-sizing `<textarea>`, `[ Task | Note ]` toggle, and `[ 📅 Today ]` target chip.
+  - **`Enter` to Submit**: `Enter` submits immediately (`Shift+Enter` inserts newline, `Escape` clears/blurs).
+  - **Shortcut-Based Existing Note Scheduling**:
+    - Added `parseStandaloneWikilinkSchedule()` in `karonHelpers.ts`: in `Note` mode, submitting a standalone `[[Note Name]]` (or `[[Note Name]] [[YYYY-MM-DD]]`) resolves the existing file via `metadataCache.getFirstLinkpathDest()` and stamps `scheduled: YYYY-MM-DD` directly on that note instead of creating a duplicate capture file.
+    - Registered `Cmd/Ctrl + L` in `KaronView` to open `FileSuggestModal` directly to schedule an existing note for the active target date.
+  - Verified 32/32 tests passing (`npm test`), `npm run lint`, and `npm run build` with 0 errors; deployed to `K0000` & `K0001`.
+
+## Previous State: Karon Dual-Mode Note Capture & Existing Note Scheduling Deployed
+- **Karon Dual-Mode Quick-Add & Smart Triggers (`src/views/KaronView.ts`, `src/utils/karonHelpers.ts`, `styles.css`)**:
+  - Added `[ Task | Note ]` segmented mode toggle (`_quickAddMode`) in `renderQuickAddBar()` backed by `formatKaronQuickCaptureContent()`.
+  - Upgraded the quick-add input to an auto-sizing `<textarea>` (`Enter` submits, `Shift+Enter` newline) wired with `attachInlineTriggers()` (`[[`, `#`, `@date`, `/person`, `++`) and `attachMediaPasteHandler()`.
+- **Schedule / Link Existing Vault Notes (`src/views/KaronView.ts`, `src/services/IndexService.ts`)**:
+  - Added `Link Note` button opening `FileSuggestModal` and stamping `scheduled: YYYY-MM-DD` via `app.fileManager.processFrontMatter()`, syncing `metadataCache` and re-indexing immediately.
+  - Enhanced `IndexService.getVaultNoteBlocksForDate()` with `targetDateIndex` matching for capture notes and `extractVaultNoteSnippetsForDate()` fallback for frontmatter-scheduled permanent notes.
+- **Verification & Deployment**: 31/31 unit tests passing (`npm test`), `npm run lint` and `npm run build` passing with 0 errors, and deployed to `K0000` & `K0001`.
+
+## Previous State: DatePickerModal UI Alignment & Karon Options 1 + 2 Deployed
+- **`DatePickerModal` UI & Calendar Indicator Alignment (`src/modals/DatePickerModal.ts`, `styles.css`)**:
+  - Replaced inline `style` attributes with namespaced `.pos-date-picker-*` classes in `styles.css`.
+  - Fixed native `<input type="date">` overlap where Obsidian's `::-webkit-calendar-picker-indicator` overlapped the first digit by setting explicit right padding (`padding: 8px 40px 8px 14px`) and pinning the calendar indicator cleanly to the right (`right: 12px; left: auto; top: 50%; transform: translateY(-50%)`) without a yellow focus ring.
+  - Added `.is-active` highlighting on matching shortcut chips (`Today`, `Tomorrow`, `+3 Days`, `+1 Week`) and `Enter` key submission.
+- **Karon Feature Parity & Data Accuracy (`src/views/KaronView.ts`, `src/utils/karonHelpers.ts`, `tests/karonHelpers.test.ts`)**:
+  - **Async Render Guard & Component Lifecycle**: Added `_renderToken` guard in `renderStage()` and dedicated `Component` lifecycle (`_renderComponent`) unloaded on re-render/close, plus scroll position preservation and header/quick-add isolation from stage refreshes.
+  - **Pending Bills (`bill/pending`)**: Integrated `getOverdueBills()` and `getBillsForDueDate()` into `KaronView`, rendering `renderBillRow()` cards with `receipt` icon, clickable title (`WikilinkPeekModal`), `Due: YYYY-MM-DD`, `bill/pending`, and optional `amount` pills.
+  - **Vault-Wide Note Blocks**: Replaced capture-only `getCapturesForTargetDate()` with `getVaultNoteBlocksForDate()`, surfacing permanent and capture notes with digest metadata stripped (`stripDigestMetadata`).
+  - **Consistent Filtering & Undated Section**: Applied `filterKaronTasks()` (`!completed` and excluding `handumanan` paths) across overdue, daily, and undated tasks; added a collapsible `Undated Tasks` section (collapsed by default) at the bottom of the stage.
+  - **Dynamic Labels & Link Parity**: Replaced hardcoded `"Notes Intended for Today"` with `formatKaronNotesHeading()` (`Notes for Today` / `Tomorrow` / `MMM D`) and unified `a.internal-link` clicks (`WikilinkPeekModal`, `Cmd/Ctrl+Click` new tab, `Alt+Click` popout window).
+- **Karon Interactive Planning & Triage (`src/views/KaronView.ts`, `styles.css`)**:
+  - **Rich Markdown Task Titles**: Task titles render via `MarkdownRenderer.render` with clickable inline `[[Wikilinks]]`.
+  - **Interactive Due Date Rescheduling & Mobile Edit Sheet**: Clicking the due date pill opens an Obsidian `Menu` (`Today`, `Tomorrow`, `In 3 Days`, `Next Week`, `DatePickerModal`, `Clear Due Date`) on desktop/tablet, or `MobileTaskEditModal` on mobile phones.
+  - **Bulk Overdue Triage**: Added `"Move All to Today"` button in the Overdue section header to batch-reschedule all open overdue tasks to today and re-index modified files.
+  - **Inline Subtasks & Remarks Drawers**: Clicking `☑` / `+ Subtask` or `💬` / `+ Note` expands inline drawers on desktop/tablet supporting subtask toggling, deletion, Markdown-rendered remarks, and inline quick-add inputs.
+  - **Quick-Add Task Bar**: Added a quick-add task input bar in the header (with date chip and per-day `+` header triggers) that creates atomic capture tasks via `CaptureService.createCaptureNote()` using `formatKaronQuickTaskContent()`.
+- **Verification**: All 29 automated unit tests passing (`npm test`), `npm run lint` passing, and `npm run build` (`tsc -noEmit -skipLibCheck && node esbuild.config.mjs production`) compiled with 0 errors.
+
+## Previous State: Direct Stream Note "Archive" Action & Options Menu Integration Deployed
 - **Stream Note "Archive" Action (`src/services/CaptureService.ts`, `src/views/DesktopHubView.ts`, `styles.css`, `tests/digestionBlocks.test.ts`)**:
   - **Core Archive Service Methods (`CaptureService.ts`)**:
     - Implemented `archiveNote(filePath)`: cleanly unwraps any prior `diwa-digested:` comments on disk and stamps YAML frontmatter with `digested: true` and `archived: true` using Option 2 Clean Frontmatter Archive.

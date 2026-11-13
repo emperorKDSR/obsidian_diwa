@@ -2,7 +2,8 @@ import { App, PluginSettingTab, Setting, TextComponent } from 'obsidian';
 import type DiwaPlugin from './main';
 import { DatePickerModal } from './modals/DatePickerModal';
 import { parseDateToIso } from './utils/dateParsing';
-import { ScratchpadHorizon } from './types';
+import { ScratchpadHorizon, KaronMocTopic } from './types';
+import { slugifyMocTopicTag } from './utils/karonHelpers';
 
 export function bindDeferredTextSetting(
     text: TextComponent,
@@ -304,7 +305,74 @@ export class DiwaSettingTab extends PluginSettingTab {
                     });
             });
 
-        // ── 3. Device & Mobile Layout ──
+        // ── 3. Karon MOC Topics ──
+        containerEl.createEl('h3', { text: 'Karon MOC Topics (Right Pane)' });
+        const currentTopics: KaronMocTopic[] = [...(this.plugin.settings.karonMocTopics || [])];
+
+        currentTopics.forEach((topic, i) => {
+            const topicSetting = new Setting(containerEl);
+            topicSetting.setName(`${topic.icon || '🗺️'} ${topic.label}`);
+            topicSetting.setDesc(`Tag identifier: #${topic.tag}`);
+
+            topicSetting.addText(text => {
+                text.setPlaceholder('Icon')
+                    .setValue(topic.icon || '🗺️');
+                text.inputEl.style.width = '60px';
+                text.inputEl.style.textAlign = 'center';
+                text.onChange(async (val) => {
+                    currentTopics[i] = { ...currentTopics[i], icon: val.trim() || '🗺️' };
+                    topicSetting.setName(`${currentTopics[i].icon} ${currentTopics[i].label}`);
+                    await this.plugin.updateSetting('karonMocTopics', [...currentTopics], 'all');
+                });
+            });
+
+            topicSetting.addText(text => {
+                text.setPlaceholder('Topic Name')
+                    .setValue(topic.label);
+                text.onChange(async (val) => {
+                    const newLabel = val.trim() || 'Untitled Topic';
+                    const newTag = slugifyMocTopicTag(newLabel);
+                    const newId = newLabel.toLowerCase().replace(/[^a-z0-9_-]/g, '_') || `topic_${i}`;
+                    currentTopics[i] = { ...currentTopics[i], label: newLabel, id: newId, tag: newTag };
+                    topicSetting.setName(`${currentTopics[i].icon} ${currentTopics[i].label}`);
+                    topicSetting.setDesc(`Tag identifier: #${currentTopics[i].tag}`);
+                    await this.plugin.updateSetting('karonMocTopics', [...currentTopics], 'all');
+                });
+            });
+
+            topicSetting.addButton(btn => {
+                btn.setButtonText('Delete')
+                    .setWarning()
+                    .onClick(async () => {
+                        currentTopics.splice(i, 1);
+                        await this.plugin.updateSetting('karonMocTopics', [...currentTopics], 'all');
+                        this.display();
+                    });
+            });
+        });
+
+        new Setting(containerEl)
+            .setName('Add MOC Topic')
+            .setDesc('Add a new topic for the right pane of Karon')
+            .addButton(btn => {
+                btn.setButtonText('+ Add Topic')
+                    .setCta()
+                    .onClick(async () => {
+                        const newTopics = [
+                            ...(this.plugin.settings.karonMocTopics || []),
+                            {
+                                id: `topic_${Date.now().toString().slice(-4)}`,
+                                label: 'New Topic',
+                                icon: '🗺️',
+                                tag: slugifyMocTopicTag('New Topic')
+                            }
+                        ];
+                        await this.plugin.updateSetting('karonMocTopics', newTopics, 'all');
+                        this.display();
+                    });
+            });
+
+        // ── 4. Device & Mobile Layout ──
         containerEl.createEl('h3', { text: 'Mobile & Layout' });
 
         new Setting(containerEl)

@@ -6467,7 +6467,7 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     flex-direction: column;
     height: 100%;
     width: 100%;
-    max-width: 900px;
+    max-width: 1360px;
     margin: 0 auto;
     padding: 24px 20px 60px 20px;
     box-sizing: border-box;
@@ -6534,6 +6534,9 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-karon-horizon-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     background: transparent;
     border: none;
     padding: 5px 14px;
@@ -6572,14 +6575,138 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 
 .pos-karon-action-btn:hover {
     color: var(--text-normal);
-    border-color: var(--interactive-accent);
+    border-color: var(--background-modifier-border-hover, var(--background-modifier-border));
 }
 
-/* Main Stream Stage */
+/* Quick-Add Task & Note Bar */
+.pos-karon-quick-add-bar {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px 8px 12px;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--diwa-radius-md, 10px);
+    flex-wrap: wrap;
+}
+
+.pos-karon-quick-add-input-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    flex: 1;
+    min-width: 220px;
+}
+
+.pos-karon-quick-add-icon {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+    margin-top: 5px;
+    flex-shrink: 0;
+}
+
+.pos-karon-quick-add-input,
+.pos-karon-quick-add-textarea {
+    width: 100%;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 3px 0 !important;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    font-family: inherit;
+    color: var(--text-normal);
+    resize: none;
+    overflow-y: auto;
+    min-height: 24px;
+    max-height: 112px;
+}
+
+.pos-karon-quick-add-input:focus,
+.pos-karon-quick-add-textarea:focus {
+    outline: none !important;
+}
+
+.pos-karon-quick-add-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.pos-karon-mode-toggle {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--diwa-radius-pill, 14px);
+    gap: 2px;
+}
+
+.pos-karon-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border: none;
+    border-radius: var(--diwa-radius-pill, 12px);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.74rem;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: none;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.pos-karon-mode-btn:hover {
+    color: var(--text-normal);
+}
+
+.pos-karon-mode-btn.is-active {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    font-weight: 600;
+}
+
+.pos-karon-quick-date-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--diwa-radius-pill, 14px);
+    cursor: pointer;
+    box-shadow: none;
+}
+
+.pos-karon-quick-date-btn:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+}
+
+/* Layout Row for 70/30 Dual Pane */
+.pos-karon-layout-row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 20px;
+    width: 100%;
+}
+
+/* Main Stream Stage (60%) */
 .pos-karon-stage {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    flex: 6;
+    min-width: 0;
 }
 
 /* Day Accordion Sections */
@@ -6634,14 +6761,21 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     color: var(--text-normal);
 }
 
+.pos-karon-overdue-icon {
+    display: flex;
+    align-items: center;
+    color: rgba(239, 68, 68, 0.85);
+}
+
 .pos-karon-overdue-title {
-    color: #eb5757;
+    color: rgba(239, 68, 68, 0.9);
 }
 
 .pos-karon-sec-badges {
     display: flex;
     align-items: center;
     gap: 6px;
+    flex-wrap: wrap;
 }
 
 .pos-karon-pill {
@@ -6652,6 +6786,12 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     background: var(--background-primary);
     color: var(--text-muted);
     border: 1px solid var(--background-modifier-border);
+}
+
+.pos-karon-pill-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .pos-karon-pill-today {
@@ -6668,6 +6808,42 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 
 .pos-karon-pill-muted {
     opacity: 0.6;
+}
+
+.pos-karon-day-add-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border-radius: 50%;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-muted);
+    cursor: pointer;
+    box-shadow: none;
+}
+
+.pos-karon-day-add-btn:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+}
+
+.pos-karon-move-today-btn {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: var(--diwa-radius-pill, 12px);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    cursor: pointer;
+    box-shadow: none;
+}
+
+.pos-karon-move-today-btn:hover {
+    background: var(--background-modifier-hover);
 }
 
 /* Section Content */
@@ -6707,7 +6883,8 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 /* Tasks Due List */
-.pos-karon-task-list {
+.pos-karon-task-list,
+.pos-karon-bill-list {
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -6715,9 +6892,8 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 
 .pos-karon-task-row {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 7px 10px;
+    flex-direction: column;
+    padding: 8px 10px;
     border-radius: var(--diwa-radius-sm, 6px);
     background: var(--background-secondary);
     border: 1px solid transparent;
@@ -6727,6 +6903,13 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 .pos-karon-task-row:hover {
     border-color: var(--background-modifier-border);
     background: var(--background-secondary-alt);
+}
+
+.pos-karon-task-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
 }
 
 .pos-karon-task-row.is-completed {
@@ -6739,36 +6922,90 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 
 .pos-karon-checkbox {
     cursor: pointer;
-    margin: 0;
+    margin: 3px 0 0 0;
+    flex-shrink: 0;
 }
 
 .pos-karon-task-body {
     flex: 1;
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .pos-karon-task-title {
-    font-size: 0.88rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
     color: var(--text-normal);
+    word-break: break-word;
+}
+
+.pos-karon-task-title p {
+    margin: 0;
+    display: inline;
 }
 
 .pos-karon-task-meta {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 6px;
-    flex-shrink: 0;
 }
 
 .pos-karon-meta-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     font-size: 0.72rem;
-    padding: 1px 6px;
+    padding: 2px 8px;
     border-radius: var(--diwa-radius-pill, 10px);
     background: var(--background-primary);
     color: var(--text-muted);
     border: 1px solid var(--background-modifier-border);
+}
+
+.pos-karon-interactive-pill {
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.pos-karon-interactive-pill:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+}
+
+.pos-karon-interactive-pill.is-active {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+    border-color: var(--text-muted);
+}
+
+.pos-karon-interactive-pill.is-today {
+    color: var(--text-normal);
+    font-weight: 600;
+}
+
+.pos-karon-interactive-pill.is-overdue {
+    background: rgba(235, 87, 87, 0.12);
+    color: #eb5757;
+    border-color: rgba(235, 87, 87, 0.25);
+    font-weight: 600;
+}
+
+.pos-karon-action-pill {
+    opacity: 0;
+    transition: opacity 0.12s ease;
+}
+
+.pos-karon-task-row:hover .pos-karon-action-pill {
+    opacity: 1;
+}
+
+@media (hover: none), (max-width: 768px) {
+    .pos-karon-action-pill {
+        opacity: 1;
+    }
 }
 
 .pos-karon-area-badge {
@@ -6794,10 +7031,195 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     border-radius: 4px;
     transition: color 0.12s ease;
     box-shadow: none;
+    flex-shrink: 0;
 }
 
 .pos-karon-source-btn:hover {
-    color: var(--text-accent);
+    color: var(--text-normal);
+}
+
+/* Inline Subtasks & Remarks Drawers */
+.pos-karon-drawer {
+    margin-top: 4px;
+    padding: 8px 10px;
+    border-left: 2px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    border-radius: 0 6px 6px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pos-karon-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.pos-karon-drawer-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.pos-karon-drawer-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.pos-karon-drawer-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    box-shadow: none;
+}
+
+.pos-karon-drawer-btn:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.pos-karon-subtask-item,
+.pos-karon-remark-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.83rem;
+    line-height: 1.4;
+}
+
+.pos-karon-subtask-checkbox {
+    margin: 2px 0 0 0;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.pos-karon-subtask-title,
+.pos-karon-remark-text {
+    flex: 1;
+    min-width: 0;
+    color: var(--text-normal);
+}
+
+.pos-karon-subtask-title p,
+.pos-karon-remark-text p {
+    margin: 0;
+    display: inline;
+}
+
+.pos-karon-subtask-item.is-completed .pos-karon-subtask-title {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.pos-karon-remark-icon {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.pos-karon-drawer-del-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-faint);
+    padding: 2px;
+    cursor: pointer;
+    opacity: 0;
+    display: inline-flex;
+    align-items: center;
+    box-shadow: none;
+}
+
+.pos-karon-subtask-item:hover .pos-karon-drawer-del-btn,
+.pos-karon-remark-item:hover .pos-karon-drawer-del-btn {
+    opacity: 1;
+}
+
+.pos-karon-drawer-del-btn:hover {
+    color: #eb5757;
+}
+
+.pos-karon-drawer-input-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.pos-karon-drawer-input {
+    flex: 1;
+    font-size: 0.82rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-secondary);
+    color: var(--text-normal);
+}
+
+/* Pending Bills in Karon */
+.pos-karon-bill-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--diwa-radius-sm, 6px);
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
+}
+
+.pos-karon-bill-row.is-overdue {
+    border-color: rgba(239, 68, 68, 0.32);
+}
+
+.pos-karon-bill-icon {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.pos-karon-bill-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.pos-karon-bill-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-normal);
+    cursor: pointer;
+}
+
+.pos-karon-bill-title:hover {
+    text-decoration: underline;
+}
+
+.pos-karon-bill-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.pos-karon-bill-amount {
+    font-weight: 700;
+    color: var(--text-normal);
+    font-variant-numeric: tabular-nums;
 }
 
 /* Notes Intended List */
@@ -6904,6 +7326,343 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 
 .pos-karon-header-trigger:hover {
     background: rgba(var(--color-orange-rgb, 242, 153, 74), 0.2);
+}
+
+/* Karon MOC & Topics Pane (40%) */
+.pos-karon-moc-pane {
+    flex: 4;
+    min-width: 300px;
+    max-width: 540px;
+    position: sticky;
+    top: 20px;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--diwa-radius-md, 10px);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-sizing: border-box;
+}
+
+.pos-karon-moc-header {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
+}
+
+.pos-karon-moc-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.pos-karon-moc-icon {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-accent);
+    margin-right: 6px;
+}
+
+.pos-karon-moc-title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-normal);
+    display: flex;
+    align-items: center;
+    flex: 1;
+}
+
+.pos-karon-moc-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.pos-karon-moc-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border-radius: 6px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-muted);
+    cursor: pointer;
+    box-shadow: none;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.pos-karon-moc-action-btn:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+    border-color: var(--text-muted);
+}
+
+.pos-karon-moc-dropdown-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.pos-karon-moc-select-wrap {
+    flex: 1;
+    min-width: 140px;
+}
+
+.pos-karon-moc-select {
+    width: 100%;
+    padding: 5px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 0.84rem;
+    font-weight: 500;
+    cursor: pointer;
+    outline: none;
+}
+
+.pos-karon-moc-select:focus {
+    border-color: var(--interactive-accent);
+}
+
+.pos-karon-moc-tag-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: var(--diwa-radius-pill, 12px);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-accent);
+    background: rgba(var(--interactive-accent-rgb), 0.1);
+    border: 1px solid rgba(var(--interactive-accent-rgb), 0.25);
+    white-space: nowrap;
+}
+
+.pos-karon-moc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 600px;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.pos-karon-moc-count-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 4px;
+}
+
+.pos-karon-moc-count-text {
+    font-size: 0.74rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+}
+
+.pos-karon-moc-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--diwa-radius-sm, 6px);
+    transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.pos-karon-moc-item:hover {
+    background: var(--background-modifier-hover);
+    border-color: var(--background-modifier-border-hover, var(--text-muted));
+}
+
+.pos-karon-moc-item-icon {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-muted);
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.pos-karon-moc-item-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pos-karon-moc-item-title {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--text-normal);
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pos-karon-moc-item-title:hover {
+    color: var(--text-accent);
+    text-decoration: underline;
+}
+
+.pos-karon-moc-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pos-karon-moc-item-folder {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pos-karon-moc-item-dot {
+    opacity: 0.5;
+}
+
+.pos-karon-moc-item-time {
+    flex-shrink: 0;
+}
+
+.pos-karon-moc-item-del-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0.4;
+    border-radius: 4px;
+    box-shadow: none;
+    flex-shrink: 0;
+    transition: opacity 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+
+.pos-karon-moc-item:hover .pos-karon-moc-item-del-btn {
+    opacity: 0.85;
+}
+
+.pos-karon-moc-item-del-btn:hover {
+    opacity: 1;
+    color: var(--text-error, #e55353);
+    background: rgba(229, 83, 83, 0.12);
+}
+
+.pos-karon-moc-empty-state {
+    padding: 24px 16px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    background: var(--background-primary);
+    border: 1px dashed var(--background-modifier-border);
+    border-radius: 8px;
+}
+
+.pos-karon-moc-empty-msg {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.pos-karon-moc-empty-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.pos-karon-moc-empty-hint {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 8px 0;
+}
+
+/* Mobile Switcher & Responsive */
+.pos-karon-mobile-switcher {
+    display: none;
+    align-items: center;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--diwa-radius-pill, 20px);
+    padding: 2px;
+    gap: 2px;
+}
+
+.pos-karon-mobile-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    border-radius: var(--diwa-radius-pill, 16px);
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: none;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.pos-karon-mobile-tab-btn:hover {
+    color: var(--text-normal);
+}
+
+.pos-karon-mobile-tab-btn.is-active {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    font-weight: 600;
+}
+
+@media (max-width: 1024px) {
+    .pos-karon-mobile-switcher {
+        display: inline-flex;
+    }
+
+    .pos-karon-layout-row {
+        flex-direction: column;
+    }
+
+    .pos-karon-stage,
+    .pos-karon-moc-pane {
+        width: 100%;
+        max-width: 100%;
+        flex: 1;
+    }
+
+    .pos-karon-moc-pane {
+        position: static;
+    }
+
+    .pos-karon-stage.pos-karon-mobile-hidden,
+    .pos-karon-moc-pane.pos-karon-mobile-hidden {
+        display: none !important;
+    }
 }
 
 /* ── Recent Permanent Notes Modal & Mobile Sheet ── */
@@ -8612,6 +9371,178 @@ button.pos-rail-toggle-btn.is-active svg {
 .pos-notice-undo-btn:hover {
     background: var(--background-modifier-border);
     color: var(--text-normal);
+}
+
+/* ==========================================================================
+   Date Picker Modal (.pos-date-picker-*)
+   ========================================================================== */
+.modal.pos-date-picker-modal {
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 390px;
+    width: 92vw;
+    padding: 0;
+    overflow: hidden;
+}
+
+.pos-date-picker-content {
+    padding: 0 !important;
+}
+
+.pos-date-picker-header {
+    padding: 20px 24px 16px 24px;
+    border-bottom: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
+}
+
+.pos-date-picker-icon-wrap {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+    color: var(--text-normal);
+}
+
+.pos-date-picker-title {
+    margin: 0 0 4px 0;
+    font-size: 1.05em;
+    font-weight: 700;
+    color: var(--text-normal);
+}
+
+.pos-date-picker-subtitle {
+    margin: 0;
+    font-size: 0.88em;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.pos-date-picker-body {
+    padding: 18px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.pos-date-picker-shortcuts {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.pos-date-picker-chip {
+    padding: 6px 12px;
+    border-radius: 14px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-secondary);
+    color: var(--text-muted);
+    font-size: 0.84em;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: none;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.pos-date-picker-chip:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+}
+
+.pos-date-picker-chip.is-active {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border-color: var(--text-muted);
+    font-weight: 600;
+}
+
+.pos-date-picker-input {
+    position: relative !important;
+    width: 100% !important;
+    height: 42px !important;
+    padding: 8px 40px 8px 14px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--background-modifier-border) !important;
+    background: var(--background-primary) !important;
+    color: var(--text-normal) !important;
+    font-size: 0.96em !important;
+    font-family: inherit !important;
+    font-variant-numeric: tabular-nums;
+    box-sizing: border-box !important;
+    box-shadow: none !important;
+}
+
+.pos-date-picker-input:focus,
+.pos-date-picker-input:focus-visible {
+    outline: none !important;
+    border-color: var(--text-muted) !important;
+    box-shadow: none !important;
+}
+
+.pos-date-picker-input::-webkit-calendar-picker-indicator {
+    position: absolute !important;
+    right: 12px !important;
+    left: auto !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    margin: 0 !important;
+    padding: 2px !important;
+    cursor: pointer;
+    opacity: 0.72;
+    outline: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.pos-date-picker-input::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
+.pos-date-picker-input::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+}
+
+.pos-date-picker-footer {
+    padding: 16px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    background: var(--background-secondary);
+    border-top: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
+}
+
+.pos-date-picker-btn-cancel {
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-muted);
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: none;
+}
+
+.pos-date-picker-btn-cancel:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+}
+
+.pos-date-picker-btn-apply {
+    padding: 8px 18px;
+    border-radius: 8px;
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: none;
+}
+
+.pos-date-picker-btn-apply:hover {
+    background: var(--background-primary);
 }
 
 
