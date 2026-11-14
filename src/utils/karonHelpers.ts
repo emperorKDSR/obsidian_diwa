@@ -49,6 +49,97 @@ export function slugifyMocTopicTag(label: string): string {
 }
 
 /**
+ * Derives a clean subtopic slug from a label.
+ * e.g. "Client Alpha" -> "client-alpha"
+ */
+export function slugifySubtopic(label: string): string {
+    return (label || '')
+        .trim()
+        .replace(/^#+/, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'general';
+}
+
+/**
+ * Combines a main topic tag and a subtopic slug into a 2-level tag.
+ * e.g. ("moc/work-projects", "client-alpha") -> "moc/work-projects/client-alpha"
+ */
+export function buildMocSubtopicTag(mainTopicTag: string, subtopicSlug: string): string {
+    const cleanMain = normalizeTagComparison(mainTopicTag);
+    const cleanSub = slugifySubtopic(subtopicSlug);
+    return `${cleanMain}/${cleanSub}`;
+}
+
+/**
+ * Extracts the subtopic slug from a note's tags given a main topic tag.
+ * e.g. tags: ['moc/work-projects/client-a'], main: 'moc/work-projects' -> 'client-a'
+ */
+export function extractSubtopicFromNoteTags(tags: string[], mainTopicTag: string): string | null {
+    const cleanMain = normalizeTagComparison(mainTopicTag);
+    if (!cleanMain) return null;
+    const prefix = `${cleanMain}/`;
+    for (const tag of tags) {
+        const norm = normalizeTagComparison(tag);
+        if (norm.startsWith(prefix)) {
+            const remainder = norm.substring(prefix.length).trim();
+            const subSlug = remainder.split('/')[0].trim();
+            if (subSlug) return subSlug;
+        }
+    }
+    return null;
+}
+
+/**
+ * Formats a subtopic slug into a readable title if no explicit label is set.
+ * e.g. "client-alpha" -> "Client Alpha"
+ */
+export function formatSubtopicLabel(slug: string): string {
+    if (!slug) return 'General';
+    return slug
+        .split('-')
+        .filter(Boolean)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+}
+
+/**
+ * Swaps or updates a note's MOC tag within a main topic from oldSubSlug to newSubSlug.
+ * If oldSubSlug is null, replaces the direct main topic tag (moc/main).
+ * If newSubSlug is null, sets the direct main topic tag (moc/main).
+ * Preserves all other unrelated tags.
+ */
+export function swapMocSubtopicTag(
+    existingTags: string[],
+    mainTopicTag: string,
+    oldSubSlug: string | null,
+    newSubSlug: string | null
+): string[] {
+    const cleanMain = normalizeTagComparison(mainTopicTag);
+    if (!cleanMain) return [...existingTags];
+
+    const targetOld = oldSubSlug
+        ? buildMocSubtopicTag(cleanMain, oldSubSlug)
+        : cleanMain;
+    const targetNew = newSubSlug
+        ? buildMocSubtopicTag(cleanMain, newSubSlug)
+        : cleanMain;
+
+    // Filter out tags matching targetOld (also guard against any leftover hierarchical matches of the main topic if moving to general/another sub)
+    const filtered = existingTags.filter(t => {
+        const norm = normalizeTagComparison(t);
+        return norm !== targetOld;
+    });
+
+    const hasNew = filtered.some(t => normalizeTagComparison(t) === targetNew);
+    if (!hasNew) {
+        filtered.push(targetNew);
+    }
+
+    return filtered;
+}
+
+/**
  * Normalizes any tag string (stripping leading '#' and lowercasing) for comparisons.
  */
 export function normalizeTagComparison(tag: string): string {

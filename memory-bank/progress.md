@@ -1,6 +1,32 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: DIWA Workstream Theme & Palettes Harmonized in Karon Deployed (Complete)
+## Current Phase: Subtopic Move (Hybrid Interaction: Menu + Drag & Drop) Deployed (Complete)
+
+---
+
+### 0. Subtopic Move (Hybrid Interaction: Menu + Drag & Drop) Deployed (Complete)
+*   [x] **Tag Swap Logic & Service (`src/utils/karonHelpers.ts`, `src/services/CaptureService.ts`)** — Created pure `swapMocSubtopicTag()` handling subtopic-to-subtopic, subtopic-to-general, and general-to-subtopic tag updates while preserving other unrelated tags; added `retagNoteMocSubtopic()` to update frontmatter atomically.
+*   [x] **Action Button & Context Menu (`src/views/KaronView.ts`, `styles.css`)** — Added `.pos-karon-moc-item-move-btn` (`folder-input` icon) on hover and right-click `contextmenu` event on note cards, displaying an Obsidian popup `Menu` with General / Direct, all subtopics, and "+ New Subtopic...".
+*   [x] **Desktop Drag & Drop (`src/views/KaronView.ts`, `styles.css`)** — Enabled HTML5 drag-and-drop on note cards (`draggable="true"`), drop targets on subtopic accordion groups with `.pos-karon-moc-drop-target` visual border cue, auto-expand on hover (600ms), and atomic tag swap on drop.
+*   [x] **Unit Tests, Lint, Build & Vault Deployment (`tests/karonHelpers.test.ts`)** — Verified all 40 tests passing (`npm test`), strict TypeScript lint passed, production bundle compiled with 0 errors, and deployed to test vaults `K0000` & `K0001`.
+
+---
+
+## Previous Phase: 2-Level MOC Hierarchy (`#moc/[main]/[sub]`) & Pattern C Accordion Deployed (Complete)
+
+---
+
+### 0. 2-Level MOC Hierarchy (`#moc/[main]/[sub]`) & Pattern C Accordion Deployed (Complete)
+*   [x] **Hierarchical MOC Types & Subtopic Helpers (`src/types.ts`, `src/utils/karonHelpers.ts`)** — Added `KaronMocSubtopic` type, `subtopics?: KaronMocSubtopic[]` on `KaronMocTopic`, `slugifySubtopic()`, `buildMocSubtopicTag()`, `extractSubtopicFromNoteTags()`, and `formatSubtopicLabel()`.
+*   [x] **IndexService Tag Surfacing (`src/services/IndexService.ts`)** — Enhanced `getNotesForMocTag` to return `tags: allTags` on each record for instant in-memory grouping without extra filesystem lookups.
+*   [x] **Pattern C Grouped Accordion / Tree UI (`src/views/KaronView.ts`, `styles.css`)** — Main topic dropdown selector at top with subtopic groups rendered as collapsible accordions (`▾ 📁 <Subtopic> (<Count>) [+]`). Includes "General / Direct" fallback group for notes tagged strictly `#moc/<main>`.
+*   [x] **Per-Group Note Actions & Tag Removal (`src/views/KaronView.ts`)** — Direct `+` shortcut button on subtopic accordion headers to link existing or create new notes into `#moc/<main>/<subtopic>`; note deletion strips only the specific subtopic tag.
+*   [x] **In-Pane "+ Subtopic" Creation Modal (`src/modals/CreateMocSubtopicModal.ts`, `src/views/KaronView.ts`)** — Modal with name input, live `#moc/<main>/<subtopic>` tag preview, duplicate validation, and settings persistence. Added `[+ Subtopic]` action button (`list-plus` icon) in MOC header.
+*   [x] **Unit Tests, Lint, Build & Vault Deployment (`tests/karonHelpers.test.ts`)** — 39/39 tests passing (`npm test`), strict TypeScript lint passed, production bundle compiled with 0 errors, and deployed to test vaults `K0000` & `K0001`.
+
+---
+
+## Previous Phase: DIWA Workstream Theme & Palettes Harmonized in Karon Deployed (Complete)
 
 ---
 

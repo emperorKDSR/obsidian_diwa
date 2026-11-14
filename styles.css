@@ -7543,6 +7543,14 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
     border-radius: var(--diwa-radius-sm, 8px);
     transition: var(--diwa-transition);
+    cursor: grab;
+}
+
+.pos-karon-moc-item.pos-karon-moc-item-dragging {
+    opacity: 0.45;
+    cursor: grabbing;
+    background: var(--background-modifier-hover);
+    border: 1px dashed var(--text-accent);
 }
 
 .pos-karon-moc-item:hover {
@@ -7610,6 +7618,14 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     font-variant-numeric: tabular-nums;
 }
 
+.pos-karon-moc-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.pos-karon-moc-item-move-btn,
 .pos-karon-moc-item-del-btn {
     display: inline-flex;
     align-items: center;
@@ -7621,21 +7637,42 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     border: none;
     color: var(--text-muted);
     cursor: pointer;
-    opacity: 0.4;
+    opacity: 0;
     border-radius: 4px;
     box-shadow: none;
     flex-shrink: 0;
     transition: var(--diwa-transition);
 }
 
+.pos-karon-moc-item-move-btn svg,
+.pos-karon-moc-item-del-btn svg {
+    width: 13px;
+    height: 13px;
+    stroke-width: 1.75px;
+}
+
+.pos-karon-moc-item:hover .pos-karon-moc-item-move-btn,
 .pos-karon-moc-item:hover .pos-karon-moc-item-del-btn {
-    opacity: 0.85;
+    opacity: 0.75;
+}
+
+.pos-karon-moc-item-move-btn:hover {
+    opacity: 1;
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
 }
 
 .pos-karon-moc-item-del-btn:hover {
     opacity: 1;
     color: rgba(239, 68, 68, 0.95);
     background: rgba(239, 68, 68, 0.12);
+}
+
+@media (hover: none) {
+    .pos-karon-moc-item-move-btn,
+    .pos-karon-moc-item-del-btn {
+        opacity: 0.75;
+    }
 }
 
 .pos-karon-moc-empty-state {
@@ -7667,6 +7704,152 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     color: var(--text-muted);
     font-style: italic;
     padding: 8px 0;
+}
+
+/* ==========================================================================
+   Karon MOC Subtopic Accordion Groups (Pattern C: 2-Level MOC Hierarchy)
+   ========================================================================== */
+.pos-karon-moc-group {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
+    border-radius: var(--diwa-radius-sm, 8px);
+    background: var(--background-secondary);
+    overflow: hidden;
+    margin-bottom: 8px;
+    transition: var(--diwa-transition);
+}
+
+.pos-karon-moc-group.pos-karon-moc-drop-target {
+    border-color: var(--interactive-accent);
+    background: var(--background-modifier-hover);
+    box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
+.pos-karon-moc-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    cursor: pointer;
+    user-select: none;
+    background: transparent;
+    transition: var(--diwa-transition);
+}
+
+.pos-karon-moc-group-header:hover {
+    background: var(--background-modifier-hover);
+}
+
+.pos-karon-moc-group-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+}
+
+.pos-karon-moc-group-chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.pos-karon-moc-group-chevron svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2px;
+}
+
+.pos-karon-moc-group-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-accent);
+    flex-shrink: 0;
+}
+
+.pos-karon-moc-group-icon svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 1.75px;
+}
+
+.pos-karon-moc-group-title {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--text-normal);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pos-karon-moc-group-count {
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+    background: var(--background-primary);
+    padding: 1px 7px;
+    border-radius: var(--diwa-radius-pill, 9999px);
+    border: 1px solid var(--background-modifier-border-faint);
+    flex-shrink: 0;
+}
+
+.pos-karon-moc-group-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.pos-karon-moc-group-add-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border-radius: 4px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border-faint);
+    color: var(--text-muted);
+    cursor: pointer;
+    box-shadow: none;
+    transition: var(--diwa-transition);
+}
+
+.pos-karon-moc-group-add-btn svg {
+    width: 13px;
+    height: 13px;
+    stroke-width: 2px;
+}
+
+.pos-karon-moc-group-add-btn:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+    border-color: var(--text-muted);
+}
+
+.pos-karon-moc-group-content {
+    padding: 6px 8px 8px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-top: 1px solid var(--background-modifier-border-faint);
+}
+
+.pos-karon-moc-group-empty {
+    padding: 12px 8px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+    font-style: italic;
 }
 
 /* DIWA Signature Wikilinks inside Karon Views */

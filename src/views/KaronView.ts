@@ -12,19 +12,23 @@ import {
 } from 'obsidian';
 import type DiwaPlugin from '../main';
 import { VIEW_TYPE_KARON, KARON_ICON_ID } from '../constants';
-import { GawaTaskRecord, HorizonBillItem, HorizonNoteBlock, KaronMocTopic } from '../types';
+import { GawaTaskRecord, HorizonBillItem, HorizonNoteBlock, KaronMocSubtopic, KaronMocTopic } from '../types';
 import { WikilinkPeekModal, openWikilinkInPeekWindow } from '../modals/WikilinkPeekModal';
 import { DatePickerModal } from '../modals/DatePickerModal';
 import { MobileTaskEditModal } from '../modals/MobileTaskEditModal';
 import { FileSuggestModal } from '../modals/FileSuggestModal';
 import { CreateMocTopicModal } from '../modals/CreateMocTopicModal';
+import { CreateMocSubtopicModal } from '../modals/CreateMocSubtopicModal';
 import { isTablet, attachInlineTriggers, attachMediaPasteHandler } from '../utils';
 import { createVaultFile } from '../utils/vaultFiles';
 import {
     KaronQuickAddMode,
+    buildMocSubtopicTag,
+    extractSubtopicFromNoteTags,
     filterKaronTasks,
     formatKaronNotesHeading,
     formatKaronQuickCaptureContent,
+    formatSubtopicLabel,
     getKaronDayTitle,
     parseStandaloneWikilinkSchedule
 } from '../utils/karonHelpers';
@@ -45,6 +49,7 @@ export class KaronView extends ItemView {
     private _quickTaskTargetDate: string = moment().format('YYYY-MM-DD');
     private _selectedMocTopicId: string = '';
     private _mobileActiveTab: 'horizon' | 'moc' = 'horizon';
+    private _collapsedMocGroups: Set<string> = new Set<string>();
 
     private _containerEl: HTMLElement | null = null;
     private _headerEl: HTMLElement | null = null;
@@ -429,14 +434,25 @@ export class KaronView extends ItemView {
             this.openCreateMocTopicModal();
         };
 
+        if (selectedTopic) {
+            const addSubtopicBtn = actionGroup.createEl('button', {
+                cls: 'pos-karon-moc-action-btn',
+                attr: { 'aria-label': `Create new subtopic in ${selectedTopic.label}`, title: 'New subtopic' }
+            });
+            setIcon(addSubtopicBtn, 'list-plus');
+            addSubtopicBtn.onclick = () => {
+                this.openCreateMocSubtopicModal(selectedTopic);
+            };
+        }
+
         const addExistingBtn = actionGroup.createEl('button', {
             cls: 'pos-karon-moc-action-btn',
             attr: { 'aria-label': 'Add existing note to this topic', title: 'Pick existing note' }
         });
         setIcon(addExistingBtn, 'link-2');
-        addExistingBtn.onclick = () => {
+        addExistingBtn.onclick = (e: MouseEvent) => {
             if (!selectedTopic) return;
-            this.openAddExistingNoteToTopicPicker(selectedTopic);
+            this.openAddExistingNoteToTopicPicker(selectedTopic, undefined, e);
         };
 
         const createNewBtn = actionGroup.createEl('button', {
@@ -444,9 +460,9 @@ export class KaronView extends ItemView {
             attr: { 'aria-label': 'Create new note in this topic', title: 'Create new note' }
         });
         setIcon(createNewBtn, 'plus');
-        createNewBtn.onclick = () => {
+        createNewBtn.onclick = (e: MouseEvent) => {
             if (!selectedTopic) return;
-            this.promptCreateNewNoteInTopic(selectedTopic);
+            this.promptCreateNewNoteInTopic(selectedTopic, undefined, e);
         };
 
         // 2. Topic Dropdown Bar
@@ -498,18 +514,73 @@ export class KaronView extends ItemView {
             text: `#${selectedTopic?.tag || ''}`
         });
 
-        // 3. Notes List for Selected Topic
+        // 3. Notes List for Selected Topic (Pattern C: Grouped Accordion / Tree)
         const listEl = this._mocPaneEl.createDiv({ cls: 'pos-karon-moc-list' });
         if (!selectedTopic) return;
 
         const topicNotes = this.plugin.index.getNotesForMocTag(selectedTopic.tag);
+
+        interface SubtopicBucket {
+            slug: string | null;
+            label: string;
+            tag: string;
+            notes: typeof topicNotes;
+        }
+
+        const bucketsMap = new Map<string, SubtopicBucket>();
+
+        // 1. Seed configured subtopics
+        for (const sub of selectedTopic.subtopics || []) {
+            bucketsMap.set(sub.slug.toLowerCase(), {
+                slug: sub.slug,
+                label: sub.label,
+                tag: buildMocSubtopicTag(selectedTopic.tag, sub.slug),
+                notes: []
+            });
+        }
+
+        // 2. Classify notes
+        const directNotes: typeof topicNotes = [];
+
+        for (const note of topicNotes) {
+            const subSlug = extractSubtopicFromNoteTags(note.tags, selectedTopic.tag);
+            if (!subSlug) {
+                directNotes.push(note);
+            } else {
+                const key = subSlug.toLowerCase();
+                let bucket = bucketsMap.get(key);
+                if (!bucket) {
+                    bucket = {
+                        slug: subSlug,
+                        label: formatSubtopicLabel(subSlug),
+                        tag: buildMocSubtopicTag(selectedTopic.tag, subSlug),
+                        notes: []
+                    };
+                    bucketsMap.set(key, bucket);
+                }
+                bucket.notes.push(note);
+            }
+        }
+
+        const subtopicBuckets = Array.from(bucketsMap.values()).sort((a, b) => a.label.localeCompare(b.label));
+        const subtopicCount = subtopicBuckets.length;
+        const totalNoteCount = topicNotes.length;
+
+        const allSubtopics: KaronMocSubtopic[] = subtopicBuckets.map(b => ({
+            id: b.slug || b.label,
+            label: b.label,
+            slug: b.slug || ''
+        }));
+
         const countHeader = listEl.createDiv({ cls: 'pos-karon-moc-count-row' });
         countHeader.createSpan({
             cls: 'pos-karon-moc-count-text',
-            text: `${topicNotes.length} Note${topicNotes.length === 1 ? '' : 's'}`
+            text: subtopicCount > 0
+                ? `${totalNoteCount} Note${totalNoteCount === 1 ? '' : 's'} · ${subtopicCount} Subtopic${subtopicCount === 1 ? '' : 's'}`
+                : `${totalNoteCount} Note${totalNoteCount === 1 ? '' : 's'}`
         });
 
-        if (topicNotes.length === 0) {
+        if (totalNoteCount === 0 && subtopicCount === 0) {
             const emptyEl = listEl.createDiv({ cls: 'pos-karon-moc-empty-state' });
             emptyEl.createSpan({
                 cls: 'pos-karon-moc-empty-msg',
@@ -520,26 +591,278 @@ export class KaronView extends ItemView {
                 cls: 'pos-karon-pill-btn',
                 text: 'Link Existing Note'
             });
-            pickBtn.onclick = () => this.openAddExistingNoteToTopicPicker(selectedTopic);
+            pickBtn.onclick = (e) => this.openAddExistingNoteToTopicPicker(selectedTopic, undefined, e);
             const newBtn = emptyActions.createEl('button', {
                 cls: 'pos-karon-pill-btn',
                 text: '+ New Note'
             });
-            newBtn.onclick = () => this.promptCreateNewNoteInTopic(selectedTopic);
+            newBtn.onclick = (e) => this.promptCreateNewNoteInTopic(selectedTopic, undefined, e);
+            const subBtn = emptyActions.createEl('button', {
+                cls: 'pos-karon-pill-btn',
+                text: '+ Add Subtopic'
+            });
+            subBtn.onclick = () => this.openCreateMocSubtopicModal(selectedTopic);
             return;
         }
 
-        for (const item of topicNotes) {
-            this.renderMocNoteRow(listEl, item, selectedTopic);
+        // Render each Subtopic Bucket Group
+        for (const bucket of subtopicBuckets) {
+            this.renderMocSubtopicGroup(listEl, selectedTopic, bucket, allSubtopics);
         }
+
+        // Render Direct Notes Group if present, or if no subtopics exist
+        if (directNotes.length > 0 || subtopicBuckets.length === 0) {
+            const generalBucket: SubtopicBucket = {
+                slug: null,
+                label: subtopicBuckets.length > 0 ? 'General / Direct' : 'Direct Notes',
+                tag: selectedTopic.tag,
+                notes: directNotes
+            };
+            this.renderMocSubtopicGroup(listEl, selectedTopic, generalBucket, allSubtopics);
+        }
+    }
+
+    private renderMocSubtopicGroup(
+        container: HTMLElement,
+        mainTopic: KaronMocTopic,
+        bucket: { slug: string | null; label: string; tag: string; notes: { file: TFile; title: string; folder: string; mtime: number; tags: string[] }[] },
+        allSubtopics: KaronMocSubtopic[]
+    ): void {
+        const groupEl = container.createDiv({ cls: 'pos-karon-moc-group' });
+        const groupKey = `${mainTopic.id}::${bucket.slug || '__direct__'}`;
+        const isCollapsed = this._collapsedMocGroups.has(groupKey);
+
+        let hoverExpandTimer: ReturnType<typeof setTimeout> | null = null;
+
+        // Drag & Drop Target
+        groupEl.addEventListener('dragover', (e: DragEvent) => {
+            e.preventDefault();
+            if (e.dataTransfer) {
+                e.dataTransfer.dropEffect = 'move';
+            }
+            if (!groupEl.hasClass('pos-karon-moc-drop-target')) {
+                groupEl.addClass('pos-karon-moc-drop-target');
+            }
+        });
+
+        groupEl.addEventListener('dragenter', (e: DragEvent) => {
+            e.preventDefault();
+            groupEl.addClass('pos-karon-moc-drop-target');
+
+            if (this._collapsedMocGroups.has(groupKey) && !hoverExpandTimer) {
+                hoverExpandTimer = setTimeout(() => {
+                    this._collapsedMocGroups.delete(groupKey);
+                    this.renderMocPane();
+                }, 600);
+            }
+        });
+
+        groupEl.addEventListener('dragleave', (e: DragEvent) => {
+            if (!groupEl.contains(e.relatedTarget as Node)) {
+                groupEl.removeClass('pos-karon-moc-drop-target');
+                if (hoverExpandTimer) {
+                    clearTimeout(hoverExpandTimer);
+                    hoverExpandTimer = null;
+                }
+            }
+        });
+
+        groupEl.addEventListener('drop', async (e: DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            groupEl.removeClass('pos-karon-moc-drop-target');
+            if (hoverExpandTimer) {
+                clearTimeout(hoverExpandTimer);
+                hoverExpandTimer = null;
+            }
+
+            const rawPayload = e.dataTransfer?.getData('application/json');
+            if (!rawPayload) return;
+
+            try {
+                const data = JSON.parse(rawPayload) as {
+                    filePath: string;
+                    noteTitle: string;
+                    mainTag: string;
+                    sourceSubSlug: string | null;
+                };
+
+                if (data.mainTag !== mainTopic.tag) return;
+                if (data.sourceSubSlug === bucket.slug) return;
+
+                const file = this.app.vault.getAbstractFileByPath(data.filePath);
+                if (file instanceof TFile) {
+                    await this.executeMoveSubtopic(
+                        file,
+                        data.noteTitle || file.basename,
+                        mainTopic.tag,
+                        data.sourceSubSlug,
+                        bucket.slug,
+                        bucket.label
+                    );
+                }
+            } catch (err) {
+                console.error('[DIWA Karon] Failed to handle drop', err);
+            }
+        });
+
+        const headerEl = groupEl.createDiv({ cls: 'pos-karon-moc-group-header' });
+
+        const headerLeft = headerEl.createDiv({ cls: 'pos-karon-moc-group-header-left' });
+        const chevron = headerLeft.createSpan({ cls: 'pos-karon-moc-group-chevron' });
+        setIcon(chevron, isCollapsed ? 'chevron-right' : 'chevron-down');
+
+        const folderIcon = headerLeft.createSpan({ cls: 'pos-karon-moc-group-icon' });
+        setIcon(folderIcon, bucket.slug ? 'folder' : 'file-text');
+
+        headerLeft.createSpan({
+            cls: 'pos-karon-moc-group-title',
+            text: bucket.label
+        });
+
+        headerLeft.createSpan({
+            cls: 'pos-karon-moc-group-count',
+            text: `${bucket.notes.length}`
+        });
+
+        // Add note to this specific subtopic button
+        const groupActions = headerEl.createDiv({ cls: 'pos-karon-moc-group-actions' });
+        const addBtn = groupActions.createEl('button', {
+            cls: 'pos-karon-moc-group-add-btn',
+            attr: { 'aria-label': `Add note to #${bucket.tag}`, title: `Add note to #${bucket.tag}` }
+        });
+        setIcon(addBtn, 'plus');
+        addBtn.onclick = (e: MouseEvent) => {
+            e.stopPropagation();
+            this.promptAddNoteToSpecificTag(bucket.tag, bucket.label, e);
+        };
+
+        // Header click toggles accordion collapse
+        headerEl.onclick = () => {
+            if (this._collapsedMocGroups.has(groupKey)) {
+                this._collapsedMocGroups.delete(groupKey);
+            } else {
+                this._collapsedMocGroups.add(groupKey);
+            }
+            this.renderMocPane();
+        };
+
+        // Content
+        if (!isCollapsed) {
+            const contentEl = groupEl.createDiv({ cls: 'pos-karon-moc-group-content' });
+            if (bucket.notes.length === 0) {
+                const emptyHint = contentEl.createDiv({ cls: 'pos-karon-moc-group-empty' });
+                emptyHint.createSpan({ text: 'No notes yet. ' });
+                const linkBtn = emptyHint.createEl('button', {
+                    cls: 'pos-karon-pill-btn',
+                    text: '+ Add Note'
+                });
+                linkBtn.onclick = (e) => this.promptAddNoteToSpecificTag(bucket.tag, bucket.label, e);
+            } else {
+                for (const item of bucket.notes) {
+                    this.renderMocNoteRow(contentEl, item, bucket.slug, bucket.tag, mainTopic, allSubtopics);
+                }
+            }
+        }
+    }
+
+    private promptAddNoteToSpecificTag(targetTag: string, tagLabel: string, e?: MouseEvent): void {
+        const menu = new Menu();
+        menu.addItem(item => {
+            item.setTitle(`+ New Note in ${tagLabel}`)
+                .setIcon('plus')
+                .onClick(() => {
+                    const titlePrompt = window.prompt(`Create new note in #${targetTag}:`, '');
+                    if (!titlePrompt || !titlePrompt.trim()) return;
+                    void this.createNoteWithExactTag(titlePrompt.trim(), targetTag);
+                });
+        });
+        menu.addItem(item => {
+            item.setTitle(`Pick Existing Note`)
+                .setIcon('link-2')
+                .onClick(() => {
+                    this.openFileSuggestForTag(targetTag);
+                });
+        });
+
+        if (e) {
+            menu.showAtMouseEvent(e);
+        } else {
+            menu.showAtPosition({ x: window.innerWidth / 2, y: window.innerHeight / 3 });
+        }
+    }
+
+    private async createNoteWithExactTag(cleanName: string, targetTag: string): Promise<void> {
+        const folder = this.plugin.settings.newNoteFolder?.trim() || '000 Bin';
+        try {
+            const initialContent = `---\ntags:\n  - ${targetTag}\n---\n\n# ${cleanName}\n\n`;
+            const newFile = await createVaultFile(this.app, folder, `${cleanName}.md`, initialContent);
+            await this.plugin.refreshCoordinator.reindexFile(newFile, true);
+            this.plugin.refreshCoordinator.notifyRefresh('all');
+            this.renderMocPane();
+            new Notice(`Created "${cleanName}" in #${targetTag}`);
+            this.openWikilinkModal(cleanName, newFile.path);
+        } catch (err) {
+            console.error('[DIWA Karon] Failed to create note with tag', err);
+            new Notice('Failed to create note');
+        }
+    }
+
+    private openCreateMocSubtopicModal(mainTopic: KaronMocTopic): void {
+        new CreateMocSubtopicModal(
+            this.app,
+            mainTopic,
+            async (newSubtopic: KaronMocSubtopic) => {
+                if (!mainTopic.subtopics) {
+                    mainTopic.subtopics = [];
+                }
+                mainTopic.subtopics.push(newSubtopic);
+                await this.plugin.saveSettings();
+                this.renderMocPane();
+                new Notice(`Created subtopic "${newSubtopic.label}" (#${buildMocSubtopicTag(mainTopic.tag, newSubtopic.slug)})`);
+            }
+        ).open();
     }
 
     private renderMocNoteRow(
         container: HTMLElement,
         item: { file: TFile; title: string; folder: string; mtime: number },
-        topic: KaronMocTopic
+        currentSubSlug: string | null,
+        topicTag: string,
+        mainTopic: KaronMocTopic,
+        allSubtopics: KaronMocSubtopic[]
     ): void {
         const row = container.createDiv({ cls: 'pos-karon-moc-item' });
+
+        // HTML5 Draggable item
+        row.setAttribute('draggable', 'true');
+        row.addEventListener('dragstart', (e: DragEvent) => {
+            if (!e.dataTransfer) return;
+            row.addClass('pos-karon-moc-item-dragging');
+            const payload = JSON.stringify({
+                filePath: item.file.path,
+                noteTitle: item.title,
+                mainTag: mainTopic.tag,
+                sourceSubSlug: currentSubSlug
+            });
+            e.dataTransfer.setData('application/json', payload);
+            e.dataTransfer.setData('text/plain', item.file.path);
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        row.addEventListener('dragend', () => {
+            row.removeClass('pos-karon-moc-item-dragging');
+            container.ownerDocument.querySelectorAll('.pos-karon-moc-drop-target').forEach(el => {
+                el.removeClass('pos-karon-moc-drop-target');
+            });
+        });
+
+        // Right-click context menu to move subtopic
+        row.addEventListener('contextmenu', (e: MouseEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.openMoveSubtopicMenu(e, item.file, item.title, currentSubSlug, mainTopic, allSubtopics);
+        });
 
         const iconEl = row.createSpan({ cls: 'pos-karon-moc-item-icon' });
         setIcon(iconEl, 'file-text');
@@ -572,21 +895,33 @@ export class KaronView extends ItemView {
             text: moment(item.mtime).fromNow()
         });
 
-        // Trailing remove tag button
-        const removeBtn = row.createEl('button', {
+        // Action buttons wrapper (Move + Remove)
+        const actionsEl = row.createDiv({ cls: 'pos-karon-moc-item-actions' });
+
+        const moveBtn = actionsEl.createEl('button', {
+            cls: 'pos-karon-moc-item-move-btn',
+            attr: { 'aria-label': `Move "${item.title}" to another subtopic`, title: 'Move to subtopic' }
+        });
+        setIcon(moveBtn, 'folder-input');
+        moveBtn.onclick = (e: MouseEvent) => {
+            e.stopPropagation();
+            this.openMoveSubtopicMenu(e, item.file, item.title, currentSubSlug, mainTopic, allSubtopics);
+        };
+
+        const removeBtn = actionsEl.createEl('button', {
             cls: 'pos-karon-moc-item-del-btn',
-            attr: { 'aria-label': `Remove #${topic.tag} from ${item.title}`, title: 'Remove from topic' }
+            attr: { 'aria-label': `Remove #${topicTag} from ${item.title}`, title: 'Remove from topic' }
         });
         setIcon(removeBtn, 'x');
         removeBtn.onclick = async (e: MouseEvent) => {
             e.stopPropagation();
             removeBtn.disabled = true;
             try {
-                await this.plugin.capture.removeTagFromNote(item.file, topic.tag);
+                await this.plugin.capture.removeTagFromNote(item.file, topicTag);
                 await this.plugin.refreshCoordinator.reindexFile(item.file, true);
                 this.plugin.refreshCoordinator.notifyRefresh('all');
                 this.renderMocPane();
-                new Notice(`Removed #${topic.tag} from "${item.title}"`);
+                new Notice(`Removed #${topicTag} from "${item.title}"`);
             } catch (err) {
                 console.error('[DIWA Karon] Failed to remove tag', err);
                 new Notice('Failed to remove tag from note');
@@ -596,16 +931,98 @@ export class KaronView extends ItemView {
         };
     }
 
-    private openAddExistingNoteToTopicPicker(topic: KaronMocTopic): void {
+    private openMoveSubtopicMenu(
+        e: MouseEvent,
+        file: TFile,
+        noteTitle: string,
+        currentSubSlug: string | null,
+        mainTopic: KaronMocTopic,
+        allSubtopics: KaronMocSubtopic[]
+    ): void {
+        const menu = new Menu();
+
+        // 1. General / Direct option
+        const isGeneral = currentSubSlug === null;
+        menu.addItem(menuItem => {
+            menuItem
+                .setTitle(isGeneral ? '✓ General / Direct' : 'General / Direct')
+                .setIcon('file-text')
+                .setDisabled(isGeneral)
+                .onClick(async () => {
+                    await this.executeMoveSubtopic(file, noteTitle, mainTopic.tag, currentSubSlug, null, 'General / Direct');
+                });
+        });
+
+        // 2. All available subtopics
+        for (const sub of allSubtopics) {
+            const isCurrent = currentSubSlug === sub.slug;
+            menu.addItem(menuItem => {
+                menuItem
+                    .setTitle(isCurrent ? `✓ ${sub.label}` : sub.label)
+                    .setIcon('folder')
+                    .setDisabled(isCurrent)
+                    .onClick(async () => {
+                        await this.executeMoveSubtopic(file, noteTitle, mainTopic.tag, currentSubSlug, sub.slug, sub.label);
+                    });
+            });
+        }
+
+        menu.addSeparator();
+
+        // 3. New Subtopic...
+        menu.addItem(menuItem => {
+            menuItem
+                .setTitle('+ New Subtopic...')
+                .setIcon('list-plus')
+                .onClick(() => {
+                    new CreateMocSubtopicModal(
+                        this.app,
+                        mainTopic,
+                        async (newSubtopic: KaronMocSubtopic) => {
+                            if (!mainTopic.subtopics) {
+                                mainTopic.subtopics = [];
+                            }
+                            mainTopic.subtopics.push(newSubtopic);
+                            await this.plugin.saveSettings();
+                            await this.executeMoveSubtopic(file, noteTitle, mainTopic.tag, currentSubSlug, newSubtopic.slug, newSubtopic.label);
+                        }
+                    ).open();
+                });
+        });
+
+        menu.showAtMouseEvent(e);
+    }
+
+    private async executeMoveSubtopic(
+        file: TFile,
+        noteTitle: string,
+        mainTopicTag: string,
+        oldSubSlug: string | null,
+        newSubSlug: string | null,
+        destLabel: string
+    ): Promise<void> {
+        try {
+            await this.plugin.capture.retagNoteMocSubtopic(file, mainTopicTag, oldSubSlug, newSubSlug);
+            await this.plugin.refreshCoordinator.reindexFile(file, true);
+            this.plugin.refreshCoordinator.notifyRefresh('all');
+            this.renderMocPane();
+            new Notice(`Moved "${noteTitle}" to ${destLabel}`);
+        } catch (err) {
+            console.error('[DIWA Karon] Failed to move note subtopic', err);
+            new Notice('Failed to move note');
+        }
+    }
+
+    private openFileSuggestForTag(targetTag: string): void {
         new FileSuggestModal(
             this.app,
             async (file) => {
                 try {
-                    await this.plugin.capture.addTagToNote(file, topic.tag);
+                    await this.plugin.capture.addTagToNote(file, targetTag);
                     await this.plugin.refreshCoordinator.reindexFile(file, true);
                     this.plugin.refreshCoordinator.notifyRefresh('all');
                     this.renderMocPane();
-                    new Notice(`Added #${topic.tag} to "${file.basename}"`);
+                    new Notice(`Added #${targetTag} to "${file.basename}"`);
                 } catch (err) {
                     console.error('[DIWA Karon] Failed to tag note', err);
                     new Notice('Failed to tag note');
@@ -615,26 +1032,96 @@ export class KaronView extends ItemView {
         ).open();
     }
 
-    private promptCreateNewNoteInTopic(topic: KaronMocTopic): void {
-        const titlePrompt = window.prompt(`Create new note in #${topic.tag}:`, '');
-        if (!titlePrompt || !titlePrompt.trim()) return;
-        const cleanName = titlePrompt.trim();
-        const folder = this.plugin.settings.newNoteFolder?.trim() || '000 Bin';
+    private openAddExistingNoteToTopicPicker(topic: KaronMocTopic, specificTag?: string, e?: MouseEvent): void {
+        if (specificTag) {
+            this.openFileSuggestForTag(specificTag);
+            return;
+        }
 
-        void (async () => {
-            try {
-                const initialContent = `---\ntags:\n  - ${topic.tag}\n---\n\n# ${cleanName}\n\n`;
-                const newFile = await createVaultFile(this.app, folder, `${cleanName}.md`, initialContent);
-                await this.plugin.refreshCoordinator.reindexFile(newFile, true);
-                this.plugin.refreshCoordinator.notifyRefresh('all');
-                this.renderMocPane();
-                new Notice(`Created "${cleanName}" in #${topic.tag}`);
-                this.openWikilinkModal(cleanName, newFile.path);
-            } catch (err) {
-                console.error('[DIWA Karon] Failed to create note in topic', err);
-                new Notice('Failed to create note');
-            }
-        })();
+        const subtopics = topic.subtopics || [];
+        if (subtopics.length === 0) {
+            this.openFileSuggestForTag(topic.tag);
+            return;
+        }
+
+        // Show choice menu of subtopics or direct
+        const menu = new Menu();
+        menu.addItem(item => {
+            item.setTitle(`Direct (${topic.label})`)
+                .setIcon('file-text')
+                .onClick(() => this.openFileSuggestForTag(topic.tag));
+        });
+        for (const sub of subtopics) {
+            const subTag = buildMocSubtopicTag(topic.tag, sub.slug);
+            menu.addItem(item => {
+                item.setTitle(`📁 ${sub.label}`)
+                    .setIcon('folder')
+                    .onClick(() => this.openFileSuggestForTag(subTag));
+            });
+        }
+        menu.addItem(item => {
+            item.setTitle('+ New Subtopic...')
+                .setIcon('list-plus')
+                .onClick(() => this.openCreateMocSubtopicModal(topic));
+        });
+
+        if (e) {
+            menu.showAtMouseEvent(e);
+        } else {
+            menu.showAtPosition({ x: window.innerWidth / 2, y: window.innerHeight / 3 });
+        }
+    }
+
+    private promptCreateNewNoteInTopic(topic: KaronMocTopic, specificTag?: string, e?: MouseEvent): void {
+        if (specificTag) {
+            const titlePrompt = window.prompt(`Create new note in #${specificTag}:`, '');
+            if (!titlePrompt || !titlePrompt.trim()) return;
+            void this.createNoteWithExactTag(titlePrompt.trim(), specificTag);
+            return;
+        }
+
+        const subtopics = topic.subtopics || [];
+        if (subtopics.length === 0) {
+            const titlePrompt = window.prompt(`Create new note in #${topic.tag}:`, '');
+            if (!titlePrompt || !titlePrompt.trim()) return;
+            void this.createNoteWithExactTag(titlePrompt.trim(), topic.tag);
+            return;
+        }
+
+        // Show choice menu
+        const menu = new Menu();
+        menu.addItem(item => {
+            item.setTitle(`Direct (${topic.label})`)
+                .setIcon('file-text')
+                .onClick(() => {
+                    const titlePrompt = window.prompt(`Create new note in #${topic.tag}:`, '');
+                    if (!titlePrompt || !titlePrompt.trim()) return;
+                    void this.createNoteWithExactTag(titlePrompt.trim(), topic.tag);
+                });
+        });
+        for (const sub of subtopics) {
+            const subTag = buildMocSubtopicTag(topic.tag, sub.slug);
+            menu.addItem(item => {
+                item.setTitle(`📁 ${sub.label}`)
+                    .setIcon('folder')
+                    .onClick(() => {
+                        const titlePrompt = window.prompt(`Create new note in #${subTag}:`, '');
+                        if (!titlePrompt || !titlePrompt.trim()) return;
+                        void this.createNoteWithExactTag(titlePrompt.trim(), subTag);
+                    });
+            });
+        }
+        menu.addItem(item => {
+            item.setTitle('+ New Subtopic...')
+                .setIcon('list-plus')
+                .onClick(() => this.openCreateMocSubtopicModal(topic));
+        });
+
+        if (e) {
+            menu.showAtMouseEvent(e);
+        } else {
+            menu.showAtPosition({ x: window.innerWidth / 2, y: window.innerHeight / 3 });
+        }
     }
 
     private openCreateMocTopicModal(): void {

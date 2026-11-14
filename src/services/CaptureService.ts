@@ -1,6 +1,7 @@
 import { App, TFile, moment, normalizePath } from 'obsidian';
 import { DiwaSettings, DigestibleBlock } from '../types';
 import { sanitizeVaultFilename } from '../utils/vaultFiles';
+import { swapMocSubtopicTag } from '../utils/karonHelpers';
 
 export class CaptureService {
     private app: App;
@@ -142,6 +143,32 @@ export class CaptureService {
 
             if (filtered.length > 0) {
                 fm.tags = filtered;
+            } else {
+                delete fm.tags;
+            }
+            if (fm.tag) delete fm.tag;
+            fm.modified = moment().format('YYYY-MM-DDTHH:mm:ss');
+        });
+    }
+
+    /**
+     * Swaps or updates a note's MOC subtopic tag within a main topic.
+     */
+    async retagNoteMocSubtopic(
+        file: TFile,
+        mainTopicTag: string,
+        oldSubSlug: string | null,
+        newSubSlug: string | null
+    ): Promise<void> {
+        await this.app.fileManager.processFrontMatter(file, (fm) => {
+            const existingRaw: unknown[] = Array.isArray(fm.tags)
+                ? fm.tags
+                : (typeof fm.tags === 'string' ? fm.tags.split(',') : (Array.isArray(fm.tag) ? fm.tag : (typeof fm.tag === 'string' ? fm.tag.split(',') : [])));
+            const existing = existingRaw.map(t => String(t || '').trim().replace(/^#+/, ''));
+            const updated = swapMocSubtopicTag(existing, mainTopicTag, oldSubSlug, newSubSlug);
+
+            if (updated.length > 0) {
+                fm.tags = updated;
             } else {
                 delete fm.tags;
             }

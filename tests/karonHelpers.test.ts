@@ -3,15 +3,20 @@ import assert from 'node:assert';
 import { GawaTaskRecord } from '../src/types';
 import { IndexService } from '../src/services/IndexService';
 import {
+    buildMocSubtopicTag,
+    extractSubtopicFromNoteTags,
     filterKaronTasks,
     formatKaronNotesHeading,
     formatKaronQuickCaptureContent,
     formatKaronQuickTaskContent,
+    formatSubtopicLabel,
     getKaronDayTitle,
     hasMocTopicTag,
     normalizeTagComparison,
     parseStandaloneWikilinkSchedule,
-    slugifyMocTopicTag
+    slugifyMocTopicTag,
+    slugifySubtopic,
+    swapMocSubtopicTag
 } from '../src/utils/karonHelpers';
 
 function makeTask(overrides: Partial<GawaTaskRecord> = {}): GawaTaskRecord {
@@ -171,4 +176,83 @@ test('hasMocTopicTag accurately matches exact tags and hierarchical subtags', ()
     assert.strictEqual(hasMocTopicTag([], 'moc/work'), false);
     assert.strictEqual(hasMocTopicTag(['project', 'finance'], 'moc/work'), false);
 });
+
+test('slugifySubtopic formats strings into URL/tag friendly slugs', () => {
+    assert.strictEqual(slugifySubtopic('Client Alpha'), 'client-alpha');
+    assert.strictEqual(slugifySubtopic('Quarter 1 Review & Planning!'), 'quarter-1-review-planning');
+    assert.strictEqual(slugifySubtopic('sub-topic'), 'sub-topic');
+    assert.strictEqual(slugifySubtopic('  #Design System  '), 'design-system');
+    assert.strictEqual(slugifySubtopic(''), 'general');
+});
+
+test('buildMocSubtopicTag concatenates main topic and subtopic slugs', () => {
+    assert.strictEqual(buildMocSubtopicTag('moc/work-projects', 'client-alpha'), 'moc/work-projects/client-alpha');
+    assert.strictEqual(buildMocSubtopicTag('#moc/finance', 'taxes-2026'), 'moc/finance/taxes-2026');
+    assert.strictEqual(buildMocSubtopicTag('moc/personal', 'subtopic'), 'moc/personal/subtopic');
+});
+
+test('extractSubtopicFromNoteTags extracts subtopic slug from note tags', () => {
+    // When note has a matching subtopic tag
+    assert.strictEqual(
+        extractSubtopicFromNoteTags(['#moc/work-projects/client-alpha', 'work'], 'moc/work-projects'),
+        'client-alpha'
+    );
+    assert.strictEqual(
+        extractSubtopicFromNoteTags(['moc/work-projects/frontend', 'archive'], 'moc/work-projects'),
+        'frontend'
+    );
+
+    // Deeply nested subtopic (should take the first sub-level)
+    assert.strictEqual(
+        extractSubtopicFromNoteTags(['#moc/work-projects/client-alpha/notes'], 'moc/work-projects'),
+        'client-alpha'
+    );
+
+    // When note only has the main topic tag (no subtopic)
+    assert.strictEqual(
+        extractSubtopicFromNoteTags(['#moc/work-projects'], 'moc/work-projects'),
+        null
+    );
+
+    // Non-matching tags
+    assert.strictEqual(
+        extractSubtopicFromNoteTags(['#moc/personal/health', 'other'], 'moc/work-projects'),
+        null
+    );
+    assert.strictEqual(
+        extractSubtopicFromNoteTags([], 'moc/work-projects'),
+        null
+    );
+});
+
+test('formatSubtopicLabel transforms kebab-case slug into readable title', () => {
+    assert.strictEqual(formatSubtopicLabel('client-alpha'), 'Client Alpha');
+    assert.strictEqual(formatSubtopicLabel('quarter-1-review'), 'Quarter 1 Review');
+    assert.strictEqual(formatSubtopicLabel('general'), 'General');
+    assert.strictEqual(formatSubtopicLabel(''), 'General');
+});
+
+test('swapMocSubtopicTag swaps subtopic tags and preserves other tags', () => {
+    // 1. Swap Subtopic to Subtopic
+    const tags1 = ['status/active', 'moc/work-projects/client-alpha', 'area/client'];
+    const res1 = swapMocSubtopicTag(tags1, 'moc/work-projects', 'client-alpha', 'client-beta');
+    assert.deepStrictEqual(res1, ['status/active', 'area/client', 'moc/work-projects/client-beta']);
+
+    // 2. Swap Subtopic to General (newSubSlug is null)
+    const tags2 = ['#moc/work-projects/client-alpha', 'project'];
+    const res2 = swapMocSubtopicTag(tags2, 'moc/work-projects', 'client-alpha', null);
+    assert.deepStrictEqual(res2, ['project', 'moc/work-projects']);
+
+    // 3. Swap General to Subtopic (oldSubSlug is null)
+    const tags3 = ['moc/work-projects', 'important'];
+    const res3 = swapMocSubtopicTag(tags3, 'moc/work-projects', null, 'client-gamma');
+    assert.deepStrictEqual(res3, ['important', 'moc/work-projects/client-gamma']);
+
+    // 4. Idempotency: if already in target subtopic
+    const tags4 = ['moc/work-projects/client-alpha'];
+    const res4 = swapMocSubtopicTag(tags4, 'moc/work-projects', 'client-alpha', 'client-alpha');
+    assert.deepStrictEqual(res4, ['moc/work-projects/client-alpha']);
+});
+
+
 

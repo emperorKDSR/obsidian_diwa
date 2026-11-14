@@ -86,11 +86,18 @@ export interface DayDigestSummary {
 
 export type ScratchpadHorizon = 'today' | '3d' | '7d' | '14d' | '30d' | 'all' | 'custom';
 
+export interface KaronMocSubtopic {
+    id: string;
+    label: string;
+    slug: string;
+}
+
 export interface KaronMocTopic {
     id: string;
     label: string;
     icon: string;
     tag: string;
+    subtopics?: KaronMocSubtopic[];
 }
 
 export interface DiwaSettings {

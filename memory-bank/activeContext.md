@@ -1,6 +1,39 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: DIWA Workstream Theme & Palettes Harmonized in Karon Deployed
+## Current State: Subtopic Move (Hybrid Interaction: Menu + Drag & Drop) Deployed
+- **Subtopic Move Core & Logic (`src/utils/karonHelpers.ts`, `src/services/CaptureService.ts`)**:
+  - Implemented `swapMocSubtopicTag(existingTags, mainTopicTag, oldSubSlug, newSubSlug)`: pure tag swap helper handling subtopic ➔ subtopic, subtopic ➔ general, and general ➔ subtopic, idempotently preserving unrelated tags.
+  - Implemented `CaptureService.retagNoteMocSubtopic(file, mainTopicTag, oldSubSlug, newSubSlug)`: atomic YAML frontmatter update via `app.fileManager.processFrontMatter()`, syncing modified timestamp, cache, and index.
+- **Hybrid Interaction UI (`src/views/KaronView.ts`, `styles.css`)**:
+  - **Interaction A (Menu & Context Menu)**: Added `Move to Subtopic` button (`folder-input` icon) on note card hover, and registered right-click `contextmenu` listener on the entire note row. Opens Obsidian `Menu` listing:
+    - `📂 General / Direct (#moc/<main>)`
+    - `📁 <Subtopic>` (marked active/disabled if current)
+    - `➕ New Subtopic...` (opens `CreateMocSubtopicModal` and instantly moves note to the newly created subtopic upon save).
+  - **Interaction B (Desktop Drag & Drop)**: Note cards configured with `draggable="true"` and payload `{ filePath, noteTitle, mainTag, sourceSubSlug }`. Subtopic accordion groups register `dragover`, `dragenter`, `dragleave`, and `drop`. Hovering over a collapsed accordion for >600ms auto-expands it. Visual cue `.pos-karon-moc-drop-target` highlights the destination group.
+- **Unit Tests, Lint, Build & Deployment**:
+  - Added unit tests in `tests/karonHelpers.test.ts` verifying all subtopic tag swap permutations and idempotency.
+  - All 40 unit tests passing (`npm test`), strict TypeScript lint passed (`npm run lint`), build succeeded, and deployed to test vaults `K0000` & `K0001`.
+
+## Previous State: 2-Level MOC Hierarchy (`#moc/[main]/[sub]`) & Pattern C Accordion Deployed
+- **2-Level MOC Hierarchy (`src/types.ts`, `src/utils/karonHelpers.ts`, `src/services/IndexService.ts`)**:
+  - Added `KaronMocSubtopic` interface (`id`, `label`, `slug`) and optional `subtopics?: KaronMocSubtopic[]` on `KaronMocTopic`.
+  - Added helpers: `slugifySubtopic(label)`, `buildMocSubtopicTag(mainTag, subSlug)`, `extractSubtopicFromNoteTags(tags, mainTag)`, and `formatSubtopicLabel(slug)`.
+  - Enhanced `IndexService.getNotesForMocTag` to return `tags: allTags` on each item, enabling immediate subtopic partitioning without disk re-reads.
+- **Pattern C: Grouped Accordion / Tree UI (`src/views/KaronView.ts`, `styles.css`)**:
+  - Partitioned notes under the selected main topic into subtopic groups, merging configured `mainTopic.subtopics` and dynamically discovered subtopic tags in the vault.
+  - Dedicated "General / Direct" fallback group for notes tagged strictly `#moc/<main>`.
+  - Subtopic accordion headers display collapsible chevron, folder icon, subtopic title, note count pill, and an inline `+` button to add or create notes directly under that specific `#moc/<main>/<subtopic>`.
+  - Collapsed state persists in view session via `_collapsedMocGroups: Set<string>`.
+  - When removing a note from a subtopic row, only the exact `#moc/<main>/<subtopic>` tag is stripped.
+- **In-Pane "+ Subtopic" Creation Modal (`src/modals/CreateMocSubtopicModal.ts`, `src/views/KaronView.ts`)**:
+  - Added `[+ Subtopic]` button (`list-plus` icon) in the MOC header action bar.
+  - Modal with subtopic name input, live `#moc/<main>/<subtopic>` tag preview, duplicate slug validation, and `Enter` key submission.
+  - Saves new subtopic to `mainTopic.subtopics` in `plugin.settings.karonMocTopics` and persists via `saveSettings()`.
+- **Unit Tests & Quality Gates (`tests/karonHelpers.test.ts`)**:
+  - Added unit tests for subtopic slugification, subtopic tag building, note tag extraction, and label formatting.
+  - All 39 tests passing (`npm test`), strict TypeScript lint passed (`npm run lint`), production bundle compiled cleanly (`npm run build`), and deployed to test vaults `K0000` & `K0001`.
+
+## Previous State: DIWA Workstream Theme & Palettes Harmonized in Karon Deployed
 - **DIWA Workstream Theme & Palettes Harmonized in Karon (`styles.css`)**:
   - **Surface & Container Stack**: Container on `var(--background-primary)`; day sections and MOC pane on `var(--background-secondary)` with `border: 1px solid var(--background-modifier-border-faint)` and `border-radius: var(--diwa-radius, 12px)`.
   - **Internal Cards**: Task rows, bill items, and note cards rendered on `var(--background-primary)` with `border: 1px solid var(--background-modifier-border-faint)` and `border-radius: var(--diwa-radius-sm, 8px)`.

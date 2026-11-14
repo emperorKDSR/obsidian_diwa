@@ -1511,11 +1511,11 @@ export class IndexService {
      * Retrieves all markdown notes across the vault carrying the specified MOC tag
      * (in frontmatter or body inline tags), sorted by modification time descending.
      */
-    getNotesForMocTag(targetTag: string): { file: TFile; title: string; folder: string; mtime: number }[] {
+    getNotesForMocTag(targetTag: string): { file: TFile; title: string; folder: string; mtime: number; tags: string[] }[] {
         const cleanTarget = (targetTag || '').toLowerCase().trim().replace(/^#+/, '');
         if (!cleanTarget) return [];
 
-        const results: { file: TFile; title: string; folder: string; mtime: number }[] = [];
+        const results: { file: TFile; title: string; folder: string; mtime: number; tags: string[] }[] = [];
         const allFiles = this.app.vault.getMarkdownFiles();
 
         for (const file of allFiles) {
@@ -1541,7 +1541,8 @@ export class IndexService {
                     file,
                     title: file.basename,
                     folder,
-                    mtime: file.stat.mtime
+                    mtime: file.stat.mtime,
+                    tags: allTags
                 });
             }
         }
