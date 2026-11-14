@@ -6528,9 +6528,10 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     display: flex;
     align-items: center;
     background: var(--background-secondary);
-    border-radius: var(--diwa-radius-pill, 20px);
-    padding: 3px;
-    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--diwa-radius-pill);
+    padding: 2px;
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
+    gap: 2px;
 }
 
 .pos-karon-horizon-btn {
@@ -6538,56 +6539,66 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     align-items: center;
     gap: 6px;
     background: transparent;
-    border: none;
-    padding: 5px 14px;
-    font-size: 0.82rem;
+    border: 1px solid transparent;
+    padding: 5px 12px;
+    font-size: 0.8rem;
     font-weight: 500;
     color: var(--text-muted);
-    border-radius: var(--diwa-radius-pill, 20px);
+    border-radius: var(--diwa-radius-pill);
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: var(--diwa-transition);
     box-shadow: none;
 }
 
 .pos-karon-horizon-btn:hover {
     color: var(--text-normal);
+    background: var(--background-modifier-hover);
 }
 
 .pos-karon-horizon-btn.is-active {
-    background: var(--background-primary);
+    background: var(--background-modifier-hover);
     color: var(--text-normal);
+    border-color: var(--text-muted);
     font-weight: 600;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    box-shadow: none;
 }
 
 .pos-karon-action-btn {
     background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: var(--diwa-radius-sm, 6px);
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
+    border-radius: var(--diwa-radius-sm, 8px);
     color: var(--text-muted);
     padding: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: var(--diwa-transition);
 }
 
 .pos-karon-action-btn:hover {
     color: var(--text-normal);
-    border-color: var(--background-modifier-border-hover, var(--background-modifier-border));
+    background: var(--background-modifier-hover);
+    border-color: var(--text-muted);
 }
 
-/* Quick-Add Task & Note Bar */
+/* Quick-Add Task & Note Bar (Matches DIWA Hero Composer) */
 .pos-karon-quick-add-bar {
     display: flex;
     align-items: flex-start;
     gap: 8px;
-    padding: 8px 10px 8px 12px;
+    padding: 10px 14px;
     background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: var(--diwa-radius-md, 10px);
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
+    border-radius: var(--diwa-radius, 12px);
+    box-shadow: var(--diwa-shadow);
     flex-wrap: wrap;
+    transition: var(--diwa-transition);
+}
+
+.pos-karon-quick-add-bar:focus-within {
+    border-color: var(--text-muted);
+    box-shadow: 0 0 0 1px var(--background-modifier-border);
 }
 
 .pos-karon-quick-add-input-wrap {
@@ -6640,8 +6651,8 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     align-items: center;
     padding: 2px;
     background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: var(--diwa-radius-pill, 14px);
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
+    border-radius: var(--diwa-radius-pill);
     gap: 2px;
 }
 
@@ -6651,14 +6662,14 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     gap: 4px;
     padding: 3px 9px;
     border: none;
-    border-radius: var(--diwa-radius-pill, 12px);
+    border-radius: var(--diwa-radius-pill);
     background: transparent;
     color: var(--text-muted);
     font-size: 0.74rem;
     font-weight: 500;
     cursor: pointer;
     box-shadow: none;
-    transition: background 0.12s ease, color 0.12s ease;
+    transition: var(--diwa-transition);
 }
 
 .pos-karon-mode-btn:hover {
@@ -6678,17 +6689,20 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     padding: 4px 10px;
     font-size: 0.78rem;
     font-weight: 500;
+    font-variant-numeric: tabular-nums;
     color: var(--text-muted);
     background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: var(--diwa-radius-pill, 14px);
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
+    border-radius: var(--diwa-radius-pill);
     cursor: pointer;
     box-shadow: none;
+    transition: var(--diwa-transition);
 }
 
 .pos-karon-quick-date-btn:hover {
     color: var(--text-normal);
     background: var(--background-modifier-hover);
+    border-color: var(--text-muted);
 }
 
 /* Layout Row for 70/30 Dual Pane */
@@ -6709,23 +6723,23 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     min-width: 0;
 }
 
-/* Day Accordion Sections */
+/* Day Accordion Sections (Matches DIWA Workstream Card Architecture) */
 .pos-karon-day-section {
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: var(--diwa-radius-md, 10px);
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
+    border-radius: var(--diwa-radius, 12px);
     overflow: hidden;
-    transition: border-color 0.15s ease;
+    transition: var(--diwa-transition);
 }
 
 .pos-karon-day-section.is-today {
     border-color: rgba(var(--interactive-accent-rgb), 0.35);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
 }
 
 .pos-karon-day-section.pos-karon-overdue-section {
-    border-color: rgba(235, 87, 87, 0.35);
-    background: rgba(235, 87, 87, 0.02);
+    border-color: rgba(239, 68, 68, 0.32);
+    background: rgba(239, 68, 68, 0.02);
 }
 
 .pos-karon-section-header {
@@ -6733,14 +6747,15 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     align-items: center;
     justify-content: space-between;
     padding: 12px 16px;
-    background: var(--background-secondary);
+    background: transparent;
+    border-bottom: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
     cursor: pointer;
     user-select: none;
-    transition: background 0.12s ease;
+    transition: var(--diwa-transition);
 }
 
 .pos-karon-section-header:hover {
-    background: var(--background-secondary-alt);
+    background: var(--background-modifier-hover);
 }
 
 .pos-karon-sec-header-left {
@@ -6755,20 +6770,27 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     color: var(--text-muted);
 }
 
+.pos-karon-collapse-icon svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 1.75px;
+}
+
 .pos-karon-sec-title {
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     color: var(--text-normal);
+    letter-spacing: -0.01em;
 }
 
 .pos-karon-overdue-icon {
     display: flex;
     align-items: center;
-    color: rgba(239, 68, 68, 0.85);
+    color: rgba(239, 68, 68, 0.95);
 }
 
 .pos-karon-overdue-title {
-    color: rgba(239, 68, 68, 0.9);
+    color: rgba(239, 68, 68, 0.95);
 }
 
 .pos-karon-sec-badges {
@@ -6780,12 +6802,13 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 
 .pos-karon-pill {
     font-size: 0.72rem;
-    font-weight: 600;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
     padding: 2px 8px;
-    border-radius: var(--diwa-radius-pill, 12px);
+    border-radius: var(--diwa-radius-pill);
     background: var(--background-primary);
     color: var(--text-muted);
-    border: 1px solid var(--background-modifier-border);
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
 }
 
 .pos-karon-pill-icon {
@@ -6798,52 +6821,58 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     background: rgba(var(--interactive-accent-rgb), 0.12);
     color: var(--interactive-accent);
     border-color: rgba(var(--interactive-accent-rgb), 0.25);
+    font-weight: 600;
 }
 
 .pos-karon-pill-danger {
-    background: rgba(235, 87, 87, 0.12);
-    color: #eb5757;
-    border-color: rgba(235, 87, 87, 0.25);
+    background: rgba(239, 68, 68, 0.12);
+    color: rgba(239, 68, 68, 0.95);
+    border-color: rgba(239, 68, 68, 0.25);
+    font-weight: 600;
 }
 
 .pos-karon-pill-muted {
-    opacity: 0.6;
+    opacity: 0.7;
 }
 
 .pos-karon-day-add-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     padding: 0;
     border-radius: 50%;
     background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
     color: var(--text-muted);
     cursor: pointer;
     box-shadow: none;
+    transition: var(--diwa-transition);
 }
 
 .pos-karon-day-add-btn:hover {
     color: var(--text-normal);
     background: var(--background-modifier-hover);
+    border-color: var(--text-muted);
 }
 
 .pos-karon-move-today-btn {
     font-size: 0.72rem;
     font-weight: 600;
     padding: 3px 10px;
-    border-radius: var(--diwa-radius-pill, 12px);
+    border-radius: var(--diwa-radius-pill);
     background: var(--background-primary);
     color: var(--text-normal);
-    border: 1px solid var(--background-modifier-border);
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
     cursor: pointer;
     box-shadow: none;
+    transition: var(--diwa-transition);
 }
 
 .pos-karon-move-today-btn:hover {
     background: var(--background-modifier-hover);
+    border-color: var(--text-muted);
 }
 
 /* Section Content */
@@ -6874,8 +6903,14 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     color: var(--text-muted);
 }
 
+.pos-karon-sub-icon svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 1.75px;
+}
+
 .pos-karon-sub-title {
-    font-size: 0.8rem;
+    font-size: 0.76rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -6893,16 +6928,17 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 .pos-karon-task-row {
     display: flex;
     flex-direction: column;
-    padding: 8px 10px;
-    border-radius: var(--diwa-radius-sm, 6px);
-    background: var(--background-secondary);
-    border: 1px solid transparent;
-    transition: all 0.12s ease;
+    padding: 8px 12px;
+    border-radius: var(--diwa-radius-sm, 8px);
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
+    transition: var(--diwa-transition);
 }
 
 .pos-karon-task-row:hover {
-    border-color: var(--background-modifier-border);
-    background: var(--background-secondary-alt);
+    border-color: var(--text-muted);
+    background: var(--background-modifier-hover);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .pos-karon-task-main {
@@ -6924,6 +6960,7 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     cursor: pointer;
     margin: 3px 0 0 0;
     flex-shrink: 0;
+    accent-color: var(--interactive-accent);
 }
 
 .pos-karon-task-body {
@@ -6936,7 +6973,7 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 
 .pos-karon-task-title {
     font-size: 0.9rem;
-    line-height: 1.4;
+    line-height: 1.45;
     color: var(--text-normal);
     word-break: break-word;
 }
@@ -6958,27 +6995,30 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     align-items: center;
     gap: 4px;
     font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
     padding: 2px 8px;
-    border-radius: var(--diwa-radius-pill, 10px);
-    background: var(--background-primary);
+    border-radius: var(--diwa-radius-pill);
+    background: var(--background-secondary);
     color: var(--text-muted);
-    border: 1px solid var(--background-modifier-border);
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
 }
 
 .pos-karon-interactive-pill {
     cursor: pointer;
-    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+    transition: var(--diwa-transition);
 }
 
 .pos-karon-interactive-pill:hover {
     color: var(--text-normal);
     background: var(--background-modifier-hover);
+    border-color: var(--text-muted);
 }
 
 .pos-karon-interactive-pill.is-active {
     color: var(--text-normal);
     background: var(--background-modifier-hover);
     border-color: var(--text-muted);
+    font-weight: 600;
 }
 
 .pos-karon-interactive-pill.is-today {
@@ -6987,9 +7027,9 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-karon-interactive-pill.is-overdue {
-    background: rgba(235, 87, 87, 0.12);
-    color: #eb5757;
-    border-color: rgba(235, 87, 87, 0.25);
+    background: rgba(239, 68, 68, 0.12);
+    color: rgba(239, 68, 68, 0.95);
+    border-color: rgba(239, 68, 68, 0.25);
     font-weight: 600;
 }
 
@@ -7013,9 +7053,9 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-karon-due-overdue {
-    background: rgba(235, 87, 87, 0.12);
-    color: #eb5757;
-    border-color: rgba(235, 87, 87, 0.25);
+    background: rgba(239, 68, 68, 0.12);
+    color: rgba(239, 68, 68, 0.95);
+    border-color: rgba(239, 68, 68, 0.25);
     font-weight: 600;
 }
 
@@ -7028,23 +7068,24 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    border-radius: 4px;
-    transition: color 0.12s ease;
+    border-radius: var(--diwa-radius-sm, 6px);
+    transition: var(--diwa-transition);
     box-shadow: none;
     flex-shrink: 0;
 }
 
 .pos-karon-source-btn:hover {
     color: var(--text-normal);
+    background: var(--background-modifier-hover);
 }
 
 /* Inline Subtasks & Remarks Drawers */
 .pos-karon-drawer {
-    margin-top: 4px;
-    padding: 8px 10px;
-    border-left: 2px solid var(--background-modifier-border);
-    background: var(--background-primary);
-    border-radius: 0 6px 6px 0;
+    margin-top: 6px;
+    padding: 8px 12px;
+    border-left: 2px solid var(--interactive-accent);
+    background: var(--background-secondary);
+    border-radius: 0 var(--diwa-radius-sm, 8px) var(--diwa-radius-sm, 8px) 0;
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -7082,6 +7123,7 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     display: inline-flex;
     align-items: center;
     box-shadow: none;
+    transition: var(--diwa-transition);
 }
 
 .pos-karon-drawer-btn:hover {
@@ -7102,6 +7144,7 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     margin: 2px 0 0 0;
     cursor: pointer;
     flex-shrink: 0;
+    accent-color: var(--interactive-accent);
 }
 
 .pos-karon-subtask-title,
@@ -7140,6 +7183,7 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     display: inline-flex;
     align-items: center;
     box-shadow: none;
+    transition: opacity 0.12s ease, color 0.12s ease;
 }
 
 .pos-karon-subtask-item:hover .pos-karon-drawer-del-btn,
@@ -7148,7 +7192,7 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-karon-drawer-del-btn:hover {
-    color: #eb5757;
+    color: rgba(239, 68, 68, 0.95);
 }
 
 .pos-karon-drawer-input-row {
@@ -7161,26 +7205,39 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 .pos-karon-drawer-input {
     flex: 1;
     font-size: 0.82rem;
-    padding: 4px 8px;
-    border-radius: 6px;
-    border: 1px solid var(--background-modifier-border);
-    background: var(--background-secondary);
+    padding: 5px 8px;
+    border-radius: var(--diwa-radius-sm, 6px);
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
+    background: var(--background-primary);
     color: var(--text-normal);
+    outline: none;
 }
 
-/* Pending Bills in Karon */
+.pos-karon-drawer-input:focus {
+    border-color: var(--text-muted);
+}
+
+/* Pending Bills in Karon (Matches DIWA Agenda Rail Bills) */
 .pos-karon-bill-row {
     display: flex;
     align-items: flex-start;
     gap: 10px;
-    padding: 8px 10px;
-    border-radius: var(--diwa-radius-sm, 6px);
-    background: var(--background-secondary);
+    padding: 8px 12px;
+    border-radius: var(--diwa-radius-sm, 8px);
+    background: var(--background-primary);
     border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
+    transition: var(--diwa-transition);
+}
+
+.pos-karon-bill-row:hover {
+    border-color: var(--text-muted);
+    background: var(--background-modifier-hover);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .pos-karon-bill-row.is-overdue {
     border-color: rgba(239, 68, 68, 0.32);
+    background: rgba(239, 68, 68, 0.03);
 }
 
 .pos-karon-bill-icon {
@@ -7188,6 +7245,12 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     align-items: center;
     color: var(--text-muted);
     margin-top: 2px;
+}
+
+.pos-karon-bill-icon svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 1.75px;
 }
 
 .pos-karon-bill-content {
@@ -7205,10 +7268,6 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     cursor: pointer;
 }
 
-.pos-karon-bill-title:hover {
-    text-decoration: underline;
-}
-
 .pos-karon-bill-meta {
     display: flex;
     align-items: center;
@@ -7217,31 +7276,33 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 }
 
 .pos-karon-bill-amount {
-    font-weight: 700;
+    font-weight: 600;
     color: var(--text-normal);
     font-variant-numeric: tabular-nums;
 }
 
-/* Notes Intended List */
+/* Notes Intended List (Matches DIWA Agenda Rail Notes) */
 .pos-karon-note-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
 .pos-karon-note-card {
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
     border-radius: var(--diwa-radius-sm, 8px);
     padding: 10px 14px;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    transition: border-color 0.12s ease;
+    transition: var(--diwa-transition);
 }
 
 .pos-karon-note-card:hover {
-    border-color: rgba(var(--interactive-accent-rgb), 0.35);
+    border-color: var(--text-muted);
+    background: var(--background-modifier-hover);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .pos-karon-card-header {
@@ -7261,15 +7322,11 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 .pos-karon-card-title {
     font-size: 0.88rem;
     font-weight: 600;
-    color: var(--text-accent);
+    color: var(--text-normal);
     cursor: pointer;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.pos-karon-card-title:hover {
-    text-decoration: underline;
 }
 
 .pos-karon-card-meta {
@@ -7290,10 +7347,12 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     cursor: pointer;
     border-radius: 4px;
     box-shadow: none;
+    transition: var(--diwa-transition);
 }
 
 .pos-karon-card-action:hover {
     color: var(--text-normal);
+    background: var(--background-modifier-hover);
 }
 
 .pos-karon-card-body {
@@ -7306,10 +7365,10 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     font-size: 0.85rem;
     line-height: 1.45;
     color: var(--text-normal);
-    background: var(--background-primary);
+    background: var(--background-secondary);
     padding: 8px 12px;
-    border-radius: 6px;
-    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--diwa-radius-sm, 6px);
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
 }
 
 .pos-karon-snippet p {
@@ -7328,7 +7387,7 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     background: rgba(var(--color-orange-rgb, 242, 153, 74), 0.2);
 }
 
-/* Karon MOC & Topics Pane (40%) */
+/* Karon MOC & Topics Pane (40% - Matches DIWA Right Side Rail) */
 .pos-karon-moc-pane {
     flex: 4;
     min-width: 300px;
@@ -7336,8 +7395,9 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     position: sticky;
     top: 20px;
     background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: var(--diwa-radius-md, 10px);
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
+    border-radius: var(--diwa-radius, 12px);
+    box-shadow: var(--diwa-shadow);
     padding: 14px 16px;
     display: flex;
     flex-direction: column;
@@ -7390,13 +7450,13 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     width: 26px;
     height: 26px;
     padding: 0;
-    border-radius: 6px;
+    border-radius: var(--diwa-radius-sm, 6px);
     background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
     color: var(--text-muted);
     cursor: pointer;
     box-shadow: none;
-    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+    transition: var(--diwa-transition);
 }
 
 .pos-karon-moc-action-btn:hover {
@@ -7419,28 +7479,31 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 
 .pos-karon-moc-select {
     width: 100%;
-    padding: 5px 8px;
-    border-radius: 6px;
-    border: 1px solid var(--background-modifier-border);
+    padding: 6px 10px;
+    border-radius: var(--diwa-radius-sm, 6px);
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
     background: var(--background-primary);
     color: var(--text-normal);
     font-size: 0.84rem;
     font-weight: 500;
     cursor: pointer;
     outline: none;
+    transition: var(--diwa-transition);
 }
 
 .pos-karon-moc-select:focus {
-    border-color: var(--interactive-accent);
+    border-color: var(--text-muted);
+    box-shadow: 0 0 0 1px var(--background-modifier-border);
 }
 
 .pos-karon-moc-tag-badge {
     display: inline-flex;
     align-items: center;
     padding: 3px 8px;
-    border-radius: var(--diwa-radius-pill, 12px);
+    border-radius: var(--diwa-radius-pill);
     font-size: 0.72rem;
     font-weight: 600;
+    font-variant-numeric: tabular-nums;
     color: var(--text-accent);
     background: rgba(var(--interactive-accent-rgb), 0.1);
     border: 1px solid rgba(var(--interactive-accent-rgb), 0.25);
@@ -7477,14 +7540,15 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     gap: 8px;
     padding: 8px 10px;
     background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: var(--diwa-radius-sm, 6px);
-    transition: background 0.12s ease, border-color 0.12s ease;
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
+    border-radius: var(--diwa-radius-sm, 8px);
+    transition: var(--diwa-transition);
 }
 
 .pos-karon-moc-item:hover {
     background: var(--background-modifier-hover);
-    border-color: var(--background-modifier-border-hover, var(--text-muted));
+    border-color: var(--text-muted);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .pos-karon-moc-item-icon {
@@ -7493,6 +7557,12 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     color: var(--text-muted);
     margin-top: 2px;
     flex-shrink: 0;
+}
+
+.pos-karon-moc-item-icon svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 1.75px;
 }
 
 .pos-karon-moc-item-body {
@@ -7511,11 +7581,6 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.pos-karon-moc-item-title:hover {
-    color: var(--text-accent);
-    text-decoration: underline;
 }
 
 .pos-karon-moc-item-meta {
@@ -7542,6 +7607,7 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 
 .pos-karon-moc-item-time {
     flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
 }
 
 .pos-karon-moc-item-del-btn {
@@ -7559,7 +7625,7 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     border-radius: 4px;
     box-shadow: none;
     flex-shrink: 0;
-    transition: opacity 0.12s ease, color 0.12s ease, background 0.12s ease;
+    transition: var(--diwa-transition);
 }
 
 .pos-karon-moc-item:hover .pos-karon-moc-item-del-btn {
@@ -7568,8 +7634,8 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
 
 .pos-karon-moc-item-del-btn:hover {
     opacity: 1;
-    color: var(--text-error, #e55353);
-    background: rgba(229, 83, 83, 0.12);
+    color: rgba(239, 68, 68, 0.95);
+    background: rgba(239, 68, 68, 0.12);
 }
 
 .pos-karon-moc-empty-state {
@@ -7580,8 +7646,8 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     align-items: center;
     gap: 10px;
     background: var(--background-primary);
-    border: 1px dashed var(--background-modifier-border);
-    border-radius: 8px;
+    border: 1px dashed var(--background-modifier-border-faint, var(--background-modifier-border));
+    border-radius: var(--diwa-radius-sm, 8px);
 }
 
 .pos-karon-moc-empty-msg {
@@ -7603,13 +7669,37 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     padding: 8px 0;
 }
 
+/* DIWA Signature Wikilinks inside Karon Views */
+.pos-karon-task-title a.internal-link,
+.pos-karon-snippet a.internal-link,
+.pos-karon-card-title,
+.pos-karon-bill-title,
+.pos-karon-moc-item-title {
+    color: var(--text-normal) !important;
+    font-weight: 600;
+    text-decoration: underline solid var(--background-modifier-border, rgba(255, 255, 255, 0.2)) !important;
+    text-underline-offset: 3.5px;
+    text-decoration-thickness: 1px;
+    cursor: pointer;
+    transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+
+.pos-karon-task-title a.internal-link:hover,
+.pos-karon-snippet a.internal-link:hover,
+.pos-karon-card-title:hover,
+.pos-karon-bill-title:hover,
+.pos-karon-moc-item-title:hover {
+    color: var(--text-normal) !important;
+    text-decoration-color: var(--text-muted) !important;
+}
+
 /* Mobile Switcher & Responsive */
 .pos-karon-mobile-switcher {
     display: none;
     align-items: center;
     background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: var(--diwa-radius-pill, 20px);
+    border: 1px solid var(--background-modifier-border-faint, var(--background-modifier-border));
+    border-radius: var(--diwa-radius-pill);
     padding: 2px;
     gap: 2px;
 }
@@ -7618,7 +7708,16 @@ body.is-tablet .diwa-workspace-root.has-mobile-keyboard {
     display: inline-flex;
     align-items: center;
     padding: 4px 10px;
-    border: none;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    border-radius: var(--diwa-radius-pill);
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: none;
+    transition: var(--diwa-transition);
+}
     background: transparent;
     color: var(--text-muted);
     border-radius: var(--diwa-radius-pill, 16px);

@@ -1,6 +1,18 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: In-Pane "+ Topic" Creation (`CreateMocTopicModal`) Deployed (Complete)
+## Current Phase: DIWA Workstream Theme & Palettes Harmonized in Karon Deployed (Complete)
+
+---
+
+### 0. DIWA Workstream Theme & Palettes Harmonized in Karon Deployed (Complete)
+*   [x] **Design Tokens & Surface Stack (`styles.css`)** — Applied `--diwa-radius`, `--diwa-radius-sm`, `--diwa-radius-pill`, and `--diwa-transition`; structured outer containers on `--background-primary`, accordion day sections/MOC on `--background-secondary`, and inner item cards on `--background-primary` with `border: 1px solid var(--background-modifier-border-faint)`.
+*   [x] **Signature DIWA Wikilinks & Card Hover (`styles.css`)** — Applied subtle underline wikilinks (`color: var(--text-normal); text-decoration: underline solid var(--background-modifier-border); text-underline-offset: 3.5px`); card hovers smoothly elevate with `--diwa-transition` and `--background-modifier-hover`.
+*   [x] **Alert Palette Standardized (`styles.css`)** — Overdue bills, overdue tasks, and delete buttons now use the DIWA alert palette (`rgba(239, 68, 68, ...)`).
+*   [x] **Unit Tests, Lint, Build & Vault Deployment** — 35/35 tests passing (`npm test`), strict TypeScript lint passed, production bundle compiled with 0 errors, and deployed to test vaults `K0000` & `K0001`.
+
+---
+
+## Previous Phase: In-Pane "+ Topic" Creation (`CreateMocTopicModal`) Deployed (Complete)
 
 ---
 

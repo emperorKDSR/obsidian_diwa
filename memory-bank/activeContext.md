@@ -1,6 +1,16 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: In-Pane "+ Topic" Creation (`CreateMocTopicModal`) Deployed
+## Current State: DIWA Workstream Theme & Palettes Harmonized in Karon Deployed
+- **DIWA Workstream Theme & Palettes Harmonized in Karon (`styles.css`)**:
+  - **Surface & Container Stack**: Container on `var(--background-primary)`; day sections and MOC pane on `var(--background-secondary)` with `border: 1px solid var(--background-modifier-border-faint)` and `border-radius: var(--diwa-radius, 12px)`.
+  - **Internal Cards**: Task rows, bill items, and note cards rendered on `var(--background-primary)` with `border: 1px solid var(--background-modifier-border-faint)` and `border-radius: var(--diwa-radius-sm, 8px)`.
+  - **Workstream Elevation & Hover**: Hovering task, bill, note, and MOC cards smoothly elevates with `border-color: var(--text-muted); background: var(--background-modifier-hover); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); transition: var(--diwa-transition);`.
+  - **Alert Palette**: Replaced hardcoded `#eb5757` with DIWA workstream standard alert palette (`rgba(239, 68, 68, 0.95)` text, `rgba(239, 68, 68, 0.12)` background, `rgba(239, 68, 68, 0.32)` border) across overdue bills, tasks, and delete buttons.
+  - **Signature DIWA Wikilinks**: Wikilinks inside Karon tasks, notes, snippets, and MOC items render in `var(--text-normal)` with `text-decoration: underline solid var(--background-modifier-border); text-underline-offset: 3.5px`, hovering to `var(--text-muted)`.
+  - **Badges & Pills**: Tabular numerals (`font-variant-numeric: tabular-nums`) and `var(--diwa-radius-pill)` applied across all badges, pills, and segment controls.
+- **Verification & Deployment**: 35/35 unit tests passing (`npm test`), strict TypeScript lint passing (`npm run lint`), build succeeded, and deployed to test vaults `K0000` & `K0001`.
+
+## Previous State: In-Pane "+ Topic" Creation (`CreateMocTopicModal`) Deployed
 - **In-Pane "+ Topic" Creation (`src/modals/CreateMocTopicModal.ts`, `src/views/KaronView.ts`, `styles.css`)**:
   - Implemented `CreateMocTopicModal`: lightweight dialog with Icon/Emoji input (`📁`), Topic Name input (auto-focused), live `#moc/<slug>` tag preview badge, duplicate tag validation, and `Enter` key submission.
   - Added dedicated `[+ Topic]` button (`folder-plus` icon) in the Karon MOC header action bar.
