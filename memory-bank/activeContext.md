@@ -1,8 +1,13 @@
 # Active Context: DIWA — Personal OS
 
-## Current State: Karon 60/40 Dual-Pane View with MOC & Topics Pane Deployed
+## Current State: In-Pane "+ Topic" Creation (`CreateMocTopicModal`) Deployed
+- **In-Pane "+ Topic" Creation (`src/modals/CreateMocTopicModal.ts`, `src/views/KaronView.ts`, `styles.css`)**:
+  - Implemented `CreateMocTopicModal`: lightweight dialog with Icon/Emoji input (`📁`), Topic Name input (auto-focused), live `#moc/<slug>` tag preview badge, duplicate tag validation, and `Enter` key submission.
+  - Added dedicated `[+ Topic]` button (`folder-plus` icon) in the Karon MOC header action bar.
+  - Added `+ New Topic...` option at the bottom of the topic select dropdown and a direct `[+ Add Topic]` button in the empty state when no topics are configured yet.
+  - On submit: saves the new topic to `plugin.settings.karonMocTopics`, calls `plugin.saveSettings()`, selects the new topic in `localStorage`, and instantly refreshes `renderMocPane()`.
 - **Karon 60/40 Dual-Pane Layout (`styles.css`, `src/views/KaronView.ts`)**:
-  - Adjusted the split ratio in Karon view to **60% Horizon stage** (`flex: 6;`) and **40% Topics/MOC pane** (`flex: 4; max-width: 540px;`).
+  - Split ratio: **60% Horizon stage** (`flex: 6;`) and **40% Topics/MOC pane** (`flex: 4; max-width: 540px;`).
   - Added `.pos-karon-layout-row` flex container and expanded `.pos-karon-container` to `max-width: 1360px` for desktop dual-pane ergonomics.
   - Added responsive design: on mobile/compact screens (< 1025px), added segmented switcher (`☀️ Horizon` | `🗺️ Topics`) to toggle panes cleanly.
 - **Configurable MOC Topics in Settings (`src/types.ts`, `src/constants.ts`, `src/settings.ts`, `src/utils/karonHelpers.ts`)**:

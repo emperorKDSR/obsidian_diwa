@@ -1,6 +1,18 @@
 # Progress: DIWA — Personal OS
 
-## Current Phase: Karon 60/40 Dual-Pane View with MOC & Topics Pane Deployed (Complete)
+## Current Phase: In-Pane "+ Topic" Creation (`CreateMocTopicModal`) Deployed (Complete)
+
+---
+
+### 0. In-Pane "+ Topic" Creation (`CreateMocTopicModal`) Deployed (Complete)
+*   [x] **Topic Creation Modal (`src/modals/CreateMocTopicModal.ts`, `styles.css`)** — Lightweight dialog with emoji/icon input (`📁`), topic name input, live `#moc/<slug>` tag preview badge, duplicate tag validation, and `Enter` key submission.
+*   [x] **In-Pane Trigger Integrations (`src/views/KaronView.ts`)** — Added `[+ Topic]` button (`folder-plus` icon) in the MOC header, `+ New Topic...` item in the topic `<select>` dropdown, and a direct `[+ Add Topic]` button when no topics exist.
+*   [x] **Persistence & Immediate Refresh (`src/views/KaronView.ts`)** — Saves newly created topic into `plugin.settings.karonMocTopics`, calls `plugin.saveSettings()`, selects the topic in `localStorage`, and instantly refreshes `renderMocPane()`.
+*   [x] **Unit Tests, Lint, Build & Vault Deployment** — 35/35 tests passing (`npm test`), strict TypeScript lint passed, production bundle compiled with 0 errors, and deployed to test vaults `K0000` & `K0001`.
+
+---
+
+## Previous Phase: Karon 60/40 Dual-Pane View with MOC & Topics Pane Deployed (Complete)
 
 ---
 

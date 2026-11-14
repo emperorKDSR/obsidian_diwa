@@ -17,6 +17,7 @@ import { WikilinkPeekModal, openWikilinkInPeekWindow } from '../modals/WikilinkP
 import { DatePickerModal } from '../modals/DatePickerModal';
 import { MobileTaskEditModal } from '../modals/MobileTaskEditModal';
 import { FileSuggestModal } from '../modals/FileSuggestModal';
+import { CreateMocTopicModal } from '../modals/CreateMocTopicModal';
 import { isTablet, attachInlineTriggers, attachMediaPasteHandler } from '../utils';
 import { createVaultFile } from '../utils/vaultFiles';
 import {
@@ -419,6 +420,15 @@ export class KaronView extends ItemView {
         // Add note to topic action buttons
         const actionGroup = titleRow.createDiv({ cls: 'pos-karon-moc-actions' });
 
+        const addTopicBtn = actionGroup.createEl('button', {
+            cls: 'pos-karon-moc-action-btn',
+            attr: { 'aria-label': 'Create new MOC topic', title: 'New topic' }
+        });
+        setIcon(addTopicBtn, 'folder-plus');
+        addTopicBtn.onclick = () => {
+            this.openCreateMocTopicModal();
+        };
+
         const addExistingBtn = actionGroup.createEl('button', {
             cls: 'pos-karon-moc-action-btn',
             attr: { 'aria-label': 'Add existing note to this topic', title: 'Pick existing note' }
@@ -442,10 +452,13 @@ export class KaronView extends ItemView {
         // 2. Topic Dropdown Bar
         const dropdownBar = headerEl.createDiv({ cls: 'pos-karon-moc-dropdown-bar' });
         if (topics.length === 0) {
-            dropdownBar.createDiv({
-                cls: 'pos-karon-moc-empty-hint',
-                text: 'No topics configured. Add topics in Settings → Karon MOC Topics.'
+            const emptyHint = dropdownBar.createDiv({ cls: 'pos-karon-moc-empty-hint' });
+            emptyHint.createSpan({ text: 'No topics configured. ' });
+            const addFirstTopicBtn = emptyHint.createEl('button', {
+                cls: 'pos-karon-pill-btn',
+                text: '+ Add Topic'
             });
+            addFirstTopicBtn.onclick = () => this.openCreateMocTopicModal();
             return;
         }
 
@@ -462,7 +475,19 @@ export class KaronView extends ItemView {
             }
         }
 
+        const addNewTopicOpt = selectEl.createEl('option', {
+            value: '__add_new_topic__',
+            text: '+ New Topic...'
+        });
+
         selectEl.onchange = () => {
+            if (selectEl.value === '__add_new_topic__') {
+                if (selectedTopic) {
+                    selectEl.value = selectedTopic.id;
+                }
+                this.openCreateMocTopicModal();
+                return;
+            }
             this._selectedMocTopicId = selectEl.value;
             window.localStorage?.setItem('diwa-karon-moc-topic', selectEl.value);
             this.renderMocPane();
@@ -610,6 +635,26 @@ export class KaronView extends ItemView {
                 new Notice('Failed to create note');
             }
         })();
+    }
+
+    private openCreateMocTopicModal(): void {
+        const topics = this.getMocTopics();
+        new CreateMocTopicModal(
+            this.app,
+            topics,
+            async (newTopic: KaronMocTopic) => {
+                if (!this.plugin.settings.karonMocTopics) {
+                    this.plugin.settings.karonMocTopics = [];
+                }
+                this.plugin.settings.karonMocTopics.push(newTopic);
+                await this.plugin.saveSettings();
+
+                this._selectedMocTopicId = newTopic.id;
+                window.localStorage?.setItem('diwa-karon-moc-topic', newTopic.id);
+                this.renderMocPane();
+                new Notice(`Created topic "${newTopic.label}" (#${newTopic.tag})`);
+            }
+        ).open();
     }
 
     private openScheduleExistingNotePicker(targetDate: string): void {
